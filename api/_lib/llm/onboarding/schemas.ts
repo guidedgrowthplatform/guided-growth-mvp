@@ -75,7 +75,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
             'How the user heard about the app. Free text (e.g. "Friend", "Twitter", "Podcast: Huberman").',
         },
       },
-      required: ['nickname'],
+      required: [],
       additionalProperties: false,
     },
   },

@@ -19,14 +19,23 @@ export async function submitProfile(
   const gender = getString(args, 'gender');
   const referralSource = getString(args, 'referral_source');
 
-  if (nickname === undefined || nickname.length === 0) {
-    return invalid('nickname is required');
+  const hasNickname = nickname !== undefined && nickname.length > 0;
+  // nickname captured at auth; this beat collects age+gender — require >=1 field.
+  if (
+    !hasNickname &&
+    ageRaw === undefined &&
+    gender === undefined &&
+    referralSource === undefined
+  ) {
+    return invalid('at least one profile field is required');
   }
-  if (nickname.length > NICKNAME_MAX_LEN) {
-    return invalid('nickname too long');
-  }
-  if (!NICKNAME_REGEX.test(nickname)) {
-    return invalid('nickname contains unsupported characters');
+  if (hasNickname) {
+    if (nickname.length > NICKNAME_MAX_LEN) {
+      return invalid('nickname too long');
+    }
+    if (!NICKNAME_REGEX.test(nickname)) {
+      return invalid('nickname contains unsupported characters');
+    }
   }
 
   let parsedAge: number | undefined;
@@ -48,7 +57,8 @@ export async function submitProfile(
     return invalid('referral_source too long');
   }
 
-  const data: Record<string, unknown> = { nickname };
+  const data: Record<string, unknown> = {};
+  if (hasNickname) data.nickname = nickname;
   if (parsedAge !== undefined) data.age = parsedAge;
   if (gender !== undefined) data.gender = gender;
   if (referralSource !== undefined) data.referralSource = referralSource;

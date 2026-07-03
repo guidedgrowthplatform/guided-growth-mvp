@@ -148,11 +148,18 @@ describe('captureCompletesBeat (B21: a step climb alone must not skip a data bea
     }
   });
 
-  it('keeps the state-check proxy behavior (Loop 2 territory, unchanged)', () => {
-    // serverCaptureForBeat returns a morningCheckin proxy for state-check, so
-    // the gate passes it by construction. Documented so a future change here is
-    // deliberate, not accidental.
-    const cap = serverCaptureForBeat(node('state-check'), {});
-    expect(captureCompletesBeat(node('state-check'), cap)).toBe(true);
+  it('state-check completes only on real evidence (proxy removed by Loop 2)', () => {
+    // The old morningCheckin proxy for state-check was removed deliberately in
+    // !398: it fabricated a default that pushed the resume walk through beats
+    // the user never did (B9) and poisoned the morning-setup prefill. An empty
+    // server row must therefore HOLD the gate; a row carrying stateCheck (the
+    // record_checkin voice tool) or checkin (the tap path) completes it.
+    const empty = serverCaptureForBeat(node('state-check'), {});
+    expect(captureCompletesBeat(node('state-check'), empty)).toBe(false);
+    const voiced = serverCaptureForBeat(
+      node('state-check'),
+      { stateCheck: { mood: 3 } } as never,
+    );
+    expect(captureCompletesBeat(node('state-check'), voiced)).toBe(true);
   });
 });

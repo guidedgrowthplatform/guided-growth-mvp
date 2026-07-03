@@ -19,7 +19,7 @@ import { useAuthStore } from '@/stores/authStore';
  *   5. Error line
  *
  * Each test account is a dedicated `qa-onboarding-*@guidedgrowth.test` user. They
- * share one embedded password so testers just pick a user and go.
+ * share one password (VITE_QA_PASSWORD) so testers just pick a user and go.
  */
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -38,11 +38,8 @@ const FALLBACK_USERS: QaUser[] = [
   { label: 'Timothy', email: 'qa-onboarding-timothy@guidedgrowth.test' },
 ];
 
-// Shared password for the QA test accounts. Embedded on purpose: these are
-// throwaway qa-onboarding-*@guidedgrowth.test accounts with no real data, behind
-// a QA-only gated route, so testers pick a user and go with no entry. The
-// create-test-users script seeds the accounts with this exact value.
-const QA_PASSWORD = 'guided-growth-qa-2026';
+// Set on the QA build; must match the QA_PASSWORD the create-test-users script seeded.
+const QA_PASSWORD = import.meta.env.VITE_QA_PASSWORD;
 
 // ---------------------------------------------------------------------------
 // Flow picker config
@@ -236,6 +233,7 @@ export function QAControlScreen() {
   }, []);
 
   async function ensureSignedIn() {
+    if (!QA_PASSWORD) throw new Error('VITE_QA_PASSWORD is not set on this build.');
     const { error: signInError } = await signIn(email, QA_PASSWORD);
     if (signInError) throw new Error(signInError);
     // QA accounts ship nameless; stamp the derived display name onto the session so
@@ -469,9 +467,7 @@ export function QAControlScreen() {
                     gap: 5,
                     padding: '10px 4px',
                     borderRadius: 14,
-                    border: isSelected
-                      ? '2px solid rgb(19,91,235)'
-                      : '2px solid rgb(226,232,240)',
+                    border: isSelected ? '2px solid rgb(19,91,235)' : '2px solid rgb(226,232,240)',
                     background: isSelected ? 'rgba(19,91,236,0.06)' : '#fff',
                     cursor: busy ? 'default' : 'pointer',
                     opacity: busy ? 0.6 : 1,

@@ -116,6 +116,61 @@ describe('buildSystemPromptForRequest', () => {
     expect(systemPrompt).toContain('Fall asleep earlier | Wake up earlier');
   });
 
+  // {name} wiring: onboarding-gated substitution from onboarding_states.data.nickname.
+  it('substitutes {name} in an onboarding context with the saved nickname', async () => {
+    pool.query.mockReset();
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ context_block: 'SCREEN_ID: ONBOARD-ZZZ\nGreet {name} warmly.', version: 1 }],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [{ data: { nickname: 'Mint' }, current_step: 6, path: 'simple' }],
+        rowCount: 1,
+      });
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ONBOARD-ZZZ',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    expect(systemPrompt).toContain('Greet Mint warmly.');
+    expect(systemPrompt).not.toContain('Greet {name} warmly.');
+  });
+
+  it('drops the {name} token cleanly when no nickname is saved', async () => {
+    pool.query.mockReset();
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ context_block: 'SCREEN_ID: ONBOARD-ZZZ\nGreet {name} warmly.', version: 1 }],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ONBOARD-ZZZ',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    expect(systemPrompt).not.toContain('Greet {name} warmly.');
+    expect(systemPrompt).toContain('Greet warmly.');
+  });
+
+  it('leaves {name} untouched on non-onboarding screens (gate)', async () => {
+    pool.query.mockReset();
+    pool.query.mockResolvedValue({
+      rows: [{ context_block: 'SCREEN_ID: MCHECK-01\nGreet {name} warmly.', version: 1 }],
+      rowCount: 1,
+    });
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'MCHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    expect(systemPrompt).toContain('{name}');
+  });
+
   it('injects a Current Time line on check-in screens when timezone is given', async () => {
     pool.query.mockReset();
     pool.query

@@ -290,7 +290,8 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
       placeholder: 'Tell me everything on your mind, what you want to build, drop, or change.',
     },
     voice: {
-      openerText: "Read me the habits you already track. Less is more to start, you can always build on it.",
+      openerText:
+        'Read me the habits you already track. Less is more to start, you can always build on it.',
       expectsInput: true,
       directLlmAllowed: true,
     },
@@ -546,7 +547,11 @@ function resolveOpener(beat: DesignerBeat | undefined, spec: EngineBeatSpec): st
   return coachLine ?? greeting ?? spec.voice.openerText;
 }
 
-const slug = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const slug = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 
 function parseList(raw: string | undefined): string[] {
   if (!raw) return [];
@@ -566,7 +571,12 @@ function mapVoiceOutEngine(
   raw: string | undefined,
 ): BeatRuntimeMeta['voiceOut']['engine'] | undefined {
   const normalized = raw?.trim().toLowerCase();
-  if (normalized === 'mp3' || normalized === 'cartesia' || normalized === 'vapi' || normalized === 'none') {
+  if (
+    normalized === 'mp3' ||
+    normalized === 'cartesia' ||
+    normalized === 'vapi' ||
+    normalized === 'none'
+  ) {
     return normalized;
   }
   return undefined;
@@ -587,9 +597,12 @@ function mapPath(raw: string | undefined): BeatRuntimeMeta['path'] | undefined {
   return undefined;
 }
 
-function mapStatus(raw: string | undefined): NonNullable<BeatRuntimeMeta['authoring']>['status'] | undefined {
+function mapStatus(
+  raw: string | undefined,
+): NonNullable<BeatRuntimeMeta['authoring']>['status'] | undefined {
   const normalized = raw?.trim().toLowerCase();
-  if (normalized === 'draft' || normalized === 'ready' || normalized === 'locked') return normalized;
+  if (normalized === 'draft' || normalized === 'ready' || normalized === 'locked')
+    return normalized;
   return undefined;
 }
 
@@ -605,7 +618,10 @@ function firstNumberProp(props: Record<string, unknown>, keys: string[]): number
   return undefined;
 }
 
-function resolveMeta(designerBeat: DesignerBeat | undefined, spec: EngineBeatSpec): BeatRuntimeMeta {
+function resolveMeta(
+  designerBeat: DesignerBeat | undefined,
+  spec: EngineBeatSpec,
+): BeatRuntimeMeta {
   const screenId = screenIdFromSheetStage(designerBeat?.sheetStage) ?? spec.screenId;
   const opener = resolveOpener(designerBeat, spec);
   const authored = designerBeat?.meta;
@@ -645,7 +661,8 @@ function resolveMeta(designerBeat: DesignerBeat | undefined, spec: EngineBeatSpe
       isVapiBeat || voiceOutEngine === 'vapi'
       ? 'vapi'
       : 'direct-llm';
-  const path = mapPath(authored?.path) ?? (fillBrain === 'vapi' ? 'path-1-vapi' : 'path-3-direct-llm');
+  const path =
+    mapPath(authored?.path) ?? (fillBrain === 'vapi' ? 'path-1-vapi' : 'path-3-direct-llm');
   const allowedTools =
     parseList(authored?.allowedTools).length > 0
       ? parseList(authored?.allowedTools)
@@ -678,11 +695,11 @@ function resolveMeta(designerBeat: DesignerBeat | undefined, spec: EngineBeatSpe
   const captureFields =
     parseList(authored?.engine?.captureFields).length > 0
       ? parseList(authored?.engine?.captureFields)
-      : spec.tool?.persistsFields ?? [];
+      : (spec.tool?.persistsFields ?? []);
   const toolPersistsFields =
     parseList(authored?.engine?.toolPersistsFields).length > 0
       ? parseList(authored?.engine?.toolPersistsFields)
-      : spec.tool?.persistsFields ?? [];
+      : (spec.tool?.persistsFields ?? []);
 
   return {
     voiceOut: {
@@ -706,14 +723,16 @@ function resolveMeta(designerBeat: DesignerBeat | undefined, spec: EngineBeatSpe
         : {}),
     },
     voiceIn: {
-      engine: isVapiBeat || fillBrain === 'vapi' ? 'vapi' : spec.voice.expectsInput ? 'soniox' : 'none',
+      engine:
+        isVapiBeat || fillBrain === 'vapi' ? 'vapi' : spec.voice.expectsInput ? 'soniox' : 'none',
       enabled: spec.voice.expectsInput || isVapiBeat,
       micRequired: spec.voice.expectsInput || isVapiBeat,
       armOnBeatLoad: spec.voice.expectsInput || isVapiBeat,
     },
     fill: {
       brain: fillBrain,
-      llmActive: authored?.llmActive ?? (isVapiBeat || spec.voice.expectsInput || spec.tool != null),
+      llmActive:
+        authored?.llmActive ?? (isVapiBeat || spec.voice.expectsInput || spec.tool != null),
       allowedTools,
     },
     path,
@@ -794,8 +813,7 @@ export function designerToFlowDocument(
   for (const [type, beats] of beatsByDesignerType) firstByDesignerType.set(type, beats[0]);
 
   // Resolve a designer beat to its component type (null = skip).
-  const componentFor = (type: string): FlowComponentType | null =>
-    TYPE_TO_COMPONENT[type] ?? null;
+  const componentFor = (type: string): FlowComponentType | null => TYPE_TO_COMPONENT[type] ?? null;
 
   // Pass 1: spine component types in order. Skip: null-mapped, advanced-lane,
   // weekly-projection (all handled in dedicated passes).
@@ -910,7 +928,10 @@ export function designerToFlowDocument(
     },
     componentType: 'advanced-capture',
     componentProps: { ...advCaptureSpec.componentProps },
-    voice: { ...advCaptureSpec.voice, openerText: resolveOpener(advCaptureDesigner, advCaptureSpec) },
+    voice: {
+      ...advCaptureSpec.voice,
+      openerText: resolveOpener(advCaptureDesigner, advCaptureSpec),
+    },
     meta: resolveMeta(advCaptureDesigner, advCaptureSpec),
     tool: advCaptureSpec.tool,
     persist: advCaptureSpec.persist,
@@ -990,7 +1011,12 @@ export function designerToFlowDocument(
   if (forkNode) nodes.push(forkNode);
 
   // Beginner lane nodes (category through habit-schedule).
-  const beginnerComponents: FlowComponentType[] = ['category-grid', 'goals-list', 'habit-picker', 'habit-schedule'];
+  const beginnerComponents: FlowComponentType[] = [
+    'category-grid',
+    'goals-list',
+    'habit-picker',
+    'habit-schedule',
+  ];
   for (const c of beginnerComponents) {
     const n = nodeById.get(specFor(c).nodeId);
     if (n) nodes.push(n);

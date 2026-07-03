@@ -360,6 +360,7 @@ jobs:
           npx @capacitor/assets generate --ios --assetPath assets
           node scripts/patch-ios-plist.mjs
           node scripts/patch-ios-push.mjs
+          node scripts/patch-ios-apple-signin.mjs
           node scripts/patch-ios-disable-firebase.mjs
 
       # Fail loud if tester notes are missing — the Fastfile passes nil
