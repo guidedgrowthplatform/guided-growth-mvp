@@ -2,7 +2,7 @@ import { Icon } from '@iconify/react';
 import { type MutableRefObject } from 'react';
 import { IconChatText, IconMic } from '@/components/icons';
 import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
-import type { OrbStates, PulseParams } from './orbPresets';
+import type { BarStyle, OrbStates, PulseParams } from './orbPresets';
 
 // The home bar canvas: a self-contained mockup of the app's bottom nav (the real
 // one is components/layout/BottomNav.tsx, which needs the router + voice
@@ -11,15 +11,31 @@ import type { OrbStates, PulseParams } from './orbPresets';
 // tuner's Background control, so you see the orb on the real app background. Build
 // and improve the bar around it here; keep the scoop path matched to BottomNav.
 
-function BarBackground() {
+// The scooped bar background in two skins: the current solid white, and a
+// glassmorph variant (translucent + backdrop blur + hairline highlight) that
+// matches the glass orb. The scoop path itself is identical in both.
+function BarBackground({ glass }: { glass: boolean }) {
+  const fill = glass ? 'rgba(255,255,255,0.42)' : '#ffffff';
+  const sideStyle: React.CSSProperties = glass
+    ? {
+        background: fill,
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.55)',
+      }
+    : { background: fill };
   return (
     <div
       className="absolute inset-0 flex"
-      style={{ filter: 'drop-shadow(0px -4px 12px rgba(0,0,0,0.06))' }}
+      style={{
+        filter: glass
+          ? 'drop-shadow(0px -6px 18px rgba(20,30,60,0.14))'
+          : 'drop-shadow(0px -4px 12px rgba(0,0,0,0.06))',
+      }}
     >
-      <div className="h-full flex-1 bg-white" />
+      <div className="h-full flex-1" style={sideStyle} />
       <svg
-        className="block h-full shrink-0 text-white"
+        className="block h-full shrink-0"
         width="140"
         height="72"
         viewBox="0 0 140 72"
@@ -27,17 +43,17 @@ function BarBackground() {
       >
         <path
           d="M0 0 L14 0 C17 0, 19 1, 20 4 C20 28, 42 50, 70 50 C98 50, 120 28, 120 4 C121 1, 123 0, 126 0 L140 0 L140 72 L0 72 Z"
-          fill="currentColor"
+          fill={fill}
         />
       </svg>
-      <div className="h-full flex-1 bg-white" />
+      <div className="h-full flex-1" style={sideStyle} />
     </div>
   );
 }
 
-function Tab({ icon, label }: { icon: string; label: string }) {
+function Tab({ icon, label, tone }: { icon: string; label: string; tone: string }) {
   return (
-    <div className="flex flex-col items-center justify-end text-slate-400">
+    <div className={`flex flex-col items-center justify-end ${tone}`}>
       <Icon icon={icon} width={24} />
       <span className="mt-0.5 text-[10px] font-bold">{label}</span>
     </div>
@@ -53,6 +69,8 @@ interface HomeBarPreviewProps {
   // The app screen background, mirrored from the tuner's Background control.
   screenBg: string;
   bgKey: string; // 'light' | 'blue' | 'yellow' | 'dark' (drives text contrast)
+  // Bar skin: the current solid white, or the glassmorph variant.
+  barStyle: BarStyle;
 }
 
 export function HomeBarPreview({
@@ -63,8 +81,12 @@ export function HomeBarPreview({
   mic,
   screenBg,
   bgKey,
+  barStyle,
 }: HomeBarPreviewProps) {
   const dark = bgKey === 'dark';
+  const glass = barStyle === 'glass';
+  // On the glass bar the app background shows through, so tab tone follows it.
+  const tabTone = glass ? (dark ? 'text-white/75' : 'text-slate-500') : 'text-slate-400';
   const subText = dark ? 'text-white/60' : 'text-slate-500';
   const titleText = dark ? 'text-white' : 'text-slate-800';
   const itemText = dark ? 'text-white/90' : 'text-slate-700';
@@ -80,7 +102,12 @@ export function HomeBarPreview({
       </div>
       <div
         className="relative overflow-hidden rounded-[34px]"
-        style={{ width: 340, height: 560, background: screenBg, boxShadow: '0 18px 50px rgba(20,30,60,.28)' }}
+        style={{
+          width: 340,
+          height: 560,
+          background: screenBg,
+          boxShadow: '0 18px 50px rgba(20,30,60,.28)',
+        }}
       >
         {/* Home content mock, so the bar and orb read in a real context. Cards are
             translucent so they sit on whatever app background is selected. */}
@@ -122,7 +149,7 @@ export function HomeBarPreview({
         {/* The home bar: scooped background, the live orb in the notch, four tabs. */}
         <div className="absolute inset-x-0 bottom-0">
           <div className="relative" style={{ height: 72 }}>
-            <BarBackground />
+            <BarBackground glass={glass} />
             <div className="absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-1/2">
               <Orb
                 size={91}
@@ -136,11 +163,11 @@ export function HomeBarPreview({
               />
             </div>
             <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
-              <Tab icon="ic:round-home" label="Home" />
-              <Tab icon="ic:round-leaderboard" label="Progress" />
+              <Tab icon="ic:round-home" label="Home" tone={tabTone} />
+              <Tab icon="ic:round-leaderboard" label="Progress" tone={tabTone} />
               <div />
-              <Tab icon="mingcute:stopwatch-fill" label="Focus" />
-              <Tab icon="ic:round-person" label="Profile" />
+              <Tab icon="mingcute:stopwatch-fill" label="Focus" tone={tabTone} />
+              <Tab icon="ic:round-person" label="Profile" tone={tabTone} />
             </div>
           </div>
         </div>

@@ -5,6 +5,8 @@ import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
 import {
   AUTHOR_PRESETS,
   MOTION_PRESETS,
+  ORB_SETUPS,
+  type BarStyle,
   loadParams,
   loadPulse,
   loadSaved,
@@ -78,6 +80,7 @@ export function OrbTuner() {
   const [leftOn, setLeftOn] = useState(true);
   const [rightOn, setRightOn] = useState(true);
   const [micOn, setMicOn] = useState(false);
+  const [barStyle, setBarStyle] = useState<BarStyle>('white');
 
   const activeKey: 'idle' | 'talk' = editTab === 'idle' ? 'idle' : 'talk';
   const pickState = (k: OrbStateSel) => {
@@ -157,6 +160,20 @@ export function OrbTuner() {
     const next = { ...p };
     savePulse(next);
     setPulse(next);
+  };
+  // Apply a complete setup: both looks, the motion, and the bar style, in one
+  // click. This is how a whole tuned session (promoted into ORB_SETUPS) is
+  // restored exactly.
+  const applySetup = (name: string) => {
+    const s = ORB_SETUPS[name];
+    if (!s) return;
+    const nextParams: OrbStates = JSON.parse(JSON.stringify(s.params));
+    saveParams(nextParams);
+    setParams(nextParams);
+    const nextPulse = { ...s.pulse };
+    savePulse(nextPulse);
+    setPulse(nextPulse);
+    setBarStyle(s.bar);
   };
   const applyPreset = (name: string) => {
     const pr = AUTHOR_PRESETS[author]?.[name];
@@ -293,6 +310,18 @@ export function OrbTuner() {
             ))}
           </div>
           <div className="ot-row">
+            <span className="ot-lab">Bar style</span>
+            {(['white', 'glass'] as const).map((k) => (
+              <button
+                key={k}
+                className={`ot-btn${barStyle === k ? 'on' : ''}`}
+                onClick={() => setBarStyle(k)}
+              >
+                {k === 'white' ? 'White' : 'Glass'}
+              </button>
+            ))}
+          </div>
+          <div className="ot-row">
             <span className="ot-lab">Edit</span>
             {(
               [
@@ -312,6 +341,17 @@ export function OrbTuner() {
           </div>
 
           <div className="ot-hdr">Presets</div>
+          <div className="ot-row">
+            <span className="ot-lab">Setups</span>
+            {Object.keys(ORB_SETUPS).map((name) => (
+              <button key={name} className="ot-btn" onClick={() => applySetup(name)}>
+                {name}
+              </button>
+            ))}
+            <span style={{ fontSize: 11, color: '#8a92a8' }}>
+              A setup applies everything at once: both looks, motion, and bar style.
+            </span>
+          </div>
           <div className="ot-row">
             <span className="ot-lab">Author</span>
             {Object.keys(AUTHOR_PRESETS).map((au) => (
@@ -468,7 +508,16 @@ export function OrbTuner() {
         </div>
       </div>
 
-      <HomeBarPreview orbState={state} orbStyle={style} params={params} pulse={pulse} mic={mic} screenBg={BGS[bg]} bgKey={bg} />
+      <HomeBarPreview
+        orbState={state}
+        orbStyle={style}
+        params={params}
+        pulse={pulse}
+        mic={mic}
+        screenBg={BGS[bg]}
+        bgKey={bg}
+        barStyle={barStyle}
+      />
 
       <style>{OT_CSS}</style>
     </div>

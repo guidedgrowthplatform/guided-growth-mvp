@@ -348,6 +348,111 @@ export const DEFAULT_PULSE: PulseParams = {
   memSpeed: 35,
 };
 
+// --- Full setups: everything in one click -------------------------------------
+// A setup captures a COMPLETE orb configuration: both looks (idle + talking),
+// the motion, and the home-bar style. This is where a whole tuned-up local
+// session gets promoted into git, so anyone can jump straight to it.
+export type BarStyle = 'white' | 'glass';
+export interface OrbSetup {
+  params: OrbStates;
+  pulse: PulseParams;
+  bar: BarStyle;
+}
+export const ORB_SETUPS: Record<string, OrbSetup> = {
+  // Yair's baseline: his locked looks, his standard motion, the white bar.
+  'Yair standard': {
+    params: {
+      idle: {
+        glass: 35,
+        blur: 12,
+        hi: 0,
+        rim: 0,
+        body: 34,
+        glow: 111,
+        bright: 116,
+        speed: 15,
+        grad: 0,
+        core: 59,
+        spread: 41,
+        pglow: 71,
+        rand: 54,
+        pulse: 50,
+        aura: 0,
+        iris: 0,
+        depth: 0,
+      },
+      talk: {
+        glass: 35,
+        blur: 12,
+        hi: 0,
+        rim: 0,
+        body: 34,
+        glow: 125,
+        bright: 122,
+        speed: 40,
+        grad: 0,
+        core: 66,
+        spread: 50,
+        pglow: 82,
+        rand: 66,
+        pulse: 55,
+        aura: 0,
+        iris: 0,
+        depth: 0,
+      },
+    },
+    pulse: { size: 8, amt: 60, speed: 50, orbAmt: 100, mem: 60, memSpeed: 35 },
+    bar: 'white',
+  },
+  // Timothy's tuned session from the local builder: glassy split idle with a
+  // soft membrane, Aurora Bloom while talking, disc held stable with a calm
+  // membrane breathe, and the glass home bar to match.
+  'Timothy setup': {
+    params: {
+      idle: {
+        glass: 48,
+        blur: 16,
+        hi: 40,
+        rim: 30,
+        body: 30,
+        glow: 100,
+        bright: 104,
+        speed: 18,
+        grad: 20,
+        core: 68,
+        spread: 20,
+        pglow: 40,
+        rand: 20,
+        pulse: 45,
+        aura: 26,
+        iris: 22,
+        depth: 42,
+      },
+      talk: {
+        glass: 34,
+        blur: 12,
+        hi: 42,
+        rim: 55,
+        body: 44,
+        glow: 150,
+        bright: 126,
+        speed: 52,
+        grad: 82,
+        core: 52,
+        spread: 52,
+        pglow: 86,
+        rand: 72,
+        pulse: 58,
+        aura: 78,
+        iris: 66,
+        depth: 32,
+      },
+    },
+    pulse: { size: 8, amt: 40, speed: 30, orbAmt: 0, mem: 62, memSpeed: 20 },
+    bar: 'glass',
+  },
+};
+
 // Quick-apply MOTION presets (full PulseParams). These set only how things move
 // (disc vs outer membrane vs inner light), separate from the look presets in
 // AUTHOR_PRESETS. Apply from the Pulse tab.
