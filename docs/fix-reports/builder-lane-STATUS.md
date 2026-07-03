@@ -30,4 +30,20 @@ Named tester accounts are NOT used as fallback (human walkthroughs in progress).
 
 STAGING MOVED 15:38 EAT (R2 resume fix 3ee5bb27 landed during the hold, presumably anchor demo-blocking): all 10 lane branches staging-synced via cascade merges, zero conflicts, suites green at chain tip (1516) and !411 (1499). Lane merge-hold discipline unchanged: drafts only.
 
-Updated: 2026-07-03 15:45 EAT — all ledger rows code-complete; auth-free preview verification in progress
+NEW BUG (proposed B24, NOT this lane's to fix - orb surface is anchor/Lane-2 territory):
+the floating voice orb overlay (pointer-events-auto) COVERS the check-in card's Continue
+CTA and swallows taps - flow wedges at the state check. Reproduced on STAGING (gg-qa-iota,
+pre-existing, not a lane regression) AND at phone viewport 375x812 (button y=717 center
+under the orb) - real users cannot finish a check-in by tap wherever the orb overlaps.
+Evidence: elementFromPoint at CTA center returns the orb div; JS .click() bypass advances
+fine. Found while browser-verifying L1-6 on preview gg-n0667ti91.
+
+Lane fix shipped meanwhile: check-in Exports now author voiceEngine none (generated meta
+had defaulted openers to Cartesia - 401 TTS calls on preview + audio-gated reveal;
+render parity with the meta-less hand defs restored; cascaded through the chain).
+
+Preview walks DONE without the QA test user (auth-free routes): morning + evening
+check-ins and the 5-beat tour all VERIFIED end-to-end on preview (build gg-n0667ti91).
+Still needing the test user (operator blocker stands): full ONBOARDING walk + persist=real saves.
+
+Updated: 2026-07-03 16:10 EAT
