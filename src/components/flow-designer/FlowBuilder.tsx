@@ -996,7 +996,7 @@ const ENGINE_DEFAULTS: Record<string, NonNullable<BeatMeta['engine']>> = {
   },
   'reflection-card': {
     nodeId: 'reflection-setup',
-    backId: 'habit-select',
+    backId: 'morning-checkin-setup',
     persistStep: '6',
     captureFields: 'reflectionConfig',
     voiceExpectsInput: true,

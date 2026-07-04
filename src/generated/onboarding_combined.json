@@ -144,10 +144,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_profile",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_profile", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -170,17 +167,10 @@
           "backId": "mic",
           "persistStep": 1,
           "pathField": false,
-          "captureFields": [
-            "age",
-            "gender"
-          ],
+          "captureFields": ["age", "gender"],
           "toolName": "submit_profile",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "age",
-            "gender",
-            "nickname"
-          ]
+          "toolPersistsFields": ["age", "gender", "nickname"]
         },
         "authoring": {}
       },
@@ -288,10 +278,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "record_checkin",
-            "advance_step"
-          ]
+          "allowedTools": ["record_checkin", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -314,14 +301,10 @@
           "backId": "why-intro",
           "persistStep": 6,
           "pathField": false,
-          "captureFields": [
-            "checkin"
-          ],
+          "captureFields": ["checkin"],
           "toolName": "record_checkin",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "checkin"
-          ]
+          "toolPersistsFields": ["checkin"]
         },
         "authoring": {}
       },
@@ -363,10 +346,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_morning_checkin",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_morning_checkin", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -389,14 +369,10 @@
           "backId": "state-check",
           "persistStep": 7,
           "pathField": false,
-          "captureFields": [
-            "morningCheckin"
-          ],
+          "captureFields": ["morningCheckin"],
           "toolName": "submit_morning_checkin",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "morningCheckin"
-          ]
+          "toolPersistsFields": ["morningCheckin"]
         },
         "authoring": {}
       },
@@ -438,11 +414,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_reflection_config",
-            "submit_custom_prompts",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_reflection_config", "submit_custom_prompts", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -462,17 +434,13 @@
         },
         "engine": {
           "nodeId": "reflection-setup",
-          "backId": "habit-select",
+          "backId": "morning-checkin-setup",
           "persistStep": 6,
           "pathField": false,
-          "captureFields": [
-            "reflectionConfig"
-          ],
+          "captureFields": ["reflectionConfig"],
           "toolName": "submit_reflection_config",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "reflectionConfig"
-          ]
+          "toolPersistsFields": ["reflectionConfig"]
         },
         "authoring": {}
       },
@@ -514,11 +482,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_path_choice",
-            "ask_clarification",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_path_choice", "ask_clarification", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -541,14 +505,10 @@
           "backId": "reflection-setup",
           "persistStep": 2,
           "pathField": true,
-          "captureFields": [
-            "path"
-          ],
+          "captureFields": ["path"],
           "toolName": "submit_path_choice",
           "toolAdvancesStep": false,
-          "toolPersistsFields": [
-            "path"
-          ]
+          "toolPersistsFields": ["path"]
         },
         "authoring": {}
       },
@@ -590,10 +550,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_category",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_category", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -616,14 +573,10 @@
           "backId": "path-fork",
           "persistStep": 3,
           "pathField": false,
-          "captureFields": [
-            "category"
-          ],
+          "captureFields": ["category"],
           "toolName": "submit_category",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "category"
-          ],
+          "toolPersistsFields": ["category"],
           "maxSelections": 1,
           "optionSource": "categories"
         },
@@ -667,10 +620,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_goals",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_goals", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -693,14 +643,10 @@
           "backId": "category",
           "persistStep": 4,
           "pathField": false,
-          "captureFields": [
-            "goals"
-          ],
+          "captureFields": ["goals"],
           "toolName": "submit_goals",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "goals"
-          ],
+          "toolPersistsFields": ["goals"],
           "maxSelections": 2,
           "optionSource": "goalsByCategory"
         },
@@ -744,11 +690,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "add_habit",
-            "remove_habit",
-            "advance_step"
-          ]
+          "allowedTools": ["add_habit", "remove_habit", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -771,14 +713,10 @@
           "backId": "goals",
           "persistStep": 5,
           "pathField": false,
-          "captureFields": [
-            "habitConfigs"
-          ],
+          "captureFields": ["habitConfigs"],
           "toolName": "add_habit",
           "toolAdvancesStep": false,
-          "toolPersistsFields": [
-            "habits"
-          ],
+          "toolPersistsFields": ["habits"],
           "maxSelections": 2,
           "optionSource": "habitsByGoal"
         },
@@ -822,11 +760,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "add_habit",
-            "update_habit",
-            "advance_step"
-          ]
+          "allowedTools": ["add_habit", "update_habit", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -849,14 +783,10 @@
           "backId": "habit-select",
           "persistStep": 5,
           "pathField": false,
-          "captureFields": [
-            "habitConfigs"
-          ],
+          "captureFields": ["habitConfigs"],
           "toolName": "update_habit",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "habitConfigs"
-          ]
+          "toolPersistsFields": ["habitConfigs"]
         },
         "authoring": {}
       },
@@ -898,10 +828,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_brain_dump",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_brain_dump", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -924,14 +851,10 @@
           "backId": "path-fork",
           "persistStep": 3,
           "pathField": false,
-          "captureFields": [
-            "brainDumpText"
-          ],
+          "captureFields": ["brainDumpText"],
           "toolName": "submit_brain_dump",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "brainDumpText"
-          ]
+          "toolPersistsFields": ["brainDumpText"]
         },
         "authoring": {}
       },
@@ -973,11 +896,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "add_habit",
-            "update_habit",
-            "advance_step"
-          ]
+          "allowedTools": ["add_habit", "update_habit", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -1000,14 +919,10 @@
           "backId": "advanced-input",
           "persistStep": 4,
           "pathField": false,
-          "captureFields": [
-            "habitConfigs"
-          ],
+          "captureFields": ["habitConfigs"],
           "toolName": "update_habit",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "habitConfigs"
-          ]
+          "toolPersistsFields": ["habitConfigs"]
         },
         "authoring": {}
       },
@@ -1049,10 +964,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "update_habit",
-            "confirm_plan"
-          ]
+          "allowedTools": ["update_habit", "confirm_plan"]
         },
         "path": "path-3-direct-llm",
         "orb": {
