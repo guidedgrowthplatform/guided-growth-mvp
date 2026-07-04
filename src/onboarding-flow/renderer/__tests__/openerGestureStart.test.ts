@@ -8,7 +8,7 @@
  * release that returns the element to the pool.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startOpenerFromGesture } from '../openerGestureStart';
+import { blessOpenerClipsInGesture, startOpenerFromGesture } from '../openerGestureStart';
 import {
   claimPreloadedClip,
   preloadOpenerClips,
@@ -150,5 +150,37 @@ describe('startOpenerFromGesture', () => {
     handle.release();
     expect(claimPreloadedClip('/voice/splash_welcome.mp3')).toBeNull();
     reclaim?.release();
+  });
+});
+
+describe('blessOpenerClipsInGesture (B28)', () => {
+  it('play()+pause()s each POOLED element and releases it for the beat to claim', () => {
+    FakeAudio.playBehaviors = ['resolve', 'resolve'];
+    blessOpenerClipsInGesture(['/voice/a.mp3', '/voice/b.mp3']);
+    expect(FakeAudio.instances).toHaveLength(2);
+    for (const el of FakeAudio.instances) {
+      expect(el.playCalls).toBe(1);
+      expect(el.paused).toBe(true);
+      expect(el.currentTime).toBe(0);
+    }
+    // Released: the beat's own claim gets the SAME blessed element.
+    const claimed = claimPreloadedClip('/voice/a.mp3');
+    expect(claimed?.el).toBe(FakeAudio.instances[0] as unknown as HTMLAudioElement);
+  });
+
+  it('tolerates a rejected play() (stays unblessed; the affordance covers it)', () => {
+    FakeAudio.playBehaviors = [new DOMException('no gesture', 'NotAllowedError'), 'resolve'];
+    expect(() => blessOpenerClipsInGesture(['/voice/a.mp3', '/voice/b.mp3'])).not.toThrow();
+    expect(claimPreloadedClip('/voice/b.mp3')).not.toBeNull();
+  });
+
+  it('skips clips already claimed by someone else', () => {
+    FakeAudio.playBehaviors = ['pending', 'resolve'];
+    preloadOpenerClips(['/voice/a.mp3']);
+    const held = claimPreloadedClip('/voice/a.mp3');
+    expect(held).not.toBeNull();
+    blessOpenerClipsInGesture(['/voice/a.mp3']);
+    // The held element was never play()ed by the bless.
+    expect((held!.el as unknown as FakeAudio).playCalls).toBe(0);
   });
 });

@@ -362,7 +362,7 @@
         "engine": {
           "nodeId": "reflection-setup",
           "backId": "habit-select",
-          "persistStep": "6",
+          "persistStep": "8",
           "captureFields": "reflectionConfig",
           "voiceExpectsInput": true,
           "voiceDirectLlmAllowed": true
