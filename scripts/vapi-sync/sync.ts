@@ -20,6 +20,16 @@
  *   npm run vapi:sync
  *
  * Env vars are validated at start; missing values throw before any API call.
+ *
+ * The Weekly (a SEPARATE, dedicated Vapi assistant — see
+ * gg-spec/docs/the-weekly.md) syncs its own tools.weekly.ts +
+ * WEEKLY_GLOBAL_CONTEXT the same way, gated behind one extra optional env var:
+ *
+ *   VAPI_WEEKLY_ASSISTANT_ID=… \
+ *   npm run vapi:sync
+ *
+ * Absent → the weekly sync step is skipped entirely (logged, not silent) and
+ * the onboarding sync above runs completely unchanged.
  */
 
 import { createHash } from 'node:crypto';
@@ -29,8 +39,16 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { ONBOARDING_TOOLS } from '../../api/_lib/llm/tools.onboarding.js';
-import { BLOCK_START, BLOCK_END, SYSTEM_PROMPT_ADDENDUM } from './assistant.js';
-import { wrapTool, type VapiToolEnvelope } from './wrap.js';
+import { WEEKLY_TOOLS } from '../../api/_lib/llm/tools.weekly.js';
+import { WEEKLY_GLOBAL_CONTEXT } from '../../api/_lib/weekly/globalContext.js';
+import {
+  BLOCK_START,
+  BLOCK_END,
+  SYSTEM_PROMPT_ADDENDUM,
+  WEEKLY_BLOCK_START,
+  WEEKLY_BLOCK_END,
+} from './assistant.js';
+import { wrapTool, type VapiToolEnvelope, type WrappableTool } from './wrap.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const IS_DEV = process.argv.includes('--dev');
@@ -61,6 +79,11 @@ interface LockAssistantEntry {
 interface Lockfile {
   tools: Record<string, LockToolEntry>;
   assistant: LockAssistantEntry;
+  // The Weekly's own tool + assistant tracking, separate from onboarding's
+  // above. Optional — absent entirely when VAPI_WEEKLY_ASSISTANT_ID has never
+  // been synced from this lockfile, so existing lockfiles stay valid as-is.
+  weeklyTools?: Record<string, LockToolEntry>;
+  weeklyAssistant?: LockAssistantEntry;
 }
 
 function hash(x: unknown): string {
@@ -84,6 +107,8 @@ function loadLock(): Lockfile {
     const parsed = JSON.parse(raw) as Lockfile;
     if (!parsed.tools) parsed.tools = {};
     if (!parsed.assistant) parsed.assistant = { id: null, hash: null };
+    // weeklyTools/weeklyAssistant stay undefined until the first weekly sync
+    // touches this lockfile — populated lazily in syncOneAssistant(), not here.
     return parsed;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -149,27 +174,44 @@ interface VapiAssistant {
 }
 
 /**
- * Apply the managed tool-calling addendum to a system-prompt string.
+ * Apply a managed, sentinel-bracketed block to a system-prompt string.
  * - If sentinel markers exist → replace content between them.
  * - If neither marker exists → append a fresh block.
  * - If only one marker exists → corruption; leave the prompt alone and warn.
- * Idempotent.
+ * Idempotent. Shared by both the onboarding tool-calling addendum and The
+ * Weekly's base system prompt — same mechanism, different markers/content.
  */
-function applyAddendum(content: string): string {
-  const startIdx = content.indexOf(BLOCK_START);
-  const endIdx = content.indexOf(BLOCK_END);
+function applyManagedBlock(
+  content: string,
+  blockStart: string,
+  blockEnd: string,
+  managedContent: string,
+): string {
+  const startIdx = content.indexOf(blockStart);
+  const endIdx = content.indexOf(blockEnd);
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
     const before = content.slice(0, startIdx);
-    const after = content.slice(endIdx + BLOCK_END.length);
-    return `${before}${SYSTEM_PROMPT_ADDENDUM}${after}`;
+    const after = content.slice(endIdx + blockEnd.length);
+    return `${before}${managedContent}${after}`;
   }
   if (startIdx === -1 && endIdx === -1) {
-    return `${content.trimEnd()}\n\n${SYSTEM_PROMPT_ADDENDUM}\n`;
+    return `${content.trimEnd()}\n\n${managedContent}\n`;
   }
   console.warn(
-    '[warn] system prompt has only one sentinel marker — addendum not applied. Fix manually in the Vapi dashboard or delete the orphan marker.',
+    '[warn] system prompt has only one sentinel marker — managed block not applied. Fix manually in the Vapi dashboard or delete the orphan marker.',
   );
   return content;
+}
+
+function applyAddendum(content: string): string {
+  return applyManagedBlock(content, BLOCK_START, BLOCK_END, SYSTEM_PROMPT_ADDENDUM);
+}
+
+// The Weekly's managed block wraps WEEKLY_GLOBAL_CONTEXT itself (the coach's
+// full base prompt for this assistant), not just a tool-calling addendum —
+// see assistant.ts's WEEKLY_BLOCK_START/END doc comment.
+function applyWeeklyContext(content: string): string {
+  return applyManagedBlock(content, WEEKLY_BLOCK_START, WEEKLY_BLOCK_END, WEEKLY_GLOBAL_CONTEXT);
 }
 
 interface VapiToolCreated {
@@ -222,41 +264,53 @@ function arraysEqualAsSets(a: ReadonlyArray<string>, b: ReadonlyArray<string>): 
   return true;
 }
 
-async function main(): Promise<void> {
-  const apiKey = requireEnv('VAPI_PRIVATE_KEY');
-  const secret = requireEnv('VAPI_WEBHOOK_SECRET');
-  const baseUrl = requireEnv('VAPI_WEBHOOK_BASE_URL');
-  const assistantId = requireEnv('VITE_VAPI_ASSISTANT_ID');
+interface SyncOneAssistantArgs {
+  /** Log label, e.g. "onboarding" or "The Weekly". */
+  label: string;
+  tools: readonly WrappableTool[];
+  assistantId: string;
+  apiKey: string;
+  baseUrl: string;
+  secret: string;
+  remoteByName: Map<string, VapiToolListItem[]>;
+  lockTools: Record<string, LockToolEntry>;
+  /** Applies this assistant's managed block (tool-calling addendum, or The
+   * Weekly's base system prompt) to the assistant's current first system
+   * message content. */
+  applyManaged: (content: string) => string;
+}
 
-  if (!IS_DEV && TUNNEL_HOSTS.test(baseUrl)) {
-    throw new Error(
-      `Refusing to sync prod with tunnel URL "${baseUrl}". ` +
-        `Re-run with --dev (writes vapi.lock.dev.json) or set VAPI_WEBHOOK_BASE_URL to the prod Vercel URL.`,
-    );
-  }
-  if (IS_DEV && !TUNNEL_HOSTS.test(baseUrl)) {
-    console.warn(
-      `[warn] --dev set but VAPI_WEBHOOK_BASE_URL=${baseUrl} doesn't look like a tunnel/localhost. ` +
-        `Continuing — but make sure you really mean to point the dev assistant at a non-local URL.`,
-    );
-  }
+/**
+ * Syncs one assistant's tool set + managed system-prompt block. Shared by
+ * both the onboarding assistant (always synced) and The Weekly's dedicated
+ * assistant (synced only when VAPI_WEEKLY_ASSISTANT_ID is set — see main()).
+ * Extracted, not rewritten: this is the same logic that used to live inline
+ * in main() for onboarding, now parameterized so a second assistant can run
+ * through it without duplicating the tool-diff/attach/addendum flow.
+ */
+async function syncOneAssistant(args: SyncOneAssistantArgs): Promise<void> {
+  const {
+    label,
+    tools,
+    assistantId,
+    apiKey,
+    baseUrl,
+    secret,
+    remoteByName,
+    lockTools,
+    applyManaged,
+  } = args;
 
-  console.log(
-    `Syncing ${ONBOARDING_TOOLS.length} tool(s) to Vapi… (mode: ${IS_DEV ? 'DEV' : IS_STAGING ? 'STAGING' : 'PROD'}, lockfile: ${LOCKFILE.split('/').pop()})`,
-  );
-
-  const lock = loadLock();
-  const remoteByName = await fetchRemoteToolsByName(apiKey);
-  if (IS_DRY) console.log('[dry-run] no writes will be made.\n');
+  console.log(`\nSyncing ${tools.length} ${label} tool(s) to Vapi… (assistant ${assistantId})`);
 
   let createdCount = 0;
   let updatedCount = 0;
   let unchangedCount = 0;
 
-  for (const tool of ONBOARDING_TOOLS) {
+  for (const tool of tools) {
     const envelope = wrapTool(tool, baseUrl, secret);
     const h = hash(envelope);
-    const prev = lock.tools[tool.name];
+    const prev = lockTools[tool.name];
 
     if (prev?.hash === h) {
       console.log(`  ✓ unchanged  ${tool.name}  (${prev.id})`);
@@ -294,7 +348,7 @@ async function main(): Promise<void> {
     if (existingId) {
       await patchTool(existingId, envelope, apiKey);
       console.log(`  ↻ updated    ${tool.name}  (${existingId})`);
-      lock.tools[tool.name] = {
+      lockTools[tool.name] = {
         id: existingId,
         hash: h,
         updatedAt: new Date().toISOString(),
@@ -308,7 +362,7 @@ async function main(): Promise<void> {
         );
       }
       console.log(`  + created    ${tool.name}  (${created.id})`);
-      lock.tools[tool.name] = {
+      lockTools[tool.name] = {
         id: created.id,
         hash: h,
         updatedAt: new Date().toISOString(),
@@ -319,22 +373,21 @@ async function main(): Promise<void> {
 
   if (IS_DRY) {
     console.log(
-      `\n[dry-run] no changes written. Would: ${createdCount} create, ${updatedCount} update ` +
-        `(existing tools re-pushed from code + rotated secret). Run without --dry-run to apply.`,
+      `  [dry-run] ${label}: no changes written. Would: ${createdCount} create, ${updatedCount} update.`,
     );
     return;
   }
 
   // Attach to assistant — UNION semantics so we never strip IDs the user
   // configured manually in Vapi's dashboard.
-  console.log(`\nFetching assistant ${assistantId}…`);
+  console.log(`  Fetching assistant ${assistantId}…`);
   const assistant = await vapiFetch<VapiAssistant>('GET', `/assistant/${assistantId}`, apiKey);
 
   const existingModel = assistant.model ?? {};
   const existingToolIds: string[] = Array.isArray(existingModel.toolIds)
     ? (existingModel.toolIds as string[])
     : [];
-  const managedToolIds = Object.values(lock.tools).map((t) => t.id);
+  const managedToolIds = Object.values(lockTools).map((t) => t.id);
 
   const union = dedupe([...existingToolIds, ...managedToolIds]);
 
@@ -346,9 +399,11 @@ async function main(): Promise<void> {
   console.log(`  managed tools to attach now:        ${newlyAttached.length}`);
   console.log(`  unmanaged tools left intact:        ${externalOnAssistant.length}`);
 
-  // System-prompt addendum: keep the first system message in sync with
-  // SYSTEM_PROMPT_ADDENDUM. Other messages (and the rest of the system
-  // message content) are product-owned and untouched.
+  // Managed system-prompt block: keep the first system message in sync with
+  // whatever applyManaged() owns for this assistant (tool-calling addendum
+  // for onboarding, or the full WEEKLY_GLOBAL_CONTEXT for The Weekly). The
+  // rest of the system prompt (persona, product content) is product-owned
+  // and untouched.
   const existingMessages: VapiAssistantMessage[] = Array.isArray(existingModel.messages)
     ? (existingModel.messages as VapiAssistantMessage[])
     : [];
@@ -356,7 +411,7 @@ async function main(): Promise<void> {
     existingMessages[0]?.role === 'system' && typeof existingMessages[0].content === 'string'
       ? (existingMessages[0].content as string)
       : '';
-  const newSystemContent = applyAddendum(firstSystem);
+  const newSystemContent = applyManaged(firstSystem);
   const promptChanged = newSystemContent !== firstSystem;
 
   const toolsChanged = !arraysEqualAsSets(existingToolIds, union);
@@ -376,23 +431,109 @@ async function main(): Promise<void> {
     });
     const parts: string[] = [];
     if (toolsChanged) parts.push(`${union.length} total tool ids`);
-    if (promptChanged) parts.push('tool-calling addendum applied');
+    if (promptChanged) parts.push('managed block applied');
     console.log(`  ↻ assistant updated  (${parts.join(', ')})`);
     attachedCount = newlyAttached.length;
   }
 
-  lock.assistant = {
-    id: assistantId,
-    hash: hash({ toolIds: union, addendumHash: hash(SYSTEM_PROMPT_ADDENDUM) }),
-    updatedAt: new Date().toISOString(),
-  };
-
-  saveLock(lock);
-
   console.log(
-    `\nSummary: ${createdCount} created, ${updatedCount} updated, ${unchangedCount} unchanged. ` +
+    `  Summary (${label}): ${createdCount} created, ${updatedCount} updated, ${unchangedCount} unchanged. ` +
       `${attachedCount} newly attached to assistant.`,
   );
+
+  // Caller (main()) writes lock.assistant / lock.weeklyAssistant + saves —
+  // this function only mutates the lockTools map it was handed (already a
+  // reference into lock.tools / lock.weeklyTools).
+}
+
+async function main(): Promise<void> {
+  const apiKey = requireEnv('VAPI_PRIVATE_KEY');
+  const secret = requireEnv('VAPI_WEBHOOK_SECRET');
+  const baseUrl = requireEnv('VAPI_WEBHOOK_BASE_URL');
+  const assistantId = requireEnv('VITE_VAPI_ASSISTANT_ID');
+  // Optional. The Weekly runs on its OWN dedicated Vapi assistant, separate
+  // from onboarding's — approved decision, see gg-spec/docs/the-weekly.md.
+  // Absent → weekly sync is skipped entirely; onboarding sync below is
+  // completely unchanged either way.
+  const weeklyAssistantId = process.env.VAPI_WEEKLY_ASSISTANT_ID?.trim();
+
+  if (!IS_DEV && TUNNEL_HOSTS.test(baseUrl)) {
+    throw new Error(
+      `Refusing to sync prod with tunnel URL "${baseUrl}". ` +
+        `Re-run with --dev (writes vapi.lock.dev.json) or set VAPI_WEBHOOK_BASE_URL to the prod Vercel URL.`,
+    );
+  }
+  if (IS_DEV && !TUNNEL_HOSTS.test(baseUrl)) {
+    console.warn(
+      `[warn] --dev set but VAPI_WEBHOOK_BASE_URL=${baseUrl} doesn't look like a tunnel/localhost. ` +
+        `Continuing — but make sure you really mean to point the dev assistant at a non-local URL.`,
+    );
+  }
+
+  console.log(
+    `Vapi sync starting… (mode: ${IS_DEV ? 'DEV' : IS_STAGING ? 'STAGING' : 'PROD'}, lockfile: ${LOCKFILE.split('/').pop()})`,
+  );
+
+  const lock = loadLock();
+  const remoteByName = await fetchRemoteToolsByName(apiKey);
+  if (IS_DRY) console.log('[dry-run] no writes will be made.\n');
+
+  await syncOneAssistant({
+    label: 'onboarding',
+    tools: ONBOARDING_TOOLS,
+    assistantId,
+    apiKey,
+    baseUrl,
+    secret,
+    remoteByName,
+    lockTools: lock.tools,
+    applyManaged: applyAddendum,
+  });
+
+  if (!IS_DRY) {
+    const managedToolIds = Object.values(lock.tools).map((t) => t.id);
+    lock.assistant = {
+      id: assistantId,
+      hash: hash({ toolIds: managedToolIds.sort(), addendumHash: hash(SYSTEM_PROMPT_ADDENDUM) }),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  if (weeklyAssistantId) {
+    if (!lock.weeklyTools) lock.weeklyTools = {};
+    await syncOneAssistant({
+      label: 'The Weekly',
+      tools: WEEKLY_TOOLS,
+      assistantId: weeklyAssistantId,
+      apiKey,
+      baseUrl,
+      secret,
+      remoteByName,
+      lockTools: lock.weeklyTools,
+      applyManaged: applyWeeklyContext,
+    });
+
+    if (!IS_DRY) {
+      const managedWeeklyToolIds = Object.values(lock.weeklyTools).map((t) => t.id);
+      lock.weeklyAssistant = {
+        id: weeklyAssistantId,
+        hash: hash({
+          toolIds: managedWeeklyToolIds.sort(),
+          contextHash: hash(WEEKLY_GLOBAL_CONTEXT),
+        }),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+  } else {
+    console.log(
+      '\n[skip] VAPI_WEEKLY_ASSISTANT_ID not set — skipping The Weekly assistant sync. ' +
+        'Set it to sync tools.weekly.ts + WEEKLY_GLOBAL_CONTEXT to a dedicated Vapi assistant.',
+    );
+  }
+
+  if (IS_DRY) return;
+
+  saveLock(lock);
 }
 
 main().catch((err) => {

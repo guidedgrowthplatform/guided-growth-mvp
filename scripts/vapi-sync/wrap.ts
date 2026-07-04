@@ -1,6 +1,6 @@
 /**
- * Pure wrapper: maps a generic OnboardingTool definition to Vapi's tool
- * envelope shape. No I/O — unit-testable.
+ * Pure wrapper: maps a generic onboarding/weekly tool definition to Vapi's
+ * tool envelope shape. No I/O — unit-testable.
  *
  * The envelope has three layers worth understanding:
  *   - `function.parameters`: JSON Schema the LLM sees and fills in.
@@ -15,6 +15,18 @@
  */
 
 import type { OnboardingTool } from '../../api/_lib/llm/tools.onboarding.js';
+
+// Structural shape shared by OnboardingTool and WeeklyTool (tools.weekly.ts).
+// wrapTool only reads these fields, so either concrete type satisfies it —
+// this lets the same wrapper serve both the onboarding assistant sync and the
+// weekly assistant sync without duplicating the envelope logic.
+export interface WrappableTool {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: OnboardingTool['parameters'];
+  readonly messages?: OnboardingTool['messages'];
+  readonly nonBlocking?: boolean;
+}
 
 type VapiToolMessageType = 'request-start' | 'request-complete' | 'request-failed';
 
@@ -45,7 +57,7 @@ export interface VapiToolEnvelope {
   };
 }
 
-function buildMessages(tool: OnboardingTool): VapiToolMessage[] | undefined {
+function buildMessages(tool: WrappableTool): VapiToolMessage[] | undefined {
   const m = tool.messages;
   if (!m) return undefined;
   const out: VapiToolMessage[] = [];
@@ -58,7 +70,7 @@ function buildMessages(tool: OnboardingTool): VapiToolMessage[] | undefined {
   return out.length > 0 ? out : undefined;
 }
 
-export function wrapTool(tool: OnboardingTool, baseUrl: string, secret: string): VapiToolEnvelope {
+export function wrapTool(tool: WrappableTool, baseUrl: string, secret: string): VapiToolEnvelope {
   const trimmedBase = baseUrl.replace(/\/+$/, '');
   // Async (non-blocking) tools never wait on the webhook, so there is no silence
   // to bridge and the model's own next line speaks immediately. Emitting a

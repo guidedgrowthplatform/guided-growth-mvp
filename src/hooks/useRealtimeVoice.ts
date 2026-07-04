@@ -93,6 +93,15 @@ export interface UseRealtimeVoiceOptions {
   // state_delta so the very first utterance is contextual instead of the
   // generic "Hi welcome to…" line on the assistant config.
   getAssistantOverrides?: () => Promise<Partial<AssistantOverrides> | undefined>;
+  // Which Vapi assistant to start the call on. Defaults to the onboarding
+  // assistant (VITE_VAPI_ASSISTANT_ID) — every existing call site is
+  // unaffected. Pass 'weekly' to start on VITE_VAPI_WEEKLY_ASSISTANT_ID
+  // instead (The Weekly runs on its own dedicated assistant, separate from
+  // onboarding — see gg-spec/docs/the-weekly.md). The actual mounting of The
+  // Weekly onto a live Vapi call happens at the live-surface seam (the
+  // session that wires weekly-checkin-v1 into a real call); this option
+  // exists so that seam doesn't need to touch this hook's internals.
+  assistant?: 'onboarding' | 'weekly';
 }
 
 export interface UseRealtimeVoiceReturn {
@@ -108,6 +117,9 @@ export interface UseRealtimeVoiceReturn {
 
 const PUBLIC_KEY = import.meta.env.VITE_VAPI_PUBLIC_KEY as string | undefined;
 const ASSISTANT_ID = import.meta.env.VITE_VAPI_ASSISTANT_ID as string | undefined;
+// The Weekly's dedicated assistant (optional — unset until the live-surface
+// seam actually starts a call with `assistant: 'weekly'`).
+const WEEKLY_ASSISTANT_ID = import.meta.env.VITE_VAPI_WEEKLY_ASSISTANT_ID as string | undefined;
 
 type VoiceContext = 'checkin' | 'conversation' | 'onboarding' | 'habit_create' | 'feedback';
 function deriveContext(screen?: string): VoiceContext {
@@ -172,6 +184,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     onUserActivity,
     onTranscript,
     getAssistantOverrides,
+    assistant = 'onboarding',
   } = options;
   const { acquireRealtime, releaseToken, setStatus: setOwnerPhase } = useVoice();
   const { startVoice, endVoice } = useSessionLog();
@@ -372,8 +385,12 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       if (!mountedRef.current || tearingDownRef.current) return;
     }
 
-    if (!PUBLIC_KEY || !ASSISTANT_ID) {
-      const msg = 'Vapi env vars missing. Set VITE_VAPI_PUBLIC_KEY and VITE_VAPI_ASSISTANT_ID.';
+    const resolvedAssistantId = assistant === 'weekly' ? WEEKLY_ASSISTANT_ID : ASSISTANT_ID;
+    if (!PUBLIC_KEY || !resolvedAssistantId) {
+      const msg =
+        assistant === 'weekly'
+          ? 'Vapi env vars missing. Set VITE_VAPI_PUBLIC_KEY and VITE_VAPI_WEEKLY_ASSISTANT_ID.'
+          : 'Vapi env vars missing. Set VITE_VAPI_PUBLIC_KEY and VITE_VAPI_ASSISTANT_ID.';
       setError(msg);
       onErrorRef.current?.(msg);
       setStateSynced('error');
@@ -535,7 +552,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     const sessionId = crypto.randomUUID();
 
     try {
-      await client.start(ASSISTANT_ID, {
+      await client.start(resolvedAssistantId, {
         ...(extraOverrides ?? {}),
         // Merge variableValues so override-supplied variables (e.g.
         // `initial_screen_context` from buildAssistantOverrides) coexist with
@@ -558,6 +575,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     }
   }, [
     acquireRealtime,
+    assistant,
     cleanup,
     fail,
     fireOnEndOnce,
