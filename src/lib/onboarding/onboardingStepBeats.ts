@@ -44,9 +44,9 @@ export interface Beat {
 
 // current_step (+ path for the fork) → beat, on the V3 persist-step scale (the
 // step each beat SAVES: profile 1, fork 2, category/braindump 3, goals/frequency
-// 4, habit-select+schedule 5, state-check 6, morning-setup 7, reflection 8 —
-// non-monotonic vs flow order, see useFlowOrchestrator's resume notes). Parity
-// with the generated flow is locked by stepMapParity.test.ts.
+// 4, habit-select+schedule 5, state-check 6, morning-setup 7, reflection 8,
+// weekly-day-setup 9 — non-monotonic vs flow order, see useFlowOrchestrator's
+// resume notes). Parity with the generated flow is locked by stepMapParity.test.ts.
 export function beatForStep(step: number, path: OnboardingPath | null): Beat {
   const s = step < 0 ? 0 : step;
   const advanced = path === 'braindump' || path === 'advanced';
@@ -76,8 +76,10 @@ export function beatForStep(step: number, path: OnboardingPath | null): Beat {
     case 7:
       return { step: s, screenId: 'ONBOARD-MORNING-SETUP', cardType: 'none' };
     case 8:
+      return { step: s, screenId: 'ONBOARD-BEGINNER-07', cardType: 'reflection' };
+    case 9:
     default:
-      return { step: 8, screenId: 'ONBOARD-BEGINNER-07', cardType: 'reflection' };
+      return { step: 9, screenId: 'ONBOARD-WEEKLY-SETUP', cardType: 'none' };
   }
 }
 
@@ -103,11 +105,13 @@ const SCREEN_TO_STEP: Record<string, number> = {
   'ONBOARD-STATE-CHECK': 6,
   'ONBOARD-MORNING-SETUP': 7,
   'ONBOARD-BEGINNER-07': 8,
+  'ONBOARD-WEEKLY-SETUP': 9,
   // Legacy plan-review ids (V3 has no plan-review beat — into-app follows
-  // habit-schedule): mapped past the scale so a navigate_next never rewinds.
-  'ONBOARD-BEGINNER-06': 9,
-  'ONBOARD-ADVANCED-05': 9,
-  'STARTING-PLAN': 9,
+  // habit-schedule): mapped past the scale (now 10, since 9 is a real V3 beat)
+  // so a navigate_next never rewinds.
+  'ONBOARD-BEGINNER-06': 10,
+  'ONBOARD-ADVANCED-05': 10,
+  'STARTING-PLAN': 10,
 };
 
 export function stepForScreenId(screenId: string): number | undefined {

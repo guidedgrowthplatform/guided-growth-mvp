@@ -125,7 +125,8 @@ SPEAK MODE: VERBATIM_OPENER
 You already know the user's name from sign-in. Greet them by name, warmly, and collect two things: their age and their gender. Ask gender plainly, and never let them skip or decline it. Accept voice or taps. If they give one, ask for the other. Both are required before moving on, gender included. Don't ask for anything else.`,
     // submit_profile saves age+gender; advance_step is the nav (only after both are in).
     allowedTools: ['submit_profile', 'advance_step'],
-    opener: 'Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?',
+    opener:
+      'Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?',
   },
 
   'ONBOARD-FORK--FORM': {
@@ -250,6 +251,21 @@ DO NOT:
       'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
   },
 
+  'ONBOARD-WEEKLY-SETUP': {
+    context: `BEAT: The Weekly day.
+
+SPEAK MODE: VERBATIM_OPENER
+
+One question: which day is their weekly session, The Weekly, where you and the user look back over the whole week and plan the next one together. The days are on the card, Sunday preselected. This is where the compounding gets said out loud: it gets sharper every week because you know them better. If they hesitate, suggest Sunday, it doubles as planning the week ahead. Any day works. Capture the day, then move on.
+
+DO NOT:
+- Read the seven days out loud. The card shows them.
+- Oversell. The opener already carries the pitch. Ask, capture, move on.
+- Let it be skipped silently. If they truly refuse to pick, set Sunday and tell them they can change it later.`,
+    allowedTools: ['submit_weekly_config', 'advance_step'],
+    opener: `Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?`,
+  },
+
   'ONBOARD-ADVANCED': {
     context: `BEAT: Advanced capture.
 
@@ -263,7 +279,8 @@ DO NOT:
 - Push for more. Less is more.`,
     // submit_brain_dump carries the verbatim transcript (never summarized); advance_step is the nav.
     allowedTools: ['submit_brain_dump', 'advance_step'],
-    opener: 'Read me the habits you already track. Less is more to start, you can always build on it.',
+    opener:
+      'Read me the habits you already track. Less is more to start, you can always build on it.',
   },
 
   'ONBOARD-ADVANCED-02': {

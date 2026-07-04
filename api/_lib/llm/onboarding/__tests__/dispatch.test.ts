@@ -160,6 +160,18 @@ describe('dispatchOnboardingToolCall', () => {
     expect(JSON.stringify(params)).toContain('08:00');
   });
 
+  it('routes submit_weekly_config to an onboarding_states write with the day', async () => {
+    const result = await dispatchOnboardingToolCall(
+      'submit_weekly_config',
+      { day: 0 },
+      { anon_id: ANON },
+    );
+    expect(result.ok).toBe(true);
+    const [sql, params] = pool.query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/onboarding_states/);
+    expect(JSON.stringify(params)).toContain('weeklyConfig');
+  });
+
   it('routes add_habit to an onboarding_states write', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {

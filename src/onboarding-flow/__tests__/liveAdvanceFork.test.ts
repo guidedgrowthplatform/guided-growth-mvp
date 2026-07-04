@@ -12,12 +12,13 @@ import {
 /**
  * The LIVE advance path at the fork (the 2026-07-02 signed-in failures).
  *
- * FAIL-A (jump-to-end): under V3's non-monotonic persist steps, the reflection
- * save (step 8, GREATEST-pinned) lands its current_step climb AFTER the machine
- * has already moved to the branch node. The leading-edge advance then replayed
- * the fork's server capture — which holds NO path — and the old merge
- * fallthrough carried the machine straight to into-app and the weekly beats:
- * a full beginner run "completed" with path=null and the fork radios empty.
+ * FAIL-A (jump-to-end): under V3's non-monotonic persist steps, the last
+ * pre-fork setup save (weekly-day-setup, step 9, GREATEST-pinned) lands its
+ * current_step climb AFTER the machine has already moved to the branch node.
+ * The leading-edge advance then replayed the fork's server capture — which
+ * holds NO path — and the old merge fallthrough carried the machine straight
+ * to into-app and the weekly beats: a full beginner run "completed" with
+ * path=null and the fork radios empty.
  *
  * These tests script that exact live sequence against the GENERATED flow (the
  * one production loads), asserting the two-layer fix:
@@ -26,7 +27,7 @@ import {
  *   2. orchestrator gate: captureCompletesBeat refuses the empty fork capture,
  *      and accepts it the moment the row holds a lane value — with or without
  *      a current_step climb (the Vapi server-side answer writes path but the
- *      GREATEST pin keeps current_step at 8, so no climb ever arrives).
+ *      GREATEST pin keeps current_step at 9, so no climb ever arrives).
  */
 const flow = flowJson as unknown as FlowDocument;
 
@@ -47,6 +48,9 @@ const TAP_CAPTURE: Record<string, BeatCapture> = {
     data: {
       reflectionConfig: { time: '21:45', days: [1, 2, 3, 4, 5], reminder: true },
     } as BeatCapture['data'],
+  },
+  'weekly-day-picker': {
+    data: { weeklyConfig: { day: 0 } } as BeatCapture['data'],
   },
   'category-grid': { data: { category: 'Health & Fitness' } as BeatCapture['data'] },
   'goals-list': { data: { goals: ['Move daily'] } as BeatCapture['data'] },
@@ -104,10 +108,10 @@ function runToFork(): { st: FlowMachineState; row: SimulatedRow } {
 const forkNode = () => getNode(flow, 'path-fork')!;
 
 describe('live advance at the fork — scripted run over the generated flow', () => {
-  it('reaches the fork with the row GREATEST-pinned at 8 and no path (the race precondition)', () => {
+  it('reaches the fork with the row GREATEST-pinned at 9 and no path (the race precondition)', () => {
     const { st, row } = runToFork();
     expect(st.currentNodeId).toBe('path-fork');
-    expect(row.current_step).toBe(8); // reflection save pinned it
+    expect(row.current_step).toBe(9); // weekly-day save pinned it (last pre-fork persist beat)
     expect(row.data.path).toBeUndefined();
   });
 
@@ -140,10 +144,10 @@ describe('live advance at the fork — scripted run over the generated flow', ()
     it(`answered fork (server row path, NO step climb — the Vapi case) enters ${laneEntry}`, () => {
       const { st, row } = runToFork();
       // Vapi's submit_path_choice writes the path column server-side; GREATEST
-      // keeps current_step at 8, so the climb detector never fires. The fork
+      // keeps current_step at 9, so the climb detector never fires. The fork
       // must still advance off the replayed evidence alone.
       const answered = { ...row, data: { ...row.data, path } };
-      expect(answered.current_step).toBe(8); // unchanged: no climb
+      expect(answered.current_step).toBe(9); // unchanged: no climb
       const cap = serverCaptureForBeat(forkNode(), answered.data as OnboardingStepData);
       expect(cap.path).toBe(path);
       expect(captureCompletesBeat(forkNode(), cap)).toBe(true);
@@ -155,7 +159,10 @@ describe('live advance at the fork — scripted run over the generated flow', ()
   it('full beginner run: stops at the fork, then visits the WHOLE lane before the merge', () => {
     const { st, row } = runToFork();
     // Hold at the unanswered fork first (the live hard stop)...
-    expect(applyCapture(flow, st, serverCaptureForBeat(forkNode(), row.data as OnboardingStepData)).currentNodeId).toBe('path-fork');
+    expect(
+      applyCapture(flow, st, serverCaptureForBeat(forkNode(), row.data as OnboardingStepData))
+        .currentNodeId,
+    ).toBe('path-fork');
     // ...then answer and tap-drive to completion.
     let cur = applyCapture(flow, st, { data: {}, path: 'simple' });
     for (let guard = 0; guard < 50 && cur.status === 'running'; guard++) {
@@ -187,9 +194,9 @@ describe('captureCompletesBeat — the live-advance data gate (parity with !400)
 
   it('data beats: refused until the row replays their field', () => {
     expect(captureCompletesBeat(node('category'), { data: {} })).toBe(false);
-    expect(
-      captureCompletesBeat(node('category'), { data: { category: 'Health & Fitness' } }),
-    ).toBe(true);
+    expect(captureCompletesBeat(node('category'), { data: { category: 'Health & Fitness' } })).toBe(
+      true,
+    );
     expect(captureCompletesBeat(node('state-check'), { data: {} })).toBe(false);
   });
 

@@ -153,6 +153,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         | undefined;
       const mode = data?.reflectionMode === 'freeform' ? 'freeform' : 'prompts';
       const customPrompts = sanitizePrompts(data?.customPrompts);
+      // The Weekly's day (weeklyConfig.day, set on ONBOARD-WEEKLY-SETUP). Default
+      // when absent: 0 (Sunday), the beat's suggested default.
+      const weeklyConfig = data?.weeklyConfig as { day?: number } | undefined;
+      const weeklyDay =
+        typeof weeklyConfig?.day === 'number' &&
+        Number.isInteger(weeklyConfig.day) &&
+        weeklyConfig.day >= 0 &&
+        weeklyConfig.day <= 6
+          ? weeklyConfig.day
+          : 0;
       const reflectionSettings: ReflectionSettings = {
         mode,
         prompts:
@@ -165,6 +175,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         days: sanitizeDays(rc?.days),
         reminder: typeof rc?.reminder === 'boolean' ? rc.reminder : true,
         schedule: typeof rc?.schedule === 'string' ? rc.schedule : null,
+        weeklyDay,
       };
       await upsertReflectionSettings(user.anonId, reflectionSettings, client);
 

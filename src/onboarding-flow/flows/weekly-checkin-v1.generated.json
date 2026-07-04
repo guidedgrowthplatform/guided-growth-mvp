@@ -1,0 +1,342 @@
+{
+  "flowId": "weekly-checkin-v1",
+  "name": "The Weekly",
+  "version": 1,
+  "publishedAt": "2026-07-04T00:00:00Z",
+  "entryNodeId": "weekly-frame",
+  "nodes": [
+    {
+      "id": "weekly-frame",
+      "type": "beat",
+      "beatNumber": 0,
+      "name": "Weekly Frame",
+      "screenId": "WCHECK-FRAME",
+      "nextId": "weekly-week-shown",
+      "backId": null,
+      "context": {
+        "screenId": "WCHECK-FRAME",
+        "screenName": "Weekly Frame",
+        "contextBlock": "BEAT: The Weekly, frame.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe daily reflection just ended and this is the switch into weekly mode. Say the opener, then one or two short sentences of framing: we look at the whole week together, spot what it is telling us, and set up the next one. Do not start reading data yet. Then move on."
+      },
+      "componentType": "coach-bubble",
+      "componentProps": {},
+      "voice": {
+        "openerText": "Let's zoom out. A whole week of you to look at.",
+        "expectsInput": false,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "vapi",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "wcheck-frame-line-1",
+              "text": "Let's zoom out. A whole week of you to look at.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "vapi"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-frame",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "weekly-week-shown",
+      "type": "beat",
+      "beatNumber": 1,
+      "name": "The Week, Shown",
+      "screenId": "WCHECK-WEEK",
+      "nextId": "weekly-insights",
+      "backId": "weekly-frame",
+      "context": {
+        "screenId": "WCHECK-WEEK",
+        "screenName": "The Week, Shown",
+        "contextBlock": "BEAT: The week, shown.\n\nSPEAK MODE: GENERATIVE\n\nThe week grid is on screen, filled with their real week from WEEK DATA. Narrate the highlights, not a readout: the overall show-up rate, the strongest stretch, and what is working, in one breath. Two or three spoken observations at most. Acknowledge the working habits here and then leave them alone. Style anchor: \"You showed up five of seven. Strong middle of the week.\" If LAST WEEK set a focus, check in on it here, one line. Then hand off toward the patterns.\n\nTHIN DATA: show what is there without rates or streak claims. One warm line about the days they did log, then move on.\n\nDO NOT:\n- Read the grid cell by cell or recite numbers per habit.\n- Shame a miss. Reported misses still count as showing up."
+      },
+      "componentType": "weekly-habits-summary",
+      "componentProps": {},
+      "voice": {
+        "openerText": null,
+        "expectsInput": false,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "vapi",
+          "mode": "generative"
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-week-shown",
+          "backId": "weekly-frame",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "weekly-insights",
+      "type": "beat",
+      "beatNumber": 2,
+      "name": "Insights",
+      "screenId": "WCHECK-INSIGHTS",
+      "nextId": "weekly-brainstorm",
+      "backId": "weekly-week-shown",
+      "context": {
+        "screenId": "WCHECK-INSIGHTS",
+        "screenName": "Insights",
+        "contextBlock": "BEAT: Insights.\n\nSPEAK MODE: GENERATIVE\n\nSurface one or two real patterns from WEEK DATA, the state-to-habit connection above all. Pick the strongest, most useful ones. Style anchor: \"Your energy tracked your sleep almost exactly. The days you moved, your mood was up.\" Land each insight in one or two sentences and let the user react before moving on. One week is a small sample, say so when it matters. If the state data is missing or thin, this is where the honest nudge lives: that data would genuinely help us see what is going on, try logging it this week.\n\nTHIN DATA: skip pattern claims entirely. This beat becomes the logging nudge, once, warm, and nothing else.\n\nDO NOT:\n- Give more than two insights. Never a data dump.\n- Invent a correlation the data does not show."
+      },
+      "componentType": "coach-bubble",
+      "componentProps": {},
+      "voice": {
+        "openerText": null,
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "vapi",
+          "mode": "generative"
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": true,
+          "allowedTools": []
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-insights",
+          "backId": "weekly-week-shown",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "weekly-brainstorm",
+      "type": "beat",
+      "beatNumber": 3,
+      "name": "Brainstorm and Edit",
+      "screenId": "WCHECK-EDIT",
+      "nextId": "weekly-close",
+      "backId": "weekly-insights",
+      "context": {
+        "screenId": "WCHECK-EDIT",
+        "screenName": "Brainstorm and Edit",
+        "contextBlock": "BEAT: Brainstorm and edit.\n\nSPEAK MODE: GENERATIVE\n\nTwo-way planning. Start by asking what they noticed and what they want to change. Work only on the habits that are not working, one at a time, with the four moves from your rules, chosen by the reason it is failing. Every agreed change is executed with the tools immediately, and you confirm out loud what changed after each edit. If the week was strong and a state area is low, you may suggest adding one small habit for it, one at most. It is completely fine for nothing to change.\n\nExecuting the moves: shrinking a habit is a rename (new_name with the smaller bar). Lowering the frequency is a schedule change (frequency or schedule_days). Dropping is an archive. When the fix is timing, land a CONCRETE time with the user (18:30, not \"evenings\") and set it. When the fix is a trigger or the environment, agree on it out loud; that agreement often needs no tool call at all, though a reminder change can back it up.\n\nTHIN DATA: a light plan check only. Ask if anything already feels like it needs changing. No diagnosis push, no four-moves walk.\n\nDO NOT:\n- Recite the four moves as a menu.\n- Touch a working habit.\n- Push a change on a user who is happy with the plan."
+      },
+      "componentType": "habit-review",
+      "componentProps": {},
+      "voice": {
+        "openerText": null,
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "vapi",
+          "mode": "generative"
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": true,
+          "allowedTools": []
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-brainstorm",
+          "backId": "weekly-insights",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "weekly-close",
+      "type": "beat",
+      "beatNumber": 4,
+      "name": "Close",
+      "screenId": "WCHECK-CLOSE",
+      "nextId": null,
+      "backId": "weekly-brainstorm",
+      "context": {
+        "screenId": "WCHECK-CLOSE",
+        "screenName": "Close",
+        "contextBlock": "BEAT: Close.\n\nSPEAK MODE: GENERATIVE\n\nLock next week's plan. Recap in one breath: what stayed, what changed, the one focus if they set one. This is where the compounding gets said, once and naturally: next week this gets sharper, because you will know them better. THIN DATA: keep the close extra short and make the compounding line the hook to come back and log. Style anchor: \"Same plan, one change. Good week.\" Then the session ends warm and short.\n\nDO NOT:\n- Re-open the plan or second-guess the edits.\n- Stretch the goodbye."
+      },
+      "componentType": "coach-bubble",
+      "componentProps": {},
+      "voice": {
+        "openerText": null,
+        "expectsInput": false,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "vapi",
+          "mode": "generative"
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-close",
+          "backId": "weekly-brainstorm",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null
+    }
+  ]
+}

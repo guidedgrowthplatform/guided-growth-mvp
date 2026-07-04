@@ -140,6 +140,7 @@ export type FlowComponentType =
   | 'advanced-frequency'
   | 'morning-checkin-setup'
   | 'reflection-card'
+  | 'weekly-day-picker'
   | 'plan-cards'
   | 'into-app'
   | 'why-intro'
@@ -152,7 +153,9 @@ export type FlowComponentType =
   // Home-tour flow component type. Exists in the flow designer (beats/homeTour.tsx)
   // but the engine adapter is not yet in componentRegistry.tsx -- deferred to the
   // app-shell workstream (HANDOFF-app-shell-and-flow-order.md).
-  | 'home-tour';
+  | 'home-tour'
+  // The Weekly flow document: the real week-grid beat, fed by useWeekData.
+  | 'weekly-habits-summary';
 
 export interface BeatNode {
   id: string;
