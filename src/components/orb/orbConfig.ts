@@ -47,24 +47,26 @@ export interface PulseParams {
 // is the livelier setting used when a side is speaking. Change these to reship the
 // app orb.
 export const DEFAULT_PARAMS: OrbStates = {
+  // Idle = Timothy's "Aurora Bloom" (the look Yair set): membrane aura + iridescent
+  // rim + glass depth on the resting two-half orb.
   idle: {
-    glass: 35,
+    glass: 34,
     blur: 12,
-    hi: 0,
-    rim: 0,
-    body: 34,
-    glow: 111,
-    bright: 116,
-    speed: 15,
-    grad: 0,
-    core: 59,
-    spread: 41,
-    pglow: 71,
-    rand: 54,
-    pulse: 50,
-    aura: 0,
-    iris: 0,
-    depth: 0,
+    hi: 42,
+    rim: 55,
+    body: 44,
+    glow: 150,
+    bright: 126,
+    speed: 52,
+    grad: 82,
+    core: 52,
+    spread: 52,
+    pglow: 86,
+    rand: 72,
+    pulse: 58,
+    aura: 78,
+    iris: 66,
+    depth: 32,
   },
   talk: {
     glass: 35,
