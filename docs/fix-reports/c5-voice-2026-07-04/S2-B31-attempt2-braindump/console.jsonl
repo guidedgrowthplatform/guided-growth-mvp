@@ -1,0 +1,23 @@
+{"t":"1.6","type":"info","text":"%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"}
+{"t":"1.6","type":"log","text":"[ServiceProvider] Using SupabaseDataService"}
+{"t":"1.6","type":"warning","text":"[.WebGL-0x13c001ca800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"}
+{"t":"1.6","type":"log","text":"[vapi-gate] live=false blockers: engine=idle(not-vapi), micPermission=false, anonId=missing screen=null"}
+{"t":"1.6","type":"warning","text":"⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition."}
+{"t":"1.6","type":"warning","text":"⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath."}
+{"t":"1.6","type":"log","text":"[vapi-gate] live=false blockers: engine=idle(not-vapi), micPermission=false, anonId=missing screen=null"}
+{"t":"2.3","type":"warning","text":"[session-log] unmapped pathname \"/login\" → screen_id=UNKNOWN"}
+{"t":"4.2","type":"warning","text":"[session-log] unmapped pathname \"/onboarding\" → screen_id=UNKNOWN"}
+{"t":"4.4","type":"warning","text":"[session-log] unmapped pathname \"/onboarding/flow\" → screen_id=UNKNOWN"}
+{"t":"4.9","type":"debug","text":"[onboarding] form_submit (optimistic) {screenId: ONBOARD-01, payload: Object}"}
+{"t":"4.9","type":"debug","text":"[onboarding-voice] form snapshot updated {nickname: Fable}"}
+{"t":"6.0","type":"log","text":"[realtime] onboarding_states event UPDATE {id: 8477ed40-44bd-452a-bf65-56cae6b18bd0, data: Object, path: null, status: in_progress, anon_id: cfee4449-04da-49e1-81f4-d451d30a16d7}"}
+{"t":"6.0","type":"log","text":"[realtime] cache updated → data: {nickname: Fable}"}
+{"t":"8.2","type":"info","text":"%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"}
+{"t":"8.2","type":"log","text":"[ServiceProvider] Using SupabaseDataService"}
+{"t":"8.2","type":"warning","text":"[.WebGL-0x13c001e7600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"}
+{"t":"8.2","type":"log","text":"[vapi-gate] live=false blockers: engine=idle(not-vapi), anonId=missing screen=null"}
+{"t":"8.2","type":"warning","text":"⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition."}
+{"t":"8.2","type":"warning","text":"⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath."}
+{"t":"8.2","type":"log","text":"[vapi-gate] live=false blockers: engine=idle(not-vapi), anonId=missing screen=null"}
+{"t":"8.3","type":"debug","text":"[onboarding-voice] form snapshot updated {path: braindump}"}
+{"t":"8.7","type":"warning","text":"[session-log] unmapped pathname \"/onboarding-flow-preview\" → screen_id=UNKNOWN"}
