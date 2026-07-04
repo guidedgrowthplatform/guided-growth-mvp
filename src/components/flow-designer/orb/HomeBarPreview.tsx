@@ -62,19 +62,42 @@ function hexA(hex: string, a: number): string {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-// The third bar skin: a detached floating glass pill (no scoop; the orb sits on
-// top of it like a center action button).
+// The third bar skin: a detached floating glass pill that KEEPS the scoop notch,
+// so the orb still nestles into a dip instead of floating over a flat edge. The
+// pill is a rounded, translucent, backdrop-blurred rounded-rect; the same scoop
+// path as the other two skins is cut from its top-center. drop-shadow lives on
+// the outer wrapper so it follows the scooped + rounded silhouette; overflow +
+// border-radius on the inner shell rounds the ends and clips the scoop cutout.
 function FloatingBarBackground() {
+  const fill = 'rgba(255,255,255,0.5)';
+  const sideStyle: React.CSSProperties = {
+    background: fill,
+    backdropFilter: 'blur(18px)',
+    WebkitBackdropFilter: 'blur(18px)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)',
+  };
   return (
     <div
-      className="absolute inset-x-4 bottom-2 top-0 rounded-[32px]"
-      style={{
-        background: 'rgba(255,255,255,0.5)',
-        backdropFilter: 'blur(18px)',
-        WebkitBackdropFilter: 'blur(18px)',
-        boxShadow: '0 12px 32px rgba(20,30,60,0.18), inset 0 1px 0 rgba(255,255,255,0.6)',
-      }}
-    />
+      className="absolute inset-x-4 bottom-2 top-0"
+      style={{ filter: 'drop-shadow(0 12px 32px rgba(20,30,60,0.18))' }}
+    >
+      <div className="absolute inset-0 flex overflow-hidden rounded-[32px]">
+        <div className="h-full flex-1" style={sideStyle} />
+        <svg
+          className="block h-full shrink-0"
+          width="140"
+          height="72"
+          viewBox="0 0 140 72"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0 L14 0 C17 0, 19 1, 20 4 C20 28, 42 50, 70 50 C98 50, 120 28, 120 4 C121 1, 123 0, 126 0 L140 0 L140 72 L0 72 Z"
+            fill={fill}
+          />
+        </svg>
+        <div className="h-full flex-1" style={sideStyle} />
+      </div>
+    </div>
   );
 }
 
