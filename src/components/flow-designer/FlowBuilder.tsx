@@ -996,8 +996,11 @@ const ENGINE_DEFAULTS: Record<string, NonNullable<BeatMeta['engine']>> = {
   },
   'reflection-card': {
     nodeId: 'reflection-setup',
+    // V3 order: reflection-setup follows morning-checkin-setup (backId fossil
+    // fixed alongside), and persists at 8 (state-check 6, morning-setup 7);
+    // both pre-V3 values had survived here and in the authored Export.
     backId: 'morning-checkin-setup',
-    persistStep: '6',
+    persistStep: '8',
     captureFields: 'reflectionConfig',
     voiceExpectsInput: true,
     voiceDirectLlmAllowed: true,

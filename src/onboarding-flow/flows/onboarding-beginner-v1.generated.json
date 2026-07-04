@@ -585,7 +585,7 @@
         "engine": {
           "nodeId": "reflection-setup",
           "backId": "morning-checkin-setup",
-          "persistStep": 6,
+          "persistStep": 8,
           "pathField": false,
           "captureFields": ["reflectionConfig"],
           "toolName": "submit_reflection_config",

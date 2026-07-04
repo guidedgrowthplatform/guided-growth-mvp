@@ -362,7 +362,7 @@
         "engine": {
           "nodeId": "reflection-setup",
           "backId": "morning-checkin-setup",
-          "persistStep": "6",
+          "persistStep": "8",
           "captureFields": "reflectionConfig",
           "voiceExpectsInput": true,
           "voiceDirectLlmAllowed": true
