@@ -447,8 +447,14 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           voice_mode: 'realtime',
           voice_vendor: 'vapi',
         });
+        // This hook powers first-run ONBOARDING realtime voice only (single
+        // call site: OnboardingVoiceProvider). Its starts are cap-exempt so
+        // onboarding never consumes the daily Vapi cap (see VAPI_DAILY_CAP /
+        // CAP_EXEMPT_PAYLOAD_KEY in lib/config/voice). If this hook is ever
+        // reused for non-onboarding (coach) voice, gate cap_exempt on an option.
         voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(screen), {
           voice_vendor: 'vapi',
+          cap_exempt: true,
         });
         setStateSynced('listening');
         const t = tokenRef.current;
