@@ -478,13 +478,13 @@ export function Orb({
         <div className="ot-mem ot-mem2" />
       </div>
       <div ref={orbRef} className="ot-orb">
-        <div ref={leftHalfRef} className="ot-half ot-left" onClick={onToggleLeft}>
+        <div ref={leftHalfRef} className={`ot-half ot-left${leftOn ? '' : ' ot-off'}`} onClick={onToggleLeft}>
           <canvas ref={leftCv} className="ot-cv" />
           <div className="ot-glass" />
           <div className="ot-spec" />
           <div className="ot-ico">{showLeftIcon}</div>
         </div>
-        <div ref={rightHalfRef} className="ot-half ot-right" onClick={onToggleRight}>
+        <div ref={rightHalfRef} className={`ot-half ot-right${rightOn ? '' : ' ot-off'}`} onClick={onToggleRight}>
           <canvas ref={rightCv} className="ot-cv" />
           <div className="ot-glass" />
           <div className="ot-spec" />
@@ -526,6 +526,11 @@ const ORB_CSS = `
 .ot-ico{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:4;color:rgba(40,52,78,.82);pointer-events:none;filter:drop-shadow(0 1px 1px rgba(255,255,255,.55))}
 .ot-left .ot-ico{transform:translateX(calc(var(--D) * -0.055))}
 .ot-right .ot-ico{transform:translateX(calc(var(--D) * 0.055))}
+/* Off (passive) half: flat, fully opaque grey like the original button. Hide the
+   glassy canvas + sheen so it reads solid, white icon on top. */
+.ot-half.ot-off{background:#94a3b8}
+.ot-off .ot-cv,.ot-off .ot-glass,.ot-off .ot-spec{display:none}
+.ot-off .ot-ico{color:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.22))}
 .ot-full-wrap{position:absolute;inset:0;border-radius:50%;overflow:hidden;opacity:0;transition:opacity .3s;pointer-events:none;z-index:3}
 .ot-orb.ot-full .ot-full-wrap{opacity:1}
 .ot-fullbody{position:absolute;inset:0;border-radius:50%;background:radial-gradient(125% 125% at 50% 40%, rgba(255,255,255, calc(0.20 + 0.16*(1 - var(--body)))), rgba(255,255,255, calc(0.04 + 0.05*(1 - var(--body)))) 52%, rgba(8,11,22, calc(0.10 + 0.52*var(--body))) 100%)}
