@@ -62,19 +62,23 @@ function hexA(hex: string, a: number): string {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+// The scoop bite masked out of the CENTER piece only. The path is the
+// "bar minus the scoop bite" silhouette (same curve the other skins draw) filled
+// white, so as a mask it shows the piece everywhere EXCEPT the bite.
+const FLOATING_SCOOP_MASK =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='72' viewBox='0 0 140 72' preserveAspectRatio='none'%3E%3Cpath d='M0 0 L14 0 C17 0 19 1 20 4 C20 28 42 50 70 50 C98 50 120 28 120 4 C121 1 123 0 126 0 L140 0 L140 72 L0 72 Z' fill='%23fff'/%3E%3C/svg%3E\")";
+
 // The third bar skin: a detached floating glass pill that KEEPS the scoop notch,
-// so the orb still nestles into a dip instead of floating over a flat edge. The
-// pill is a rounded, translucent, backdrop-blurred rounded-rect; the same scoop
-// path as the other two skins is cut from its top-center. drop-shadow lives on
-// the outer wrapper so it follows the scooped + rounded silhouette; overflow +
-// border-radius on the inner shell rounds the ends and clips the scoop cutout.
+// so the orb still nestles into a dip instead of floating over a flat edge.
+// Three pieces, but ALL THREE share the identical translucent + backdrop-blur
+// glass, so their boundaries are invisible (the earlier version left the center
+// piece un-blurred, which showed as vertical seams). Only the fixed-width center
+// piece carries the scoop mask; the ends round via overflow + border-radius.
 function FloatingBarBackground() {
-  const fill = 'rgba(255,255,255,0.5)';
-  const sideStyle: React.CSSProperties = {
-    background: fill,
+  const glass: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.5)',
     backdropFilter: 'blur(18px)',
     WebkitBackdropFilter: 'blur(18px)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)',
   };
   return (
     <div
@@ -82,20 +86,21 @@ function FloatingBarBackground() {
       style={{ filter: 'drop-shadow(0 12px 32px rgba(20,30,60,0.18))' }}
     >
       <div className="absolute inset-0 flex overflow-hidden rounded-[32px]">
-        <div className="h-full flex-1" style={sideStyle} />
-        <svg
-          className="block h-full shrink-0"
-          width="140"
-          height="72"
-          viewBox="0 0 140 72"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M0 0 L14 0 C17 0, 19 1, 20 4 C20 28, 42 50, 70 50 C98 50, 120 28, 120 4 C121 1, 123 0, 126 0 L140 0 L140 72 L0 72 Z"
-            fill={fill}
-          />
-        </svg>
-        <div className="h-full flex-1" style={sideStyle} />
+        <div className="h-full flex-1" style={glass} />
+        <div
+          className="h-full shrink-0"
+          style={{
+            ...glass,
+            width: 140,
+            maskImage: FLOATING_SCOOP_MASK,
+            WebkitMaskImage: FLOATING_SCOOP_MASK,
+            maskSize: '100% 100%',
+            WebkitMaskSize: '100% 100%',
+            maskRepeat: 'no-repeat',
+            WebkitMaskRepeat: 'no-repeat',
+          }}
+        />
+        <div className="h-full flex-1" style={glass} />
       </div>
     </div>
   );
