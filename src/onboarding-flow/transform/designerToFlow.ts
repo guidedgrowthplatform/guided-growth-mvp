@@ -784,6 +784,10 @@ function resolveMeta(
       autoplayRequiresUnlock: Boolean(mp3File),
       qaForceEngineAllowed: true,
     },
+    // Authoring echo only: the runtime node's backId/persist come from BEAT_SPECS
+    // (the engine table owns structure and persistence); nothing at runtime reads
+    // meta.engine.persistStep/backId, so an authored value here that disagrees
+    // with the spec is a designer-source staleness signal, not engine behavior.
     engine: {
       nodeId: authored?.engine?.nodeId ?? spec.nodeId,
       backId: authored?.engine?.backId ?? spec.backId ?? undefined,
