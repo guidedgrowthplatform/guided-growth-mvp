@@ -1,0 +1,18 @@
+{
+  "screen": "ONBOARD-COMPLETE",
+  "probe": false,
+  "user": "Start it",
+  "status": 200,
+  "text": "You're all set! Your plan is ready to go. Let's make these habits work for you.",
+  "tools": [
+    {
+      "name": "confirm_plan",
+      "args": {
+        "reason": "user ready to start with current habits"
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 22
+}

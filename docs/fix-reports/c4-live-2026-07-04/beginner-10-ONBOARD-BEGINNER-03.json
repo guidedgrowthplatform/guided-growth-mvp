@@ -1,0 +1,18 @@
+{
+  "screen": "ONBOARD-BEGINNER-03",
+  "probe": false,
+  "user": "A wind-down routine before bed sounds right",
+  "status": 200,
+  "text": "For the wind-down routine, what days and times work best for you?",
+  "tools": [
+    {
+      "name": "add_habit",
+      "args": {
+        "name": "Start wind-down by 10 PM"
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 18
+}

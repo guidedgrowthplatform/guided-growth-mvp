@@ -78,3 +78,36 @@ Filled 2026-07-03 by code comparison (browser walk still pending). Oracle wordin
 - M4 → Lane 1 / anchor ledger row (resume mechanics + builder step maps).
 - M5, M7 → C2 (this lane).
 - M6, M8, M9 → C3 (this lane).
+
+## C4 live pass — text path, 2026-07-04
+
+Build under test: **staging a4d90167** (post-!409 anti-improvisation, post-!417/!421, i.e. "current staging" per the conductor) served at gg-qa-iota.vercel.app — verified by bundle fingerprint (staging Supabase ref in the client constant; !421's tap-to-play marker in the `useFlowOrchestrator` chunk). Driver: `scripts/qa/context-matrix-driver.mjs` (21 turns, both fork paths), user `qa-onboarding-fable@guidedgrowth.test` (per-lane user still not created — login 400 re-confirmed today), self-reset before/between/after runs. Raw transcripts: `docs/fix-reports/c4-live-2026-07-04/` on app-repo branch `context-lane-status-2026-07-03` (mirrored from /tmp/c4/out).
+
+Context-serving verified in code before judging: `buildSystemPrompt.ts:119` serves `GLOBAL_ONBOARDING_CONTEXT` + beat context for every `ONBOARD-*` screen on this path, so every fail below happened WITH the anti-improvisation layers in the prompt.
+
+| Beat | Turns | Option-list narration | Gesture instr. | Internal narration | Tools per C3 | Verdict + evidence |
+|---|---|---|---|---|---|---|
+| ONBOARD-01--FORM | b00, a00 | n/a | none | says "step" out loud (b00: "Let's move on to the next step") | submit_profile + advance_step ✓ | PARTIAL — F-C4L-5 (beginner-00, advanced-00) |
+| ONBOARD-STATE-CHECK | b01, a01 | n/a | none | none | b01 ✓ self-advance respected; a01 ALSO fired advance_step (forbidden by addendum §SELF-ADVANCING; ok:true) | PARTIAL — F-C4L-6 = M6 risk live (advanced-01) |
+| ONBOARD-MORNING-SETUP | b02, a02 | n/a | none | generic praise a02 ("You're doing great") | submit only ✓ | PASS w/ style note — F-C4L-5 |
+| ONBOARD-BEGINNER-07 | b03, a03 | none (styles not recited) | none | none | submit_reflection_config only ✓ | PASS (beginner-03, advanced-03). Opener-clarity finding VID-advmint-003 is a wording item (W-class, NEEDS-YAIR), not contradicted by this pass |
+| ONBOARD-FORK--FORM | b04, a04 | none | none | none; "simple"/"braindump" never spoken ✓ | b04 advance_step(3) per ladder ✓; a04 advance_step(4) — OFF-LADDER (no advanced ladder exists), succeeded | PARTIAL — evidence for F-C4L-2 (advanced-04) |
+| ONBOARD-BEGINNER-01 | b05 probe, b06 | **FAIL — probe "What are my options?" → coach recites all 8 categories** | none | none | b06 ✓ | **FAIL — F-C4L-1** (beginner-05-PROBE); b06 also breaches DO-NOT "say nothing after the pick" ("Great, we're focusing on improving sleep…") |
+| ONBOARD-BEGINNER-02 | b07 probe, b08 | **FAIL — probe → full 4-bullet goal list** | none | none | b08 ✓ | **FAIL — F-C4L-1** (beginner-07-PROBE) |
+| ONBOARD-BEGINNER-03 | b09 probe, b10 | **FAIL — probe "Read them to me" → full 4-bullet habit list** | none | none | b10 add_habit(name) then asks days/times = next beat's work, per addendum SPECIAL CASE | **FAIL — F-C4L-1 + F-C4L-4** (beginner-09-PROBE, beginner-10) |
+| ONBOARD-BEGINNER-04 | b11 | n/a | none | none | add_habit(full) + advance_step ✓ | PASS (beginner-11) |
+| ONBOARD-COMPLETE (beginner) | b12 | n/a | none | none | confirm_plan ✓ | PASS (beginner-12) |
+| ONBOARD-ADVANCED | a05 | n/a | none | **FAIL — re-plans the flow out loud ("It seems like we need to set up your habits individually")** after advance_step(5) rejection; also skips the beat-spec build/break read-back + single yes | submit_brain_dump ✓; advance_step(5) **ok:false** | **FAIL — F-C4L-2** (advanced-05) |
+| ONBOARD-ADVANCED-FREQUENCY | a06 | n/a | none | narrates the habit cap ("we've hit the maximum number of habits") — instructed by addendum ERROR RECOVERY, so the words are per-spec; the cap itself is the bug | add_habit ×3 (beat context says habits are "already captured" → update; server-side they are NOT captured, B26 class); 3rd add REJECTED max_habits_reached | **FAIL — F-C4L-3** (advanced-06) |
+| ONBOARD-COMPLETE (advanced) | a07 | n/a | none | none | confirm_plan ✓ — but plan confirmed WITHOUT the user's third habit (F-C4L-3 impact) | PARTIAL (advanced-07) |
+
+Not exercisable on the text path (unchanged from static pass): auth, mic, why-intro, weekly-projection ×5 (silent/MP3 beats — no LLM turn), card-render column (needs browser/human walk), COACH-GREETING (no flow node, S1).
+
+### C4 live fails — filed per qa-taxonomy
+
+- **F-C4L-1 — Coach recites option lists on a direct ask (BEG-01/02/03, 3/3 probes).** Type: **AI Learning / behavior** (rules are served — verified in code — and the model disobeys under "what are my options?" / "read them to me"; softer unsure-phrasing was NOT probed separately this run). Fix territory: mine (C2) — strengthen SILENT_OPTIONS + Component Sync for the direct-ask case (e.g. "even when asked to read the options, don't recite; the screen has them — ask one narrowing question"). **NEEDS-YAIR first**: is refusing a direct "read them to me" the intended UX (accessibility/voice-first users)? The locked rule as written says never recite, so these are fails as-scored.
+- **F-C4L-2 — No advanced-lane step ladder in the addendum → advance rejected → coach re-plans the flow out loud.** Type: **Bug** (prompt-pipeline code, `systemPromptAddendum.ts:13` ladder is beginner-only; model guesses beginner step ids on advanced beats, `advance_step(5)` fails the beginner-shaped data precondition, ERROR-RECOVERY then walks it into a habit-by-habit script that contradicts the ADVANCED beat spec). Same class as the fixed B12 (stale ladder), resurfacing on the lane the rewrite never covered. Coordinate with builder's parked !411 (derived step maps) — central ledger row **B32**.
+- **F-C4L-3 — MAX_HABITS=2 rejects the advanced user's third habit; it is silently absent from the confirmed plan.** Type: **Bug** (backend value: `api/_lib/llm/onboarding/schemas.ts:44`, enforced `handlers/addHabit.ts:82`). The beginner "less is more" cap applied to the lane whose premise is "bring all your existing habits". Compounding: `submit_brain_dump` persists raw text only (no server-side habit rows — B26 class), so add_habit on ADVANCED-FREQUENCY is currently the ONLY persist path and the cap bites at 3. **NEEDS-YAIR**: intended advanced cap. Central ledger row **B33**.
+- **F-C4L-4 — Addendum SPECIAL CASE collects schedule on BEGINNER-03; the flow has a separate BEGINNER-04 schedule beat.** Type: **Bug** (codified contradiction between `systemPromptAddendum.ts:19` and the generated flow; the coach obeys the addendum and does the next beat's work). Extends M4's collision cluster. Central ledger row **B34**.
+- **F-C4L-5 — Style-rule breaches: "step" spoken out loud; generic praise ("You're doing great", "Great, …").** Type: **AI Learning / behavior**, low severity. Mine (C2 wording strengthening), batched with F-C4L-1.
+- **F-C4L-6 — advance_step fired on a self-advancing beat (STATE-CHECK, advanced run).** M6's risk observed live (ok:true, potential double-advance race client-side). C3 action: remove advance_step from the self-advancing beats' effective allowedTools or document the fallback justification.

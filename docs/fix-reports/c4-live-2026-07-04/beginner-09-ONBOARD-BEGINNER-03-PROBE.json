@@ -1,0 +1,10 @@
+{
+  "screen": "ONBOARD-BEGINNER-03",
+  "probe": true,
+  "user": "Which habits are there? Read them to me",
+  "status": 200,
+  "text": "Here are some habits you can choose to help you fall asleep earlier:\n\n- No caffeine after two PM \n- No screens after ten PM \n- Start wind-down by ten PM \n- Be in bed by target bedtime\n\nWhich one or two do you want to start with?",
+  "tools": [],
+  "errors": [],
+  "eventCount": 56
+}

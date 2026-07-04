@@ -1,0 +1,35 @@
+{
+  "screen": "ONBOARD-BEGINNER-04",
+  "probe": false,
+  "user": "Every weekday at 10pm, no reminder needed",
+  "status": 200,
+  "text": "Your wind-down routine is set for ten PM on weekdays. You're all set!",
+  "tools": [
+    {
+      "name": "add_habit",
+      "args": {
+        "name": "Start wind-down by 10 PM",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "time": "22:00",
+        "reminder": false,
+        "schedule": "Weekday"
+      },
+      "ok": true
+    },
+    {
+      "name": "advance_step",
+      "args": {
+        "target_step": 6
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 21
+}

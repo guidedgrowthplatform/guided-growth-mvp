@@ -1,0 +1,27 @@
+{
+  "screen": "ONBOARD-MORNING-SETUP",
+  "probe": false,
+  "user": "7:30 in the morning, weekdays",
+  "status": 200,
+  "text": "Your morning check-in is all set for seven thirty on weekdays. You're doing great.",
+  "tools": [
+    {
+      "name": "submit_morning_checkin",
+      "args": {
+        "time": "07:30",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reminder": true,
+        "schedule": "Weekday"
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 20
+}

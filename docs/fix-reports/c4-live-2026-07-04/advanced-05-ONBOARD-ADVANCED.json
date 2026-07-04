@@ -1,0 +1,25 @@
+{
+  "screen": "ONBOARD-ADVANCED",
+  "probe": false,
+  "user": "I run three times a week, meditate every morning, and I want to stop doomscrolling at night",
+  "status": 200,
+  "text": "It seems like we need to set up your habits individually. Let's start with one. Which habit would you like to focus on first: running, meditation, or stopping doomscrolling?",
+  "tools": [
+    {
+      "name": "submit_brain_dump",
+      "args": {
+        "brain_dump_raw": "I run three times a week, meditate every morning, and I want to stop doomscrolling at night"
+      },
+      "ok": true
+    },
+    {
+      "name": "advance_step",
+      "args": {
+        "target_step": 5
+      },
+      "ok": false
+    }
+  ],
+  "errors": [],
+  "eventCount": 42
+}

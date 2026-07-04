@@ -1,0 +1,18 @@
+{
+  "screen": "ONBOARD-COMPLETE",
+  "probe": false,
+  "user": "Looks good, let’s start",
+  "status": 200,
+  "text": "You're all set to go! Excited to see how this journey unfolds for you.",
+  "tools": [
+    {
+      "name": "confirm_plan",
+      "args": {
+        "reason": "user said let's go"
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 20
+}

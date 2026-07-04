@@ -1,0 +1,10 @@
+{
+  "screen": "ONBOARD-BEGINNER-01",
+  "probe": true,
+  "user": "I'm not sure. What are my options?",
+  "status": 200,
+  "text": "What area do you most want to work on? You can think about things like sleep, activity, eating, stress, focus, breaking habits, organization, or energy. Which one feels most important right now?",
+  "tools": [],
+  "errors": [],
+  "eventCount": 43
+}

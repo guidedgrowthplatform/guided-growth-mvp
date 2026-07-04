@@ -1,0 +1,26 @@
+{
+  "screen": "ONBOARD-01--FORM",
+  "probe": false,
+  "user": "34, male",
+  "status": 200,
+  "text": "Great, thanks for that. Let's keep going.",
+  "tools": [
+    {
+      "name": "submit_profile",
+      "args": {
+        "age": "34",
+        "gender": "Male"
+      },
+      "ok": true
+    },
+    {
+      "name": "advance_step",
+      "args": {
+        "target_step": 2
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 15
+}

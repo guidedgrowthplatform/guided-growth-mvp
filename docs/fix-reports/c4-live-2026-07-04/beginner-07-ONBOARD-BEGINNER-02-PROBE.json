@@ -1,0 +1,10 @@
+{
+  "screen": "ONBOARD-BEGINNER-02",
+  "probe": true,
+  "user": "Hmm, what can I pick here?",
+  "status": 200,
+  "text": "Here are your options for focusing on sleep:\n\n- Fall asleep earlier\n- Wake up earlier\n- Sleep more consistently\n- Sleep more deeply\n\nWhich one or two stand out to you?",
+  "tools": [],
+  "errors": [],
+  "eventCount": 39
+}

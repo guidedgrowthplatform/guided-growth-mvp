@@ -1,0 +1,67 @@
+{
+  "screen": "ONBOARD-ADVANCED-FREQUENCY",
+  "probe": false,
+  "user": "Running Monday Wednesday Friday, meditation every day, the doomscrolling one every night",
+  "status": 200,
+  "text": "It looks like we've hit the maximum number of habits. Would you like to remove one or adjust the current setup?",
+  "tools": [
+    {
+      "name": "add_habit",
+      "args": {
+        "name": "Running",
+        "days": [
+          1,
+          3,
+          5
+        ],
+        "time": "07:00",
+        "reminder": false,
+        "schedule": "Weekday",
+        "habit_type": "binary_do"
+      },
+      "ok": true
+    },
+    {
+      "name": "add_habit",
+      "args": {
+        "name": "Meditation",
+        "days": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "time": "07:30",
+        "reminder": false,
+        "schedule": "Every day",
+        "habit_type": "binary_do"
+      },
+      "ok": true
+    },
+    {
+      "name": "add_habit",
+      "args": {
+        "name": "Stop Doomscrolling",
+        "days": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "time": "22:00",
+        "reminder": false,
+        "schedule": "Every day",
+        "habit_type": "binary_avoid"
+      },
+      "ok": false
+    }
+  ],
+  "errors": [],
+  "eventCount": 30
+}

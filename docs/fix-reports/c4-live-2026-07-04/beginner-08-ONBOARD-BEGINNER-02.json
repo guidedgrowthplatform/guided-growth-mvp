@@ -1,0 +1,27 @@
+{
+  "screen": "ONBOARD-BEGINNER-02",
+  "probe": false,
+  "user": "Falling asleep earlier",
+  "status": 200,
+  "text": "Focusing on falling asleep earlier sounds great. Let's build on that.",
+  "tools": [
+    {
+      "name": "submit_goals",
+      "args": {
+        "goals": [
+          "Fall asleep earlier"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "name": "advance_step",
+      "args": {
+        "target_step": 5
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 19
+}

@@ -1,0 +1,25 @@
+{
+  "screen": "ONBOARD-FORK--FORM",
+  "probe": false,
+  "user": "I already track habits in another app",
+  "status": 200,
+  "text": "Got it. Let's dive into your current habits and make them work for you here.",
+  "tools": [
+    {
+      "name": "submit_path_choice",
+      "args": {
+        "path": "braindump"
+      },
+      "ok": true
+    },
+    {
+      "name": "advance_step",
+      "args": {
+        "target_step": 4
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 22
+}

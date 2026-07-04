@@ -1,0 +1,30 @@
+{
+  "screen": "ONBOARD-BEGINNER-07",
+  "probe": false,
+  "user": "Freeform please, 10pm every day",
+  "status": 200,
+  "text": "Your evening reflection is set for ten PM every day, freeform style. Almost there!",
+  "tools": [
+    {
+      "name": "submit_reflection_config",
+      "args": {
+        "time": "22:00",
+        "days": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "reminder": true,
+        "schedule": "Every day",
+        "mode": "freeform"
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 21
+}

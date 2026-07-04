@@ -1,0 +1,25 @@
+{
+  "screen": "ONBOARD-BEGINNER-01",
+  "probe": false,
+  "user": "Sleep better I guess",
+  "status": 200,
+  "text": "Great, we're focusing on improving sleep. Let's dive into that.",
+  "tools": [
+    {
+      "name": "submit_category",
+      "args": {
+        "category": "Sleep better"
+      },
+      "ok": true
+    },
+    {
+      "name": "advance_step",
+      "args": {
+        "target_step": 4
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 18
+}

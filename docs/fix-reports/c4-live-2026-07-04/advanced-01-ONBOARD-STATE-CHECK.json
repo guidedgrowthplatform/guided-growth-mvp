@@ -1,0 +1,28 @@
+{
+  "screen": "ONBOARD-STATE-CHECK",
+  "probe": false,
+  "user": "Feeling fine, slept well, energy high, low stress",
+  "status": 200,
+  "text": "Solid start. Let's move on to the next step.",
+  "tools": [
+    {
+      "name": "record_checkin",
+      "args": {
+        "mood": 4,
+        "sleep": 5,
+        "energy": 5,
+        "stress": 5
+      },
+      "ok": true
+    },
+    {
+      "name": "advance_step",
+      "args": {
+        "target_step": 3
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 16
+}

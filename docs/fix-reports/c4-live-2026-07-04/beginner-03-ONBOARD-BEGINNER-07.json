@@ -1,0 +1,27 @@
+{
+  "screen": "ONBOARD-BEGINNER-07",
+  "probe": false,
+  "user": "Ask me a few questions each evening, 9pm on weekdays",
+  "status": 200,
+  "text": "Evening reflections set for nine PM on weekdays. You're all set!",
+  "tools": [
+    {
+      "name": "submit_reflection_config",
+      "args": {
+        "time": "21:00",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reminder": true,
+        "schedule": "Weekday"
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 17
+}

@@ -1,0 +1,25 @@
+{
+  "screen": "ONBOARD-FORK--FORM",
+  "probe": false,
+  "user": "This is new for me, I've never tracked habits",
+  "status": 200,
+  "text": "Got it. Let's keep it simple and start fresh.",
+  "tools": [
+    {
+      "name": "submit_path_choice",
+      "args": {
+        "path": "simple"
+      },
+      "ok": true
+    },
+    {
+      "name": "advance_step",
+      "args": {
+        "target_step": 3
+      },
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "eventCount": 16
+}
