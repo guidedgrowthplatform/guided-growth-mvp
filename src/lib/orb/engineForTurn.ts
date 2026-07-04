@@ -32,7 +32,11 @@ export interface EngineDecision {
   engine: ChatEngine;
   // Exactly one owner of the mic. 'vapi' = WebRTC track; 'soniox' = browser STT.
   micSource: MicSource;
-  // Standalone Cartesia TTS gate (never true on the chat page — Vapi speaks itself).
+  // Standalone Cartesia TTS gate. False whenever Vapi owns the turn (Vapi
+  // speaks itself). On chat-native Direct-LLM turns it follows the user's
+  // voice-out toggle: the published flow has no Vapi-brained beats, so this is
+  // the ONLY path that speaks dynamic replies in voice mode (B39: the old
+  // hardcoded false left every reply a silent text bubble while openers spoke).
   speakReplies: boolean;
 }
 
@@ -54,9 +58,11 @@ export function engineForTurn(i: EngineInputs): EngineDecision {
     if (i.chatVapiFlag && i.vapiCapableBeat && i.voiceOn) {
       return { engine: 'vapi', micSource: 'vapi', speakReplies: false };
     }
-    // AUTH/post-fork beats, or voice off → Direct-LLM, TEXT only (no Cartesia).
-    // Soniox owns the mic iff the mic is on.
-    return { engine: 'direct_llm', micSource: i.micOn ? 'soniox' : 'none', speakReplies: false };
+    // Non-Vapi chat beats → Direct-LLM. Soniox owns the mic iff the mic is on,
+    // and replies are SPOKEN iff the voice-out half is on (B39 fix: this branch
+    // carries every beat on the published flow, so voice mode must speak
+    // dynamic replies here; voice off keeps them text-only).
+    return { engine: 'direct_llm', micSource: i.micOn ? 'soniox' : 'none', speakReplies: i.voiceOn };
   }
 
   // Routed onboarding screens (legacy). Vapi when both orbs on; Direct-LLM
