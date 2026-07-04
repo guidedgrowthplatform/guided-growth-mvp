@@ -13,12 +13,7 @@
  *   the server data cannot replay its capture (the empty-picker skip).
  */
 import { describe, expect, it } from 'vitest';
-import {
-  applyCapture,
-  type FlowMachineState,
-  getNode,
-  initFlowMachine,
-} from '../flowMachine';
+import { applyCapture, type FlowMachineState, getNode, initFlowMachine } from '../flowMachine';
 import type { BeatCapture } from '../types';
 import { loadPublishedFlow } from '../useFlow';
 import {
@@ -38,22 +33,56 @@ const BEGINNER_RUN: Array<{ node: string; cap: BeatCapture }> = [
   { node: 'state-check', cap: { data: { checkin: { mood: 4 } } as BeatCapture['data'] } },
   {
     node: 'morning-checkin-setup',
-    cap: { data: { morningCheckin: { time: '08:00', days: [1, 2, 3], reminder: true, schedule: 'Weekday' } } },
+    cap: {
+      data: {
+        morningCheckin: { time: '08:00', days: [1, 2, 3], reminder: true, schedule: 'Weekday' },
+      },
+    },
   },
   {
     node: 'reflection-setup',
-    cap: { data: { reflectionConfig: { time: '21:45', days: [1, 2, 3], reminder: true, schedule: 'Weekday' } } },
+    cap: {
+      data: {
+        reflectionConfig: { time: '21:45', days: [1, 2, 3], reminder: true, schedule: 'Weekday' },
+      },
+    },
+  },
+  {
+    node: 'weekly-day-setup',
+    cap: { data: { weeklyConfig: { day: 0 } } as BeatCapture['data'] },
   },
   { node: 'path-fork', cap: { data: {}, path: 'simple' } },
   { node: 'category', cap: { data: { category: 'Sleep better' } } },
   { node: 'goals', cap: { data: { goals: ['Fall asleep earlier'] } } },
   {
     node: 'habit-select',
-    cap: { data: { habitConfigs: { 'No screens after 10 PM': { days: [1, 2, 3], time: '22:00', reminder: true, schedule: 'Weekday' } } } },
+    cap: {
+      data: {
+        habitConfigs: {
+          'No screens after 10 PM': {
+            days: [1, 2, 3],
+            time: '22:00',
+            reminder: true,
+            schedule: 'Weekday',
+          },
+        },
+      },
+    },
   },
   {
     node: 'habit-schedule',
-    cap: { data: { habitConfigs: { 'No screens after 10 PM': { days: [1, 2, 3], time: '22:00', reminder: true, schedule: 'Weekday' } } } },
+    cap: {
+      data: {
+        habitConfigs: {
+          'No screens after 10 PM': {
+            days: [1, 2, 3],
+            time: '22:00',
+            reminder: true,
+            schedule: 'Weekday',
+          },
+        },
+      },
+    },
   },
   { node: 'into-app', cap: { data: {} } },
   { node: 'weekly-projection-blank', cap: { data: {} } },
@@ -156,10 +185,7 @@ describe('captureCompletesBeat (B21: a step climb alone must not skip a data bea
     // record_checkin voice tool) or checkin (the tap path) completes it.
     const empty = serverCaptureForBeat(node('state-check'), {});
     expect(captureCompletesBeat(node('state-check'), empty)).toBe(false);
-    const voiced = serverCaptureForBeat(
-      node('state-check'),
-      { stateCheck: { mood: 3 } } as never,
-    );
+    const voiced = serverCaptureForBeat(node('state-check'), { stateCheck: { mood: 3 } } as never);
     expect(captureCompletesBeat(node('state-check'), voiced)).toBe(true);
   });
 });

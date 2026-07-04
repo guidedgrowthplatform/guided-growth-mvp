@@ -284,3 +284,20 @@ When the current screen's component renders an options list (categories, goals/s
 GOOD (category screen): "What part of your life do you most want to work on right now? Pick the one that pulls you." [wait]
 BAD: "You can choose sleep, movement, eating, energy, stress, focus, breaking bad habits, or organization."
 ${BLOCK_END}`;
+
+/**
+ * The Weekly assistant — a SEPARATE, dedicated Vapi assistant from the
+ * onboarding one above (approved decision, see gg-spec/docs/the-weekly.md).
+ * Sync manages the SAME two things on it, using the SAME sentinel-replace/
+ * append mechanism (see sync.ts's applyAddendum, parameterized over which
+ * marker pair + which content), but with distinct markers so the two never
+ * collide if a future change ever merges assistants or lockfiles:
+ *  1. `model.toolIds` — the attached WEEKLY_TOOLS list (union semantics).
+ *  2. A sentinel-bracketed block inside `model.messages[0].content` holding
+ *     WEEKLY_GLOBAL_CONTEXT (api/_lib/weekly/globalContext.ts) — the coach's
+ *     full base system prompt for The Weekly, not just a tool-calling
+ *     addendum. Anything outside the markers on the weekly assistant is
+ *     product-owned/dashboard-authored, same convention as onboarding.
+ */
+export const WEEKLY_BLOCK_START = '<!-- MANAGED:THE_WEEKLY_GLOBAL_CONTEXT -->';
+export const WEEKLY_BLOCK_END = '<!-- /MANAGED:THE_WEEKLY_GLOBAL_CONTEXT -->';

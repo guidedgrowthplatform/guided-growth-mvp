@@ -448,6 +448,66 @@
       "opener": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?"
     },
     {
+      "id": "weekly-day-setup",
+      "screenId": "ONBOARD-WEEKLY-SETUP",
+      "componentType": "weekly-day-picker",
+      "meta": {
+        "voiceOut": {
+          "engine": "cartesia",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "onboard-weekly-setup-line-1",
+              "text": "Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "cartesia"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_weekly_config", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-day-setup",
+          "backId": "reflection-setup",
+          "persistStep": 9,
+          "pathField": false,
+          "captureFields": ["weeklyConfig"],
+          "toolName": "submit_weekly_config",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["weeklyConfig"]
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: The Weekly day.\n\nSPEAK MODE: VERBATIM_OPENER\n\nOne question: which day is their weekly session, The Weekly, where you and the user look back over the whole week and plan the next one together. The days are on the card, Sunday preselected. This is where the compounding gets said out loud: it gets sharper every week because you know them better. If they hesitate, suggest Sunday, it doubles as planning the week ahead. Any day works. Capture the day, then move on.\n\nDO NOT:\n- Read the seven days out loud. The card shows them.\n- Oversell. The opener already carries the pitch. Ask, capture, move on.\n- Let it be skipped silently. If they truly refuse to pick, set Sunday and tell them they can change it later.",
+      "opener": "Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?"
+    },
+    {
       "id": "path-fork",
       "screenId": "ONBOARD-FORK--FORM",
       "componentType": "path-selection",
@@ -502,7 +562,7 @@
         },
         "engine": {
           "nodeId": "path-fork",
-          "backId": "reflection-setup",
+          "backId": "weekly-day-setup",
           "persistStep": 2,
           "pathField": true,
           "captureFields": ["path"],

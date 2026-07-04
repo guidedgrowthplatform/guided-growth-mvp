@@ -42,10 +42,10 @@ export function checkAdvanceData(args: {
       return null;
     }
     // V3 persist scale (non-monotonic vs flow order — profile 1 → state-check 6 →
-    // morning 7 → reflection 8 → fork 2 → category 3 → goals 4 → habits 5,5).
-    // Step numbers are beat identities, not positions: 5 is the two habit beats,
-    // 6 state-check, 7 morning-setup, 8 reflection. Parity with the generated
-    // flow is locked by stepMapParity.test.ts.
+    // morning 7 → reflection 8 → weekly-day 9 → fork 2 → category 3 → goals 4 →
+    // habits 5,5). Step numbers are beat identities, not positions: 5 is the two
+    // habit beats, 6 state-check, 7 morning-setup, 8 reflection, 9 weekly-day.
+    // Parity with the generated flow is locked by stepMapParity.test.ts.
     case 5: {
       const habits = data.habitConfigs as Record<string, unknown> | undefined;
       if (!habits || Object.keys(habits).length === 0) {
@@ -69,7 +69,12 @@ export function checkAdvanceData(args: {
         return 'reflection_missing: call submit_reflection_config first';
       }
       return null;
-    // 9+ has no V3 beat (legacy plan-review scale point) — nothing to gate.
+    case 9:
+      if (!data.weeklyConfig) {
+        return 'weekly_config_missing: call submit_weekly_config first';
+      }
+      return null;
+    // 10+ has no V3 beat (legacy plan-review scale point) — nothing to gate.
     default:
       return null;
   }
@@ -100,6 +105,7 @@ export function traceAdvanceStep0(
     habitConfigs: !!habits && Object.keys(habits).length > 0,
     morningCheckin: !!data.morningCheckin,
     reflectionConfig: !!data.reflectionConfig,
+    weeklyConfig: !!data.weeklyConfig,
     brainDump: typeof brainDumpRaw === 'string' && brainDumpRaw.length > 0,
   };
   console.log(

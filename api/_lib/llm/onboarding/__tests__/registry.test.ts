@@ -3,7 +3,7 @@ import { ONBOARDING_TOOLS, ONBOARDING_TOOL_NAMES, isOnboardingToolName } from '.
 import { getOnboardingTools, isOnboardingScreen } from '../registry.js';
 
 describe('ONBOARDING_TOOLS', () => {
-  it('exposes the fifteen canonical tool names', () => {
+  it('exposes the sixteen canonical tool names', () => {
     expect(ONBOARDING_TOOLS.map((t) => t.name).sort()).toEqual([
       'add_habit',
       'advance_step',
@@ -19,6 +19,7 @@ describe('ONBOARDING_TOOLS', () => {
       'submit_path_choice',
       'submit_profile',
       'submit_reflection_config',
+      'submit_weekly_config',
       'update_habit',
     ]);
   });
@@ -199,6 +200,15 @@ describe('ONBOARDING_TOOLS', () => {
           ],
         },
         {
+          "name": "submit_weekly_config",
+          "properties": [
+            "day",
+          ],
+          "required": [
+            "day",
+          ],
+        },
+        {
           "name": "submit_custom_prompts",
           "properties": [
             "prompts",
@@ -247,8 +257,8 @@ describe('ONBOARDING_TOOLS', () => {
 });
 
 describe('ONBOARDING_TOOL_NAMES + isOnboardingToolName', () => {
-  it('set contains exactly the fifteen names', () => {
-    expect(ONBOARDING_TOOL_NAMES.size).toBe(15);
+  it('set contains exactly the sixteen names', () => {
+    expect(ONBOARDING_TOOL_NAMES.size).toBe(16);
   });
 
   it('isOnboardingToolName accepts known names', () => {
@@ -282,6 +292,10 @@ describe('getOnboardingTools / isOnboardingScreen', () => {
     expect(names(getOnboardingTools('ONBOARD-ADVANCED'))).toEqual([
       'advance_step',
       'submit_brain_dump',
+    ]);
+    expect(names(getOnboardingTools('ONBOARD-WEEKLY-SETUP'))).toEqual([
+      'advance_step',
+      'submit_weekly_config',
     ]);
   });
 
