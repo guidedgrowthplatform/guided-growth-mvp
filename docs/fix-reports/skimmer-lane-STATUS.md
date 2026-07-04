@@ -64,6 +64,12 @@ staging branch was deleted with it. Project default branch is `main`.
   expected interim-STT feed is present; gating flag check still to do at fork time.
 - Landmines re-confirmed current: useLiveSkimmer/liveSkimmer ghost-fill is a separate system (do not
   conflate); parseHabitsFromText stays untouched; flow-designer LiveScan preview out of scope.
+- S3 gating flag answered: `VITE_STATE3_ENABLED` → `VOICE_IN_ENABLED` (src/lib/config/voice.ts:23);
+  useVoiceInCapture consumed in OnboardingVoiceProvider.tsx:1485 behind `voiceInShouldBeLive`. Same env
+  name the skimmer sim used, so the port's voice feed should connect without a flag rename.
+- `.frugal-fable/` is gitignored on main (.gitignore:150) — delegation scratch convention usable as-is.
+- Deliberately NOT deep-reading componentRegistry.tsx / useFlowOrchestrator.ts during the hold: they are
+  the B32–B35 bundle's hot files and the survey mandates porting against the tip at merge time.
 
 ## Usage / discipline
 
