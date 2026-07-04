@@ -7,7 +7,7 @@
  *
  * Validation patterns mirror add_habit for time/days/schedule.
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 import {
   inferSchedule,
   SCHEDULE_OPTIONS,
@@ -58,6 +58,7 @@ function isScheduleOption(v: string): boolean {
 
 export async function submitReflectionConfig(
   args: Record<string, unknown>,
+  db: Queryable = pool,
 ): Promise<HandlerResult> {
   console.log(
     '[vapi/tool] received name=submit_reflection_config anon_id=' + getString(args, 'anon_id'),
@@ -116,7 +117,7 @@ export async function submitReflectionConfig(
 
   // DATA ONLY — current_step not touched on UPDATE; navigate_next handles
   // the screen advance. INSERT path defaults to step 6 (reflection).
-  const result = await pool.query(
+  const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
      VALUES ($1, 6, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET

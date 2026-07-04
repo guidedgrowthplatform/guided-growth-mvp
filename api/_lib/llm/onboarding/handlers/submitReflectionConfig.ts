@@ -56,10 +56,14 @@ export async function submitReflectionConfig(
     reflectionMode ? { reflectionConfig, reflectionMode } : { reflectionConfig },
   );
 
+  // GREATEST-bump to the reflection beat's V3 persist step (8) — same semantics
+  // as the tap save, so a voice save survives refresh identically. Later edits
+  // from the app (reflection settings) re-call this; GREATEST never rewinds.
   const result = await pool.query<{ data: Record<string, unknown>; current_step: number }>(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
-     VALUES ($1, 6, 'in_progress', $2::jsonb, now())
+     VALUES ($1, 8, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
+       current_step = GREATEST(onboarding_states.current_step, 8),
        status = 'in_progress',
        data = onboarding_states.data || $2::jsonb,
        updated_at = now()
@@ -70,7 +74,7 @@ export async function submitReflectionConfig(
   const row = result.rows[0];
   return ok({
     data: row?.data ?? { reflectionConfig },
-    current_step: row?.current_step ?? 6,
+    current_step: row?.current_step ?? 8,
     reflectionConfig,
   });
 }

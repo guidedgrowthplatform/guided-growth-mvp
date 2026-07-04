@@ -20,6 +20,31 @@ Distinct bundle ids mean a tester can hold dev, staging, and production side by 
 
 Note on naming: `main` is the production branch. "main" and "production" refer to the same stage in this doc.
 
+> **2026-06-10:** for the **database split**, [`supabase-environments.md`](./supabase-environments.md) is now authoritative. The staging Supabase project exists: ref `ppyouymvnrqxcsllrmsl` (prod: `pmunbflbjpoawicgimyc`). A `dev` Supabase project is still not provisioned.
+
+---
+
+## Local development: which backend
+
+Local dev (`npm run dev`, `vercel dev`, and every `node scripts/*.mjs`) reads `.env.local`. To keep prod and staging cleanly separated, the active `.env.local` is **switched between two stored templates** rather than hand-edited:
+
+| File                 | Holds                       | Loaded by Vite/scripts |
+| -------------------- | --------------------------- | ---------------------- |
+| `.env.staging.local` | staging Supabase + QA flags | no (template)          |
+| `.env.prod.local`    | prod Supabase               | no (template)          |
+| `.env.local`         | a copy of one of the above  | **yes (active)**       |
+
+All three are gitignored. First-time setup: copy `.env.local.example` to `.env.staging.local` and `.env.prod.local`, fill each with that environment's Supabase URL / anon key / service-role key / `DATABASE_URL`. The shared keys (OpenAI, Cartesia, Soniox, Vapi, Resend) are the same in both.
+
+Switch the active backend:
+
+```bash
+npm run env:staging          # safe default for day-to-day work
+npm run env:prod -- --yes-prod   # deliberate; pointing local at prod is rare
+```
+
+`scripts/env/targets.mjs` resolves which project the live env points at (by Supabase ref) and exposes `assertSafeTarget()`. Destructive scripts (e.g. `reset-user-onboarding.mjs`) call it and **refuse to run against prod unless `ALLOW_PROD=1`** is set. Default local backend is **staging**, so local mistakes never touch production data.
+
 ---
 
 ## What is wired in this repo
@@ -50,6 +75,8 @@ For each of `app.guidedgrowth.dev` and `app.guidedgrowth.staging`:
 Production (`app.guidedgrowth.mvp`) already has its App ID, App record, and match profile.
 
 ### 2. Supabase (per non-prod stage: dev and staging)
+
+> **2026-06-10:** staging is done — project ref `ppyouymvnrqxcsllrmsl`. See [`supabase-environments.md`](./supabase-environments.md) (authoritative) and [`staging-rollout.md`](./staging-rollout.md) for wiring status.
 
 1. Create a Supabase project for the stage.
 2. Run the migrations (`supabase/migrations/`, order: `000 -> 001 -> 002 -> 003`).
@@ -92,7 +119,7 @@ Production is unchanged: push a `v*` tag to ship via `ci.yml` (iOS builds by def
 
 > The previous per-environment iOS dispatch workflow (`mobile-env-release.yml`) and the standalone `qa-android-release.yml` were consolidated into `qa-release.yml`. A `dev` stage is not currently wired.
 >
-> Both QA platforms now share one web bundle built under the `staging` Environment, so the QA app's baked-in config (`VITE_API_URL`, `VITE_*`) follows that Environment. Keep staging's values equal to prod while the backend is shared; if they ever diverge, QA Android content follows staging, not prod.
+> Both QA platforms now share one web bundle built under the `staging` Environment, so the QA app's baked-in config (`VITE_API_URL`, `VITE_*`) follows that Environment. ~~Keep staging's values equal to prod while the backend is shared~~ **(2026-06-10: superseded — the `staging` Environment's values now point at the staging Supabase `ppyouymvnrqxcsllrmsl`; see [`supabase-environments.md`](./supabase-environments.md))**. If values diverge, QA Android content follows staging, not prod.
 
 ---
 

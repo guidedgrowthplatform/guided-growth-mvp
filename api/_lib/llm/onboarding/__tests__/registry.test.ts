@@ -3,20 +3,23 @@ import { ONBOARDING_TOOLS, ONBOARDING_TOOL_NAMES, isOnboardingToolName } from '.
 import { getOnboardingTools, isOnboardingScreen } from '../registry.js';
 
 describe('ONBOARDING_TOOLS', () => {
-  it('exposes the thirteen canonical tool names', () => {
+  it('exposes the sixteen canonical tool names', () => {
     expect(ONBOARDING_TOOLS.map((t) => t.name).sort()).toEqual([
       'add_habit',
       'advance_step',
       'ask_clarification',
       'confirm_plan',
+      'record_checkin',
       'remove_habit',
       'submit_brain_dump',
       'submit_category',
       'submit_custom_prompts',
       'submit_goals',
+      'submit_morning_checkin',
       'submit_path_choice',
       'submit_profile',
       'submit_reflection_config',
+      'submit_weekly_config',
       'update_habit',
     ]);
   });
@@ -37,9 +40,9 @@ describe('ONBOARDING_TOOLS', () => {
     }
   });
 
-  it('submit_profile requires only nickname', () => {
+  it('submit_profile has no required field (nickname captured at auth)', () => {
     const tool = ONBOARDING_TOOLS.find((t) => t.name === 'submit_profile')!;
-    expect(tool.parameters.required).toEqual(['nickname']);
+    expect(tool.parameters.required).toEqual([]);
     expect(tool.parameters.properties.gender).toMatchObject({
       enum: ['Male', 'Female', 'Other'],
     });
@@ -90,9 +93,7 @@ describe('ONBOARDING_TOOLS', () => {
             "nickname",
             "referral_source",
           ],
-          "required": [
-            "nickname",
-          ],
+          "required": [],
         },
         {
           "name": "submit_path_choice",
@@ -158,6 +159,31 @@ describe('ONBOARDING_TOOLS', () => {
           ],
         },
         {
+          "name": "submit_morning_checkin",
+          "properties": [
+            "days",
+            "reminder",
+            "schedule",
+            "time",
+          ],
+          "required": [
+            "days",
+            "reminder",
+            "schedule",
+            "time",
+          ],
+        },
+        {
+          "name": "record_checkin",
+          "properties": [
+            "energy",
+            "mood",
+            "sleep",
+            "stress",
+          ],
+          "required": [],
+        },
+        {
           "name": "submit_reflection_config",
           "properties": [
             "days",
@@ -171,6 +197,15 @@ describe('ONBOARDING_TOOLS', () => {
             "reminder",
             "schedule",
             "time",
+          ],
+        },
+        {
+          "name": "submit_weekly_config",
+          "properties": [
+            "day",
+          ],
+          "required": [
+            "day",
           ],
         },
         {
@@ -222,8 +257,8 @@ describe('ONBOARDING_TOOLS', () => {
 });
 
 describe('ONBOARDING_TOOL_NAMES + isOnboardingToolName', () => {
-  it('set contains exactly the thirteen names', () => {
-    expect(ONBOARDING_TOOL_NAMES.size).toBe(13);
+  it('set contains exactly the sixteen names', () => {
+    expect(ONBOARDING_TOOL_NAMES.size).toBe(16);
   });
 
   it('isOnboardingToolName accepts known names', () => {
@@ -240,11 +275,36 @@ describe('ONBOARDING_TOOL_NAMES + isOnboardingToolName', () => {
   });
 });
 
+const names = (tools: readonly { name: string }[] | undefined) =>
+  (tools ?? []).map((t) => t.name).sort();
+
 describe('getOnboardingTools / isOnboardingScreen', () => {
-  it('returns tools for ONBOARD- prefixed screen ids', () => {
-    expect(getOnboardingTools('ONBOARD-01--FORM')).toBe(ONBOARDING_TOOLS);
-    expect(getOnboardingTools('ONBOARD-BEGINNER-03')).toBe(ONBOARDING_TOOLS);
-    expect(getOnboardingTools('ONBOARD-ADVANCED')).toBe(ONBOARDING_TOOLS);
+  it("gates to each beat's allowed tools (per-beat tool gating)", () => {
+    expect(names(getOnboardingTools('ONBOARD-01--FORM'))).toEqual([
+      'advance_step',
+      'submit_profile',
+    ]);
+    expect(names(getOnboardingTools('ONBOARD-BEGINNER-03'))).toEqual([
+      'add_habit',
+      'advance_step',
+      'remove_habit',
+    ]);
+    expect(names(getOnboardingTools('ONBOARD-ADVANCED'))).toEqual([
+      'advance_step',
+      'submit_brain_dump',
+    ]);
+    expect(names(getOnboardingTools('ONBOARD-WEEKLY-SETUP'))).toEqual([
+      'advance_step',
+      'submit_weekly_config',
+    ]);
+  });
+
+  it('exposes no tools on the silent auth beat', () => {
+    expect(getOnboardingTools('ONBOARD-AUTH--FORM')).toEqual([]);
+  });
+
+  it('falls back to all tools for an ONBOARD- beat not in beatContexts', () => {
+    expect(getOnboardingTools('ONBOARD-NOT-A-BEAT-99')).toBe(ONBOARDING_TOOLS);
   });
 
   it('returns undefined for non-onboarding screens', () => {

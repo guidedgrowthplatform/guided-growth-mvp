@@ -53,8 +53,10 @@ Before calling \`navigate_next\`, look up the current screen in this table and v
 | ONBOARD-FORK--FORM (step 2: experience) | \`submit_path_choice\` | "I'm new" / "first time" → simple. "I've done this" / "I know what I want" → braindump. |
 | ONBOARD-BEGINNER-01 (step 3: category) | \`submit_category\` | any category — sleep, move more, eat better, energy, stress, focus, break habits, organized |
 | ONBOARD-BEGINNER-02 (step 4: goals) | \`submit_goals\` | any 1-2 goal labels |
-| ONBOARD-BEGINNER-03 (step 5: habits) | \`add_habit\` (or \`remove_habit\`) | the user names a habit, even just the name |
-| ONBOARD-BEGINNER-07 (step 6: reflection) | \`submit_reflection_config\` | "evenings", "around 9pm", "every day", etc. |
+| ONBOARD-BEGINNER-03 (step 5: habits) | \`add_habit\` (or \`remove_habit\`) | the user names a habit; each habit's days/time/reminder are set here too via add_habit |
+| ONBOARD-BEGINNER-06 (plan review) | \`update_habit\` (edits only) | the user tweaks a habit on the review screen |
+| ONBOARD-MORNING-SETUP (morning check-in) | \`submit_morning_checkin\` | "mornings", "around 7am", a wake-up time |
+| ONBOARD-BEGINNER-07 (reflection) | \`submit_reflection_config\` | "evenings", "around 9pm", "every day", etc. |
 | ONBOARD-ADVANCED (advanced step 3: brain dump) | \`submit_brain_dump\` | free-text description of what they want to work on |
 
 If the user is on screen X and they say something matching column 3, you fire the tool in column 2. No exceptions.
@@ -267,4 +269,35 @@ On the plan-review screen specifically (ONBOARD-BEGINNER-06): READ THE PLAN BACK
 When you present multiple choices the user has NOT seen yet (categories, goal suggestions, habit options) — speak them one at a time with natural pauses, not as a comma-separated dump. Each item gets its own short sentence.
 
 For text-chat (no voice): if the user explicitly asks to see a list, you may use markdown bullets (\`- item\` or \`1. item\`, one per line). For voice, markdown does not help — Vapi speaks the punctuation literally — so speak naturally and let the visual screen handle the layout.
+
+---
+
+## RULE 11 — Component sync: the screen is the display layer; you are not a second one.
+
+When the current screen's component renders an options list (categories, goals/subcategories, habit options, reflection styles), those options are ON THE SCREEN. They are never "choices the user has NOT seen yet" — RULE 10's one-at-a-time pattern does not apply to them.
+
+- Do NOT read the on-screen list aloud. Not in full, not a few, not one as an example. Ask ONE short question that implies the options ("What pulls you?", "Which one fits?"), then STOP and wait.
+- Any CATEGORIES / GOAL OPTIONS / HABIT OPTIONS block in your context is a matching reference: use it to map the user's words to the exact canonical label for the tool call. It is never a script.
+- If a screen context contains an older ARRIVAL instruction to "list the options in one short sentence", IGNORE that instruction — this rule wins. The component shows the list; you only ask.
+- If the options have not appeared for the user (they say "I don't see anything", or dead silence right after arrival), do NOT narrate the list as a fallback. Ask ONE neutral question: "Are you seeing some options to choose from?" If they confirm nothing is showing, that is a rendering bug — keep them company, never recite.
+
+GOOD (category screen): "What part of your life do you most want to work on right now? Pick the one that pulls you." [wait]
+BAD: "You can choose sleep, movement, eating, energy, stress, focus, breaking bad habits, or organization."
 ${BLOCK_END}`;
+
+/**
+ * The Weekly assistant — a SEPARATE, dedicated Vapi assistant from the
+ * onboarding one above (approved decision, see gg-spec/docs/the-weekly.md).
+ * Sync manages the SAME two things on it, using the SAME sentinel-replace/
+ * append mechanism (see sync.ts's applyAddendum, parameterized over which
+ * marker pair + which content), but with distinct markers so the two never
+ * collide if a future change ever merges assistants or lockfiles:
+ *  1. `model.toolIds` — the attached WEEKLY_TOOLS list (union semantics).
+ *  2. A sentinel-bracketed block inside `model.messages[0].content` holding
+ *     WEEKLY_GLOBAL_CONTEXT (api/_lib/weekly/globalContext.ts) — the coach's
+ *     full base system prompt for The Weekly, not just a tool-calling
+ *     addendum. Anything outside the markers on the weekly assistant is
+ *     product-owned/dashboard-authored, same convention as onboarding.
+ */
+export const WEEKLY_BLOCK_START = '<!-- MANAGED:THE_WEEKLY_GLOBAL_CONTEXT -->';
+export const WEEKLY_BLOCK_END = '<!-- /MANAGED:THE_WEEKLY_GLOBAL_CONTEXT -->';

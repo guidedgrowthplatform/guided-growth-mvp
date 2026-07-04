@@ -21,6 +21,7 @@ import {
   getCheckinOpenerTools,
 } from '../_lib/llm/checkin/registry.js';
 import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
+import { handleCheckinTool } from '../_lib/llm/checkin/handleCheckinToolRoute.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
 import { handleParseBrainDump } from '../_lib/llm/parseBrainDump.js';
@@ -32,6 +33,12 @@ import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 type CoachingStyle = 'warm' | 'direct' | 'reflective';
 const COACHING_STYLES = new Set<CoachingStyle>(['warm', 'direct', 'reflective']);
 const TOOL_NAMES = new Set<string>(TOOL_DEFINITIONS.map((t) => t.name));
+// The screen context_block is already injected into the system prompt by
+// buildSystemPromptForRequest, so offering get_user_context here just lets the
+// model burn a paid round-trip (and one of MAX_ROUNDS) re-fetching what it
+// already has. Keep it in TOOL_DEFINITIONS for the Vapi wire artifact, but drop
+// it from the Direct-LLM base set. Still dispatchable if ever called.
+const DIRECT_LLM_BASE_TOOLS = TOOL_DEFINITIONS.filter((t) => t.name !== 'get_user_context');
 
 type LLMStreamEvent =
   | { type: 'delta'; content: string }
@@ -39,11 +46,19 @@ type LLMStreamEvent =
   | { type: 'tool_result'; id: string; ok: boolean; result: unknown }
   | { type: 'tool_failed'; id: string; name: string; error: string; message?: string }
   | { type: 'done'; latency_ms: number; total_tokens: number; tool_rounds: number }
-  | { type: 'error'; code: string; message: string };
+  // `debug` is only populated when the request carries `x-gg-debug: 1` — it
+  // names the failing stage + error class for QA without leaking internals
+  // (or stack traces) to normal clients.
+  | { type: 'error'; code: string; message: string; debug?: { stage: string; class?: string } };
 
 const MAX_ROUNDS = 5;
 const ONBOARDING_MODEL = 'gpt-4o';
 const FORK_SCREEN_ID = 'ONBOARD-FORK--FORM';
+// Onboarding turns emit tool JSON (add_habit / update_habit / advance_step,
+// sometimes several per turn on the habit beats) ON TOP of the coach's text.
+// The shared 600-token default truncated exactly there (response.incomplete →
+// the B11 empty-turn wedge), so onboarding gets more output headroom.
+const ONBOARDING_MAX_OUTPUT_TOKENS = 1000;
 
 interface PersistedToolRow {
   toolCallId: string;
@@ -67,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
-  if (route !== '' && route !== 'parse-brain-dump') {
+  if (route !== '' && route !== 'parse-brain-dump' && route !== 'checkin-tool') {
     return res.status(404).json({ error: 'Not found' });
   }
 
@@ -75,9 +90,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // QA visibility flag: `x-gg-debug: 1` echoes the failing stage + error class
+  // in error payloads. Failure logging below is unconditional (Vercel function
+  // logs had NOTHING for most B11 failure classes — Sentry DSN is not set on
+  // the API functions, session_log is best-effort and invisible to QA).
+  const debugRequested = req.headers['x-gg-debug'] === '1';
+
   try {
     getOpenAIKey();
   } catch (err) {
+    console.error('[llm:fail]', JSON.stringify({ stage: 'config', code: 'missing_openai_key' }));
     return res.status(500).json({ error: (err as Error).message });
   }
 
@@ -112,6 +134,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (route === 'parse-brain-dump') {
     return handleParseBrainDump(req, res, { anonId: user.anonId });
+  }
+
+  if (route === 'checkin-tool') {
+    return handleCheckinTool(req, res, { anonId: user.anonId });
   }
 
   const body = (req.body ?? {}) as Record<string, unknown>;
@@ -189,6 +215,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const persistChat = chatSessionId !== null;
 
+  // Stable, grep-able failure line for EVERY hard failure on this route.
+  // One prefix ([llm:fail]) so Vercel function logs answer "what failed and
+  // where" without dashboard spelunking. Never throws.
+  const logFailure = (stage: string, code: string, err?: unknown, extra?: object) => {
+    try {
+      const e = err as { name?: string; message?: string; status?: number } | undefined;
+      console.error(
+        '[llm:fail]',
+        JSON.stringify({
+          stage,
+          code,
+          screen_id: screenId,
+          mode,
+          error_class: e?.name,
+          status: e?.status,
+          message: typeof e?.message === 'string' ? e.message.slice(0, 300) : undefined,
+          ...extra,
+        }),
+      );
+    } catch {
+      // logging must never break the request
+    }
+  };
+  const debugInfo = (stage: string, err?: unknown) =>
+    debugRequested ? { debug: { stage, class: (err as { name?: string } | undefined)?.name } } : {};
+
   const isOnboardingScreen = screenId.startsWith('ONBOARD-');
   const requestModel: string | undefined = isOnboardingScreen ? ONBOARDING_MODEL : undefined;
   // Onboarding captures real name/age/brain-dump — scrubbing would destroy the
@@ -262,9 +314,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
   } catch (err) {
-    return res
-      .status(500)
-      .json({ error: 'build_system_prompt_failed', message: (err as Error).message });
+    logFailure('build_prompt', 'build_system_prompt_failed', err);
+    return res.status(500).json({
+      error: 'build_system_prompt_failed',
+      message: (err as Error).message,
+      ...debugInfo('build_prompt', err),
+    });
   }
 
   // Blocks reuse of another anon's session id before streaming.
@@ -504,8 +559,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : checkinTools !== undefined
           ? checkinTools
           : readOnlyCheckinTools !== undefined
-            ? [...TOOL_DEFINITIONS, ...readOnlyCheckinTools]
-            : TOOL_DEFINITIONS;
+            ? [...DIRECT_LLM_BASE_TOOLS, ...readOnlyCheckinTools]
+            : DIRECT_LLM_BASE_TOOLS;
   const allowedToolNames = new Set<string>(requestTools ? requestTools.map((t) => t.name) : []);
 
   const forceForkChoice = isForkScreen && !pathAlreadySet && mode !== 'opener';
@@ -534,6 +589,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         toolChoice: forcingThisRound ? ('required' as const) : undefined,
         store: true,
         signal: abortController.signal,
+        // Onboarding turns carry tool JSON on top of text — the 600 default
+        // truncated on the habit beats (response.incomplete → B11).
+        maxOutputTokens: isOnboardingScreen ? ONBOARDING_MAX_OUTPUT_TOKENS : undefined,
       };
 
       let stream: AsyncIterable<
@@ -563,7 +621,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const err = openErr as Error;
         endStatus = 'error';
         endCode = 'openai_error';
-        send({ type: 'error', code: 'openai_error', message: err?.message ?? 'Unknown error' });
+        logFailure('open_stream', 'openai_error', err, { round });
+        send({
+          type: 'error',
+          code: 'openai_error',
+          message: err?.message ?? 'Unknown error',
+          ...debugInfo('open_stream', err),
+        });
         await persistChatTurn({ includeAssistant: false });
         await finalize();
         res.end();
@@ -596,11 +660,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               if (evt.totalTokens) totalTokens = evt.totalTokens;
               break;
             }
+            // Truncated terminal (max_output_tokens / content_filter). Treat as
+            // a retryable failure: dispatching a possibly-partial tool set or
+            // finishing with a half-sentence would silently corrupt the turn —
+            // exactly the B11 empty-response wedge at the habit beat.
+            case 'incomplete': {
+              streamFailed = true;
+              if (evt.totalTokens) totalTokens = evt.totalTokens;
+              endStatus = clientClosed ? 'cancelled' : 'error';
+              endCode = `incomplete_${evt.reason}`;
+              logFailure('stream', endCode, undefined, {
+                round,
+                reason: evt.reason,
+                partial_chars: assistantContent.length,
+                partial_tool_calls: roundToolCalls.length,
+              });
+              send({
+                type: 'error',
+                code: 'incomplete_response',
+                message: `response truncated (${evt.reason}) — please retry`,
+                ...debugInfo('stream'),
+              });
+              break;
+            }
             case 'error': {
               streamFailed = true;
               endStatus = clientClosed ? 'cancelled' : 'error';
               endCode = evt.code;
-              send({ type: 'error', code: evt.code, message: evt.message });
+              logFailure('stream', evt.code, undefined, { round, upstream: evt.message });
+              send({ type: 'error', code: evt.code, message: evt.message, ...debugInfo('stream') });
               break;
             }
           }
@@ -611,7 +699,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const code = err instanceof OpenAIError ? `openai_${status ?? 'error'}` : 'stream_error';
         endStatus = clientClosed ? 'cancelled' : 'error';
         endCode = code;
-        send({ type: 'error', code, message: (err as Error).message });
+        logFailure('stream_iterate', code, err, { round });
+        send({
+          type: 'error',
+          code,
+          message: (err as Error).message,
+          ...debugInfo('stream_iterate', err),
+        });
         await persistChatTurn({ includeAssistant: false });
         await finalize();
         res.end();
@@ -771,6 +865,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!finished) {
       endStatus = 'tool_cap';
       endCode = 'tool_cap_reached';
+      logFailure('rounds', 'tool_cap_reached', undefined, { tool_rounds: toolRounds });
       send({ type: 'error', code: 'tool_cap_reached', message: 'Exceeded max tool rounds (5)' });
       await persistChatTurn({ includeAssistant: false });
       res.end();
@@ -794,7 +889,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const code = err instanceof OpenAIError ? `openai_${status ?? 'error'}` : 'internal_error';
     endStatus = clientClosed ? 'cancelled' : 'error';
     endCode = code;
-    send({ type: 'error', code, message: (err as Error).message });
+    logFailure('request', code, err);
+    send({
+      type: 'error',
+      code,
+      message: (err as Error).message,
+      ...debugInfo('request', err),
+    });
     await persistChatTurn({ includeAssistant: false });
     await finalize();
     res.end();

@@ -101,7 +101,7 @@ export function HabitPickerPanel({
                   type="button"
                   onClick={handleSubmitCustom}
                   disabled={!customValue.trim()}
-                  className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-primary transition-opacity disabled:opacity-30"
+                  className="flex size-[28px] shrink-0 items-center justify-center rounded-md bg-success transition-opacity disabled:opacity-30"
                 >
                   <Icon icon="mdi:check" width={18} height={18} className="text-white" />
                 </button>

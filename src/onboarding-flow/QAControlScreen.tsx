@@ -1,21 +1,28 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { clearThread } from '@/contexts/onboardingThreadStore';
+import { queryClient } from '@/lib/query';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { blessOpenerClipsInGesture } from './renderer/openerGestureStart';
+import { ONBOARDING_BEAT_MP3S } from './renderer/useBeatOpenerMp3';
 
 /**
- * QA Control screen — the functional twin of the `qa-control` beat designed in
- * the flow builder. A QA-only launcher: pick a test user, then choose how to
- * enter the app. Gated to a flag-protected route (see src/routes/index.tsx), so
- * real users never reach it.
+ * QA Control screen -- the functional twin of the `qa-control` beat designed in
+ * the flow builder. A QA-only launcher: pick a test user, pick a flow to run, then
+ * choose how to enter the app. Gated to a flag-protected route (see src/routes/index.tsx),
+ * so real users never reach it.
  *
- * Each test account is a dedicated `qa-onboarding-*@guidedgrowth.test` user (one
- * per tester). They share one embedded password (QA_PASSWORD below) so testers
- * just pick a user and go, no entry. The reset/restart actions call
- * /api/qa/self-reset, which wipes the authed QA user's data but keeps the
- * account. "Re-run (keep data)" drops into the flow without wiping; the engine
- * seeding it from saved data is a follow-up.
+ * Layout (one phone screen, no scroll):
+ *   1. Header (QA badge + title)
+ *   2. Test user picker (select)
+ *   3. "Start a flow" grid
+ *   4. Account-state action buttons (log in / restart / replay preview / reset)
+ *   5. Error line
+ *
+ * Each test account is a dedicated `qa-onboarding-*@guidedgrowth.test` user. They
+ * share one password (VITE_QA_PASSWORD) so testers just pick a user and go.
  */
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -26,22 +33,123 @@ interface QaUser {
   onboarded?: boolean;
 }
 
-// Fallback list used until /api/qa/users responds (the live list of real
-// qa-onboarding-* accounts from Supabase). Keeps the screen usable offline or
-// before the endpoint deploys.
+// First two exist on the staging project (the QA DB since the 2026-07-02 env
+// flip); the rest are prod-era accounts kept for the endpoint-down fallback.
 const FALLBACK_USERS: QaUser[] = [
+  { label: 'Fable', email: 'qa-onboarding-fable@guidedgrowth.test' },
+  { label: 'Mintesnot', email: 'qa-onboarding-mintesnot@guidedgrowth.test' },
   { label: 'Yair', email: 'qa-onboarding-yair@guidedgrowth.test' },
   { label: 'Alejandro', email: 'qa-onboarding-alejandro@guidedgrowth.test' },
   { label: 'Yonas', email: 'qa-onboarding-yonas@guidedgrowth.test' },
-  { label: 'Mintesnot', email: 'qa-onboarding-mintesnot@guidedgrowth.test' },
   { label: 'Timothy', email: 'qa-onboarding-timothy@guidedgrowth.test' },
 ];
 
-// Shared password for the QA test accounts. Embedded on purpose: these are
-// throwaway qa-onboarding-*@guidedgrowth.test accounts with no real data, behind
-// a QA-only gated route, so testers pick a user and go with no entry. The
-// create-test-users script seeds the accounts with this exact value.
-const QA_PASSWORD = 'guided-growth-qa-2026';
+// Set on the QA build; must match the QA_PASSWORD the create-test-users script seeded.
+const QA_PASSWORD = import.meta.env.VITE_QA_PASSWORD;
+
+// ---------------------------------------------------------------------------
+// Flow picker config
+// ---------------------------------------------------------------------------
+
+type FlowId =
+  | 'full-onboarding'
+  | 'mic-profile-start'
+  | 'profile-start'
+  | 'home-tour'
+  | 'morning-checkin'
+  | 'evening-checkin';
+
+interface FlowDef {
+  id: FlowId;
+  icon: string;
+  label: string;
+  desc: string;
+  /** Call to navigate to the flow's route. Receives the react-router navigate fn. */
+  navigate: (nav: ReturnType<typeof useNavigate>) => void;
+  /**
+   * true when the flow renders completely through the engine today.
+   * false when components are missing from componentRegistry.tsx and the flow
+   * will render an empty or fallback beat for those nodes.
+   */
+  fullyRunnable: boolean;
+  // 'server' = real authed flow (Supabase-persisted; a fresh launch wipes the
+  // picked user first). 'preview' = in-memory render; a server wipe changes nothing.
+  kind: 'server' | 'preview';
+}
+
+const FLOWS: FlowDef[] = [
+  {
+    id: 'full-onboarding',
+    icon: 'ic:round-play-arrow',
+    label: 'Full onboarding',
+    desc: 'Fresh run from auth',
+    // Navigate directly to /onboarding/flow, bypassing OnboardingEntry so the
+    // QA path is never affected by the VITE_ONBOARDING_USE_ENGINE flag.
+    navigate: (nav) => nav('/onboarding/flow', { replace: true }),
+    fullyRunnable: true,
+    kind: 'server',
+  },
+  {
+    id: 'profile-start',
+    icon: 'ic:round-person',
+    label: 'Profile start',
+    desc: 'Skip auth, start at profile beat',
+    // ?startAt=profile seeds the orchestrator at the profile node (id='profile'
+    // in onboarding-beginner-v1.ts:84). The user must already be signed in,
+    // which ensureSignedIn in run() handles before this navigation fires.
+    navigate: (nav) => nav('/onboarding/flow?startAt=profile', { replace: true }),
+    fullyRunnable: true,
+    kind: 'server',
+  },
+  {
+    id: 'mic-profile-start',
+    icon: 'ic:round-mic',
+    label: 'Mic + Profile',
+    desc: 'Start at mic permission, then profile',
+    // ?startAt=mic seeds the orchestrator at the MIC-PERMISSION node
+    // (id='mic'), so the Allow tap grants mic and unlocks browser audio before
+    // the profile beat's MP3/live opener path needs playback.
+    navigate: (nav) => nav('/onboarding/flow?startAt=mic', { replace: true }),
+    fullyRunnable: true,
+    kind: 'server',
+  },
+  {
+    id: 'home-tour',
+    icon: 'ic:round-home',
+    label: 'Home tour',
+    desc: 'Post-onboarding app tour',
+    // Routes to /flow-preview/home-tour but the 'home-tour' componentType is NOT
+    // registered in src/onboarding-flow/renderer/componentRegistry.tsx. The engine
+    // renderer will hit the default/fallback case for each beat. This flow is
+    // deferred to the app-shell workstream (HANDOFF-app-shell-and-flow-order.md).
+    // The route and button are wired correctly; the adapter is what is missing.
+    navigate: (nav) => nav('/flow-preview/home-tour', { replace: true }),
+    fullyRunnable: false,
+    kind: 'preview',
+  },
+  {
+    id: 'morning-checkin',
+    icon: 'ic:round-wb-sunny',
+    label: 'Morning check-in',
+    desc: '4-beat morning state-check flow',
+    navigate: (nav) => nav('/flow-preview/morning-checkin', { replace: true }),
+    fullyRunnable: true,
+    kind: 'preview',
+  },
+  {
+    id: 'evening-checkin',
+    icon: 'ic:round-nights-stay',
+    label: 'Evening check-in',
+    desc: '5-beat evening flow',
+    navigate: (nav) => nav('/flow-preview/evening-checkin', { replace: true }),
+    fullyRunnable: true,
+    kind: 'preview',
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Account-state actions
+// ---------------------------------------------------------------------------
 
 type ActionKey = 'login' | 'restart' | 'reonboard' | 'reset';
 
@@ -71,32 +179,48 @@ const ACTIONS: ActionDef[] = [
     key: 'restart',
     icon: 'ic:round-restart-alt',
     label: 'Restart onboarding (fresh)',
-    desc: 'Delete this user data, keep the account, run onboarding from the top.',
+    desc: 'Delete this user data, keep the account, run full onboarding from the top.',
     tone: 'neutral',
   },
   {
     key: 'reonboard',
     icon: 'ic:round-replay',
-    label: 'Re-run onboarding (keep data)',
-    desc: 'Go through onboarding again with the data already saved.',
+    label: 'Replay flow (preview)',
+    desc: 'Walk the full flow again in preview mode. Saved data untouched (and not loaded).',
     tone: 'neutral',
   },
   {
     key: 'reset',
     icon: 'ic:round-cleaning-services',
     label: 'Reset data only',
-    desc: 'Wipe this user data, keep the account. No onboarding.',
+    desc: 'Wipe this user data, keep the account. You stay on this screen.',
     tone: 'danger',
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export function QAControlScreen() {
   const navigate = useNavigate();
+  // Drop-in for the FlowDef navigate fns that forces a full page load (B17).
+  const hardNavigate = ((to: unknown) => {
+    if (typeof to === 'string') window.location.assign(to);
+  }) as ReturnType<typeof useNavigate>;
   const signIn = useAuthStore((s) => s.signIn);
   const [users, setUsers] = useState<QaUser[]>(FALLBACK_USERS);
-  const [email, setEmail] = useState(FALLBACK_USERS[0]?.email ?? '');
+  const [email, setEmail] = useState<string>(() => {
+    try {
+      return localStorage.getItem('gg_qa_test_user') || FALLBACK_USERS[0]?.email || '';
+    } catch {
+      return FALLBACK_USERS[0]?.email ?? '';
+    }
+  });
+  const [flowId, setFlowId] = useState<FlowId>('full-onboarding');
   const [busy, setBusy] = useState<ActionKey | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Pull the live list of QA accounts from Supabase so the dropdown reflects the
   // real accounts (and shows who already has data). Falls back to the static list.
@@ -112,7 +236,9 @@ export function QAControlScreen() {
           onboarded: u.onboarded,
         }));
         setUsers(live);
-        setEmail(live[0].email);
+        // Keep the tester's saved pick if it's still a real account; only default
+        // to the first user when the saved one is gone.
+        setEmail((prev) => (live.some((u) => u.email === prev) ? prev : live[0].email));
       })
       .catch(() => {
         /* keep the fallback list */
@@ -123,8 +249,19 @@ export function QAControlScreen() {
   }, []);
 
   async function ensureSignedIn() {
+    if (!QA_PASSWORD) throw new Error('VITE_QA_PASSWORD is not set on this build.');
     const { error: signInError } = await signIn(email, QA_PASSWORD);
     if (signInError) throw new Error(signInError);
+    // QA accounts ship nameless; stamp the derived display name onto the session so
+    // onboarding greets by it and never re-asks (the "name from sign-in").
+    const label = users.find((u) => u.email === email)?.label;
+    if (label) {
+      try {
+        await supabase.auth.updateUser({ data: { nickname: label } });
+      } catch {
+        /* non-fatal — onboarding still works, it may just ask for the name */
+      }
+    }
   }
 
   async function selfReset() {
@@ -139,32 +276,76 @@ export function QAControlScreen() {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(body.error ?? `Reset failed (${res.status})`);
     }
+    // B17: the server wiped this QA user's rows, but the client-side thread
+    // cache (localStorage, keyed by anon_id) survives and replays the old
+    // conversation on the next mount. Clear it so restart-fresh starts empty.
+    const anonId = useAuthStore.getState().anonId;
+    if (anonId) clearThread(anonId);
   }
 
-  async function run(action: ActionKey) {
+  const selectedFlow = FLOWS.find((f) => f.id === flowId) ?? FLOWS[0];
+
+  async function run(action: ActionKey, nextFlowId: FlowId = flowId) {
+    const flowToRun = FLOWS.find((f) => f.id === nextFlowId) ?? FLOWS[0];
     if (busy) return;
+    // B28: still inside the tap's gesture frame here, so bless the opener pool
+    // (play+pause each pooled element) for the SPA-navigating launches. Hard
+    // navigations (restart) reload the page, where the tap-to-play affordance
+    // is the cover instead.
+    blessOpenerClipsInGesture(Object.values(ONBOARDING_BEAT_MP3S));
     setBusy(action);
     setError(null);
+    setNotice(null);
     try {
       await ensureSignedIn();
+      // signIn here never routes through signOut's queryClient.clear(), so the
+      // staleTime:Infinity gate/resume queries would launch against the PREVIOUS
+      // user's (or pre-wipe) onboarding row. Clear after every write, before nav.
       if (action === 'restart') {
-        await selfReset();
-        // /onboarding routes to whatever onboarding is live (the page flow today,
-        // the engine once VITE_ONBOARDING_USE_ENGINE is on), so this works in prod.
-        navigate('/onboarding', { replace: true });
+        setFlowId(flowToRun.id);
+        // Preview flows persist in-memory only; a server wipe would destroy the
+        // picked user's data without changing what the preview renders.
+        if (flowToRun.kind === 'server') await selfReset();
+        queryClient.clear();
+        // Hard navigation on purpose (B17): the voice provider is mounted at the
+        // app root and keeps the old thread in memory across an SPA navigate. A
+        // full page load guarantees the fresh run starts with an empty thread.
+        flowToRun.navigate(hardNavigate);
+        return;
       } else if (action === 'reonboard') {
-        navigate('/onboarding', { replace: true });
+        // Auth-free full-flow render, outside AppGate: runnable from the top for
+        // completed users too, in-memory persistence, no server writes.
+        queryClient.clear();
+        navigate('/onboarding-flow-preview', { replace: true });
       } else if (action === 'reset') {
+        // Reset data only: wipe, clear caches, stay on the QA screen with a
+        // visible confirmation (landing the wiped user inside onboarding lied,
+        // per the loop6 audit). selfReset already clears the thread cache (B17),
+        // and queryClient.clear() covers the stale-query gate (B23).
         await selfReset();
-        navigate('/', { replace: true });
+        queryClient.clear();
+        const label = users.find((u) => u.email === email)?.label ?? email;
+        setNotice(`Data wiped for ${label}. Account kept; still on the QA screen.`);
+        setBusy(null);
       } else {
-        // login: land wherever the user's state routes (OnboardingEntry decides).
-        navigate('/onboarding', { replace: true });
+        // login: land wherever the app really routes this user (home when
+        // onboarded, onboarding resume otherwise). AppGate decides.
+        queryClient.clear();
+        navigate('/', { replace: true });
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
       setBusy(null);
     }
+  }
+
+  // Tapping any flow tile launches that flow fresh (the common QA case), so every
+  // tile behaves the same. The account-state buttons below still cover the other
+  // entry modes (log in / keep data / reset) for the last-tapped flow.
+  async function launchFlowFresh(id: FlowId) {
+    if (busy) return;
+    setFlowId(id);
+    await run('restart', id);
   }
 
   return (
@@ -175,7 +356,7 @@ export function QAControlScreen() {
         background: '#f1f5f9',
         display: 'flex',
         justifyContent: 'center',
-        padding: '24px 16px',
+        padding: '20px 16px',
       }}
     >
       <div
@@ -184,10 +365,11 @@ export function QAControlScreen() {
           maxWidth: 420,
           display: 'flex',
           flexDirection: 'column',
-          gap: 18,
+          gap: 16,
           alignSelf: 'center',
         }}
       >
+        {/* Header */}
         <div>
           <span
             style={{
@@ -205,22 +387,23 @@ export function QAControlScreen() {
           </span>
           <h1
             style={{
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: 700,
               letterSpacing: '-0.02em',
               color: 'rgb(15,23,42)',
-              margin: '10px 0 0',
+              margin: '8px 0 0',
             }}
           >
             QA Control
           </h1>
           <p
-            style={{ fontSize: 14, fontWeight: 500, color: 'rgb(100,116,139)', margin: '4px 0 0' }}
+            style={{ fontSize: 13, fontWeight: 500, color: 'rgb(100,116,139)', margin: '3px 0 0' }}
           >
-            Pick a test user, then choose how to start.
+            Pick a test user, then tap a flow to start it fresh.
           </p>
         </div>
 
+        {/* Test user picker */}
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span
             style={{
@@ -236,7 +419,14 @@ export function QAControlScreen() {
           <div style={{ position: 'relative' }}>
             <select
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                try {
+                  localStorage.setItem('gg_qa_test_user', e.target.value);
+                } catch {
+                  /* private mode; the pick just won't persist */
+                }
+              }}
               aria-label="Test user"
               disabled={busy !== null}
               style={{
@@ -250,7 +440,7 @@ export function QAControlScreen() {
                 background: '#fff',
                 border: '1px solid rgb(226,232,240)',
                 borderRadius: 12,
-                padding: '13px 40px 13px 14px',
+                padding: '12px 40px 12px 14px',
                 cursor: 'pointer',
               }}
             >
@@ -276,21 +466,126 @@ export function QAControlScreen() {
           </div>
         </label>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Flow picker grid */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              color: 'rgb(100,116,139)',
+            }}
+          >
+            Start a flow
+          </span>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 8,
+            }}
+          >
+            {FLOWS.map((f) => {
+              const isSelected = flowId === f.id;
+              const isLaunching = busy === 'restart' && flowId === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => void launchFlowFresh(f.id)}
+                  disabled={busy !== null}
+                  title={f.desc}
+                  aria-label={`Start ${f.label} fresh`}
+                  aria-pressed={isSelected}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    padding: '10px 4px',
+                    borderRadius: 14,
+                    border: isSelected ? '2px solid rgb(19,91,235)' : '2px solid rgb(226,232,240)',
+                    background: isSelected ? 'rgba(19,91,236,0.06)' : '#fff',
+                    cursor: busy ? 'default' : 'pointer',
+                    opacity: busy ? 0.6 : 1,
+                    transition: 'border-color 0.12s, background 0.12s',
+                  }}
+                >
+                  <Icon
+                    icon={isLaunching ? 'svg-spinners:ring-resize' : f.icon}
+                    style={{
+                      fontSize: 22,
+                      color: isSelected ? 'rgb(19,91,235)' : 'rgb(71,85,105)',
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: isSelected ? 'rgb(19,91,235)' : 'rgb(71,85,105)',
+                      textAlign: 'center',
+                      lineHeight: 1.2,
+                      letterSpacing: '-0.01em',
+                    }}
+                  >
+                    {f.label}
+                  </span>
+                  {/* Warn that home-tour cannot run yet */}
+                  {!f.fullyRunnable && (
+                    <span
+                      style={{
+                        fontSize: 8,
+                        fontWeight: 700,
+                        color: 'rgb(234,88,12)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      partial
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p
+            style={{
+              fontSize: 11.5,
+              fontWeight: 500,
+              color: 'rgb(100,116,139)',
+              margin: 0,
+              minHeight: 16,
+            }}
+          >
+            {selectedFlow.desc}
+            {!selectedFlow.fullyRunnable && (
+              <span style={{ color: 'rgb(234,88,12)', marginLeft: 4 }}>
+                (adapter not yet in engine registry)
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Account-state action buttons */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {ACTIONS.map((a) => {
             const isBusy = busy === a.key;
             return (
               <button
                 key={a.key}
                 type="button"
-                onClick={() => run(a.key)}
+                // Restart is label-true: always full onboarding. Per-flow fresh
+                // launches are the tiles themselves.
+                onClick={() => run(a.key, a.key === 'restart' ? 'full-onboarding' : undefined)}
                 disabled={busy !== null}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 12,
                   textAlign: 'left',
-                  padding: '13px 14px',
+                  padding: '12px 14px',
                   borderRadius: 14,
                   border: '1px solid rgb(226,232,240)',
                   background: '#fff',
@@ -301,8 +596,8 @@ export function QAControlScreen() {
                 <span
                   style={{
                     flexShrink: 0,
-                    width: 38,
-                    height: 38,
+                    width: 36,
+                    height: 36,
                     borderRadius: 11,
                     background: TONE[a.tone].chip,
                     display: 'flex',
@@ -319,7 +614,7 @@ export function QAControlScreen() {
                   <span
                     style={{
                       display: 'block',
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: 700,
                       color: 'rgb(15,23,42)',
                       lineHeight: 1.2,
@@ -330,7 +625,7 @@ export function QAControlScreen() {
                   <span
                     style={{
                       display: 'block',
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: 500,
                       color: 'rgb(100,116,139)',
                       lineHeight: 1.35,
@@ -352,6 +647,11 @@ export function QAControlScreen() {
         {error && (
           <p style={{ fontSize: 12.5, fontWeight: 600, color: 'rgb(220,38,38)', margin: 0 }}>
             {error}
+          </p>
+        )}
+        {notice && (
+          <p style={{ fontSize: 12.5, fontWeight: 600, color: 'rgb(22,101,52)', margin: 0 }}>
+            {notice}
           </p>
         )}
       </div>

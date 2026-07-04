@@ -6,6 +6,7 @@
  */
 import { createContext, useContext, useEffect, useRef } from 'react';
 import type { RealtimeTranscriptEvent } from '@/hooks/useRealtimeVoice';
+import type { OnboardingCard } from '@/lib/onboarding/onboardingChatTypes';
 
 export interface OnboardingVoiceResult {
   success: boolean;
@@ -25,6 +26,15 @@ export interface VoiceMessage {
   id: string;
   role: 'user' | 'ai';
   text: string;
+  // Inline chat-native onboarding cards (reserved for per-message card history).
+  cards?: OnboardingCard[];
+  // The beat (screen_id) this turn belongs to, so the chat-native feed can group
+  // dialogue under its beat and keep every prior beat scrollable.
+  screenId?: string;
+  // Origin of the turn — gates server-side persistence. Only 'vapi'/'opener' are
+  // mirrored to chat_messages; Direct-LLM turns are already persisted by the
+  // backend and error bubbles must never persist.
+  source?: 'vapi' | 'direct_llm' | 'opener' | 'error';
 }
 
 export const USER_SPEAKING_IDLE_MS = 600;
@@ -41,6 +51,9 @@ export interface OnboardingVoiceContextValue {
   openOverlay: () => void;
   closeOverlay: () => void;
   messages: VoiceMessage[];
+  // Live word-reveal for the cold-start Cartesia opener, paced by the real audio
+  // playback so the karaoke syncs to the voice. Scoped by screenId.
+  openerReveal?: { screenId: string; revealedWords: number } | null;
   appendMessage: (msg: VoiceMessage) => void;
   // Text path only; idempotent per screenId. Voice resets via onCallStart.
   startThread: (
@@ -62,6 +75,7 @@ export interface OnboardingVoiceContextValue {
   // Page registers its canonical screen_id + advance handler with the provider.
   registerScreen: (screenId: string | null) => void;
   registerAdvance: (cb: (() => void) | null) => void;
+  setScreenContextDeferred: (screenId: string, deferred: boolean) => void;
   endCall: () => void;
   restartCall: () => Promise<void>;
   pushSubScreen: (screenId: string | null) => void;

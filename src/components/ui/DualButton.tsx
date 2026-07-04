@@ -12,6 +12,7 @@ interface DualButtonProps {
   rightIcon: ReactNode;
   leftActive?: boolean;
   rightActive?: boolean;
+  rightMuted?: boolean;
   size?: number;
   width?: number;
   className?: string;
@@ -39,6 +40,7 @@ export function DualButton({
   rightIcon,
   leftActive = false,
   rightActive = false,
+  rightMuted = false,
   size = 187,
   width,
   className,
@@ -84,6 +86,7 @@ export function DualButton({
       <Half
         side="right"
         active={rightActive}
+        muted={rightMuted}
         gap={gap}
         innerRadius={innerRadius}
         onClick={onRightClick}
@@ -330,6 +333,7 @@ function RingStack({ side, dialWidth, dialHeight, step, count, intensity }: Ring
 interface HalfProps {
   side: 'left' | 'right';
   active: boolean;
+  muted?: boolean;
   gap: number;
   innerRadius: number;
   onClick?: () => void;
@@ -337,11 +341,15 @@ interface HalfProps {
   children: ReactNode;
 }
 
-function Half({ side, active, gap, innerRadius, onClick, ariaLabel, children }: HalfProps) {
+function Half({ side, active, muted, gap, innerRadius, onClick, ariaLabel, children }: HalfProps) {
   const isLeft = side === 'left';
   const className = [
     'absolute inset-y-0 flex items-center justify-center transition-colors duration-200',
-    active ? 'bg-primary text-white' : 'bg-slate-400 text-white',
+    active
+      ? 'bg-primary text-white'
+      : muted
+        ? 'bg-primary text-white opacity-70'
+        : 'bg-slate-400 text-white',
     isLeft ? 'left-0' : 'right-0',
     onClick &&
       'cursor-pointer transition-transform duration-150 hover:brightness-110 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
@@ -362,7 +370,7 @@ function Half({ side, active, gap, innerRadius, onClick, ariaLabel, children }: 
         type="button"
         onClick={onClick}
         aria-label={ariaLabel}
-        aria-pressed={active}
+        aria-pressed={active || muted}
         className={className}
         style={style}
       >

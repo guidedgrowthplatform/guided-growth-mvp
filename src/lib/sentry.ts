@@ -1,13 +1,13 @@
 import * as Sentry from '@sentry/react';
 
-const DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+const DSN = import.meta.env.VITE_SENTRY_DSN;
 
 export function initSentry() {
   if (!DSN) return;
 
   Sentry.init({
     dsn: DSN,
-    environment: import.meta.env.MODE,
+    environment: import.meta.env.VITE_SENTRY_ENVIRONMENT ?? import.meta.env.MODE,
     enabled: import.meta.env.PROD,
     sendDefaultPii: false,
     integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],

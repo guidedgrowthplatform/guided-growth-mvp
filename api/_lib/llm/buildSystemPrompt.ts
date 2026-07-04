@@ -3,9 +3,11 @@ import { buildSystemPrompt, PRODUCT_CONTEXT } from '@gg/shared/coaching/systemPr
 import type { CoachingStyle } from '@gg/shared/coaching/styles';
 import { buildContextMessage } from '@gg/shared/context/buildContextMessage';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
+import { GLOBAL_ONBOARDING_CONTEXT, getBeatContext } from './onboarding/beatContexts.js';
 import { buildCanonicalOptionsBlock } from './onboarding/canonicalOptions.js';
 import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
 import { stripForwardPointers } from './stripForwardPointers.js';
+import { fillBeatName } from './onboarding/fillBeatName.js';
 import { NO_PRENARRATION_RULE } from './noPrenarrationRule.js';
 import { NO_INTERNAL_NARRATION_RULE } from './noInternalNarrationRule.js';
 import {
@@ -110,12 +112,19 @@ export async function buildSystemPromptForRequest(
   const isOnboardingScreen = args.screen_id.startsWith('ONBOARD-');
 
   const coachingPreamble = buildSystemPrompt({ coachingStyle: args.coaching_style });
-  // Direct-LLM only — Vapi keeps raw context elsewhere (it drives navigation).
-  // advance_step is the Direct-LLM nav tool; the shared bundle says navigate_next (Vapi's name).
-  const contextBlock = stripForwardPointers(screen.context_block).replace(
-    /navigate_next/g,
-    'advance_step',
-  );
+  // Onboarding reads its per-beat coach copy from beatContexts (the in-repo file
+  // synced one-way from Supabase, which is the editable source). The GLOBAL block
+  // sits above every beat. Beats not yet in beatContexts fall back to the
+  // screen_contexts row, so legacy screens keep working.
+  const beat = isOnboardingScreen ? getBeatContext(args.screen_id) : undefined;
+  const onboardingGlobalBlock = isOnboardingScreen ? `\n\n${GLOBAL_ONBOARDING_CONTEXT}` : '';
+  const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
+  const nickname = (onboardingRow?.data?.nickname as string | undefined) ?? null;
+  // advance_step: Direct-LLM nav tool; shared bundle says navigate_next (Vapi's name).
+  const strippedBlock = stripForwardPointers(beat ? beat.context : screen.context_block);
+  const contextBlock = (
+    isOnboardingScreen ? fillBeatName(strippedBlock, nickname) : strippedBlock
+  ).replace(/navigate_next/g, 'advance_step');
   const contextMessage = buildContextMessage({
     screen_id: args.screen_id,
     context_block: contextBlock,
@@ -161,15 +170,15 @@ export async function buildSystemPromptForRequest(
     args.mode === 'opener' && args.screen_id === 'ECHECK-01' ? `\n\n${buildEveningOpener()}` : '';
   const morningOpenerBlock =
     args.mode === 'opener' && args.screen_id === 'MCHECK-01' ? `\n\n${buildMorningOpener()}` : '';
-  const inputModeBlock = args.input_mode === 'voice' ? '' : `\n\n${TEXT_INPUT_RULE}`;
-  const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
+  const inputModeBlock =
+    args.input_mode === 'voice' ? `\n\n${VOICE_INPUT_RULE}` : `\n\n${TEXT_INPUT_RULE}`;
   const alreadyFilledBlock = onboardingRow ? buildAlreadyFilledBlock(onboardingRow) : '';
   const optionsBlock = isOnboardingScreen
     ? buildCanonicalOptionsBlock(args.screen_id, onboardingRow?.data ?? {})
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${onboardingGlobalBlock}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
@@ -275,6 +284,9 @@ function buildAlreadyFilledBlock(row: OnboardingRow): string {
 
 const TEXT_INPUT_RULE = `## Text Mode
 The user is TYPING, not speaking. Don't tell them to tap, touch the orb, or say things aloud — phrase guidance for a keyboard/text user.`;
+
+const VOICE_INPUT_RULE = `## Voice Mode
+The user is SPEAKING; their words reach you as transcribed text. Treat spoken input as heard — never claim you can't hear them or tell them to type instead.`;
 
 const FALLBACK_CONTEXT_BLOCK = `## Screen
 No screen-specific guidance is configured for this screen. Respond helpfully and briefly in your coaching voice, using the recent activity below for continuity. Do not invent screen-specific instructions or pre-announce features.`;

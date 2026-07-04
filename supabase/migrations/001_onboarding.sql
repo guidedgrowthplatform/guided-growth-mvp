@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS user_habits (
   starter_habit_id UUID REFERENCES starter_habits(id) ON DELETE SET NULL,
   category_id      UUID REFERENCES categories(id) ON DELETE SET NULL,
   name             VARCHAR(200) NOT NULL,
-  habit_type       VARCHAR(50) NOT NULL DEFAULT 'binary_do',
+  habit_type       VARCHAR(50) NOT NULL DEFAULT 'binary_build',
   cadence          VARCHAR(50) NOT NULL DEFAULT 'daily',
   schedule_days    INT[],
   reminder_time    TIME,

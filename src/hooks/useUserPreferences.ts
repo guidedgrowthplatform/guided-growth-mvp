@@ -122,6 +122,31 @@ export function useUserPreferences() {
     },
   });
 
+  // Remote write that degrades to local-only on failure. A rejected upsert
+  // (RLS reject, invalid identity like the preview's throwaway anon_id,
+  // offline) must never surface as an uncaught rejection in a calling beat;
+  // the mic-allow beat awaits this write and a throw wedged it on a spinner.
+  // Instead the chosen values stay applied locally (the same contract as the
+  // signed-out branch below) and the flow moves on. The mutation's `error` is
+  // still exposed on the hook for surfaces that want to show it.
+  const persistOrDegradeToLocal = useCallback(
+    (partial: Partial<UserPreferences>): Promise<void> =>
+      updateMutation.mutateAsync(partial).then(
+        () => undefined,
+        (err: unknown) => {
+          console.warn('[preferences] remote write failed; keeping values local-only', err);
+          // onError already rolled the cache back to `previous`; re-apply the
+          // requested values on top so the user's choice sticks locally.
+          const previous = qc.getQueryData<UserPreferences>(queryKeys.preferences.all);
+          const next = { ...(previous ?? DEFAULT_PREFERENCES), ...partial };
+          qc.setQueryData<UserPreferences>(queryKeys.preferences.all, next);
+          saveLocalPreferences(next);
+          maybeReschedule(partial, next);
+        },
+      ),
+    [qc, updateMutation],
+  );
+
   const updatePreference = useCallback(
     <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => {
       if (!user) {
@@ -132,9 +157,9 @@ export function useUserPreferences() {
         maybeReschedule({ [key]: value } as Partial<UserPreferences>, next);
         return Promise.resolve();
       }
-      return updateMutation.mutateAsync({ [key]: value } as Partial<UserPreferences>);
+      return persistOrDegradeToLocal({ [key]: value } as Partial<UserPreferences>);
     },
-    [qc, updateMutation, user],
+    [qc, persistOrDegradeToLocal, user],
   );
 
   const updatePreferences = useCallback(
@@ -147,9 +172,9 @@ export function useUserPreferences() {
         maybeReschedule(partial, next);
         return Promise.resolve();
       }
-      return updateMutation.mutateAsync(partial);
+      return persistOrDegradeToLocal(partial);
     },
-    [qc, updateMutation, user],
+    [qc, persistOrDegradeToLocal, user],
   );
 
   return {

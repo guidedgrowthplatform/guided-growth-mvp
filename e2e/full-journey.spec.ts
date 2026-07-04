@@ -147,6 +147,9 @@ const isHome = (url: string) =>
 
 test.describe('Full User Journey', () => {
   test('complete 7-step user journey', async ({ page }) => {
+    // Drives the deleted page-based onboarding (/onboarding/step-*). The flow is
+    // now the chat-native engine at /onboarding/flow — rewrite against it.
+    test.skip(true, 'Old page-based onboarding removed; rewrite for /onboarding/flow');
     test.setTimeout(300000); // 5 minutes for the full journey
 
     const { errors } = attachErrorCollector(page);

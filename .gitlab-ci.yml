@@ -1,5 +1,11 @@
 stages:
   - sync
+  - verify
+  - deploy
+
+# shared so verify/deploy rules can't diverge — needs:[verify] errors if they do.
+.branch_push_rules: &branch_push_rules
+  - if: '$CI_COMMIT_BRANCH'
 
 voice-sync:
   stage: sync
@@ -9,8 +15,8 @@ voice-sync:
   resource_group: voice-sync
   timeout: 5 minutes
   variables:
-    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
-    GOOGLE_APPLICATION_CREDENTIALS: "$GCP_SA_KEY"
+    PIP_CACHE_DIR: '$CI_PROJECT_DIR/.pip-cache'
+    GOOGLE_APPLICATION_CREDENTIALS: '$GCP_SA_KEY'
   cache:
     key: voice-sync-pip
     paths:
@@ -20,3 +26,56 @@ voice-sync:
     - pip install --cache-dir "$PIP_CACHE_DIR" -r scripts/voice-sync/requirements.txt
   script:
     - python scripts/voice-sync/seed_contexts.py
+
+verify:
+  stage: verify
+  image: node:20
+  rules: *branch_push_rules
+  interruptible: true
+  variables:
+    # npm ci wipes node_modules — cache the download cache, not the tree.
+    npm_config_cache: '$CI_PROJECT_DIR/.npm'
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  script:
+    - npm ci --prefer-offline --no-audit --no-fund
+    - npx tsc --noEmit
+    - npx vitest run
+    - npm run build
+
+# gg-qa preview: deploy every branch push to the gg-qa Vercel project and post
+# the URL to the Deployments channel. Token + ids + webhook are CI variables.
+deploy_qa_preview:
+  stage: deploy
+  image: node:20
+  needs: ['verify']
+  rules: *branch_push_rules
+  script:
+    - npm i -g vercel@latest
+    - |
+      DEPLOY_URL=$(vercel deploy --token "$VERCEL_TOKEN" --yes 2>&1 | tee /tmp/vc.log | grep -Eo 'https://[A-Za-z0-9.-]+\.vercel\.app' | tail -n1)
+      echo "Deployed: $DEPLOY_URL"
+      if [ -z "$DEPLOY_URL" ]; then echo "no deploy URL parsed; full log:"; cat /tmp/vc.log; exit 1; fi
+    - |
+      if [ "$CI_COMMIT_REF_NAME" = "staging" ] || [ "$CI_COMMIT_REF_NAME" = "stable" ]; then
+        vercel alias set "$DEPLOY_URL" gg-qa-iota.vercel.app --token "$VERCEL_TOKEN"
+        SHOWN_URL="https://gg-qa-iota.vercel.app"
+      else
+        SHOWN_URL="$DEPLOY_URL"
+      fi
+      echo "Preview: $SHOWN_URL"
+    - |
+      case "$CI_COMMIT_REF_NAME" in
+        staging|stable|main)
+          if [ -n "$MATTERMOST_WEBHOOK_URL" ]; then
+            curl -s -X POST "$MATTERMOST_WEBHOOK_URL" -H 'Content-Type: application/json' -d "{\"text\": \"@yairamsel :rocket: \`${CI_COMMIT_REF_NAME}\` deployed by ${GITLAB_USER_NAME}\nStable: ${SHOWN_URL}\nThis build: ${DEPLOY_URL}\n> ${CI_COMMIT_TITLE}\"}" || true
+          fi
+          ;;
+        *)
+          echo "Preview built for $CI_COMMIT_REF_NAME (feature branch, no Mattermost notify)"
+          ;;
+      esac

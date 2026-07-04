@@ -22,7 +22,7 @@
  * goalsByCategory. Keep in sync — voice and manual flows must produce the
  * same shape.
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 import { MAX_GOALS } from '../../llm/tools.onboarding.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -127,7 +127,10 @@ function findClosestGoal(input: string, allowed: readonly string[]): string | nu
   return bestMatch;
 }
 
-export async function submitGoals(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function submitGoals(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   console.log('[vapi/tool] received name=submit_goals anon_id=' + getString(args, 'anon_id'));
 
   const anonId = getString(args, 'anon_id');
@@ -148,7 +151,7 @@ export async function submitGoals(args: Record<string, unknown>): Promise<Handle
   console.log(`[vapi/tool] submit_goals input goals=${JSON.stringify(goals)}`);
 
   // Read user's chosen category to scope allowed goals (if any).
-  const catRes = await pool.query<{ category: string | null }>(
+  const catRes = await db.query<{ category: string | null }>(
     `SELECT data->>'category' AS category FROM onboarding_states WHERE anon_id = $1`,
     [anonId],
   );
@@ -189,7 +192,7 @@ export async function submitGoals(args: Record<string, unknown>): Promise<Handle
 
   // DATA ONLY — current_step not touched on UPDATE; navigate_next handles
   // the screen advance. INSERT path defaults to step 4 (goals).
-  const result = await pool.query(
+  const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
      VALUES ($1, 4, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET

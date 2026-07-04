@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
+import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
 import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import manifestData from '@/data/voice-manifest.json';
 import { useVoice } from '@/hooks/useVoice';
@@ -214,7 +215,16 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
       setCurrentFileId(fileId);
 
       const audio = new Audio(src);
+      // Apply QA mute state at creation.
+      audio.muted = isQaMuted();
       audioRef.current = audio;
+
+      // Mirror live QA mute toggles so toggling mid-clip works.
+      const unsubQaSound = subscribeQaSound(() => {
+        if (audioRef.current === audio) {
+          audio.muted = isQaMuted();
+        }
+      });
 
       audio.oncanplaythrough = () => {
         if (audioRef.current !== audio) return;
@@ -222,8 +232,8 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
         const t = tokenRef.current;
         if (t) setBroadcastState(t, 'playing');
       };
-      audio.onended = () => settle(audio, 'idle');
-      audio.onerror = () => settle(audio, 'error');
+      audio.onended = () => { unsubQaSound(); settle(audio, 'idle'); };
+      audio.onerror = () => { unsubQaSound(); settle(audio, 'error'); };
 
       try {
         await attemptPlayWithGestureFallback(audio, {
@@ -236,6 +246,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
         if (import.meta.env.DEV && !aborted) {
           console.warn(`[VoicePlayer] Error playing ${fileId}:`, err);
         }
+        unsubQaSound();
         settle(audio, 'error');
         return false;
       }

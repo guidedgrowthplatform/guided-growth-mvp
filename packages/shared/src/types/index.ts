@@ -144,6 +144,7 @@ export interface ReflectionSettings {
   days: number[]; // 0..6
   reminder: boolean;
   schedule: string | null; // 'Weekday' | 'Weekend' | 'Every day'
+  weeklyDay: number; // 0..6, 0=Sunday. The Weekly's day. Default: 0 (Sunday).
 }
 
 export type ReflectionSettingsUpdate = Partial<ReflectionSettings>;
@@ -257,6 +258,19 @@ export interface OnboardingStepData {
     reminder: boolean;
     // null = custom day-set with no canonical preset label (validator accepts null).
     schedule: string | null;
+  } | null;
+  // Morning check-in schedule, captured in onboarding (ONBOARD-MORNING-SETUP).
+  // Same shape as reflectionConfig: when the morning nudge fires.
+  morningCheckin?: {
+    time: string;
+    days: number[];
+    reminder: boolean;
+    schedule: string | null;
+  } | null;
+  // The Weekly's chosen day, captured in onboarding (ONBOARD-WEEKLY-SETUP).
+  // 0-6, 0=Sunday. Materializes to reflection_settings.weekly_day.
+  weeklyConfig?: {
+    day: number;
   } | null;
   reflectionMode?: ReflectionMode | null;
   brainDumpText?: string | null;

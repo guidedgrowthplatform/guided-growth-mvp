@@ -11,7 +11,10 @@ export type OnboardingToolName =
   | 'add_habit'
   | 'remove_habit'
   | 'update_habit'
+  | 'submit_morning_checkin'
+  | 'record_checkin'
   | 'submit_reflection_config'
+  | 'submit_weekly_config'
   | 'submit_custom_prompts'
   | 'submit_brain_dump'
   | 'advance_step'
@@ -73,7 +76,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
             'How the user heard about the app. Free text (e.g. "Friend", "Twitter", "Podcast: Huberman").',
         },
       },
-      required: ['nickname'],
+      required: [],
       additionalProperties: false,
     },
   },
@@ -223,6 +226,70 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
     },
   },
   {
+    name: 'submit_morning_checkin',
+    description:
+      "Persist the user's morning check-in schedule on ONBOARD-MORNING-SETUP. " +
+      'PRECONDITION: do NOT call this until the user has actually answered when they want their morning check-in. If they have not given a time yet, ASK FIRST (e.g. "When would you like your morning check-in?"). ' +
+      'ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). Once the user gives a time, infer the remaining fields from natural defaults (Every day + reminder on) and call. ' +
+      'If the user says "whatever you think" / "default is fine", first ask once more. If they still decline, pick 08:00 BUT tell them explicitly ("I\'ll set 8 AM, you can change it later in Settings") before calling, do NOT silently default.',
+    parameters: {
+      type: 'object',
+      properties: {
+        time: {
+          type: 'string',
+          description: 'HH:MM 24-hour format.',
+        },
+        days: {
+          type: 'array',
+          description: 'Days as 0-6 ints, 0=Sunday.',
+          items: { type: 'number' },
+        },
+        reminder: {
+          type: 'boolean',
+          description: 'Reminder notification toggle.',
+        },
+        schedule: {
+          type: 'string',
+          description: 'Schedule preset matching the days array.',
+          enum: [...SCHEDULE_OPTIONS],
+        },
+      },
+      required: ['time', 'days', 'reminder', 'schedule'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'record_checkin',
+    description:
+      'Persist the state-check result (sleep, mood, energy, stress) on the state-check beat. ' +
+      'Call the moment the user has rated at least one dimension. At least one field is required; ' +
+      'all four are optional. Integers 1-5 (1 = worst, 5 = best). DATA ONLY — does NOT advance ' +
+      'to the next beat; chain advance_step after this call.',
+    parameters: {
+      type: 'object',
+      properties: {
+        sleep: {
+          type: 'number',
+          description: 'Sleep quality rating 1-5.',
+        },
+        mood: {
+          type: 'number',
+          description: 'Mood rating 1-5.',
+        },
+        energy: {
+          type: 'number',
+          description: 'Energy level rating 1-5.',
+        },
+        stress: {
+          type: 'number',
+          description: 'Stress level rating 1-5 (1 = high stress, 5 = low stress).',
+        },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'submit_reflection_config',
     description:
       "Persist the user's evening reflection schedule on ONBOARD-BEGINNER-07. " +
@@ -258,6 +325,22 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
         },
       },
       required: ['time', 'days', 'reminder', 'schedule'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'submit_weekly_config',
+    description:
+      "Persist the user's chosen day for The Weekly (their weekly coaching session) on ONBOARD-WEEKLY-SETUP. Call the moment the user names a day — map weekday words to 0-6 (0=Sunday, 1=Monday, ... 6=Saturday). Sunday is the suggested default: if the user hesitates or defers, suggest Sunday and set day=0 once they agree (or after telling them explicitly you are picking Sunday for them).",
+    parameters: {
+      type: 'object',
+      properties: {
+        day: {
+          type: 'number',
+          description: 'Day of week for The Weekly, 0-6 int, 0=Sunday.',
+        },
+      },
+      required: ['day'],
       additionalProperties: false,
     },
   },

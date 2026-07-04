@@ -4,9 +4,22 @@ import type { AssistantOverrides } from '@vapi-ai/web/dist/api';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
+import { appendChatTurn, fetchOnboardingThread } from '@/api/chat';
 import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOverlay';
+import { getOnboardingOpenerForState } from '@/components/onboarding/onboardingOpeners';
 import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
+import {
+  FULL_DUPLEX_BARGE_IN,
+  TURN_AGGREGATION_MS,
+  TURN_PAUSE_COMPLETE_MS,
+  TURN_PAUSE_INCOMPLETE_MS,
+} from '@/config/voiceConfig';
 import { applyStartThread } from '@/contexts/applyStartThread';
+import {
+  idleSilenceRemainingMs,
+  isUserSilenceElapsed,
+  shouldArmIdleTimer,
+} from '@/contexts/idleTimerGate';
 import {
   OnboardingVoiceContext,
   USER_SPEAKING_IDLE_MS,
@@ -15,6 +28,7 @@ import {
   type OnboardingVoiceStatus,
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
+import { vapiLiveGate } from '@/contexts/vapiLiveGate';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useOnboardingChat } from '@/hooks/useOnboardingChat';
 import {
@@ -31,29 +45,94 @@ import {
   VOICE_IN_ENABLED,
   VAPI_CAP_DISABLED,
   VAPI_DAILY_CAP,
+  ONBOARDING_CHAT_VAPI,
+  ONBOARDING_INSTANT_OPENER,
+  ONBOARDING_VAPI_IDLE_TIMEOUT_MS,
 } from '@/lib/config/voice';
 import { buildContextMessage } from '@/lib/context/buildContextMessage';
 import { getScreenContext } from '@/lib/context/getScreenContext';
+import { buildOpenerDirective } from '@/lib/context/onboardingBeatBundle';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
-import { orbStateFrom } from '@/lib/orb/orbState';
+import {
+  adoptOnboardingChatSessionId,
+  getOrCreateOnboardingChatSessionId,
+} from '@/lib/onboarding/onboardingChatSession';
+import {
+  ONBOARDING_CHAT_ROUTE,
+  ONBOARDING_FLOW_PREVIEW_ROUTE,
+  ONBOARDING_FLOW_ROUTE,
+} from '@/lib/onboarding/onboardingStepBeats';
+import { isVapiCapableBeat, isIdleCaptureBeat } from '@/onboarding-flow/beatEngineMeta';
+import { engineForTurn } from '@/lib/orb/engineForTurn';
+import { orbStateFrom, type OrbState } from '@/lib/orb/orbState';
 import { queryKeys } from '@/lib/query';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
+import { useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { createListenerBus } from '@/lib/util/listenerBus';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
+import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
+import { resolveTurnPauseMs } from '@/lib/voice/turnDecision';
+import { ONBOARDING_BEAT_MP3S } from '@/onboarding-flow/renderer/useBeatOpenerMp3';
+import { applyName } from '@/onboarding-flow/renderer/applyName';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import type { OnboardingState } from '@gg/shared/types';
+import type { OnboardingThreadTurn } from '@gg/shared/types/llm';
+import { mergeThreadMessages } from './onboardingThreadMerge';
+import { clearThread, loadThread, saveThread } from './onboardingThreadStore';
 import { shouldWipeOnAnonIdChange } from './onboardingThreadWipe';
+
+// Server thread turn → live VoiceMessage. client_turn_key (the stable vapi-/opener-
+// id) becomes the VoiceMessage id so hydrated turns align with localStorage + the
+// mirror dedup; Direct-LLM turns keep their UUID id (skipped by the mirror).
+function threadTurnToVoiceMessage(t: OnboardingThreadTurn): VoiceMessage {
+  const source: VoiceMessage['source'] = t.client_turn_key
+    ? t.client_turn_key.startsWith('opener-')
+      ? 'opener'
+      : 'vapi'
+    : 'direct_llm';
+  return {
+    id: t.client_turn_key ?? t.id,
+    role: t.role === 'assistant' ? 'ai' : 'user',
+    text: t.content ?? '',
+    screenId: t.screen_id,
+    source,
+  };
+}
+
+// Force every beat's opener (its first coach turn before any user turn) to the
+// stable `opener-${sid}` id, so a re-spoken opener REPLACES the hydrated one
+// instead of stacking a duplicate — even for turns persisted before stable ids.
+function normalizeOpenerIds(msgs: VoiceMessage[]): VoiceMessage[] {
+  const sawUser = new Set<string>();
+  const openerDone = new Set<string>();
+  return msgs.map((m) => {
+    const sid = m.screenId;
+    if (!sid) return m;
+    if (m.role === 'user') {
+      sawUser.add(sid);
+      return m;
+    }
+    if (m.role === 'ai' && !sawUser.has(sid) && !openerDone.has(sid)) {
+      openerDone.add(sid);
+      return { ...m, id: `opener-${sid}`, source: 'opener' };
+    }
+    return m;
+  });
+}
 
 function isOnboardingPath(pathname: string): boolean {
   return pathname === '/onboarding' || pathname.startsWith('/onboarding/');
 }
 
 const MAX_AUTO_RETRIES = 2;
+// Breath window before the mic goes hot (first arm + post-TTS) — covers the echo
+// tail + a Siri-style pause. Mirrors useCoachChat's MIC_GRACE_MS.
+const MIC_GRACE_MS = 2500;
 const RETRY_BACKOFFS_MS = [2000, 5000];
-const IDLE_TIMEOUT_MS = 8000;
+const IDLE_TIMEOUT_MS = ONBOARDING_VAPI_IDLE_TIMEOUT_MS;
 const REMOTE_END_COOLDOWN_MS = 3000;
 
 // Errors that won't be fixed by retrying. 429 = rate/quota; 401/403 = bad
@@ -109,7 +188,23 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
 
   const bundledRoutes = useMemo(() => getBundledRoutes(), []);
 
-  const inOnboarding = isOnboardingPath(location.pathname);
+  // The auth-free preview route (/onboarding-flow-preview) is a real chat
+  // onboarding surface (see onChatPage), it just lives outside the /onboarding/*
+  // namespace. Count it as in-onboarding so the "!inOnboarding -> stop()" guard
+  // below does not tear its own voice down, letting the no-login walk run the
+  // full Cartesia opener + Vapi path.
+  const inOnboarding =
+    isOnboardingPath(location.pathname) || location.pathname === ONBOARDING_FLOW_PREVIEW_ROUTE;
+  // Chat-native onboarding renders at the onboarding root (the chat IS the
+  // surface). The page renders the chat body itself, so the provider must NOT
+  // also pop the floating overlay. Vapi (Path 1) is dormant here UNLESS the
+  // ONBOARDING_CHAT_VAPI flag is on, in which case both-orbs-on arms real Vapi
+  // full-duplex on the covered beats (profile → fork; see CHAT_VAPI_BEAT_SCREENS);
+  // otherwise the loop is Soniox→LLM (mic only) with no standalone Cartesia.
+  const onChatPage =
+    location.pathname === ONBOARDING_CHAT_ROUTE ||
+    location.pathname === ONBOARDING_FLOW_ROUTE ||
+    location.pathname === ONBOARDING_FLOW_PREVIEW_ROUTE;
   const currentScreenId = useMemo(
     () => screenIdForRoute(bundledRoutes, location.pathname),
     [bundledRoutes, location.pathname],
@@ -124,6 +219,18 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const userClosedOverlayRef = useRef(false);
   const prevSettledStatusRef = useRef<OnboardingVoiceStatus>('idle');
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
+  // Live word-reveal for the cold-start Cartesia opener, paced by the real audio
+  // (speakOpener's playback fraction) so the karaoke syncs to the voice instead of
+  // a fixed-cadence guess. Scoped by screenId; consumed by BeatConversation.
+  const [openerReveal, setOpenerReveal] = useState<{
+    screenId: string;
+    revealedWords: number;
+  } | null>(null);
+  const openerRevealCountRef = useRef(-1);
+  // Beats whose opener has been spoken THIS session — so a re-spoken opener's
+  // first final replaces a stale/hydrated opener bubble, and later finals of the
+  // same utterance accumulate into it (one stable opener bubble per beat).
+  const openerSpeakStartedRef = useRef<Set<string>>(new Set());
   const threadScreenIdRef = useRef<string | null>(null);
   const lastAssistantFinalRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
   const lastUserFinalRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
@@ -133,6 +240,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // speaks / the screen changes / the call restarts (NOT a wall-clock timer,
   // which would split a slow reply mid-turn).
   const assistantTurnOpenRef = useRef<boolean>(false);
+  // Role of the last committed transcript turn. One bubble per speaker-turn:
+  // consecutive finals of the same role (within the same beat) merge; a role
+  // change or beat change starts a fresh bubble. Keyed off FINALS (not partials)
+  // so echo/noise partials can't fragment a turn.
+  const lastTurnRoleRef = useRef<'ai' | 'user' | null>(null);
   // assistantMergeOpen mirrors a short visual window so the active bubble keeps
   // its streaming cursor; it's cosmetic and independent of the merge decision.
   const ASSISTANT_MERGE_WINDOW_MS = 4000;
@@ -163,8 +275,36 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fatalErrorRef = useRef(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Wall-clock of the last REAL user activity (user STT partial/final, or call
+  // start / opener completion). The idle auto-pause measures silence from THIS,
+  // never from when the listening window (re)opened — so the assistant's own
+  // silence re-prompt (Vapi nudging a quiet user, which bounces state
+  // speaking→listening) can't reset the clock and keep the call alive forever.
+  // Genuine continuous user silence accumulates to IDLE_TIMEOUT_MS even across
+  // assistant re-prompts, and only then do we systemPauseMic().
+  const lastUserActivityAtRef = useRef<number>(0);
   const remoteEndCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasAssistantSpokenRef = useRef(false);
+  // True once the coach has spoken on the current call — gates the idle
+  // auto-pause timer (don't pause a call before the coach has even greeted).
+  // Reactive STATE, not just a ref, so the arm effect re-runs the moment it
+  // flips. Two sources flip it: Vapi's own TTS (speech-start) on warm beats,
+  // AND the instant Cartesia opener finishing on the cold-start beat, where
+  // Vapi joins silent and its speech-start never fires. Without the opener
+  // source the first chat-native Vapi beat never armed the timer, so an idle
+  // user left the live call burning voice minutes.
+  const [assistantHasSpoken, setAssistantHasSpoken] = useState(false);
+  // Ref mirror for the imperative opener-done callback (fires outside render).
+  const assistantHasSpokenRef = useRef(false);
+  const markAssistantSpoke = useCallback(() => {
+    if (assistantHasSpokenRef.current) return;
+    assistantHasSpokenRef.current = true;
+    setAssistantHasSpoken(true);
+  }, []);
+  const clearAssistantSpoke = useCallback(() => {
+    if (!assistantHasSpokenRef.current) return;
+    assistantHasSpokenRef.current = false;
+    setAssistantHasSpoken(false);
+  }, []);
   const transcriptBus = useRef(
     createListenerBus<RealtimeTranscriptEvent>('onboarding-voice/transcript'),
   ).current;
@@ -191,14 +331,99 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // into the next session without this. First resolve (null→id) keeps the
   // hydrated thread; only a genuine user switch wipes.
   const prevAnonIdRef = useRef<string | null>(null);
+  // client_turn_key → last mirrored text. Skips a re-POST when a live turn's text
+  // hasn't grown; cleared on a genuine user switch so a new user can't no-op.
+  const mirroredTurnsRef = useRef<Map<string, string>>(new Map());
   useEffect(() => {
     const prev = prevAnonIdRef.current;
     const next = anonId ?? null;
     prevAnonIdRef.current = next;
     if (shouldWipeOnAnonIdChange(prev, next)) {
       setMessages([]);
+      mirroredTurnsRef.current.clear();
+      if (prev) clearThread(prev);
+      return;
+    }
+    // First resolve (null→id) or same id: hydrate the persisted thread so the
+    // conversation survives a refresh. Only seed when in-memory is still empty,
+    // so a live session is never clobbered.
+    if (next) {
+      const stored = normalizeOpenerIds(loadThread(next));
+      if (stored.length) setMessages((cur) => (cur.length ? cur : stored));
     }
   }, [anonId]);
+
+  // Persist the thread on every change so a refresh restores the conversation.
+  useEffect(() => {
+    if (!anonId) return;
+    saveThread(anonId, messages);
+  }, [anonId, messages]);
+
+  // Mirror the latest live voice/opener turn to Supabase (lifetime persistence).
+  // Fires on the LAST message because the merge mutates it in place under a stable
+  // `vapi-`/`opener-` id — so a turn whose text grows re-POSTs the same
+  // client_turn_key and the server UPDATEs the row. Hydrated rows carry UUID ids
+  // and are skipped; Direct-LLM/error turns are skipped by source/id. Idempotent,
+  // so the StrictMode double-run and refresh re-fires never duplicate.
+  useEffect(() => {
+    if (!anonId) return;
+    const last = messages[messages.length - 1];
+    if (!last || !last.text) return;
+    const sid = last.screenId;
+    if (!sid || !sid.startsWith('ONBOARD-')) return;
+    const isLiveTurn = last.id.startsWith('vapi-') || last.id.startsWith('opener-');
+    if (!isLiveTurn) return;
+    if (mirroredTurnsRef.current.get(last.id) === last.text) return;
+    mirroredTurnsRef.current.set(last.id, last.text);
+    const mode = last.source === 'opener' || last.id.startsWith('opener-') ? 'opener' : 'chat';
+    void appendChatTurn({
+      chat_session_id: getOrCreateOnboardingChatSessionId(),
+      screen_id: sid,
+      role: last.role,
+      text: last.text,
+      client_turn_key: last.id,
+      mode,
+    }).catch(() => {
+      // best-effort; localStorage thread + next turn's re-fire cover a transient miss
+    });
+  }, [anonId, messages]);
+
+  // Cross-device / lifetime hydration: resolve the canonical onboarding thread by
+  // anon_id and seed the feed. Runs once per anon while on the onboarding surface
+  // (returning user resuming on a new device); the server is the source of truth,
+  // localStorage is only the instant cache. Adopts the resolved session id so live
+  // turns continue the SAME thread instead of minting a fresh one.
+  const hydratedThreadAnonRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!anonId || !inOnboarding) return;
+    if (hydratedThreadAnonRef.current === anonId) return;
+    hydratedThreadAnonRef.current = anonId;
+    let cancelled = false;
+    void fetchOnboardingThread()
+      .then((res) => {
+        if (cancelled || !res.chat_session_id || res.messages.length === 0) return;
+        adoptOnboardingChatSessionId(res.chat_session_id);
+        const seeded = normalizeOpenerIds(
+          res.messages
+            .filter((t) => (t.content ?? '').trim().length > 0)
+            .map(threadTurnToVoiceMessage),
+        );
+        if (seeded.length === 0) return;
+        // MERGE with the live thread instead of replacing it: the old
+        // longer-set-wins rule dropped live turns that had not mirrored yet
+        // (bubbles disappearing mid-run, B6). Server history is the base
+        // order; fresher live copies and unmirrored live turns are kept.
+        setMessages((cur) => mergeThreadMessages(seeded, cur));
+        // Pre-seed the mirror dedup so hydrated turns don't re-POST.
+        seeded.forEach((m) => mirroredTurnsRef.current.set(m.id, m.text));
+      })
+      .catch(() => {
+        // offline / not signed in — localStorage hydration still applies
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [anonId, inOnboarding]);
 
   // Form snapshot — updated by each onboarding page via setFormSnapshot.
   // Read by buildOverridesForCall (cold start) and pushScreenContext (screen
@@ -208,11 +433,35 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const formSnapshotPushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const FORM_SNAPSHOT_DEBOUNCE_MS = 1200;
 
+  // A screen-context add-message that couldn't be delivered because the Vapi
+  // call hadn't joined yet (client.send → Daily sendAppMessage throws
+  // "sendAppMessage() only supported after join." pre-join). We stash the
+  // rendered body here and flush it from onCallStart (which fires on join), so
+  // the context still reaches Vapi instead of throwing and being lost.
+  const pendingScreenContextRef = useRef<{ screenId: string; body: string } | null>(null);
+  const deferredScreenContextRef = useRef<Set<string>>(new Set());
+  const [deferredScreenContextVersion, setDeferredScreenContextVersion] = useState(0);
+  const setScreenContextDeferred = useCallback((screenId: string, deferred: boolean) => {
+    const deferredSet = deferredScreenContextRef.current;
+    const hasScreen = deferredSet.has(screenId);
+    if (deferred === hasScreen) return;
+    if (deferred) {
+      deferredSet.add(screenId);
+    } else {
+      deferredSet.delete(screenId);
+    }
+    setDeferredScreenContextVersion((version) => version + 1);
+  }, []);
+
+  // The beat whose opener the Cartesia instant-opener spoke (cold-start). The
+  // warm-beat opener directive is skipped for it so Vapi never re-says it.
+  const instantOpenedScreenRef = useRef<string | null>(null);
+
   const pushScreenContext = useCallback(
     async (screenId: string, sinceTs: string | null) => {
       const client = getClientRef.current();
       if (!client) return;
-      lastPushedScreenIdRef.current = screenId;
+      if (deferredScreenContextRef.current.has(screenId)) return;
       try {
         const ctx = await getScreenContext(qc, screenId, sinceTs);
         // Merge persisted data UNDER the in-flight snapshot: the ref can lag the
@@ -221,17 +470,40 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         const persisted =
           qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data ?? {};
         const filled = { ...persisted, ...formSnapshotRef.current };
+        // Warm-beat opener: Vapi opens the beat with the authored line verbatim
+        // (rigid). Skipped for the cold-start beat (Cartesia spoke that opener)
+        // and MP3 beats (the prerecorded clip already spoke the opener).
+        const openerDirective =
+          screenId === instantOpenedScreenRef.current || screenId in ONBOARDING_BEAT_MP3S
+            ? null
+            : buildOpenerDirective(screenId);
+        const contextBlock = openerDirective
+          ? `${openerDirective}\n\n${ctx.context_block}`
+          : ctx.context_block;
         const body = buildContextMessage({
           screen_id: ctx.screen_id,
-          context_block: ctx.context_block,
+          context_block: contextBlock,
           state_delta: ctx.state_delta,
           filled_form_state: filled,
         });
-        client.send({
-          type: 'add-message',
-          message: { role: 'system', content: body },
-          triggerResponseEnabled: true,
-        });
+        if (deferredScreenContextRef.current.has(screenId)) return;
+        lastPushedScreenIdRef.current = screenId;
+        try {
+          client.send({
+            type: 'add-message',
+            message: { role: 'system', content: body },
+            triggerResponseEnabled: true,
+          });
+        } catch (sendErr) {
+          // Vapi/Daily throws synchronously if send() runs before the call has
+          // joined ("sendAppMessage() only supported after join."). Don't surface
+          // it as a provider error. Queue the body and flush it on call-start.
+          pendingScreenContextRef.current = { screenId, body };
+          if (import.meta.env.DEV) {
+            console.debug('[onboarding-voice] screen-context queued (pre-join)', sendErr);
+          }
+          return;
+        }
         logEvent('screen_context_pushed', { screen_id: screenId, since_ts: sinceTs });
         track('push_screen_context', { screen_id: screenId, since_ts: sinceTs });
       } catch (err) {
@@ -383,18 +655,137 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // ─── Instant personalized opener (ONBOARDING_INSTANT_OPENER) ──────────────
+  // Hides the Vapi cold-start latency on the FIRST Vapi-covered beat: Cartesia
+  // speaks the opener instantly while Vapi connects silent (assistant-waits-for-
+  // user), and the Vapi mic is held muted until BOTH the opener audio ended AND
+  // Vapi is connected. All refs are inert unless the flag is on, so the standard
+  // path is byte-for-byte unchanged.
+  //
+  // openerUsedRef: the cold-start beat fires the instant opener once per session
+  // (later beats are warm, no latency to hide). instantOpenerActiveRef: this
+  // specific call took the silent-first path, so its mic must be gated.
+  const openerUsedRef = useRef(false);
+  const instantOpenerActiveRef = useRef(false);
+  const openerHandleRef = useRef<SpeakOpenerHandle | null>(null);
+  const openerDoneRef = useRef(false);
+  const vapiJoinedRef = useRef(false);
+  // Last resort against a dead mic: if the unmute gate never resolves (Vapi
+  // 'call-start' late/missing, or setMuted throws), force the mic open after
+  // this window so the user is never stuck mic-muted on a live call.
+  const openerFailsafeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const OPENER_FAILSAFE_MS = 10000;
+
+  const clearOpenerFailsafe = useCallback(() => {
+    if (openerFailsafeTimerRef.current !== null) {
+      clearTimeout(openerFailsafeTimerRef.current);
+      openerFailsafeTimerRef.current = null;
+    }
+  }, []);
+
+  const stopOpener = useCallback(() => {
+    if (openerHandleRef.current) {
+      openerHandleRef.current.stop();
+      openerHandleRef.current = null;
+    }
+  }, []);
+
+  // Unmute the Vapi mic once BOTH gates pass (opener audio ended AND Vapi
+  // joined). Order-independent: whichever finishes last triggers the unmute.
+  const maybeOpenMic = useCallback(() => {
+    if (!instantOpenerActiveRef.current) return;
+    if (!openerDoneRef.current || !vapiJoinedRef.current) return;
+    const client = getClientRef.current();
+    if (!client) return;
+    try {
+      client.setMuted(false);
+    } catch (err) {
+      // Unmute FAILED — leave the gate armed so a later trigger (or the
+      // failsafe timer) retries. Clearing it here would consume the one-shot
+      // with the mic still muted.
+      if (import.meta.env.DEV) console.debug('[onboarding-voice] opener unmute skipped', err);
+      return;
+    }
+    // One-shot: the gate is satisfied, the call now runs as a normal warm call.
+    instantOpenerActiveRef.current = false;
+    clearOpenerFailsafe();
+  }, [clearOpenerFailsafe]);
+
   const onCallStart = useCallback(() => {
     setEndedFlag(false);
     setProviderError(null);
     retryCountRef.current = 0;
     fatalErrorRef.current = false;
     clearRetryTimer();
+    // Seed the idle window so a user who never speaks still auto-pauses
+    // IDLE_TIMEOUT_MS after the assistant's opening settles into listening.
+    lastUserActivityAtRef.current = Date.now();
     // Thread persists across the Vapi round-trip; turns append in handleTranscript.
     threadScreenIdRef.current = null;
     lastAssistantFinalRef.current = { text: '', at: 0 };
     assistantTurnOpenRef.current = false;
+    lastTurnRoleRef.current = null;
+
+    vapiJoinedRef.current = true;
     const sid =
       activeSubScreenIdRef.current ?? registeredScreenIdRef.current ?? currentScreenIdRef.current;
+
+    // Flush any screen-context that was queued because a send() ran pre-join
+    // (the sendAppMessage-before-join guard). Only flush it if it still matches
+    // the resolved screen: if the screen changed during the connecting window,
+    // the queued body is stale — dropping it lets the resolved-sid push below
+    // fire the single, correct greeting instead of BOTH (which stuttered turn 0).
+    const pending = pendingScreenContextRef.current;
+    pendingScreenContextRef.current = null;
+    if (pending && pending.screenId === sid) {
+      const client = getClientRef.current();
+      if (client) {
+        try {
+          client.send({
+            type: 'add-message',
+            message: { role: 'system', content: pending.body },
+            triggerResponseEnabled: true,
+          });
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.debug('[onboarding-voice] queued screen-context flush failed', err);
+          }
+        }
+      }
+    } else if (pending) {
+      // Stale (screen changed) — reset the dedupe marker so the push below runs.
+      lastPushedScreenIdRef.current = null;
+    }
+
+    // Instant-opener call: mute the Vapi mic on join so the user can't talk into
+    // Vapi (and Vapi STT can't hear the Cartesia opener) until both gates pass.
+    if (instantOpenerActiveRef.current) {
+      const client = getClientRef.current();
+      if (client) {
+        try {
+          client.setMuted(true);
+        } catch (err) {
+          if (import.meta.env.DEV) console.debug('[onboarding-voice] opener mute skipped', err);
+        }
+      }
+      // If the opener already finished while Vapi was connecting, open now.
+      maybeOpenMic();
+    } else {
+      // Every call joins with startAudioOff:true (set once on the shared Vapi
+      // instance). Only the instant-opener beat has an unmute path; without this,
+      // every other call — the fork, later beats, and post-error retries — stays
+      // muted, so Vapi receives pure silence and ends with
+      // did-not-receive-customer-audio. Open the mic on join.
+      const client = getClientRef.current();
+      if (client) {
+        try {
+          client.setMuted(false);
+        } catch (err) {
+          if (import.meta.env.DEV) console.debug('[onboarding-voice] join unmute skipped', err);
+        }
+      }
+    }
+
     // If we already injected the screen context via assistantOverrides at
     // vapi.start() (the cold-start path), skip the redundant context push —
     // Vapi would fire a second turn-0 response and stutter the opening.
@@ -403,13 +794,13 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     // whether the dashboard prompt contains the {{initial_screen_context}}
     // placeholder (variable substitution silently drops when placeholder is
     // missing — the snapshot would otherwise never reach Vapi on cold start).
-    if (sid && lastPushedScreenIdRef.current !== sid) {
+    if (sid && lastPushedScreenIdRef.current !== sid && !deferredScreenContextRef.current.has(sid)) {
       lastScreenChangeTsRef.current = new Date().toISOString();
       void pushScreenContext(sid, null);
     } else if (sid) {
       pushFormSnapshotMessage(sid);
     }
-  }, [pushScreenContext, clearRetryTimer, pushFormSnapshotMessage]);
+  }, [pushScreenContext, clearRetryTimer, pushFormSnapshotMessage, maybeOpenMic]);
 
   const onEnd = useCallback(() => {
     const userInitiated = didCallStopRef.current;
@@ -417,6 +808,14 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     didCallStopRef.current = false;
     lastPushedScreenIdRef.current = null;
     lastScreenChangeTsRef.current = null;
+    // Reset per-call instant-opener gates so a fresh call re-evaluates cleanly.
+    // The opener audio (if still playing) is stopped; openerUsedRef intentionally
+    // persists across the call so the cold-start opener only ever fires once.
+    vapiJoinedRef.current = false;
+    instantOpenerActiveRef.current = false;
+    clearOpenerFailsafe();
+    pendingScreenContextRef.current = null;
+    stopOpener();
     if (!userInitiated) {
       setRemoteEndCooldown(true);
       clearRemoteEndCooldownTimer();
@@ -425,11 +824,20 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         setRemoteEndCooldown(false);
       }, REMOTE_END_COOLDOWN_MS);
     }
-  }, [clearRemoteEndCooldownTimer]);
+  }, [clearRemoteEndCooldownTimer, stopOpener, clearOpenerFailsafe]);
 
   const onError = useCallback(
     (msg: string) => {
       setProviderError(msg);
+      // A pre-'call-start' failure never fires onEnd, so the instant-opener
+      // gates would survive into the retry half-armed (mic muted, openerUsedRef
+      // already true → retry skips the opener and never re-mutes/unmutes). Reset
+      // them here so the retry is a clean standard call with a live mic.
+      if (instantOpenerActiveRef.current) {
+        instantOpenerActiveRef.current = false;
+        clearOpenerFailsafe();
+        stopOpener();
+      }
       if (isFatalVapiError(msg) || retryCountRef.current >= MAX_AUTO_RETRIES) {
         fatalErrorRef.current = true;
         clearRetryTimer();
@@ -438,13 +846,24 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       const delay = RETRY_BACKOFFS_MS[retryCountRef.current] ?? 5000;
       retryCountRef.current += 1;
       clearRetryTimer();
+      // Route the retry through the same pendingRef/lastTransitionRef
+      // serialization the vapiShouldBeLive effect uses, so it can't race a
+      // queued stop() or desync pendingRef. start()'s own stateRef guard still
+      // prevents a duplicate Daily instance.
       retryTimerRef.current = setTimeout(() => {
         retryTimerRef.current = null;
         if (!vapiShouldBeLiveRef.current) return;
-        void startRef.current?.();
+        if (pendingRef.current !== null) return;
+        pendingRef.current = 'starting';
+        const prev = lastTransitionRef.current;
+        lastTransitionRef.current = Promise.resolve(prev)
+          .then(() => startRef.current?.())
+          .finally(() => {
+            if (pendingRef.current === 'starting') pendingRef.current = null;
+          });
       }, delay);
     },
-    [clearRetryTimer],
+    [clearRetryTimer, clearOpenerFailsafe, stopOpener],
   );
 
   const metadata = useMemo(
@@ -456,10 +875,12 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     [anonId, coachingStyle],
   );
 
-  const armIdleTimerRef = useRef<() => void>(() => {});
-
+  // Only USER STT activity pushes the silence deadline forward. An assistant
+  // speaking or re-prompting must NOT touch this, so a Vapi idle re-prompt at
+  // ~7.5s can't pre-empt the pause — continuous user silence still reaches the
+  // threshold. armIdleTimer reads this ref directly, so no indirection needed.
   const handleUserActivity = useCallback(() => {
-    if (idleTimerRef.current !== null) armIdleTimerRef.current();
+    lastUserActivityAtRef.current = Date.now();
   }, []);
 
   const handleTranscript = useCallback(
@@ -509,33 +930,72 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
             }
           }
           if (!skip) {
-            if (evt.role === 'assistant') {
-              // Merge into the current turn's bubble as long as the turn is open
-              // (no user turn since). Time between finals is irrelevant.
-              const merge = assistantTurnOpenRef.current;
+            // Tag the turn with the active beat (registered screen id on the chat
+            // page) so the chat-native feed groups dialogue under its beat instead
+            // of dumping it as an orphan under whatever beat is active. Mirrors the
+            // Direct-LLM message tagging.
+            const sid =
+              activeSubScreenIdRef.current ??
+              registeredScreenIdRef.current ??
+              currentScreenIdRef.current ??
+              undefined;
+            const role: 'ai' | 'user' = evt.role === 'assistant' ? 'ai' : 'user';
+            // One bubble per speaker-turn: merge consecutive same-role finals (same
+            // beat) into one bubble; a role change or beat change starts fresh.
+            const merge = lastTurnRoleRef.current === role;
+            lastTurnRoleRef.current = role;
+            if (role === 'ai') {
               assistantTurnOpenRef.current = true;
               armMergeWindow();
-              setMessages((prev) => {
-                const last = prev[prev.length - 1];
-                if (merge && last && last.role === 'ai') {
-                  // Glue with a space — Vapi already includes punctuation per fragment.
-                  const merged: VoiceMessage = {
-                    ...last,
-                    text: `${last.text} ${text}`.replace(/\s+/g, ' ').trim(),
-                  };
-                  return [...prev.slice(0, -1), merged];
-                }
-                return [...prev, { id: `vapi-${evt.role}-${now}`, role: 'ai', text }];
-              });
             } else {
-              // User turn ends the assistant turn; next AI final starts fresh.
               assistantTurnOpenRef.current = false;
               closeMergeWindow();
-              setMessages((prev) => [
-                ...prev,
-                { id: `vapi-${evt.role}-${now}`, role: 'user', text },
-              ]);
             }
+            // The opener is the first coach turn on a beat BEFORE any user turn.
+            // Give it a STABLE per-beat id so re-entering / refreshing the beat (the
+            // coach re-speaks every entry) REPLACES the opener bubble instead of
+            // stacking a duplicate. The first live final this session replaces a
+            // stale/hydrated opener; later finals of the same utterance accumulate.
+            const beatHasUser =
+              !!sid && messagesRef.current.some((m) => m.screenId === sid && m.role === 'user');
+            const isOpenerTurn = role === 'ai' && !!sid && !beatHasUser;
+            if (isOpenerTurn) {
+              const openerId = `opener-${sid}`;
+              const accumulate = openerSpeakStartedRef.current.has(sid as string);
+              openerSpeakStartedRef.current.add(sid as string);
+              setMessages((prev) => {
+                const idx = prev.findIndex((m) => m.id === openerId);
+                if (idx >= 0) {
+                  const existing = prev[idx];
+                  const newText = accumulate
+                    ? `${existing.text} ${text}`.replace(/\s+/g, ' ').trim()
+                    : text;
+                  return [
+                    ...prev.slice(0, idx),
+                    { ...existing, text: newText },
+                    ...prev.slice(idx + 1),
+                  ];
+                }
+                return [...prev, { id: openerId, role, text, screenId: sid, source: 'vapi' }];
+              });
+              notifyTranscriptListeners(evt);
+              return;
+            }
+            setMessages((prev) => {
+              const last = prev[prev.length - 1];
+              if (merge && last && last.role === role && last.screenId === sid) {
+                // Glue with a space — Vapi already includes punctuation per fragment.
+                const merged: VoiceMessage = {
+                  ...last,
+                  text: `${last.text} ${text}`.replace(/\s+/g, ' ').trim(),
+                };
+                return [...prev.slice(0, -1), merged];
+              }
+              return [
+                ...prev,
+                { id: `vapi-${evt.role}-${now}`, role, text, screenId: sid, source: 'vapi' },
+              ];
+            });
           }
         }
       }
@@ -571,12 +1031,114 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           ctx.state_delta.length,
         );
       }
+      // Merge persisted onboarding data UNDER the in-flight snapshot — mirrors
+      // pushScreenContext. The chat page never calls setFormSnapshot, so without
+      // this the cold-start opener ships with NO known-state and the coach
+      // re-asks fields already captured (e.g. the nickname when rearming at fork).
+      const persisted =
+        qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data ?? {};
+      const filled = { ...persisted, ...formSnapshotRef.current };
+
+      // Instant-opener decision: only the FIRST Vapi-covered beat of the session
+      // carries the cold-start latency, so only that call takes the silent-first
+      // path (Cartesia speaks the opener, Vapi waits). Default OFF → this whole
+      // block is dead and the standard speaks-first overrides ship unchanged.
+      const isFirstColdStartBeat =
+        ONBOARDING_INSTANT_OPENER && !openerUsedRef.current && isVapiCapableBeat(sid);
+
       const overrides = buildAssistantOverrides({
         screenId: ctx.screen_id,
         contextBlock: ctx.context_block,
         stateDelta: ctx.state_delta,
-        filledFormState: formSnapshotRef.current,
+        filledFormState: filled,
+        silentFirstMessage: isFirstColdStartBeat,
       });
+
+      if (isFirstColdStartBeat) {
+        // Mark the call so onCallStart mutes the Vapi mic on join and the mic
+        // gate (opener ended AND Vapi joined) governs the unmute.
+        openerUsedRef.current = true;
+        instantOpenedScreenRef.current = sid;
+        instantOpenerActiveRef.current = true;
+        openerDoneRef.current = false;
+        vapiJoinedRef.current = false;
+        // Dead-mic failsafe: if neither gate ever resolves, force the mic open.
+        clearOpenerFailsafe();
+        openerFailsafeTimerRef.current = setTimeout(() => {
+          openerFailsafeTimerRef.current = null;
+          if (!instantOpenerActiveRef.current) return;
+          instantOpenerActiveRef.current = false;
+          const c = getClientRef.current();
+          try {
+            c?.setMuted(false);
+          } catch (err) {
+            if (import.meta.env.DEV)
+              console.debug('[onboarding-voice] opener failsafe unmute skipped', err);
+          }
+        }, OPENER_FAILSAFE_MS);
+        // Speak the beat's opener instantly via Cartesia, with the user's name
+        // substituted. Falls back cleanly (resolves done) on any TTS failure so
+        // the mic gate can never strand the call mic-closed.
+        const nickname =
+          typeof filled.nickname === 'string' ? (filled.nickname as string) : undefined;
+        const openerBase = getOnboardingOpenerForState(sid, nickname) ?? '';
+        const openerText = applyName(openerBase, nickname);
+        // Route the Cartesia opener through the SAME message store as Vapi turns so
+        // it renders from the transcript (not pre-rendered authored text) and gets
+        // persisted (source 'opener'). Stable id per beat → dedup + mirror-once.
+        if (openerText) {
+          const openerMsg: VoiceMessage = {
+            id: `opener-${sid}`,
+            role: 'ai',
+            text: openerText,
+            screenId: sid,
+            source: 'opener',
+          };
+          setMessages((prev) =>
+            prev.some((m) => m.id === openerMsg.id) ? prev : [...prev, openerMsg],
+          );
+          // Mark spoken-this-session so a stray pre-user Vapi final accumulates into
+          // the opener rather than replacing the Cartesia text.
+          openerSpeakStartedRef.current.add(sid);
+        }
+        // Reset + drive the synced karaoke from the real Cartesia playback.
+        openerRevealCountRef.current = -1;
+        setOpenerReveal(openerText ? { screenId: sid, revealedWords: 0 } : null);
+        const openerWordTotal = openerText.trim().split(/\s+/).filter(Boolean).length;
+        const onOpenerProgress = (fraction: number) => {
+          const c = Math.min(openerWordTotal, Math.round(fraction * openerWordTotal));
+          if (c === openerRevealCountRef.current) return;
+          openerRevealCountRef.current = c;
+          setOpenerReveal({ screenId: sid, revealedWords: c });
+        };
+        stopOpener();
+        // ~310ms/word spoken-cadence estimate, used only if the audio element
+        // can't report a finite duration (Chrome blob-MP3 Infinity bug) so the
+        // karaoke still reveals word-by-word instead of snapping to full.
+        const openerEstMs = Math.max(1200, openerWordTotal * 310);
+        const handle = speakOpener(openerText, onOpenerProgress, openerEstMs);
+        openerHandleRef.current = handle;
+        track('instant_opener_started', { screen_id: sid });
+        void handle.done.then(() => {
+          openerDoneRef.current = true;
+          if (openerHandleRef.current === handle) openerHandleRef.current = null;
+          // Snap the karaoke to the full line the instant the audio ends.
+          openerRevealCountRef.current = openerWordTotal;
+          setOpenerReveal({ screenId: sid, revealedWords: openerWordTotal });
+          // The coach has now spoken (via Cartesia, since Vapi joined silent on
+          // this beat). Mark it so the idle auto-pause timer arms — Vapi's
+          // speech-start never fires on the silent-first path, so without this
+          // the timer would never start and the live call would never pause.
+          markAssistantSpoke();
+          // Re-anchor the user-silence window to when the coach STOPPED
+          // speaking. onCallStart seeded it at the silent Vapi join, but the
+          // Cartesia opener kept playing after that; the 8s of "continuous user
+          // silence" should be counted from the end of the opener, not the join.
+          lastUserActivityAtRef.current = Date.now();
+          maybeOpenMic();
+        });
+      }
+
       lastPushedScreenIdRef.current = sid;
       lastScreenChangeTsRef.current = new Date().toISOString();
       // session_log event types are enum-gated; PostHog handles the
@@ -593,7 +1155,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       );
       return undefined;
     }
-  }, [qc]);
+  }, [qc, stopOpener, maybeOpenMic, markAssistantSpoke, clearOpenerFailsafe]);
 
   const {
     state,
@@ -631,6 +1193,12 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       if (remoteEndCooldownTimerRef.current !== null)
         clearTimeout(remoteEndCooldownTimerRef.current);
       if (userActiveTimerRef.current !== null) clearTimeout(userActiveTimerRef.current);
+      if (openerFailsafeTimerRef.current !== null) clearTimeout(openerFailsafeTimerRef.current);
+      // Stop any in-flight instant-opener audio so it can't outlive the provider.
+      if (openerHandleRef.current) {
+        openerHandleRef.current.stop();
+        openerHandleRef.current = null;
+      }
     };
   }, []);
 
@@ -717,9 +1285,38 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   }, []);
   const fireAdvance = useCallback(() => onAdvanceRef.current?.(), []);
 
-  const orbState = orbStateFrom(voiceOn, micOn);
-  const voiceInShouldBeLive =
-    VOICE_IN_ENABLED && inOnboarding && micOn && !voiceOn && !!currentScreenId;
+  // Single engine selector — Vapi / Direct-LLM / Soniox are all derived from ONE
+  // decision so they can never overlap (no dual-init, no Vapi+Soniox mic contention).
+  // The selector decides INTENT (orbs + beat + surface); Vapi health gates are
+  // applied below when turning intent into vapiShouldBeLive.
+  const rawOrbState = orbStateFrom(voiceOn, micOn);
+  // Engine per beat is metadata-driven (node.meta.fill.brain), resolved by
+  // screenId via beatEngineMeta; the legacy sets remain only as its fallback.
+  const vapiCapableBeat = isVapiCapableBeat(registeredScreenId);
+  const isLocalCaptureBeat = isIdleCaptureBeat(registeredScreenId);
+  const engine = engineForTurn({
+    inOnboarding,
+    onChatPage,
+    rawOrbState,
+    voiceOn,
+    micOn,
+    chatVapiFlag: ONBOARDING_CHAT_VAPI,
+    vapiCapableBeat,
+    isLocalCaptureBeat,
+    beatResolved: registeredScreenId !== null,
+    hasScreen: !!currentScreenId,
+  });
+  // orbState for downstream consumers (useOnboardingChat inputMode + internal
+  // guards + routeOrbSend): if the engine isn't Vapi, the dead chat-page 'vapi'
+  // combo reads as voice_in_only (mic active, Direct-LLM owns the turn).
+  const orbState: OrbState =
+    engine.engine === 'vapi'
+      ? 'vapi'
+      : onChatPage && rawOrbState === 'vapi'
+        ? 'voice_in_only'
+        : rawOrbState;
+  // Soniox runs iff the decision hands it the mic — never while Vapi owns it.
+  const voiceInShouldBeLive = VOICE_IN_ENABLED && engine.micSource === 'soniox';
 
   const emitAssistant = useCallback(
     (text: string, kind: 'partial' | 'final') => {
@@ -729,16 +1326,29 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   );
 
   const chatScreenId = activeSubScreenId ?? registeredScreenId ?? currentScreenId;
-  // Exclude Vapi (state 1) — it owns its own turns; minting a Direct-LLM session
-  // there would orphan one per screen.
+  // Direct-LLM runs only when the selector hands it the turn — mutually exclusive
+  // with Vapi by construction (the selector never returns 'direct_llm' when Vapi owns it).
   const chatEnabled =
-    inOnboarding &&
-    orbState !== 'vapi' &&
+    engine.engine === 'direct_llm' &&
     !!chatScreenId &&
     chatScreenId.startsWith('ONBOARD-') &&
     (overlayOpen || voiceInShouldBeLive);
 
-  const { sendUserTurn, chatBusy } = useOnboardingChat({
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  // A beat already has dialogue in the shared feed (e.g. Vapi spoke its opener) →
+  // Direct-LLM must not re-stream that opener when it takes over (no duplicate bubble).
+  const hasExistingTurn = useCallback(
+    (sid: string) => messagesRef.current.some((m) => m.screenId === sid && !!m.text),
+    [],
+  );
+
+  const {
+    sendUserTurn,
+    chatBusy,
+    interrupt: interruptCoach,
+    regenerate: regenerateCoach,
+  } = useOnboardingChat({
     screenId: chatScreenId,
     enabled: chatEnabled,
     orbState,
@@ -748,25 +1358,96 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     emitAssistant,
     onVoiceAction: notifyVoiceActions,
     onAdvance: fireAdvance,
+    chatNative: onChatPage,
+    // Cartesia gate from the engine selector — always false on the chat page
+    // (Vapi speaks itself); off the chat page the voice-out button drives TTS.
+    speakReplies: engine.speakReplies,
+    hasExistingTurn,
   });
+
+  // End-of-turn aggregation (mirrors useCoachChat): Soniox streams a long
+  // utterance as MULTIPLE finals ("my name is Jonas." / "my age is 26."). Sending
+  // each immediately makes the 2nd final cancel the 1st turn mid-reply — dropping
+  // its tool call (submit_profile). Buffer consecutive finals and flush as ONE
+  // turn after an adaptive quiet gap.
+  const utteranceBufferRef = useRef('');
+  const aggregationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Reply-guarantee (mirrors useCoachChat): a barge-in that cuts the coach
+  // mid-reply sets `owesResponse`; if the user then adds NOTHING real (it was
+  // echo/noise), the settle check regenerates the interrupted reply so Soniox
+  // hearing the coach's own voice can never strand the coach in silence.
+  const owesResponseRef = useRef(false);
+  const regeneratedRef = useRef(false);
+  const chatBusyRef = useRef(chatBusy);
+  chatBusyRef.current = chatBusy;
+  const flushUtterance = useCallback(() => {
+    if (aggregationTimerRef.current) {
+      clearTimeout(aggregationTimerRef.current);
+      aggregationTimerRef.current = null;
+    }
+    const text = utteranceBufferRef.current.trim();
+    utteranceBufferRef.current = '';
+    if (!text) {
+      // Barge-in produced no real user turn → re-answer the interrupted reply.
+      if (owesResponseRef.current && !regeneratedRef.current) {
+        owesResponseRef.current = false;
+        regeneratedRef.current = true;
+        regenerateCoach();
+      }
+      return;
+    }
+    owesResponseRef.current = false;
+    regeneratedRef.current = false;
+    sendUserTurn(text);
+  }, [sendUserTurn, regenerateCoach]);
+  const armFlush = useCallback(() => {
+    if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
+    const pauseMs = resolveTurnPauseMs(utteranceBufferRef.current, {
+      base: TURN_AGGREGATION_MS,
+      complete: TURN_PAUSE_COMPLETE_MS,
+      incomplete: TURN_PAUSE_INCOMPLETE_MS,
+    });
+    aggregationTimerRef.current = setTimeout(flushUtterance, pauseMs);
+  }, [flushUtterance]);
+
+  // Barge-in that records whether a reply was actually cut (so the settle check
+  // can re-answer it) and ALWAYS arms a settle timer — even if no further speech
+  // arrives, the guarantee still fires instead of leaving the coach silent.
+  const bargeInterrupt = useCallback(() => {
+    if (chatBusyRef.current || useTtsPlaybackStore.getState().isSpeaking) {
+      owesResponseRef.current = true;
+    }
+    interruptCoach();
+    if (!aggregationTimerRef.current) armFlush();
+  }, [interruptCoach, armFlush]);
 
   const emitVoiceInInterim = useCallback(
     (text: string) => {
+      // Barge-in on the first partial — cut the coach's audio/reply immediately
+      // so it doesn't talk over the user (full-duplex, mirrors useCoachChat).
+      bargeInterrupt();
       notifyTranscriptListeners({ role: 'user', kind: 'partial', text });
+      // User still talking after a buffered final → defer the flush so we don't
+      // cut the turn mid-thought.
+      if (text.trim() && aggregationTimerRef.current) armFlush();
     },
-    [notifyTranscriptListeners],
+    [notifyTranscriptListeners, bargeInterrupt, armFlush],
   );
 
-  // Final voice turn → clear the live partial, then route to the LLM (the user
-  // bubble is added by the LLM message mirror, same as typed input).
+  // Final voice turn → clear the live partial, barge-in, then BUFFER it; the
+  // aggregation timer flushes the whole utterance to the LLM as one turn.
   const emitVoiceInFinal = useCallback(
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
       notifyTranscriptListeners({ role: 'user', kind: 'final', text: trimmed });
-      sendUserTurn(trimmed);
+      bargeInterrupt();
+      utteranceBufferRef.current = utteranceBufferRef.current
+        ? `${utteranceBufferRef.current} ${trimmed}`
+        : trimmed;
+      armFlush();
     },
-    [notifyTranscriptListeners, sendUserTurn],
+    [notifyTranscriptListeners, bargeInterrupt, armFlush],
   );
 
   const handleVoiceInError = useCallback(
@@ -786,12 +1467,27 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     [micOn, toggleMic],
   );
 
+  // Full-duplex (mirrors useCoachChat): the mic stays hot during playback so the
+  // user can barge in mid-reply — echo is handled by the browser's AEC, not by
+  // muting. Mute only in half-duplex mode, plus a post-speech breath window to
+  // cover the echo tail. Gates on actual playback (isSpeaking), not the fetch.
+  const ttsSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
+  const micMutedForTts = !FULL_DUPLEX_BARGE_IN && voiceOn && ttsSpeaking;
+  const [micMutedHeld, setMicMutedHeld] = useState(true);
+  useEffect(() => {
+    if (micMutedForTts) {
+      setMicMutedHeld(true);
+      return;
+    }
+    const t = setTimeout(() => setMicMutedHeld(false), MIC_GRACE_MS);
+    return () => clearTimeout(t);
+  }, [micMutedForTts]);
   const { isListening: voiceInListening } = useVoiceInCapture({
     active: voiceInShouldBeLive,
     vapiStatus: status,
     onTranscript: emitVoiceInFinal,
     onInterim: emitVoiceInInterim,
-    responding: false,
+    responding: micMutedForTts || micMutedHeld,
     onError: handleVoiceInError,
   });
 
@@ -800,6 +1496,22 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     startKeyWarmLoop();
     return () => stopKeyWarmLoop();
   }, [voiceInShouldBeLive]);
+
+  // Drop the aggregation buffer/timer when voice-in disarms or on unmount.
+  useEffect(() => {
+    if (voiceInShouldBeLive) return;
+    if (aggregationTimerRef.current) {
+      clearTimeout(aggregationTimerRef.current);
+      aggregationTimerRef.current = null;
+    }
+    utteranceBufferRef.current = '';
+  }, [voiceInShouldBeLive]);
+  useEffect(
+    () => () => {
+      if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
+    },
+    [],
+  );
 
   const [vapiToday, setVapiToday] = useState(() =>
     countVapiToday(useSessionLogStore.getState().events),
@@ -821,23 +1533,58 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     track('voice_cap_reached', { count: vapiToday, limit: VAPI_DAILY_CAP });
   }, [voiceCapReached, vapiToday, logEvent]);
 
-  const vapiShouldBeLive =
-    inOnboarding &&
-    // Identity must be loaded before starting — metadata.anon_id is baked into
-    // the call at start(), so a null anonId would ship every tool call with an
-    // empty anon_id and the backend rejects them all (invalid_identity).
-    !!anonId &&
-    preferences.voiceMode === 'voice' &&
-    preferences.micEnabled === true &&
-    preferences.micPermission === true &&
-    !!currentScreenId &&
-    !fatalErrorRef.current &&
-    !remoteEndCooldown &&
-    !voiceCapReached;
+  // Idle auto-pause: after IDLE_TIMEOUT_MS of silence the idle timer calls
+  // systemPauseMic(), which sets micPausedReason='system'. The Soniox path
+  // already drops the mic off this flag via micEnabledFrom(); Vapi (mic + WebRTC)
+  // must too, or the call stays fully live and keeps burning voice minutes. Read
+  // the flag reactively so the vapiShouldBeLive derivation re-runs when it flips,
+  // which tears the call down through the existing stop branch. A user gesture or
+  // tab-visible event clears it (reactivateIfSystemPaused in App.tsx), flipping
+  // this back to null so Vapi re-arms through the same start branch.
+  const micPausedReason = useVoiceSettingsStore((s) => s.micPausedReason);
+
+  // The selector decides Vapi INTENT (voice on, covered beat). Vapi only STARTS
+  // once the mic is actually granted — until then the beat is Vapi-pending (the
+  // opener waits for Vapi, Direct-LLM never fills it). Plus the transient health
+  // gates: identity loaded, no fatal/cooldown, under the daily cap, not idle-paused.
+  // The gate is a pure helper (vapiLiveGate) so it can be unit-tested.
+  const gateInputs = {
+    engineIsVapi: engine.engine === 'vapi',
+    micPermission: preferences.micPermission === true,
+    micEnabled: preferences.micEnabled === true,
+    hasAnonId: !!anonId,
+    fatalError: fatalErrorRef.current,
+    remoteEndCooldown,
+    voiceCapReached,
+    micPausedReason,
+  };
+  const vapiShouldBeLive = vapiLiveGate(gateInputs);
 
   useEffect(() => {
     vapiShouldBeLiveRef.current = vapiShouldBeLive;
-  }, [vapiShouldBeLive]);
+    // Name WHICH condition is keeping Vapi down — turns "the gate is buggy" into
+    // a single readable line per transition. The blockers list is the failing
+    // conjuncts of vapiLiveGate (engineIsVapi/micPermission/micEnabled/hasAnonId
+    // must be true; fatalError/remoteEndCooldown/voiceCapReached/idle-pause must
+    // be false).
+    if (import.meta.env.DEV) {
+      const blockers = [
+        !gateInputs.engineIsVapi && `engine=${engine.engine}(not-vapi)`,
+        !gateInputs.micPermission && 'micPermission=false',
+        !gateInputs.micEnabled && 'micEnabled=false',
+        !gateInputs.hasAnonId && 'anonId=missing',
+        gateInputs.fatalError && 'fatalError',
+        gateInputs.remoteEndCooldown && 'remoteEndCooldown',
+        gateInputs.voiceCapReached && 'voiceCapReached',
+        gateInputs.micPausedReason != null && `micPaused=${gateInputs.micPausedReason}`,
+      ].filter(Boolean);
+      console.log(
+        `[vapi-gate] live=${vapiShouldBeLive}`,
+        blockers.length ? `blockers: ${blockers.join(', ')}` : '(all clear)',
+        `screen=${registeredScreenId}`,
+      );
+    }
+  }, [vapiShouldBeLive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (vapiShouldBeLive) {
@@ -896,48 +1643,75 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   }, [inOnboarding, clearRetryTimer, clearRemoteEndCooldownTimer, stop]);
 
   useEffect(() => {
-    if (isSpeaking) hasAssistantSpokenRef.current = true;
-  }, [isSpeaking]);
+    if (isSpeaking) markAssistantSpoke();
+  }, [isSpeaking, markAssistantSpoke]);
 
   useEffect(() => {
     if (status !== 'active' && status !== 'connecting') {
-      hasAssistantSpokenRef.current = false;
+      clearAssistantSpoke();
     }
-  }, [status]);
+  }, [status, clearAssistantSpoke]);
 
+  // Arms (or re-arms) the idle timer to fire when IDLE_TIMEOUT_MS of CONTINUOUS
+  // USER silence has elapsed. The delay is computed from lastUserActivityAtRef,
+  // not from "now", so re-arming after an assistant re-prompt (state
+  // speaking→listening) does NOT restart the full window — it schedules for the
+  // remaining time. When the timer fires it re-checks the elapsed user silence:
+  // if the user spoke in the meantime it reschedules for the leftover, otherwise
+  // it tears Vapi down. This is the core of the "measure from last user turn,
+  // survive the assistant nudge" fix — a Vapi re-prompt at ~7.5s no longer
+  // pre-empts the pause at 8s of genuine user silence.
   const armIdleTimer = useCallback(() => {
     clearIdleTimer();
-    idleTimerRef.current = setTimeout(() => {
+    // Defensive: no user activity recorded yet this call (onCallStart and the
+    // opener-done callback both seed it, but anchor to now if neither ran).
+    if (lastUserActivityAtRef.current === 0) {
+      lastUserActivityAtRef.current = Date.now();
+    }
+    const fire = () => {
       idleTimerRef.current = null;
       if (pendingRef.current !== null) return;
+      if (!isUserSilenceElapsed(lastUserActivityAtRef.current, Date.now(), IDLE_TIMEOUT_MS)) {
+        // The user spoke since this timer was armed — not actually idle yet.
+        // Reschedule for the remaining silence instead of pausing.
+        idleTimerRef.current = setTimeout(
+          fire,
+          idleSilenceRemainingMs(lastUserActivityAtRef.current, Date.now(), IDLE_TIMEOUT_MS),
+        );
+        return;
+      }
       useVoiceSettingsStore.getState().systemPauseMic();
-    }, IDLE_TIMEOUT_MS);
+    };
+    const remaining = idleSilenceRemainingMs(
+      lastUserActivityAtRef.current,
+      Date.now(),
+      IDLE_TIMEOUT_MS,
+    );
+    idleTimerRef.current = setTimeout(fire, remaining);
   }, [clearIdleTimer]);
 
   useEffect(() => {
-    armIdleTimerRef.current = armIdleTimer;
-  }, [armIdleTimer]);
-
-  useEffect(() => {
-    if (status !== 'active' || state !== 'listening' || !hasAssistantSpokenRef.current) {
+    if (!shouldArmIdleTimer({ status, state, assistantHasSpoken })) {
       clearIdleTimer();
       return;
     }
     armIdleTimer();
     return clearIdleTimer;
-  }, [status, state, clearIdleTimer, armIdleTimer]);
+  }, [status, state, assistantHasSpoken, clearIdleTimer, armIdleTimer]);
 
   useEffect(() => {
     if (status !== 'active') return;
     const screenToFetch = activeSubScreenId ?? registeredScreenId ?? currentScreenId;
     if (!screenToFetch) return;
     if (lastPushedScreenIdRef.current === screenToFetch) return;
+    if (deferredScreenContextRef.current.has(screenToFetch)) return;
     const priorTs = lastScreenChangeTsRef.current;
     lastScreenChangeTsRef.current = new Date().toISOString();
     // A screen change triggers a fresh assistant turn (pushScreenContext sends
     // triggerResponseEnabled). End the current turn so the new screen's opening
     // line starts its own bubble instead of gluing onto the previous screen's.
     assistantTurnOpenRef.current = false;
+    lastTurnRoleRef.current = null;
     closeMergeWindow();
     void pushScreenContext(screenToFetch, priorTs);
   }, [
@@ -945,6 +1719,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     currentScreenId,
     activeSubScreenId,
     registeredScreenId,
+    deferredScreenContextVersion,
     pushScreenContext,
     closeMergeWindow,
   ]);
@@ -1004,6 +1779,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       openOverlay,
       closeOverlay,
       messages,
+      openerReveal,
       appendMessage,
       startThread,
       sendUserTurn,
@@ -1012,6 +1788,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       subscribeVoiceActions,
       registerScreen,
       registerAdvance,
+      setScreenContextDeferred,
       endCall,
       restartCall,
       pushSubScreen,
@@ -1032,6 +1809,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       openOverlay,
       closeOverlay,
       messages,
+      openerReveal,
       appendMessage,
       startThread,
       sendUserTurn,
@@ -1039,6 +1817,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       subscribeVoiceActions,
       registerScreen,
       registerAdvance,
+      setScreenContextDeferred,
       endCall,
       restartCall,
       pushSubScreen,
@@ -1055,7 +1834,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   return (
     <OnboardingVoiceContext.Provider value={value}>
       {children}
-      {inOnboarding && overlayOpen && <OnboardingChatOverlay onClose={closeOverlay} />}
+      {inOnboarding && overlayOpen && !onChatPage && (
+        <OnboardingChatOverlay onClose={closeOverlay} />
+      )}
       <VoiceCapModal />
     </OnboardingVoiceContext.Provider>
   );

@@ -4,21 +4,24 @@ import { ONBOARDING_TOOL_ADDENDUM } from '../systemPromptAddendum.js';
 import { CATEGORY_OPTIONS, ONBOARDING_TOOLS } from '../schemas.js';
 
 describe('onboarding tool registry', () => {
-  it('exposes exactly the thirteen expected tools', () => {
+  it('exposes exactly the sixteen expected tools', () => {
     expect(ONBOARDING_TOOLS.map((t) => t.name).sort()).toEqual(
       [
         'add_habit',
         'advance_step',
         'ask_clarification',
         'confirm_plan',
+        'record_checkin',
         'remove_habit',
         'submit_brain_dump',
         'submit_category',
         'submit_custom_prompts',
         'submit_goals',
+        'submit_morning_checkin',
         'submit_path_choice',
         'submit_profile',
         'submit_reflection_config',
+        'submit_weekly_config',
         'update_habit',
       ].sort(),
     );
@@ -35,9 +38,9 @@ describe('ONBOARDING_TOOL_ADDENDUM', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).not.toContain('confirm_step_complete');
   });
 
-  it('steers plan-review to confirm_plan, not advance_step', () => {
+  it('steers the final confirm screen to confirm_plan, not advance_step', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toContain('confirm_plan');
-    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/PLAN REVIEW/);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/PLAN CONFIRM \(ONBOARD-COMPLETE/);
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/call confirm_plan — NOT advance_step/);
   });
 

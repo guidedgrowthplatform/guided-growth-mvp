@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useAppGate } from '@/hooks/useAppGate';
-import { FIRST_OPEN, getFlag } from '@/lib/storage/persistentFlags';
 import { useAuthStore } from '@/stores/authStore';
 
 function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
@@ -24,7 +23,11 @@ export function AppGate({
   allow,
 }: {
   children: ReactNode;
-  allow: 'public' | 'onboarding' | 'app';
+  // 'onboarding-or-public' is used ONLY by the chat-native flow route
+  // (/onboarding/flow): it renders the flow for logged-out users too, because
+  // the flow's first beat IS the auth/sign-up step. Every other route keeps its
+  // existing gating untouched.
+  allow: 'public' | 'onboarding' | 'onboarding-or-public' | 'app';
 }) {
   const gate = useAppGate();
   const isRecoveryMode = useAuthStore((s) => s.isRecoveryMode);
@@ -50,13 +53,26 @@ export function AppGate({
     return <Navigate to="/" replace />;
   }
 
-  // Unauthenticated: first open shows splash → welcome intro, then straight to login.
-  if (gate.status === 'unauthenticated') {
-    return <Navigate to={getFlag(FIRST_OPEN) ? '/login' : '/splash'} replace />;
+  // Flow route only: a logged-out user RENDERS the flow (which starts at the auth
+  // beat) instead of bouncing to /login. Authenticated users fall through to the
+  // shared onboarding handling below (in-progress / completed redirects intact),
+  // so the auth beat auto-completes for them exactly as for allow="onboarding".
+  if (allow === 'onboarding-or-public' && gate.status === 'unauthenticated') {
+    return <>{children}</>;
   }
 
-  // Onboarding routes: only allow if not completed
-  if (allow === 'onboarding') {
+  // Unauthenticated: the chat-native flow IS the entry — its first beat handles
+  // sign-up/login, so logged-out users land there instead of the old auth pages.
+  if (gate.status === 'unauthenticated') {
+    return <Navigate to="/onboarding/flow" replace />;
+  }
+
+  // Onboarding routes: only allow if not completed. The flow route
+  // (onboarding-or-public) shares this branch for authenticated users; its
+  // logged-out case is already handled above, so here it behaves exactly like
+  // allow="onboarding" (completed users bounce to /, everyone else renders and
+  // the auth beat auto-completes).
+  if (allow === 'onboarding' || allow === 'onboarding-or-public') {
     if (gate.status === 'ready') return <Navigate to="/" replace />;
     return <>{children}</>;
   }

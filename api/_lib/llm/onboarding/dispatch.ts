@@ -7,9 +7,12 @@ import { removeHabit } from './handlers/removeHabit.js';
 import { submitBrainDump } from './handlers/submitBrainDump.js';
 import { submitCategory } from './handlers/submitCategory.js';
 import { submitGoals } from './handlers/submitGoals.js';
+import { submitMorningCheckin } from './handlers/submitMorningCheckin.js';
+import { recordCheckin } from './handlers/recordCheckin.js';
 import { submitPathChoice } from './handlers/submitPathChoice.js';
 import { submitProfile } from './handlers/submitProfile.js';
 import { submitReflectionConfig } from './handlers/submitReflectionConfig.js';
+import { submitWeeklyConfig } from './handlers/submitWeeklyConfig.js';
 import { updateHabit } from './handlers/updateHabit.js';
 import { submitCustomPrompts } from './handlers/submitCustomPrompts.js';
 import type { OnboardingHandlerCtx } from './handlers/shared.js';
@@ -25,7 +28,10 @@ const HANDLERS: Record<OnboardingToolName, Handler> = {
   add_habit: addHabit,
   remove_habit: removeHabit,
   update_habit: updateHabit,
+  submit_morning_checkin: submitMorningCheckin,
+  record_checkin: recordCheckin,
   submit_reflection_config: submitReflectionConfig,
+  submit_weekly_config: submitWeeklyConfig,
   submit_custom_prompts: submitCustomPrompts,
   submit_brain_dump: submitBrainDump,
   advance_step: advanceStep,

@@ -42,7 +42,6 @@ vi.mock('@/hooks/useLLM', () => ({
     error: null,
     reset: vi.fn(),
     cancel: vi.fn(),
-    regenerate: vi.fn(() => Promise.resolve()),
     prependMessages: vi.fn(() => 0),
   }),
 }));
@@ -88,14 +87,12 @@ vi.mock('@/stores/voiceStore', () => ({
   useVoiceStore: (sel: (s: { setInterim: () => void }) => unknown) => sel({ setInterim: vi.fn() }),
 }));
 
-// ─── tts-service: stopTTS is the barge-in spy; useTtsPlaybackStore selector stub ──
+// ─── tts-service: stopTTS spy; useTtsPlaybackStore selector stub ──
 const stopTTSMock = vi.fn();
 vi.mock('@/lib/services/tts-service', () => ({
   stopTTS: () => stopTTSMock(),
   speak: vi.fn(() => Promise.resolve()),
-  beginSpeechTurn: vi.fn(),
-  endSpeechTurn: vi.fn(() => Promise.resolve()),
-  pushSpeechChunk: vi.fn(),
+  setTtsSpeaking: vi.fn(),
   isAudioUnlocked: () => true,
   subscribeAudioUnlock: () => () => {},
   useTtsPlaybackStore: (sel: (s: { isSpeaking: boolean }) => unknown) => sel({ isSpeaking: false }),
@@ -147,7 +144,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('useCoachChat — #209 turn aggregation + barge-in', () => {
+describe('useCoachChat — #209 turn aggregation', () => {
   it('(a) aggregates consecutive finals into ONE turn after the quiet gap', () => {
     render();
     expect(captured.onTranscript).toBeTypeOf('function');
@@ -202,19 +199,6 @@ describe('useCoachChat — #209 turn aggregation + barge-in', () => {
     });
     expect(sendMessageMock).toHaveBeenCalledTimes(1);
     expect(sendMessageMock).toHaveBeenCalledWith('again');
-  });
-
-  it('(c) barge-in: stopTTS fires synchronously on the first final/interim, before the flush', () => {
-    render();
-
-    act(() => captured.onTranscript!('cut you off'));
-    // Immediate — NOT debounced by TURN_AGGREGATION_MS.
-    expect(stopTTSMock).toHaveBeenCalled();
-    expect(sendMessageMock).not.toHaveBeenCalled();
-
-    stopTTSMock.mockReset();
-    act(() => captured.onInterim!('and again'));
-    expect(stopTTSMock).toHaveBeenCalled();
   });
 
   it('(d) extends the quiet gap when the utterance sounds unfinished', () => {

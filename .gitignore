@@ -1,5 +1,5 @@
 # Dependencies
-node_modules/
+node_modules
 
 # Build outputs
 dist/
@@ -123,6 +123,7 @@ tmp_*.txt
 *.mp3
 # But DO track generated voice assets (needed for Vercel deploy)
 !public/voice/*.mp3
+!public/voice/onboarding/*.mp3
 git_*.txt
 *_test.txt
 *_error.txt
@@ -143,3 +144,7 @@ scripts/vapi-sync/vapi.lock.dev.json
 # derived QA adaptive layers (generated from icon-qa.png)
 assets/icon-foreground-qa.png
 assets/icon-background-qa.png
+
+*storybook.log
+storybook-static
+.frugal-fable/

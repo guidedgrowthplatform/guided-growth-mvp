@@ -65,4 +65,26 @@ describe('buildAssistantOverrides', () => {
     });
     expect(out.variableValues.initial_screen_context).toContain('(none)');
   });
+
+  it('keeps the speaks-first mode by default (silentFirstMessage omitted)', () => {
+    const out = buildAssistantOverrides({
+      screenId: 'ONBOARD-01--FORM',
+      contextBlock: 'ctx',
+      stateDelta: [],
+    });
+    expect(out.firstMessageMode).toBe('assistant-speaks-first-with-model-generated-message');
+  });
+
+  it('flips to assistant-waits-for-user when silentFirstMessage is true (instant-opener path)', () => {
+    const out = buildAssistantOverrides({
+      screenId: 'ONBOARD-01--FORM',
+      contextBlock: 'ctx',
+      stateDelta: [],
+      silentFirstMessage: true,
+    });
+    expect(out.firstMessageMode).toBe('assistant-waits-for-user');
+    // The screen context still ships so Vapi is warm with the screen when the
+    // user replies. Only the speak-first behavior changes.
+    expect(out.variableValues.initial_screen_context).toContain('ONBOARD-01--FORM');
+  });
 });

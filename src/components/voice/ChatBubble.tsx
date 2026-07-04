@@ -1,6 +1,6 @@
-import { memo, useMemo } from 'react';
 import { MarkdownMessage } from '@/components/chat/MarkdownMessage';
 import { safeStreamPrefix } from '@/lib/markdown/parse';
+import { sliceWords } from '@/lib/text/words';
 
 interface ChatBubbleProps {
   role: 'user' | 'ai';
@@ -11,6 +11,8 @@ interface ChatBubbleProps {
   compact?: boolean;
   streaming?: boolean;
   markdown?: boolean;
+  // Audio-synced reveal: clamp rendered text to the first N spoken words.
+  revealWords?: number | null;
 }
 
 function StreamingText({ text }: { text: string }) {
@@ -25,7 +27,7 @@ function StreamingText({ text }: { text: string }) {
   );
 }
 
-export const ChatBubble = memo(function ChatBubble({
+export function ChatBubble({
   role,
   text,
   userName,
@@ -34,18 +36,16 @@ export const ChatBubble = memo(function ChatBubble({
   compact = false,
   streaming = false,
   markdown = false,
+  revealWords = null,
 }: ChatBubbleProps) {
   const isUser = role === 'user';
-  const markdownText = useMemo(
-    () => (streaming ? safeStreamPrefix(text) : text),
-    [streaming, text],
-  );
+  // Clamp to the audio-revealed word count when driven; else full text.
+  const shownText = typeof revealWords === 'number' ? sliceWords(text, revealWords) : text;
   const isLightBackdrop = eyebrowVariant === 'dark';
-  const coachEyebrowColor = isLightBackdrop ? 'text-[#616f89]' : 'text-[rgba(255,255,255,0.4)]';
-  const whiteBubbleSurface = isLightBackdrop
+  const userEyebrowColor = isLightBackdrop ? 'text-[#616f89]' : 'text-[rgba(255,255,255,0.4)]';
+  const userBubbleSurface = isLightBackdrop
     ? 'bg-white shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.08)]'
     : 'bg-white';
-  const blueBubbleSurface = 'bg-[rgba(19,91,236,0.8)]';
 
   const wrapperMargins = compact
     ? isUser
@@ -78,10 +78,10 @@ export const ChatBubble = memo(function ChatBubble({
   return (
     <div className={`flex flex-col ${wrapperMargins}`}>
       <div className={`flex items-center px-[16px] ${isUser ? 'justify-end' : ''}`}>
-        {isUser && <div className="size-[8px] rounded-full bg-[#135bec]" />}
+        {!isUser && <div className="size-[8px] rounded-full bg-[#135bec]" />}
         <span
           className={`text-[12px] font-semibold uppercase leading-[16px] tracking-[1.2px] ${
-            isUser ? 'pl-[8px] text-[#135bec]' : coachEyebrowColor
+            isUser ? userEyebrowColor : 'pl-[8px] text-[#135bec]'
           }`}
         >
           {isUser ? userName || 'YOU' : 'GUIDED GROWTH COACH'}
@@ -92,19 +92,21 @@ export const ChatBubble = memo(function ChatBubble({
         <div
           className={`max-w-[290px] backdrop-blur-[6px] ${
             isUser
-              ? `rounded-bl-[16px] rounded-br-[16px] rounded-tl-[16px] ${bubblePad} ${blueBubbleSurface}`
-              : `rounded-bl-[16px] rounded-br-[16px] rounded-tr-[16px] ${bubblePad} ${whiteBubbleSurface}`
+              ? `rounded-bl-[16px] rounded-br-[16px] rounded-tl-[16px] bg-[rgba(19,91,236,0.85)] ${bubblePad}`
+              : `rounded-bl-[16px] rounded-br-[16px] rounded-tr-[16px] ${bubblePad} ${userBubbleSurface}`
           } ${animate ? 'animate-bubble-in' : ''}`}
         >
           {markdown ? (
             <div className={textClasses}>
-              <MarkdownMessage text={markdownText} />
+              <MarkdownMessage text={streaming ? safeStreamPrefix(shownText) : shownText} />
             </div>
           ) : (
-            <p className={textClasses}>{streaming ? <StreamingText text={text} /> : text}</p>
+            <p className={textClasses}>
+              {streaming ? <StreamingText text={shownText} /> : shownText}
+            </p>
           )}
         </div>
       </div>
     </div>
   );
-});
+}

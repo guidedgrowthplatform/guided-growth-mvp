@@ -21,6 +21,13 @@ const EMPTY_TURN_FALLBACK = "Sorry, I didn't quite get that — could you say it
 // when each delta triggered its own React render + smooth-reveal animation.
 const DELTA_COALESCE_MS = 40;
 
+// Idle watchdog: abort a stream that produces NO event for this long. Bounds
+// the "indefinite thinking stall" (B11) — a wedged serverless function or a
+// half-open socket otherwise leaves status 'streaming' forever. Real progress
+// (deltas, tool_call/tool_result between rounds) resets the timer, so slow
+// multi-round turns are unaffected; only a genuinely dead stream trips it.
+const STREAM_IDLE_TIMEOUT_MS = 30_000;
+
 export interface LLMToolFailure {
   id: string;
   name: string;
@@ -30,7 +37,7 @@ export interface LLMToolFailure {
 
 export interface UseLLMReturn {
   sendMessage: (text: string) => Promise<void>;
-  sendOpener: () => Promise<void>;
+  sendOpener: (timeoutMs?: number) => Promise<boolean>;
   seedOpener: (content: string, toolEvent: LLMToolEvent) => void;
   prependMessages: (older: LLMChatMessage[]) => number;
   messages: LLMChatMessage[];
@@ -87,7 +94,6 @@ export function useLLM(
 
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
-  // Last real user turn (id + text) so we can re-answer it without re-adding it.
   const lastUserRef = useRef<{ id: string; content: string } | null>(null);
   const priorOpenerRef = useRef<string | null>(null);
   const idCounterRef = useRef({ n: 0 });
@@ -166,16 +172,15 @@ export function useLLM(
       mode: 'chat' | 'opener';
       text: string;
       surfaceErrors: boolean;
+      timeoutMs?: number;
       reuseTurnId?: string;
-    }) => {
-      if (inFlightRef.current) return;
+    }): Promise<boolean> => {
+      if (inFlightRef.current) return false;
       inFlightRef.current = true;
 
       let userTurnId: string | null = null;
       if (opts.mode === 'chat') {
         if (opts.reuseTurnId) {
-          // Regenerate: the user message is already in history; reuse its id so
-          // the backend dedups (ON CONFLICT) instead of creating a second turn.
           userTurnId = opts.reuseTurnId;
         } else {
           userTurnId = makeId(idCounterRef.current);
@@ -196,15 +201,32 @@ export function useLLM(
 
       const controller = new AbortController();
       abortRef.current = controller;
+      const timeoutId =
+        opts.timeoutMs != null ? setTimeout(() => controller.abort(), opts.timeoutMs) : null;
 
       let acc = '';
       let sawTerminal = false;
+      let succeeded = false;
       const localTools: LLMToolEvent[] = [];
+
+      // Idle watchdog — any received event proves the stream is alive and
+      // re-arms it; a stream that goes silent past the window is aborted and
+      // surfaced as a retryable timeout error (never an endless spinner).
+      let idleTimedOut = false;
+      let idleTimerId: ReturnType<typeof setTimeout> | null = null;
+      const armIdleWatchdog = () => {
+        if (idleTimerId !== null) clearTimeout(idleTimerId);
+        idleTimerId = setTimeout(() => {
+          idleTimedOut = true;
+          controller.abort();
+        }, STREAM_IDLE_TIMEOUT_MS);
+      };
 
       // Direct-LLM (Path 2/3) tap — onboarding only; same console timeline as Vapi.
       const debugOnb = isOnboardingScreen(screenId);
 
       const onEvent = (e: LLMStreamEvent) => {
+        armIdleWatchdog();
         switch (e.type) {
           case 'delta': {
             acc += e.content;
@@ -257,6 +279,7 @@ export function useLLM(
           }
           case 'done': {
             sawTerminal = true;
+            succeeded = true;
             flushDeltaBuffer();
             // Skip a blank assistant turn (tool-only). Truly empty (no text, no
             // tools) → fallback line so the turn never renders as silence.
@@ -326,6 +349,7 @@ export function useLLM(
         const priorOpener = opts.mode === 'chat' ? priorOpenerRef.current : null;
         if (priorOpener) priorOpenerRef.current = null;
 
+        armIdleWatchdog();
         await streamLLM(
           {
             session_id: sessionId,
@@ -349,7 +373,10 @@ export function useLLM(
         const wasAborted =
           controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError');
         if (wasAborted) {
-          setStatus((prev) => (prev === 'error' ? 'error' : 'idle'));
+          // Watchdog aborts (idleTimedOut) are surfaced in `finally`, which
+          // also covers the no-throw path where the abort closes the stream
+          // cleanly. User cancels keep the old idle/error behavior.
+          if (!idleTimedOut) setStatus((prev) => (prev === 'error' ? 'error' : 'idle'));
         } else if (opts.surfaceErrors) {
           setStatus('error');
           setError(err instanceof Error ? err : new Error(String(err)));
@@ -357,13 +384,23 @@ export function useLLM(
           setStatus('idle');
         }
       } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (idleTimerId !== null) clearTimeout(idleTimerId);
         if (abortRef.current === controller) {
           abortRef.current = null;
         }
         inFlightRef.current = false;
-        // Stream ended with no done/error frame (truncated/killed) — clear the
-        // stuck 'streaming' status, else every later send is gated to noop.
-        if (!sawTerminal && !controller.signal.aborted) {
+        if (idleTimedOut && !sawTerminal) {
+          // Watchdog fired — a dead stream, not a user cancel. Retryable error.
+          if (opts.surfaceErrors) {
+            setError((prev) => prev ?? new Error('llm_timeout: the coach stopped responding'));
+            setStatus('error');
+          } else {
+            setStatus((prev) => (prev === 'streaming' ? 'idle' : prev));
+          }
+        } else if (!sawTerminal && !controller.signal.aborted) {
+          // Stream ended with no done/error frame (truncated/killed) — clear the
+          // stuck 'streaming' status, else every later send is gated to noop.
           if (opts.surfaceErrors) {
             setError((prev) => prev ?? new Error('connection ended unexpectedly'));
             setStatus((prev) => (prev === 'streaming' ? 'error' : prev));
@@ -372,36 +409,37 @@ export function useLLM(
           }
         }
       }
+      return succeeded;
     },
     [sessionId, screenId, coachingStyle, logEvent, chatSessionId],
   );
 
   const sendMessage = useCallback(
-    (text: string) => {
+    async (text: string) => {
       if (!chatSessionId) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[useLLM] sendMessage called without chatSessionId; no-op');
         }
-        return Promise.resolve();
+        return;
       }
-      return runStream({ mode: 'chat', text, surfaceErrors: true });
+      await runStream({ mode: 'chat', text, surfaceErrors: true });
     },
     [runStream, chatSessionId],
   );
 
   const sendOpener = useCallback(
-    () => runStream({ mode: 'opener', text: '', surfaceErrors: false }),
+    (timeoutMs?: number) =>
+      runStream({ mode: 'opener', text: '', surfaceErrors: false, timeoutMs }),
     [runStream],
   );
 
-  // Re-answer the LAST user turn WITHOUT adding a new message — used to guarantee
-  // the coach replies to a turn whose reply got dropped/aborted/interrupted.
-  const regenerate = useCallback(() => {
+  const regenerate = useCallback(async () => {
     const lu = lastUserRef.current;
-    // No prior user turn (e.g. the coach's opener got interrupted) → re-issue a
-    // coach-led message instead of no-op'ing into silence.
-    if (!lu) return runStream({ mode: 'opener', text: '', surfaceErrors: false });
-    return runStream({ mode: 'chat', text: lu.content, surfaceErrors: true, reuseTurnId: lu.id });
+    if (!lu) {
+      await runStream({ mode: 'opener', text: '', surfaceErrors: false });
+      return;
+    }
+    await runStream({ mode: 'chat', text: lu.content, surfaceErrors: true, reuseTurnId: lu.id });
   }, [runStream]);
 
   useEffect(() => {

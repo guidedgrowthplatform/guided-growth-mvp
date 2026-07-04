@@ -81,6 +81,7 @@ jobs:
           VITE_STATE3_ENABLED: ${{ secrets.VITE_STATE3_ENABLED }}
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENVIRONMENT: staging
         run: npm run build
 
       - uses: actions/upload-artifact@v4

@@ -1,0 +1,121 @@
+{
+  "flowId": "evening-checkin-v1",
+  "name": "Evening Check-in",
+  "version": 1,
+  "publishedAt": "2026-06-26T00:00:00Z",
+  "source": "flow-builder EVENING_CHECKIN_FLOW preset, enriched Export (authored 2026-07-03)",
+  "beats": [
+    {
+      "beat": "1",
+      "name": "Evening Greeting",
+      "componentType": "coach-bubble",
+      "sheetStage": "ECHECK-01: Evening Greeting",
+      "context": "Warm evening greeting. Surface today's habits and ask how the day went.",
+      "props": {
+        "text": "Hey, good evening. Here are your habits for today. How did the day go?"
+      },
+      "meta": {
+        "voiceEngine": "none",
+        "engine": {
+          "nodeId": "evening-greeting",
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "2",
+      "name": "Habit Review",
+      "componentType": "habit-review",
+      "background": "user",
+      "sheetStage": "ECHECK-HABITS: Habit Review",
+      "context": "Walk today's habits. For each, mark it done, not done, or leave it pending as the user reports. Do not judge a missed habit.",
+      "props": {
+        "coachLine": "Tap each habit to mark it, or just tell me how each one went."
+      },
+      "meta": {
+        "voiceEngine": "none",
+        "engine": {
+          "nodeId": "evening-habit-review",
+          "toolName": "complete_habit",
+          "toolPersistsFields": "habitStatuses",
+          "toolAdvancesStep": true,
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "3",
+      "name": "Anything Else",
+      "componentType": "coach-bubble",
+      "sheetStage": "ECHECK-DONE: Anything Else",
+      "context": "Check whether the user wants to add anything before reflecting. If they are done, move on.",
+      "props": {
+        "text": "Looks like there are a few items left. Want to add anything, or should we move on?"
+      },
+      "meta": {
+        "voiceEngine": "none",
+        "engine": {
+          "nodeId": "evening-are-you-done",
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "4",
+      "name": "Evening Reflection",
+      "componentType": "reflection",
+      "sheetStage": "ECHECK-REFLECT: Evening Reflection",
+      "context": "A short reflection: what they are proud of, what they forgive themselves for, what they are grateful for. Let the user answer in their own words. Save what they share.",
+      "props": {
+        "coachLine": "Good. Now let's take a moment to reflect on the day itself.",
+        "questions": [
+          {
+            "key": "proud",
+            "prompt": "What are you proud of today?"
+          },
+          {
+            "key": "forgive",
+            "prompt": "What do you forgive yourself for today?"
+          },
+          {
+            "key": "grateful",
+            "prompt": "What are you grateful for today?"
+          }
+        ],
+        "transition": "Good. Now let's take a moment to reflect on the day itself."
+      },
+      "meta": {
+        "voiceEngine": "none",
+        "engine": {
+          "nodeId": "evening-reflection",
+          "toolName": "log_reflection",
+          "toolPersistsFields": "reflectionText",
+          "toolAdvancesStep": true,
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "5",
+      "name": "Evening Wrap",
+      "componentType": "coach-bubble",
+      "sheetStage": "ECHECK-WRAP: Evening Wrap",
+      "context": "Close the evening check-in warmly. Wish them a good night.",
+      "props": {
+        "text": "That's it for tonight. Sleep well."
+      },
+      "meta": {
+        "voiceEngine": "none",
+        "engine": {
+          "nodeId": "evening-wrap",
+          "voiceExpectsInput": false,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    }
+  ]
+}

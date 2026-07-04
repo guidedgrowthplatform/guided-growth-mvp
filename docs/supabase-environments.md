@@ -1,9 +1,9 @@
 # Environments — Staging (QA) + Production
 
-How Guided Growth runs two environments: **production** (live users) and **staging/QA** (a safe copy for testing). Each has its own Supabase project and its own app URL. Schema is kept identical via migrations; staging data is periodic anonymized snapshots of prod.
+How Guided Growth runs two environments: **production** (live users) and **staging/QA** (a safe copy for testing). Each has its own Supabase project and its own app URL. **Schema is kept identical via migrations** (`db push`). The onboarding **catalog** is **code-side**, not in the DB, so it's identical by construction; the one piece of DB-resident reference content, `screen_contexts`, is kept in sync via voice-sync (see §8). The only env-specific data is what testers create. **No prod→staging data copying.**
 
 - **Production project ref:** `pmunbflbjpoawicgimyc`
-- **Staging project ref:** _TBD — created in §4 Step 1_
+- **Staging project ref:** `ppyouymvnrqxcsllrmsl` (created 2026-06-10)
 - **Production app:** live site on `main`
 - **Staging/QA app:** `https://guided-growth-qa.vercel.app` — **live**, pinned to the `staging` branch (Vercel → Domains, Preview + branch `staging`). Stable fallback alias: `https://guided-growth-mvp-git-staging-guided-growths-projects.vercel.app`.
 - **Caveat (until §4 done):** the QA app currently runs on the **Preview-scope env vars, which still point at the prod Supabase** — so QA writes land in prod until a separate staging project is provisioned and wired. Not for tester data-entry yet.
@@ -34,19 +34,19 @@ Principles:
 - **One Vercel project**, not two. The `staging` branch gets a pinned stable domain so testers always use the same link.
 - **No environment branching in code.** Which database the app uses is decided purely by which branch built it, via per-scope env-var _values_ (§7).
 - **Promotion is a normal merge.** `staging` → `main` ships tested work to production.
-- **Schema syncs continuously** (same migration files pushed to both projects); **data is periodic anonymized snapshots**, never a live stream.
+- **Schema syncs continuously** (same migration files pushed to both projects). The onboarding **catalog** is code-side, identical across envs by construction; `screen_contexts` (the one DB-resident reference table) syncs via voice-sync. **The only env-specific data is what testers create** — no prod→staging copying.
 
 ---
 
 ## 2. Decision: two independent Supabase projects (not Branching)
 
-|                | Two independent projects (chosen)         | Supabase Branching                                 |
-| -------------- | ----------------------------------------- | -------------------------------------------------- |
-| Staging URL    | Stable, permanent                         | Churns (preview) / per-branch billing (persistent) |
-| Schema sync    | Our existing CLI migration flow, verbatim | Git-integration driven (GitHub-tuned)              |
-| Edge Functions | N/A — we have none                        | Auto-deploy per branch (its headline win)          |
-| Data           | Manual dump + anonymize                   | Still manual dump + anonymize                      |
-| Git trigger    | Plain `db push` per ref, any host         | Auto-creates branches from **GitHub** PRs          |
+|                | Two independent projects (chosen)                              | Supabase Branching                                  |
+| -------------- | -------------------------------------------------------------- | --------------------------------------------------- |
+| Staging URL    | Stable, permanent                                              | Churns (preview) / per-branch billing (persistent)  |
+| Schema sync    | Our existing CLI migration flow, verbatim                      | Git-integration driven (GitHub-tuned)               |
+| Edge Functions | N/A — we have none                                             | Auto-deploy per branch (its headline win)           |
+| Data           | Onboarding catalog is code-side; `screen_contexts` synced via voice-sync; tester data env-local | Same — schema/content via migration, tester data env-local |
+| Git trigger    | Plain `db push` per ref, any host                              | Auto-creates branches from **GitHub** PRs           |
 
 We use **two independent projects** because migrations are already CLI-driven, we have zero Edge Functions, and we want a stable staging URL. Branching's auto-branch-on-PR is keyed to GitHub PRs, but our code + MRs live on **GitLab** (GitHub only hosts the CI workflows), so that trigger wouldn't fire from our flow anyway.
 
@@ -102,33 +102,28 @@ project_id = "<STAGING_REF>"
 
 ---
 
-## 5. Mirroring schema and data
+## 5. Mirroring schema and reference content
 
-### Schema — continuous, via CLI
+Both the schema **and** the reference content (the catalog) come from migrations. There is **no prod→staging data copying, no data-sync script, and no anonymization** — the catalog tables hold zero PII, and tester data stays env-local.
 
-Identical migration files → `db push` to both refs (idempotent → converges). **Never hand-edit schema in a dashboard.** Catch drift:
+### Schema + reference content — continuous, via CLI
+
+Identical migration files → `db push` to both refs (idempotent → converges). **Never hand-edit schema or reference rows in a dashboard.** Catch drift:
 
 ```bash
 supabase db diff --linked    # detect drift on the linked ref
 supabase db pull             # roundtrip an unmanaged change into a new migration
 ```
 
-### Data — periodic anonymized snapshot
+### Catalog — no DB seed (lives in code)
 
-```bash
-# schema-only
-supabase db dump --linked -f supabase/schema.sql
+There is **no catalog seed migration.** The `categories` / `subcategories` / `starter_habits` tables are created by `001_onboarding.sql` but are **empty in prod and read by nothing** — the live onboarding taxonomy is code-side (`src/data/onboardingHabits.ts` → `@gg/shared/data/onboardingGoals` + `onboardingHabits`), bundled into both app builds. So staging needs no catalog data load; it ships the same taxonomy via the same code.
 
-# data-only, EXCLUDING PII-heavy tables
-supabase db dump --linked --data-only --use-copy \
-  --exclude public.chat_messages,public.admin_audit_log \
-  -f data.sql
+(An earlier `043_seed_catalog.sql` seed + `scripts/export-catalog-seed.mjs` were dropped — they sourced empty rows from empty prod tables to seed vestigial tables. The DB-vs-code catalog split is a separate cleanup question, out of scope here.)
 
-# restore into staging via its DIRECT connection (5432, NOT the pooler)
-psql -d "<STAGING_DIRECT_DB_URL>" -f data.sql
-```
+### Tester data — env-local, never copied
 
-**PII — non-negotiable before prod → staging.** `chat_messages` stores unscrubbed onboarding text (real nickname/age/referral/brain-dump — CLAUDE.md gotcha #8). Either **exclude + synthesize** (drop it, re-seed synthetic rows) or **dump → anonymize → load** (`UPDATE chat_messages SET content = <faker/hash>`).
+Whatever testers create in staging lives only in staging. No dump, no anonymization, no restore step.
 
 ---
 
@@ -166,23 +161,25 @@ Plus per-project: a **Google OAuth client** for staging (add its callback to the
 
 ## 7. Vercel env wiring
 
-Same variable names, different scopes. Production scope → `main` (prod DB); Preview scope → `staging` branch + all feature previews (staging DB).
+Same variable names, different scopes. Production scope → `main` (prod DB); Preview scope → `staging` branch + all feature previews (staging DB). Two consumers need values, in two different places:
 
-```bash
-# Production scope → prod ref
-vercel env add SUPABASE_URL production
-vercel env add SUPABASE_SERVICE_ROLE_KEY production
-vercel env add DATABASE_URL production
-# + VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY / VITE_PUBLIC_WEB_ORIGIN production
+### (A) Vercel Preview scope — web QA + API runtime
 
-# Preview scope → staging ref
-vercel env add SUPABASE_URL preview
-vercel env add SUPABASE_SERVICE_ROLE_KEY preview
-vercel env add DATABASE_URL preview
-# + staging VITE_* + VITE_PUBLIC_WEB_ORIGIN preview
-```
+Set each `preview`-scoped to staging values (prod-scoped to prod). Without the voice/LLM/email keys, QA's text/Direct-LLM onboarding 500s.
 
-`VITE_*` are baked at build time, so a Preview build must receive staging values, a Production build prod values. One project per build — cannot mix. The stable QA app is just the `staging` branch's deployment, so it inherits the Preview-scope values.
+- **Supabase/DB:** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` (pooler 6543), `SUPABASE_SSL_CERT` (decide per-env), `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PUBLIC_WEB_ORIGIN`.
+- **Voice/LLM:** `OPENAI_API_KEY`, `SONIOX_API_KEY`, `CARTESIA_API_KEY`.
+- **Email:** `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `FEEDBACK_ALERT_TO`.
+- **Analytics:** `VITE_POSTHOG_KEY` (separate staging project), `VITE_POSTHOG_HOST`.
+- **Sentry:** separate QA `VITE_SENTRY_DSN`/`SENTRY_DSN`, or `VITE_SENTRY_ENVIRONMENT=staging` + `SENTRY_ENVIRONMENT=staging` to tag a shared DSN.
+- **`QA_RESET_TOKEN`** — `api/qa-reset.ts` deletes rows for a synthetic QA account (regex-locked to `qa-onboarding-*@guidedgrowth.test`) via `DATABASE_URL`. Low blast radius, but a Preview deploy still on prod `DATABASE_URL` would delete that account's rows from prod — only set once Preview `DATABASE_URL` is staging.
+- **Do NOT set in Preview:** `VITE_VAPI_*` (QA voice off), `VAPI_WEBHOOK_SECRET`, `FIREBASE_SERVICE_ACCOUNT`, `PUSH_CRON_ENABLED`, `CRON_SECRET`, `GITLAB_TOKEN`/`GITLAB_PROJECT_ID`. `AUTH_BYPASS_MODE` is inert anyway (gated on `NODE_ENV!=='production'`).
+
+### (B) GitHub `staging` Environment — native QA build-time
+
+`VITE_*` are **baked at build**; Vercel env never reaches the native bundle. The native QA build (`cap sync`/`vite build`) needs them in the GitHub `staging` Environment: all `VITE_*` above + `VITE_API_URL=https://guided-growth-qa.vercel.app` + `CAP_EXTRA_NAV_HOSTS=ppyouymvnrqxcsllrmsl.supabase.co`.
+
+**JWT-issuer rule:** client `VITE_SUPABASE_URL` and server `SUPABASE_URL` must be the same project, or every API call fails JWT verification. **Redeploy after any env change** — existing deployments don't pick up new values.
 
 ---
 
@@ -191,27 +188,37 @@ vercel env add DATABASE_URL preview
 Active CI runs on **GitHub Actions** (`.github/workflows/` — `ci.yml`, `voice-sync.yml` hourly, `qa-release.yml`, `match-bootstrap.yml`). The repo + MRs live on **GitLab**, mirrored to GitHub for Actions. The root `.gitlab-ci.yml` voice-sync job is disabled (`rules: when: never`) — add new automation as GitHub workflows, not there.
 
 - **On MR:** `supabase db start` → apply migrations to an ephemeral local DB → optionally regenerate types and fail on uncommitted diff. No remote push.
-- **On push to `staging`:** `supabase link --project-ref $STAGING_PROJECT_ID && supabase db push`, then staging voice-sync and (separate schedule) the anonymized data refresh.
+- **On push to `staging`:** runs `db push --dry-run` only (prints the plan, never applies). A real apply is a deliberate `workflow_dispatch` with `dry_run=false`, gated by the `staging` Environment. Staging voice-sync for `screen_contexts` is separate. No data refresh — there is none.
 - **On `main`:** same `db push` but a **MANUAL `workflow_dispatch` job, never auto-on-push** [APPROVAL REQUIRED].
 
-GitHub Actions secrets (never in repo): `SUPABASE_ACCESS_TOKEN`, `STAGING_PROJECT_ID`, `STAGING_DB_PASSWORD`, plus prod equivalents.
+GitHub Actions secrets (never in repo): `SUPABASE_ACCESS_TOKEN`, `STAGING_PROJECT_REF`, `STAGING_DB_PASSWORD`, plus prod equivalents.
 
 ```yaml
-# .github/workflows/staging-db.yml — apply migrations to staging on push to `staging`
+# .github/workflows/staging-db.yml (illustrative — see the real file for full gating)
+# Push to `staging` runs db push --DRY-RUN only; a real apply is a manual
+# workflow_dispatch (dry_run=false) gated by `environment: staging`.
 on:
   push:
     branches: [staging]
+  workflow_dispatch:
+    inputs: { dry_run: { type: boolean, default: true } }
 jobs:
-  deploy_staging_db:
+  push-staging:
     runs-on: ubuntu-latest
+    environment: staging
+    if: vars.STAGING_DB_ENABLED == 'true'
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
-      - run: supabase link --project-ref "$STAGING_PROJECT_ID" && supabase db push
+      - uses: supabase/setup-cli@v2
+      - run: |
+          supabase link --project-ref "$STAGING_PROJECT_REF"
+          # push events force dry-run; only an explicit dispatch can apply
+          [ "$DRY_RUN" = "true" ] && supabase db push --dry-run || supabase db push
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          STAGING_PROJECT_ID: ${{ secrets.STAGING_PROJECT_ID }}
+          STAGING_PROJECT_REF: ${{ secrets.STAGING_PROJECT_REF }}
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          DRY_RUN: ${{ github.event_name == 'push' && 'true' || github.event.inputs.dry_run }}
 # prod: a separate workflow_dispatch (manual) job with prod secrets — never on: push to main
 ```
 
@@ -226,6 +233,9 @@ jobs:
 5. **voice-sync seed targets ONE project.** `scripts/voice-sync/seed_contexts.py` reads `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`; `.github/workflows/voice-sync.yml` runs hourly against prod. Add a **second** CI run with staging secrets — do NOT repoint the hourly job. Upsert is keyed on `screen_id` (idempotent).
 6. **Custom access token hook** must be applied AND enabled (dashboard) on **both** projects; SQL migrations alone don't flip the toggle on a fresh project.
 7. **Perf/debug scripts** (`scripts/perf-*.mjs`, `scripts/check-cadences.mjs`) read `DATABASE_URL` directly — point them at staging via env when testing there.
+8. **Vapi voice is DISABLED in QA for now** (2026-06-10). A Vapi assistant's tool webhook can point at only **one** origin (prod), and Vapi tools are **org-global** — syncing a second assistant inside the prod org would repoint the prod tools' URLs. Decision: leave `VITE_VAPI_PUBLIC_KEY` / `VITE_VAPI_ASSISTANT_ID` **unset** in Preview scope (`useRealtimeVoice` fails soft; text/Direct-LLM onboarding unaffected). Later: dedicated staging assistant in a **separate Vapi org**, synced via `npm run vapi:sync -- --staging` with `VAPI_WEBHOOK_BASE_URL=https://guided-growth-qa.vercel.app`.
+9. **PostHog is split per env.** Separate staging PostHog project; its key goes in `VITE_POSTHOG_KEY` in the Preview scope so QA traffic never pollutes prod analytics.
+10. **`voice-assets` Storage bucket is NOT migration-created.** Create it manually in the staging dashboard, then copy the MP3s from the prod bucket via `scripts/copy-voice-assets.mjs`.
 
 ---
 
@@ -234,15 +244,15 @@ jobs:
 1. Create the long-lived **`staging` branch** off `main`; push to `origin` to make it buildable.
 2. **[dashboard]** Create a _fresh_ `gg-staging` Supabase project; record ref, DB password, URL, anon + service_role keys.
 3. In Vercel (same project): pin a stable `*.vercel.app` domain to the `staging` branch → the QA app URL (§3).
-4. `supabase login`; stash `SUPABASE_ACCESS_TOKEN` + `STAGING_PROJECT_ID` + `STAGING_DB_PASSWORD` as GitHub Actions secrets.
+4. `supabase login`; stash `SUPABASE_ACCESS_TOKEN` + `STAGING_PROJECT_REF` + `STAGING_DB_PASSWORD` as GitHub Actions secrets.
 5. Add `[remotes.staging]` to `supabase/config.toml`.
 6. **[approval]** `supabase link --project-ref <STAGING_REF> && supabase db push`; `supabase migration list` to confirm parity.
 7. **[dashboard]** On staging: enable Custom Access Token hook; set Site URL + redirect allowlist (include the QA app URL); configure Google OAuth client + redirect URIs; replicate email templates + Resend sender.
 8. **[Vercel]** Add Preview-scope env vars → staging (`DATABASE_URL` = staging **pooler**). Confirm Production scope still → prod.
 9. Add a staging voice-sync CI run; leave the hourly prod job untouched.
-10. **[approval]** Initial data load: dump prod excluding `chat_messages`/`admin_audit_log`, anonymize, restore into staging via **direct** (5432); re-seed synthetic onboarding rows.
-11. Add GitHub Actions workflows: auto `db push` on push to `staging`, **manual** (`workflow_dispatch`) `db push` for prod.
+10. Onboarding catalog is code-side (not in the DB) — identical across envs by construction, no data load or anonymization. Tester data is created in staging directly.
+11. Add GitHub Actions workflows: `db push --dry-run` on push to `staging` (apply via manual dispatch, `environment: staging`); **manual** (`workflow_dispatch`) `db push` for prod.
 12. Add an "Environments" note to `CLAUDE.md`/`HANDOFF.md` naming both refs + the QA app URL.
 13. Smoke test staging: Google + email sign-in, an onboarding session (JWT hook + realtime isolation), a `/api/llm` call; confirm writes land in **staging**, not prod.
 
-**Approval gates:** every `db push` (migrations), all staging dashboard toggles (auth hook, allowlist, OAuth), and the prod→staging data copy (PII).
+**Approval gates:** every `db push` (migrations), and all staging dashboard toggles (auth hook, allowlist, OAuth). There is no prod→staging data copy.

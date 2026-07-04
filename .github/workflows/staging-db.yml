@@ -1,0 +1,99 @@
+name: staging-db
+
+on:
+  push:
+    branches: ['staging']
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        description: 'Which project to push migrations to'
+        default: staging
+        options:
+          - staging
+          - prod
+      dry_run:
+        type: boolean
+        default: true
+        description: 'Print the migration plan, skip db push'
+
+# Private repo: checkout needs read access to the repo contents.
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-db
+  cancel-in-progress: false
+
+jobs:
+  push-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # INERT until repo Actions variable STAGING_DB_ENABLED='true' exists.
+    # On a push event inputs.target is '' so the staging default applies;
+    # explicit dispatch must target staging (prod handled by its own job).
+    # Approval gate (parity with push-prod) — a real apply needs sign-off.
+    environment: staging
+    if: >-
+      vars.STAGING_DB_ENABLED == 'true'
+      && (
+        github.event_name == 'push'
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'staging')
+      )
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v2
+        with:
+          version: 2.20.5
+
+      - name: Push migrations to staging
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          STAGING_PROJECT_REF: ${{ secrets.STAGING_PROJECT_REF }}
+          # Push events never auto-apply — dry-run only. A real apply needs an
+          # explicit dispatch with dry_run=false (never a silent migration).
+          DRY_RUN: ${{ github.event_name == 'push' && 'true' || github.event.inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          supabase link --project-ref "$STAGING_PROJECT_REF"
+          if [ "$DRY_RUN" = "true" ]; then
+            supabase db push --dry-run | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            supabase db push | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+  push-prod:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Prod NEVER runs on push: requires manual dispatch with target=prod
+    # plus the same inert gate. Protect with a GitHub Environment for approval.
+    environment: production
+    if: >-
+      vars.PROD_DB_ENABLED == 'true'
+      && github.event_name == 'workflow_dispatch'
+      && github.event.inputs.target == 'prod'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v2
+        with:
+          version: 2.20.5
+
+      - name: Push migrations to prod
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          PROD_PROJECT_REF: ${{ secrets.PROD_PROJECT_REF }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          supabase link --project-ref "$PROD_PROJECT_REF"
+          if [ "$DRY_RUN" = "true" ]; then
+            supabase db push --dry-run | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            supabase db push | tee -a "$GITHUB_STEP_SUMMARY"
+          fi

@@ -14,6 +14,11 @@ function setSpeaking(value: boolean) {
   }
 }
 
+// Shared so the Cartesia dynamic engine can feed the same speaking signal.
+export function setTtsSpeaking(value: boolean): void {
+  setSpeaking(value);
+}
+
 // User selects Male or Female on splash screen
 export type { VoiceGender };
 
@@ -81,6 +86,10 @@ let prefetch: Prefetch | null = null;
 let preloadedNext: { gen: number; text: string; audio: HTMLAudioElement; url: string } | null =
   null;
 let drainResolvers: Array<() => void> = [];
+// Onboarding reveal: accumulated spoken text fired as each chunk starts playing.
+// Chunk-level, paced to audio — ws word-timestamps no longer exist on this path.
+let turnOnReveal: ((text: string) => void) | null = null;
+let revealedText = '';
 
 function disposeElement(audio: HTMLAudioElement, url: string): void {
   audio.pause();
@@ -127,6 +136,7 @@ function resolveDrainers(): void {
 function finishTurn(): void {
   if (!turnActive) return;
   turnActive = false;
+  turnOnReveal = null;
   prefetch = null;
   teardownPreloadedNext();
   if (speakingHeld) {
@@ -206,6 +216,10 @@ async function runDrain(): Promise<void> {
         speakingHeld = true;
         setSpeaking(true);
       }
+      if (turnOnReveal) {
+        revealedText += item.text;
+        turnOnReveal(revealedText);
+      }
       maybePrefetchNext(gen);
       // Pre-build the next element while this one plays (closes per-sentence gap).
       void preloadNextElement(gen);
@@ -222,13 +236,20 @@ async function runDrain(): Promise<void> {
   if (turnSealed) finishTurn();
 }
 
-export function beginSpeechTurn(): number {
+export function beginSpeechTurn(opts?: { onReveal?: (text: string) => void }): number {
   stopTTS();
   speechQueue = [];
   playCursor = 0;
   turnSealed = false;
   turnActive = true;
+  turnOnReveal = opts?.onReveal ?? null;
+  revealedText = '';
   return ++speakGeneration;
+}
+
+// True when a streamed turn will pace its on-screen reveal off chunk playback.
+export function ttsKaraokeActive(): boolean {
+  return isVoiceOutEnabled();
 }
 
 export function pushSpeechChunk(text: string, opts?: { volume?: number }): void {
@@ -274,6 +295,7 @@ export function stopTTS(): void {
   drainRunning = false;
   turnActive = false;
   speakingHeld = false;
+  turnOnReveal = null;
   deferredOneShot = null;
   if (currentAudioResolver) {
     const resolver = currentAudioResolver;
@@ -430,7 +452,7 @@ async function speakCartesia(text: string, volume: number, generation: number): 
 }
 
 /** Strip emoji for cleaner TTS */
-function cleanText(text: string): string {
+export function cleanText(text: string): string {
   return text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
 }
 
