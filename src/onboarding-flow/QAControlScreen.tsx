@@ -1,10 +1,12 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { clearThread } from '@/contexts/onboardingThreadStore';
 import { queryClient } from '@/lib/query';
 import { supabase } from '@/lib/supabase';
-import { clearThread } from '@/contexts/onboardingThreadStore';
 import { useAuthStore } from '@/stores/authStore';
+import { blessOpenerClipsInGesture } from './renderer/openerGestureStart';
+import { ONBOARDING_BEAT_MP3S } from './renderer/useBeatOpenerMp3';
 
 /**
  * QA Control screen -- the functional twin of the `qa-control` beat designed in
@@ -286,6 +288,11 @@ export function QAControlScreen() {
   async function run(action: ActionKey, nextFlowId: FlowId = flowId) {
     const flowToRun = FLOWS.find((f) => f.id === nextFlowId) ?? FLOWS[0];
     if (busy) return;
+    // B28: still inside the tap's gesture frame here, so bless the opener pool
+    // (play+pause each pooled element) for the SPA-navigating launches. Hard
+    // navigations (restart) reload the page, where the tap-to-play affordance
+    // is the cover instead.
+    blessOpenerClipsInGesture(Object.values(ONBOARDING_BEAT_MP3S));
     setBusy(action);
     setError(null);
     setNotice(null);
