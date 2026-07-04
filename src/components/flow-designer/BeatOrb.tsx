@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { Orb, type OrbStateSel, type OrbTalkStyle } from '@/components/orb/Orb';
 import { loadParams, loadPulse } from './orb/orbPresets';
 import { useIsPlaying } from './beatKit';
@@ -51,6 +52,7 @@ export function BeatOrb({
   if (hidden) return null;
 
   const size = bloomed ? Math.round(baseSize * 1.15) : baseSize;
+  const glyph = Math.round(size * 0.25);
 
   // Voice active = a full circle in the speaker's colour with the expanding pulse.
   const state: OrbStateSel = talking === 'ai' ? 'coach' : talking === 'user' ? 'user' : 'idle';
@@ -68,6 +70,12 @@ export function BeatOrb({
       frozen={!playing}
       onToggleLeft={() => setVoiceOn((v) => !v)}
       onToggleRight={() => setMicOn((m) => !m)}
+      idleIcons={{
+        leftOn: <IconChatVoice size={glyph} />,
+        leftOff: <IconChatText size={glyph} />,
+        rightOn: <IconMic size={glyph} />,
+        rightOff: <IconMicMuted size={glyph} />,
+      }}
     />
   );
 }

@@ -131,8 +131,9 @@ interface OrbProps {
   mic?: MutableRefObject<OrbMic>;
   onToggleLeft?: () => void;
   onToggleRight?: () => void;
-  /** Icons shown only when idle and that half is toggled off (the tuner). */
-  idleIcons?: { left: ReactNode; right: ReactNode };
+  /** Icons for the idle two-half button, swapped by each half's on/off state.
+   *  Shown only in idle (the talking full circle stays clean, no icons). */
+  idleIcons?: { leftOn: ReactNode; leftOff: ReactNode; rightOn: ReactNode; rightOff: ReactNode };
   /** Icons always shown on top (the home bar reads as the real button). */
   overlayIcons?: { left: ReactNode; right: ReactNode };
   /** Drop the drop-shadow (flat in the bar). */
@@ -445,17 +446,25 @@ export function Orb({
       raf = requestAnimationFrame(frame);
     }
     return () => cancelAnimationFrame(raf);
-  }, [micRef, frozen]);
+    // When frozen, redraw the still frame if the on/off or talking state changes
+    // (e.g. a click toggles a half). The animated path reads these live from cfg,
+    // so it stays out of the deps.
+  }, [micRef, frozen, frozen ? leftOn : true, frozen ? rightOn : true, frozen ? state : 'idle', frozen ? style : 'full']);
 
+  const idleShow = Boolean(idleIcons) && state === 'idle';
   const showLeftIcon = overlayIcons
     ? overlayIcons.left
-    : idleIcons && state === 'idle' && !leftOn
-      ? idleIcons.left
+    : idleShow
+      ? leftOn
+        ? idleIcons!.leftOn
+        : idleIcons!.leftOff
       : null;
   const showRightIcon = overlayIcons
     ? overlayIcons.right
-    : idleIcons && state === 'idle' && !rightOn
-      ? idleIcons.right
+    : idleShow
+      ? rightOn
+        ? idleIcons!.rightOn
+        : idleIcons!.rightOff
       : null;
 
   return (
