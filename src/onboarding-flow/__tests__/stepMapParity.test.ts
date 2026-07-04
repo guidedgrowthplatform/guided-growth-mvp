@@ -31,6 +31,7 @@ const EVIDENCE: Record<string, Record<string, unknown>> = {
   'state-check': { stateCheck: { sleep: 3 } },
   'morning-checkin-setup': { morningCheckin: { time: '08:00', days: [1], reminder: true } },
   'reflection-card': { reflectionConfig: { time: '21:45', days: [1], reminder: true } },
+  'weekly-day-picker': { weeklyConfig: { day: 0 } },
   'path-selection': { path: 'simple' },
   'category-grid': { category: 'Health & Fitness' },
   'goals-list': { goals: ['Move daily'] },
@@ -67,7 +68,9 @@ describe('step map parity with the generated flow', () => {
       expect(beat.step, n.screenId).toBe(n.persist.step);
       const sameStepScreens = persistNodes
         .filter(
-          (m) => m.persist.step === n.persist.step && ADVANCED_SCREENS.has(m.screenId) === ADVANCED_SCREENS.has(n.screenId),
+          (m) =>
+            m.persist.step === n.persist.step &&
+            ADVANCED_SCREENS.has(m.screenId) === ADVANCED_SCREENS.has(n.screenId),
         )
         .map((m) => m.screenId);
       expect(sameStepScreens, `${n.screenId} step ${n.persist.step}`).toContain(beat.screenId);
@@ -120,8 +123,13 @@ describe('step map parity with the generated flow', () => {
     // The prompt teaches target_step per screen: profile(1)→2 … habit-schedule(6)→7.
     // It must never resurrect the retired old tail (morning(8)→9, reflection(9)→10).
     expect(ONBOARDING_TOOL_ADDENDUM).not.toMatch(/morning\(8\)|reflection\(9\)|plan-review\(7\)/);
-    // The three self-advancing beats must be named as such.
-    for (const screen of ['ONBOARD-STATE-CHECK', 'ONBOARD-MORNING-SETUP', 'ONBOARD-BEGINNER-07']) {
+    // The four self-advancing beats must be named as such.
+    for (const screen of [
+      'ONBOARD-STATE-CHECK',
+      'ONBOARD-MORNING-SETUP',
+      'ONBOARD-BEGINNER-07',
+      'ONBOARD-WEEKLY-SETUP',
+    ]) {
       expect(ONBOARDING_TOOL_ADDENDUM).toContain(screen);
     }
   });

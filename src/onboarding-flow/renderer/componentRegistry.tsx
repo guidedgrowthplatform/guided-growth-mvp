@@ -11,6 +11,7 @@
 import { Capacitor } from '@capacitor/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
+import { WeeklyHabitsSummary } from '@/components/habit-detail/WeeklyHabitsSummary';
 import { checkInDimensions } from '@/components/home/checkInConfig';
 import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
 import { HabitListItem } from '@/components/home/HabitListItem';
@@ -42,6 +43,7 @@ import {
 } from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useWeekData } from '@/hooks/useWeekData';
 import { unlockTTS } from '@/lib/services/tts-service';
 import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
 import {
@@ -1174,6 +1176,86 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
   );
 }
 
+/* --------------------------------------------------------- weekly day picker */
+
+// The Weekly day-setup beat: a single-select 7-day card. Sunday preselected
+// (day=0), matching submit_weekly_config's suggested default. Visual style
+// mirrors the DayPicker pill circles used on the reflection/morning-checkin
+// schedule cards, but single-select with full day names underneath for clarity
+// (this pick only happens once, unlike the multi-select weekly schedule days).
+const WEEKLY_DAY_OPTIONS: { day: number; short: string; full: string }[] = [
+  { day: 0, short: 'S', full: 'Sunday' },
+  { day: 1, short: 'M', full: 'Monday' },
+  { day: 2, short: 'T', full: 'Tuesday' },
+  { day: 3, short: 'W', full: 'Wednesday' },
+  { day: 4, short: 'T', full: 'Thursday' },
+  { day: 5, short: 'F', full: 'Friday' },
+  { day: 6, short: 'S', full: 'Saturday' },
+];
+
+function WeeklyDayPickerAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
+  const [day, setDay] = useState<number>(() => {
+    const saved = (answers as Record<string, unknown>).weeklyConfig as { day?: number } | undefined;
+    return typeof saved?.day === 'number' ? saved.day : 0;
+  });
+  const voiceFilledRef = useRef(false);
+  const submittedRef = useRef(false);
+
+  useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (readOnly || result.action !== 'set_weekly_day') return;
+    const p = result.params as { day?: number };
+    if (typeof p.day === 'number' && p.day >= 0 && p.day <= 6) {
+      setDay(p.day);
+      voiceFilledRef.current = true;
+    }
+  });
+
+  const submit = () => {
+    if (readOnly || submittedRef.current) return;
+    submittedRef.current = true;
+    onCapture({ data: { weeklyConfig: { day } } as Record<string, unknown> });
+  };
+
+  // Auto-submit fallback (Direct-LLM): a spoken day saves + advances without a
+  // tap. Single-value beat, valid from mount (Sunday preselected).
+  useEffect(() => {
+    if (voiceFilledRef.current) submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [day]);
+
+  return (
+    <CardShell frozen={readOnly}>
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
+        <div className="flex justify-between">
+          {WEEKLY_DAY_OPTIONS.map((opt) => {
+            const active = day === opt.day;
+            return (
+              <button
+                key={opt.day}
+                type="button"
+                onClick={() => !readOnly && setDay(opt.day)}
+                aria-pressed={active}
+                aria-label={opt.full}
+                className={`flex size-[40px] items-center justify-center rounded-full border text-[12px] font-bold transition-colors ${
+                  active
+                    ? 'border-primary bg-primary text-white'
+                    : 'border-primary bg-white text-primary shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]'
+                } ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
+              >
+                {opt.short}
+              </button>
+            );
+          })}
+        </div>
+        <div className="text-center text-[14px] font-medium text-content-secondary">
+          {WEEKLY_DAY_OPTIONS.find((o) => o.day === day)?.full}
+        </div>
+      </div>
+      {!readOnly && <Cta label="Continue" onClick={submit} />}
+    </CardShell>
+  );
+}
+
 /* ------------------------------------------------------------- into the app */
 
 // Terminal completion beat. A real node now (replaces the hardcoded "You're all
@@ -1628,6 +1710,31 @@ function WeeklyProjectionAdapter({ node, onCapture }: BeatAdapterProps) {
   );
 }
 
+/* -------------------------------------------------- weekly-habits-summary */
+
+// The Weekly's real week-grid beat: renders the actual trailing 7-day habit
+// grid (useWeekData), not a static mock. This is a say-through beat: the coach
+// narrates the grid while it is on screen (see weekly-week-shown context), and
+// the beat itself waits for the coach/user to move the conversation forward
+// (no auto-advance, unlike weekly-projection's timed onboarding frames).
+function WeeklyHabitsSummaryAdapter(_props: BeatAdapterProps) {
+  const { loading, grid, dayLabels } = useWeekData();
+
+  if (loading) return null;
+
+  return (
+    <CardShell>
+      <WeeklyHabitsSummary
+        overallPercent={grid.overallPercent}
+        overallDone={grid.overallDone}
+        overallScheduled={grid.overallScheduled}
+        rows={grid.rows}
+        dayLabels={dayLabels}
+      />
+    </CardShell>
+  );
+}
+
 /* ------------------------------------------------------------- the registry */
 
 type AdapterComponent = (props: BeatAdapterProps) => React.ReactNode;
@@ -1662,6 +1769,8 @@ export const ADAPTER_REGISTRY = {
   'advanced-frequency': AdvancedFrequencyAdapter,
   'weekly-projection': WeeklyProjectionAdapter,
   'home-tour': HomeTourAdapter,
+  'weekly-habits-summary': WeeklyHabitsSummaryAdapter,
+  'weekly-day-picker': WeeklyDayPickerAdapter,
 } satisfies Record<FlowComponentType, AdapterComponent | null>;
 
 export function getAdapter(componentType: string): AdapterComponent | undefined {
@@ -1689,6 +1798,7 @@ const FROZEN_BY_TYPE = {
   'reflection-card': true,
   'plan-cards': true,
   'advanced-capture': true,
+  'weekly-day-picker': true,
   'mic-permission': false,
   'primary-button': false,
   'advanced-frequency': false,
@@ -1700,6 +1810,7 @@ const FROZEN_BY_TYPE = {
   reflection: false,
   'coach-bubble': false,
   'home-tour': false,
+  'weekly-habits-summary': false,
 } satisfies Record<FlowComponentType, boolean>;
 
 export const FROZEN_CARD_TYPES: ReadonlySet<string> = new Set(
@@ -1746,6 +1857,14 @@ export function summarizeBeat(node: FlowNode, answers: FlowAnswers): string | nu
       return answers.morningCheckin ? `Morning check-in at ${answers.morningCheckin.time}.` : null;
     case 'reflection-card':
       return answers.reflectionConfig ? `Reflect at ${answers.reflectionConfig.time}.` : null;
+    case 'weekly-day-picker': {
+      const saved = (answers as Record<string, unknown>).weeklyConfig as
+        | { day?: number }
+        | undefined;
+      if (typeof saved?.day !== 'number') return null;
+      const full = WEEKLY_DAY_OPTIONS.find((o) => o.day === saved.day)?.full;
+      return full ? `The Weekly on ${full}.` : null;
+    }
     case 'into-app':
       // Terminal beat; no captured answer to echo back.
       return null;

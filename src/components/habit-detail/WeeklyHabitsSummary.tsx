@@ -1,6 +1,11 @@
 import { Check, Minus, X } from 'lucide-react';
 
-type HabitWeekCell = 'done' | 'missed' | 'off';
+// Four cell states:
+//   done   -> green check (reported, done)
+//   missed -> red X       (reported, not done)
+//   off    -> gray cell + dash (NOT scheduled that day; totally fine, not a problem)
+//   gap    -> blank, nothing there (scheduled but NEVER reported; the thing to avoid)
+export type HabitWeekCell = 'done' | 'missed' | 'gap' | 'off';
 
 interface WeeklyHabitsSummaryProps {
   overallPercent: number;
@@ -34,11 +39,17 @@ function StatusCell({ status }: { status: HabitWeekCell }) {
     );
   }
 
-  return (
-    <div className="flex aspect-square items-center justify-center rounded-sm bg-border-light">
-      <Minus size={13} className="text-content-tertiary" />
-    </div>
-  );
+  if (status === 'off') {
+    // Not scheduled that day. A gray dash. Totally fine, not a problem.
+    return (
+      <div className="flex aspect-square items-center justify-center rounded-sm bg-border-light">
+        <Minus size={13} className="text-content-tertiary" />
+      </div>
+    );
+  }
+
+  // gap: scheduled but NEVER reported. Just empty, nothing there. It breaks the streak.
+  return <div className="aspect-square" />;
 }
 
 export function WeeklyHabitsSummary({

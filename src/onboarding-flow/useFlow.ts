@@ -31,6 +31,7 @@ import eveningGeneratedJson from './flows/evening-checkin-v1.generated.json';
 import homeTourGeneratedJson from './flows/home-tour-v1.generated.json';
 import morningGeneratedJson from './flows/morning-checkin-v1.generated.json';
 import generatedJson from './flows/onboarding-beginner-v1.generated.json';
+import weeklyGeneratedJson from './flows/weekly-checkin-v1.generated.json';
 import type { FlowDocument, FlowNode } from './types';
 
 /**
@@ -122,6 +123,7 @@ function acceptGeneratedFlow(raw: unknown, label: string): FlowDocument | null {
 const MORNING_CHECKIN_FLOW = acceptGeneratedFlow(morningGeneratedJson, 'morning-checkin');
 const EVENING_CHECKIN_FLOW = acceptGeneratedFlow(eveningGeneratedJson, 'evening-checkin');
 const HOME_TOUR_FLOW = acceptGeneratedFlow(homeTourGeneratedJson, 'home-tour');
+const WEEKLY_CHECKIN_FLOW = acceptGeneratedFlow(weeklyGeneratedJson, 'weekly-checkin');
 
 // The flow registry (L1-5). Each flow resolves three ways: flowId, versionTag
 // (the pin format flowId@vN), and the version-less slug (the /flow-preview/:flowId
@@ -135,6 +137,7 @@ function registerFlow(flow: FlowDocument): void {
 if (MORNING_CHECKIN_FLOW) registerFlow(MORNING_CHECKIN_FLOW);
 if (EVENING_CHECKIN_FLOW) registerFlow(EVENING_CHECKIN_FLOW);
 if (HOME_TOUR_FLOW) registerFlow(HOME_TOUR_FLOW);
+if (WEEKLY_CHECKIN_FLOW) registerFlow(WEEKLY_CHECKIN_FLOW);
 registerFlow(LATEST_FLOW);
 
 /** The stable pin identifier for a flow document, e.g. "onboarding-beginner-v1@v1". */

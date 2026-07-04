@@ -15,10 +15,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useOnboarding } from '@/hooks/useOnboarding';
-// V3: all pre-fork beats (why-intro, state-check, morning-checkin-setup, reflection-card)
-// have persist steps 6-8 but appear BEFORE the fork in flow order. No ENGINE_PERSISTLESS_STEP
-// entries are needed in v3: into-app has persistsFields=[] so its tool is cosmetic, and
-// the weekly-projection nodes are pure display with no step.
+// V3: all pre-fork beats (why-intro, state-check, morning-checkin-setup,
+// reflection-card, weekly-day-setup) have persist steps 6-9 but appear BEFORE
+// the fork in flow order. No ENGINE_PERSISTLESS_STEP entries are needed in
+// v3: into-app has persistsFields=[] so its tool is cosmetic, and the
+// weekly-projection nodes are pure display with no step.
 const ENGINE_PERSISTLESS_STEP: Record<string, number> = {};
 // Server-scale `current_step` each beat ENTERS at (v3 canonical step table).
 // Distinct from engine `beatStep`: the leading-edge model's two consecutive 5s
@@ -26,16 +27,18 @@ const ENGINE_PERSISTLESS_STEP: Record<string, number> = {};
 // the engine step from habit-schedule on.
 //
 // V3 flow order: auth -> mic -> profile (1) -> why-intro -> state-check (6) ->
-//   morning-checkin-setup (7) -> reflection-setup (8) -> path-fork (2) ->
+//   morning-checkin-setup (7) -> reflection-setup (8) -> weekly-day-setup (9) ->
+//   path-fork (2) ->
 //   [beginner] category (3) -> goals (4) -> habit-select (5) -> habit-schedule (5)
 //   [advanced] advanced-capture (3) -> advanced-frequency (4)
 //   -> into-app -> weekly-projection x5
 //
-// Persist steps are non-monotonic vs flow order (1,6,7,8,2,3,4,5,5) and the tap
-// save path pins current_step with GREATEST — so past state-check the numeric
-// step is an identity label, not a position. Resume is therefore data-evidence
-// driven (resumeFromServerRow); this table survives only as the numeric stop for
-// the steps-2..5 back-nav window, where advance_step bare-sets restore meaning.
+// Persist steps are non-monotonic vs flow order (1,6,7,8,9,2,3,4,5,5) and the
+// tap save path pins current_step with GREATEST — so past state-check the
+// numeric step is an identity label, not a position. Resume is therefore
+// data-evidence driven (resumeFromServerRow); this table survives only as the
+// numeric stop for the steps-2..5 back-nav window, where advance_step
+// bare-sets restore meaning.
 const ENTRY_SERVER_STEP: Record<string, number> = {
   'ONBOARD-01--FORM': 1,
   'ONBOARD-FORK--FORM': 2,
@@ -178,6 +181,9 @@ export function serverCaptureForBeat(
     case 'reflection-card':
       if (data.reflectionConfig != null) out.data.reflectionConfig = data.reflectionConfig;
       break;
+    case 'weekly-day-picker':
+      if (data.weeklyConfig != null) out.data.weeklyConfig = data.weeklyConfig;
+      break;
     case 'habit-schedule':
       if (data.habitConfigs != null) out.data.habitConfigs = data.habitConfigs;
       break;
@@ -260,6 +266,8 @@ export function beatCompletionEvidence(
       return d.morningCheckin != null;
     case 'reflection-card':
       return d.reflectionConfig != null;
+    case 'weekly-day-picker':
+      return d.weeklyConfig != null;
     case 'path-selection':
       return d.path === 'simple' || d.path === 'braindump' || d.path === 'advanced';
     case 'category-grid':
@@ -343,8 +351,19 @@ export function resumeFromServerRow(
   // beat-owned field, including PARTIAL fills (gender without age still proves
   // the user reached profile); nickname and row metadata do not count.
   const PROGRESS_FIELDS = [
-    'age', 'gender', 'checkin', 'stateCheck', 'morningCheckin', 'reflectionConfig',
-    'path', 'category', 'goals', 'habitConfigs', 'brainDumpText', 'brainDumpRaw',
+    'age',
+    'gender',
+    'checkin',
+    'stateCheck',
+    'morningCheckin',
+    'reflectionConfig',
+    'weeklyConfig',
+    'path',
+    'category',
+    'goals',
+    'habitConfigs',
+    'brainDumpText',
+    'brainDumpRaw',
   ] as const;
   const d = (data ?? {}) as Record<string, unknown>;
   if (!PROGRESS_FIELDS.some((k) => d[k] != null)) {

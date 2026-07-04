@@ -144,10 +144,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_profile",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_profile", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -170,17 +167,10 @@
           "backId": "mic",
           "persistStep": 1,
           "pathField": false,
-          "captureFields": [
-            "age",
-            "gender"
-          ],
+          "captureFields": ["age", "gender"],
           "toolName": "submit_profile",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "age",
-            "gender",
-            "nickname"
-          ]
+          "toolPersistsFields": ["age", "gender", "nickname"]
         },
         "authoring": {}
       },
@@ -288,10 +278,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "record_checkin",
-            "advance_step"
-          ]
+          "allowedTools": ["record_checkin", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -314,14 +301,10 @@
           "backId": "why-intro",
           "persistStep": 6,
           "pathField": false,
-          "captureFields": [
-            "checkin"
-          ],
+          "captureFields": ["checkin"],
           "toolName": "record_checkin",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "checkin"
-          ]
+          "toolPersistsFields": ["checkin"]
         },
         "authoring": {}
       },
@@ -363,10 +346,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_morning_checkin",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_morning_checkin", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -389,14 +369,10 @@
           "backId": "state-check",
           "persistStep": 7,
           "pathField": false,
-          "captureFields": [
-            "morningCheckin"
-          ],
+          "captureFields": ["morningCheckin"],
           "toolName": "submit_morning_checkin",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "morningCheckin"
-          ]
+          "toolPersistsFields": ["morningCheckin"]
         },
         "authoring": {}
       },
@@ -438,11 +414,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_reflection_config",
-            "submit_custom_prompts",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_reflection_config", "submit_custom_prompts", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -465,19 +437,75 @@
           "backId": "habit-select",
           "persistStep": 6,
           "pathField": false,
-          "captureFields": [
-            "reflectionConfig"
-          ],
+          "captureFields": ["reflectionConfig"],
           "toolName": "submit_reflection_config",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "reflectionConfig"
-          ]
+          "toolPersistsFields": ["reflectionConfig"]
         },
         "authoring": {}
       },
       "coachContext": "BEAT: Evening reflection setup.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nSet it up, don't perform it now. The user picks one style and a time, reminder on by default. The three styles are on the screen: suggested template, your template, freeform. Don't read them out. Ask which feels right and let them pick. If they resist, keep it light, it's two minutes a day.\n\nDO NOT:\n- Read the three styles out loud. They're on the screen.\n- Add coaching per style.\n- Make it feel like homework.",
       "opener": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?"
+    },
+    {
+      "id": "weekly-day-setup",
+      "screenId": "ONBOARD-WEEKLY-SETUP",
+      "componentType": "weekly-day-picker",
+      "meta": {
+        "voiceOut": {
+          "engine": "cartesia",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "onboard-weekly-setup-line-1",
+              "text": "Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "cartesia"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_weekly_config", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-day-setup",
+          "backId": "reflection-setup",
+          "persistStep": 9,
+          "pathField": false,
+          "captureFields": ["weeklyConfig"],
+          "toolName": "submit_weekly_config",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["weeklyConfig"]
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: The Weekly day.\n\nSPEAK MODE: VERBATIM_OPENER\n\nOne question: which day is their weekly session, The Weekly, where you and the user look back over the whole week and plan the next one together. The days are on the card, Sunday preselected. This is where the compounding gets said out loud: it gets sharper every week because you know them better. If they hesitate, suggest Sunday, it doubles as planning the week ahead. Any day works. Capture the day, then move on.\n\nDO NOT:\n- Read the seven days out loud. The card shows them.\n- Oversell. The opener already carries the pitch. Ask, capture, move on.\n- Let it be skipped silently. If they truly refuse to pick, set Sunday and tell them they can change it later.",
+      "opener": "Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?"
     },
     {
       "id": "path-fork",
@@ -514,11 +542,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_path_choice",
-            "ask_clarification",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_path_choice", "ask_clarification", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -538,17 +562,13 @@
         },
         "engine": {
           "nodeId": "path-fork",
-          "backId": "reflection-setup",
+          "backId": "weekly-day-setup",
           "persistStep": 2,
           "pathField": true,
-          "captureFields": [
-            "path"
-          ],
+          "captureFields": ["path"],
           "toolName": "submit_path_choice",
           "toolAdvancesStep": false,
-          "toolPersistsFields": [
-            "path"
-          ]
+          "toolPersistsFields": ["path"]
         },
         "authoring": {}
       },
@@ -590,10 +610,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_category",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_category", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -616,14 +633,10 @@
           "backId": "path-fork",
           "persistStep": 3,
           "pathField": false,
-          "captureFields": [
-            "category"
-          ],
+          "captureFields": ["category"],
           "toolName": "submit_category",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "category"
-          ],
+          "toolPersistsFields": ["category"],
           "maxSelections": 1,
           "optionSource": "categories"
         },
@@ -667,10 +680,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_goals",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_goals", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -693,14 +703,10 @@
           "backId": "category",
           "persistStep": 4,
           "pathField": false,
-          "captureFields": [
-            "goals"
-          ],
+          "captureFields": ["goals"],
           "toolName": "submit_goals",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "goals"
-          ],
+          "toolPersistsFields": ["goals"],
           "maxSelections": 2,
           "optionSource": "goalsByCategory"
         },
@@ -744,11 +750,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "add_habit",
-            "remove_habit",
-            "advance_step"
-          ]
+          "allowedTools": ["add_habit", "remove_habit", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -771,14 +773,10 @@
           "backId": "goals",
           "persistStep": 5,
           "pathField": false,
-          "captureFields": [
-            "habitConfigs"
-          ],
+          "captureFields": ["habitConfigs"],
           "toolName": "add_habit",
           "toolAdvancesStep": false,
-          "toolPersistsFields": [
-            "habits"
-          ],
+          "toolPersistsFields": ["habits"],
           "maxSelections": 2,
           "optionSource": "habitsByGoal"
         },
@@ -822,11 +820,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "add_habit",
-            "update_habit",
-            "advance_step"
-          ]
+          "allowedTools": ["add_habit", "update_habit", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -849,14 +843,10 @@
           "backId": "habit-select",
           "persistStep": 5,
           "pathField": false,
-          "captureFields": [
-            "habitConfigs"
-          ],
+          "captureFields": ["habitConfigs"],
           "toolName": "update_habit",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "habitConfigs"
-          ]
+          "toolPersistsFields": ["habitConfigs"]
         },
         "authoring": {}
       },
@@ -898,10 +888,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "submit_brain_dump",
-            "advance_step"
-          ]
+          "allowedTools": ["submit_brain_dump", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -924,14 +911,10 @@
           "backId": "path-fork",
           "persistStep": 3,
           "pathField": false,
-          "captureFields": [
-            "brainDumpText"
-          ],
+          "captureFields": ["brainDumpText"],
           "toolName": "submit_brain_dump",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "brainDumpText"
-          ]
+          "toolPersistsFields": ["brainDumpText"]
         },
         "authoring": {}
       },
@@ -973,11 +956,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "add_habit",
-            "update_habit",
-            "advance_step"
-          ]
+          "allowedTools": ["add_habit", "update_habit", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -1000,14 +979,10 @@
           "backId": "advanced-input",
           "persistStep": 4,
           "pathField": false,
-          "captureFields": [
-            "habitConfigs"
-          ],
+          "captureFields": ["habitConfigs"],
           "toolName": "update_habit",
           "toolAdvancesStep": true,
-          "toolPersistsFields": [
-            "habitConfigs"
-          ]
+          "toolPersistsFields": ["habitConfigs"]
         },
         "authoring": {}
       },
@@ -1049,10 +1024,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": [
-            "update_habit",
-            "confirm_plan"
-          ]
+          "allowedTools": ["update_habit", "confirm_plan"]
         },
         "path": "path-3-direct-llm",
         "orb": {
