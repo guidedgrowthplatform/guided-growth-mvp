@@ -43,6 +43,7 @@ describe('deriveStepMaps cutover equivalence (the retired hand tables)', () => {
       6: 'ONBOARD-STATE-CHECK',
       7: 'ONBOARD-MORNING-SETUP',
       8: 'ONBOARD-BEGINNER-07',
+      9: 'ONBOARD-WEEKLY-SETUP',
     });
   });
 
@@ -55,11 +56,12 @@ describe('deriveStepMaps cutover equivalence (the retired hand tables)', () => {
     );
   });
 
-  it('identity beats (self-advancing) are exactly the off-window pre-fork trio', () => {
+  it('identity beats (self-advancing) are exactly the off-window pre-fork set', () => {
     expect(derived.selfAdvancingScreens).toEqual([
       'ONBOARD-STATE-CHECK',
       'ONBOARD-MORNING-SETUP',
       'ONBOARD-BEGINNER-07',
+      'ONBOARD-WEEKLY-SETUP',
     ]);
   });
 
@@ -133,8 +135,9 @@ describe('no-hand-edit property: derived maps follow a flow mutation', () => {
     stateCheck.nextId = 'reflection-setup';
     reflection.nextId = 'morning-checkin-setup';
     reflection.backId = 'state-check';
-    morning.nextId = 'path-fork';
+    morning.nextId = 'weekly-day-setup';
     morning.backId = 'reflection-setup';
+    (byId.get('weekly-day-setup') as BeatNode).backId = 'morning-checkin-setup';
 
     const d = deriveStepMaps(mutated);
     expect(d.entryServerStep).toEqual(derived.entryServerStep);
