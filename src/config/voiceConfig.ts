@@ -22,6 +22,13 @@ export const TURN_AGGREGATION_MS = 2000;
 export const TURN_PAUSE_COMPLETE_MS = 900;
 export const TURN_PAUSE_INCOMPLETE_MS = 2800;
 
+// Hard ceiling on how long a buffered utterance may keep deferring its flush.
+// Every partial/final re-arms the pause timer, so steady speech (a user
+// repeating themselves while the coach is silent) could starve the flush
+// forever — silence with zero dispatches. Past this hold the buffer flushes
+// even if the user is still talking; the remainder becomes the next turn.
+export const TURN_HOLD_MAX_MS = 6000;
+
 // onboarding chat-native voice: mic stays hot during TTS (AEC handles echo).
 export const FULL_DUPLEX_BARGE_IN = true;
 

@@ -630,11 +630,14 @@ export function useOnboardingChat({
 
   const sendUserTurn = useCallback(
     (text: string) => {
+      // isStreaming stays out of the routing decision: a mid-reply turn must hit
+      // the queue-and-cancel branch below, not vanish as 'noop' (a user repeating
+      // themselves while the coach streams/stalls otherwise gets pure silence).
       const action = routeOrbSend({
         orbState: orbStateRef.current,
         surface: isOnboardingScreen ? 'onboarding' : 'coach',
         isProcessing: false,
-        isStreaming: llmRef.current.isStreaming,
+        isStreaming: false,
       });
       if (action === 'noop' || action === 'vapi') return;
       // Barge-in: a landed user turn cuts the coach's current audio. Reset the
