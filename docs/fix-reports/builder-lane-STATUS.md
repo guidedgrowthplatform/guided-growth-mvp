@@ -58,4 +58,4 @@ openerRevealPin unit matrix. Verified on the fix preview with autoplay BLOCKED: 
 scenarios pass; before-run on staging shows the b1 frozen hold (pill=false, rejected=2).
 Conductor merges.
 
-Updated: 2026-07-04 00:55 EAT — lane items: !411 awaiting review; add-on !421 draft ready for the conductor
+Updated: 2026-07-04 04:4x EAT — !421 (B28+B29) MERGED by the conductor after an independent verification pass on the fix preview; !411 re-synced with staging (absorbed the reflection-setup persistStep fix cleanly, suite green) and remains the ONLY open lane item, awaiting review
