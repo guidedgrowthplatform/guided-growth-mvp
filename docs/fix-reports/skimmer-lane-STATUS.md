@@ -52,7 +52,7 @@ Gate re-check continues on a ~30-minute cadence; read-only prep only until it op
 | S2 | Register + schema (ADAPTER_REGISTRY advanced-capture → BrainDumpCapture; per-habit days/polarity in the capture contract; replay renders cards) | open, gated | |
 | S3 | Voice-in + reconcile verification (interim STT hookup; ~1s/clause card formation; LLM refine after pauses; typed parity) | open, gated | |
 | S4 | Preview proof + B26 closure (phone viewport, spoken + typed dumps, edits/deletes survive reconcile, replay after refresh) | open, gated | |
-| S5 | Daily-reporting scoping note (phase 2 stub, no code) | open — not gated, drafts during the hold if it persists | |
+| S5 | Daily-reporting scoping note (phase 2 stub, no code) | DRAFTED 2026-07-05 during the gate hold: gg-spec branch skimmer-lane-s5-daily-reporting (docs/skimmer-phase2-daily-reporting-2026-07-05.md, 00635aa). Docs-only; conductor/Yair merges. Refine the "what changes" list after S1–S4 land | |
 
 ## Blockers
 
@@ -92,6 +92,7 @@ Gate re-check continues on a ~30-minute cadence; read-only prep only until it op
 - Main checkout (/Users/jonah/Documents/guided-growth-mvp) carries another session's uncommitted work on
   feat/onboarding-voice-track1 — this lane works only in its own worktrees.
 
-Updated: 2026-07-05 — migration to gitlab.guidedgrowthapp.com handled (remotes repointed, auth fixed);
-gate re-checked NOT MET with corrected B32–B35 definitions; B39/!428 adjacencies noted; port-source
-blocker stands on the new server too.
+Updated: 2026-07-05 (2) — gate re-checked again: unchanged (main 7dc0e20b, no B32–B35 MRs, no port-source
+push). Operator asked whether the lane is done: answered NO — S1–S4 remain gated/blocked. S5 drafted and
+pushed to gg-spec branch skimmer-lane-s5-daily-reporting during the hold. Loop continues on the 30-min
+gate-recheck cadence.
