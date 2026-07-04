@@ -434,7 +434,7 @@
         },
         "engine": {
           "nodeId": "reflection-setup",
-          "backId": "habit-select",
+          "backId": "morning-checkin-setup",
           "persistStep": 8,
           "pathField": false,
           "captureFields": ["reflectionConfig"],

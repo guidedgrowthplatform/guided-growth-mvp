@@ -996,9 +996,10 @@ const ENGINE_DEFAULTS: Record<string, NonNullable<BeatMeta['engine']>> = {
   },
   'reflection-card': {
     nodeId: 'reflection-setup',
-    backId: 'habit-select',
-    // V3 scale: reflection-setup persists at 8 (state-check 6, morning-setup 7).
-    // 6 was the pre-V3 value and left a duplicate 6 in exported engine meta.
+    // V3 order: reflection-setup follows morning-checkin-setup (backId fossil
+    // fixed alongside), and persists at 8 (state-check 6, morning-setup 7);
+    // both pre-V3 values had survived here and in the authored Export.
+    backId: 'morning-checkin-setup',
     persistStep: '8',
     captureFields: 'reflectionConfig',
     voiceExpectsInput: true,
