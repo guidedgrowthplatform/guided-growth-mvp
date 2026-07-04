@@ -2,8 +2,9 @@ import { Icon } from '@iconify/react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
-import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
-import { DualButton } from '@/components/ui/DualButton';
+import { IconChatText, IconMicMuted } from '@/components/icons';
+import { Orb, type OrbStateSel } from '@/components/orb/Orb';
+import { DEFAULT_PARAMS, DEFAULT_PULSE } from '@/components/orb/orbConfig';
 import { deriveOrbRing } from '@/components/ui/orbRing';
 import { useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -154,6 +155,13 @@ export function BottomNav() {
     micSpeaking,
   });
   const intensity = activeRings === 'right' ? micIntensity : undefined;
+  // Map the same voice state to the new orb's look: coach speaking = left ring,
+  // user speaking = right ring, everything else = idle two-half orb.
+  const orbState: OrbStateSel =
+    activeRings === 'left' ? 'coach' : activeRings === 'right' ? 'user' : 'idle';
+  // Feed the mic amplitude into the orb's pulse (the same intensity the rings used).
+  const orbMic = useRef<{ on: boolean; amp: number }>({ on: false, amp: 0 });
+  orbMic.current = { on: activeRings === 'right', amp: intensity ?? 0 };
 
   const handleLeftToggle = () => {
     const next = !ttsEnabled;
@@ -214,20 +222,45 @@ export function BottomNav() {
           <NavBarBackground />
 
           <div className="absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-1/2">
-            <DualButton
-              size={91}
-              leftIcon={ttsEnabled ? <IconChatVoice size={24} /> : <IconChatText size={24} />}
-              rightIcon={micEnabled ? <IconMic size={24} /> : <IconMicMuted size={24} />}
-              leftActive={ttsEnabled}
-              rightActive={micEnabled}
-              onLeftClick={handleLeftToggle}
-              onRightClick={handleRightToggle}
-              ariaLabel="Voice controls"
-              leftAriaLabel={ttsEnabled ? 'Mute AI voice' : 'Unmute AI voice'}
-              rightAriaLabel={micEnabled ? 'Disable microphone' : 'Enable microphone'}
-              activeRings={activeRings}
-              intensity={intensity}
-            />
+            {/* The new orb as the visual, with transparent half-buttons on top so the
+                tap targets, a11y, and toggle behaviour stay exactly as before. */}
+            <div
+              className="relative"
+              style={{ width: 91, height: 91 }}
+              role="group"
+              aria-label="Voice controls"
+            >
+              <Orb
+                size={91}
+                state={orbState}
+                style="full"
+                params={DEFAULT_PARAMS}
+                pulse={DEFAULT_PULSE}
+                leftOn={ttsEnabled}
+                rightOn={micEnabled}
+                mic={orbMic}
+                idleIcons={{
+                  leftOn: null,
+                  leftOff: <IconChatText size={24} />,
+                  rightOn: null,
+                  rightOff: <IconMicMuted size={24} />,
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleLeftToggle}
+                aria-label={ttsEnabled ? 'Mute AI voice' : 'Unmute AI voice'}
+                aria-pressed={ttsEnabled}
+                className="absolute inset-y-0 left-0 z-10 w-[calc(50%-2.5px)] rounded-l-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              />
+              <button
+                type="button"
+                onClick={handleRightToggle}
+                aria-label={micEnabled ? 'Disable microphone' : 'Enable microphone'}
+                aria-pressed={micEnabled}
+                className="absolute inset-y-0 right-0 z-10 w-[calc(50%-2.5px)] rounded-r-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              />
+            </div>
           </div>
 
           <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
