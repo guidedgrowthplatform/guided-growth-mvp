@@ -10,6 +10,7 @@ const DEFAULTS: ReflectionSettings = {
   days: [],
   reminder: true,
   schedule: null,
+  weeklyDay: 0,
 };
 
 export function useReflectionSettings() {

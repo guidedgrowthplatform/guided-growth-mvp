@@ -119,3 +119,17 @@ export function resolveTurnPauseMs(text: string, cfg: TurnPauseConfig): number {
       return cfg.base;
   }
 }
+
+// Clamp a re-armed flush delay so buffered speech can't defer its flush past
+// heldSince + maxHold. Every interim/final re-arms the pause timer; without the
+// clamp a steady cadence (user repeating an utterance faster than the adaptive
+// pause) re-arms forever and the turn never reaches the LLM.
+export function clampFlushDelayMs(
+  pauseMs: number,
+  heldSinceMs: number | null,
+  nowMs: number,
+  maxHoldMs: number,
+): number {
+  if (heldSinceMs === null) return pauseMs;
+  return Math.max(0, Math.min(pauseMs, heldSinceMs + maxHoldMs - nowMs));
+}

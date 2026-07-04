@@ -251,6 +251,21 @@ DO NOT:
       'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
   },
 
+  'ONBOARD-WEEKLY-SETUP': {
+    context: `BEAT: The Weekly day.
+
+SPEAK MODE: VERBATIM_OPENER
+
+One question: which day is their weekly session, The Weekly, where you and the user look back over the whole week and plan the next one together. The days are on the card, Sunday preselected. This is where the compounding gets said out loud: it gets sharper every week because you know them better. If they hesitate, suggest Sunday, it doubles as planning the week ahead. Any day works. Capture the day, then move on.
+
+DO NOT:
+- Read the seven days out loud. The card shows them.
+- Oversell. The opener already carries the pitch. Ask, capture, move on.
+- Let it be skipped silently. If they truly refuse to pick, set Sunday and tell them they can change it later.`,
+    allowedTools: ['submit_weekly_config', 'advance_step'],
+    opener: `Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?`,
+  },
+
   'ONBOARD-ADVANCED': {
     context: `BEAT: Advanced capture.
 

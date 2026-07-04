@@ -58,6 +58,7 @@ const CARD_TYPE_BY_COMPONENT: Record<string, BeatCardType> = {
   'state-check': 'none',
   'morning-checkin-setup': 'none',
   'reflection-card': 'reflection',
+  'weekly-day-picker': 'none',
 };
 
 // current_step (+ path for the fork) → beat. Screens + owners derived from the
@@ -75,13 +76,16 @@ export function beatForStep(step: number, path: OnboardingPath | null): Beat {
   if (screenId && component) {
     return { step: s, screenId, cardType: CARD_TYPE_BY_COMPONENT[component] ?? 'none' };
   }
-  // Past the scale (legacy 9+ ids) or a gap: clamp to the last identity beat.
+  // Past the scale (legacy alias ids) or a gap: clamp to the last identity beat,
+  // card type from that beat's owning component.
   const max = DERIVED_STEP_MAPS.maxStep;
   const maxScreens = DERIVED_STEP_MAPS.stepScreens[max];
+  const maxOwners = DERIVED_STEP_MAPS.stepOwners[max];
+  const maxComponent = maxOwners?.simple ?? maxOwners?.braindump;
   return {
     step: max,
-    screenId: maxScreens?.simple ?? maxScreens?.braindump ?? 'ONBOARD-BEGINNER-07',
-    cardType: 'reflection',
+    screenId: maxScreens?.simple ?? maxScreens?.braindump ?? 'ONBOARD-WEEKLY-SETUP',
+    cardType: maxComponent ? (CARD_TYPE_BY_COMPONENT[maxComponent] ?? 'none') : 'none',
   };
 }
 
@@ -96,10 +100,11 @@ const LEGACY_SCREEN_STEP_ALIASES: Record<string, number> = {
   'ONBOARD-ADVANCED-02': 4,
   'ONBOARD-ADVANCED-04': 5,
   // Legacy plan-review ids (V3 has no plan-review beat — into-app follows
-  // habit-schedule): mapped past the scale so a navigate_next never rewinds.
-  'ONBOARD-BEGINNER-06': 9,
-  'ONBOARD-ADVANCED-05': 9,
-  'STARTING-PLAN': 9,
+  // habit-schedule): mapped past the scale (now 10, since 9 is a real V3 beat)
+  // so a navigate_next never rewinds.
+  'ONBOARD-BEGINNER-06': 10,
+  'ONBOARD-ADVANCED-05': 10,
+  'STARTING-PLAN': 10,
 };
 
 const SCREEN_TO_STEP: Record<string, number> = {

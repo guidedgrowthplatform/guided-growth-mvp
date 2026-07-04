@@ -11,6 +11,7 @@ import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
 import {
   FULL_DUPLEX_BARGE_IN,
   TURN_AGGREGATION_MS,
+  TURN_HOLD_MAX_MS,
   TURN_PAUSE_COMPLETE_MS,
   TURN_PAUSE_INCOMPLETE_MS,
 } from '@/config/voiceConfig';
@@ -63,7 +64,6 @@ import {
   ONBOARDING_FLOW_PREVIEW_ROUTE,
   ONBOARDING_FLOW_ROUTE,
 } from '@/lib/onboarding/onboardingStepBeats';
-import { isVapiCapableBeat, isIdleCaptureBeat } from '@/onboarding-flow/beatEngineMeta';
 import { engineForTurn } from '@/lib/orb/engineForTurn';
 import { orbStateFrom, type OrbState } from '@/lib/orb/orbState';
 import { queryKeys } from '@/lib/query';
@@ -72,9 +72,10 @@ import { useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { createListenerBus } from '@/lib/util/listenerBus';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
 import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
-import { resolveTurnPauseMs } from '@/lib/voice/turnDecision';
-import { ONBOARDING_BEAT_MP3S } from '@/onboarding-flow/renderer/useBeatOpenerMp3';
+import { clampFlushDelayMs, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
+import { isVapiCapableBeat, isIdleCaptureBeat } from '@/onboarding-flow/beatEngineMeta';
 import { applyName } from '@/onboarding-flow/renderer/applyName';
+import { ONBOARDING_BEAT_MP3S } from '@/onboarding-flow/renderer/useBeatOpenerMp3';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
@@ -794,7 +795,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     // whether the dashboard prompt contains the {{initial_screen_context}}
     // placeholder (variable substitution silently drops when placeholder is
     // missing — the snapshot would otherwise never reach Vapi on cold start).
-    if (sid && lastPushedScreenIdRef.current !== sid && !deferredScreenContextRef.current.has(sid)) {
+    if (
+      sid &&
+      lastPushedScreenIdRef.current !== sid &&
+      !deferredScreenContextRef.current.has(sid)
+    ) {
       lastScreenChangeTsRef.current = new Date().toISOString();
       void pushScreenContext(sid, null);
     } else if (sid) {
@@ -1378,6 +1383,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // hearing the coach's own voice can never strand the coach in silence.
   const owesResponseRef = useRef(false);
   const regeneratedRef = useRef(false);
+  // When the first final landed in the (still unflushed) buffer — clamps how
+  // long re-arms can defer the flush (TURN_HOLD_MAX_MS).
+  const bufferHeldSinceRef = useRef<number | null>(null);
   const chatBusyRef = useRef(chatBusy);
   chatBusyRef.current = chatBusy;
   const flushUtterance = useCallback(() => {
@@ -1387,6 +1395,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     }
     const text = utteranceBufferRef.current.trim();
     utteranceBufferRef.current = '';
+    bufferHeldSinceRef.current = null;
     if (!text) {
       // Barge-in produced no real user turn → re-answer the interrupted reply.
       if (owesResponseRef.current && !regeneratedRef.current) {
@@ -1407,7 +1416,13 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       complete: TURN_PAUSE_COMPLETE_MS,
       incomplete: TURN_PAUSE_INCOMPLETE_MS,
     });
-    aggregationTimerRef.current = setTimeout(flushUtterance, pauseMs);
+    const delayMs = clampFlushDelayMs(
+      pauseMs,
+      bufferHeldSinceRef.current,
+      Date.now(),
+      TURN_HOLD_MAX_MS,
+    );
+    aggregationTimerRef.current = setTimeout(flushUtterance, delayMs);
   }, [flushUtterance]);
 
   // Barge-in that records whether a reply was actually cut (so the settle check
@@ -1442,6 +1457,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       if (!trimmed) return;
       notifyTranscriptListeners({ role: 'user', kind: 'final', text: trimmed });
       bargeInterrupt();
+      if (!utteranceBufferRef.current) bufferHeldSinceRef.current = Date.now();
       utteranceBufferRef.current = utteranceBufferRef.current
         ? `${utteranceBufferRef.current} ${trimmed}`
         : trimmed;
@@ -1505,6 +1521,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       aggregationTimerRef.current = null;
     }
     utteranceBufferRef.current = '';
+    bufferHeldSinceRef.current = null;
   }, [voiceInShouldBeLive]);
   useEffect(
     () => () => {

@@ -21,6 +21,7 @@ const FULL_DATA = {
   reflectionConfig: { mode: 'prompts', prompts: ['What went well?'] },
   brainDumpText: 'a free-text brain dump',
   morningCheckin: { time: '07:30', days: [1], reminder: true },
+  weeklyConfig: { day: 0 },
   // state-check: record_checkin (voice) writes stateCheck, the card tap writes
   // checkin — serverCaptureForBeat replays whichever exists, no fabricated proxy.
   stateCheck: { sleep: 3, mood: 4 },

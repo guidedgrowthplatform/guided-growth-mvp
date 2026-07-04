@@ -4,6 +4,7 @@ import { track } from '@/analytics/posthog';
 import {
   CHECKIN_LOCAL_OPENER,
   TURN_AGGREGATION_MS,
+  TURN_HOLD_MAX_MS,
   TURN_PAUSE_COMPLETE_MS,
   TURN_PAUSE_INCOMPLETE_MS,
 } from '@/config/voiceConfig';
@@ -33,7 +34,11 @@ import {
 import { nextSentenceChunks, flushSentenceTail } from '@/lib/services/sentenceChunks';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
-import { isSemanticEndOfTurn, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
+import {
+  clampFlushDelayMs,
+  isSemanticEndOfTurn,
+  resolveTurnPauseMs,
+} from '@/lib/voice/turnDecision';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { pickVariation } from '@gg/shared/checkin/scriptVariations';
 import type { CoachingStyle } from '@gg/shared/types/llm';
@@ -180,6 +185,9 @@ export function useCoachChat(
   const awaitingResumeRef = useRef(false);
   // The adaptive pause the current flush timer was armed with (Phase 1).
   const lastArmedPauseRef = useRef(TURN_AGGREGATION_MS);
+  // When the first final landed in the (still unflushed) buffer — clamps how
+  // long re-arms can defer the flush (TURN_HOLD_MAX_MS).
+  const bufferHeldSinceRef = useRef<number | null>(null);
   // Turn-aggregation window: utterance-end (flush → submit) → reply-start (stream begins).
   const turnSubmittedAtRef = useRef(0);
   const coachStoppedAtRef = useRef(0);
@@ -241,6 +249,7 @@ export function useCoachChat(
     }
     const text = utteranceBufferRef.current.trim();
     utteranceBufferRef.current = '';
+    bufferHeldSinceRef.current = null;
     const finalsMerged = finalsInTurnRef.current;
     const msSinceLastFinal = lastFinalAtRef.current ? Date.now() - lastFinalAtRef.current : 0;
     const pauseMs = lastArmedPauseRef.current;
@@ -271,7 +280,13 @@ export function useCoachChat(
       incomplete: TURN_PAUSE_INCOMPLETE_MS,
     });
     lastArmedPauseRef.current = pauseMs;
-    aggregationTimerRef.current = setTimeout(flushUtterance, pauseMs);
+    const delayMs = clampFlushDelayMs(
+      pauseMs,
+      bufferHeldSinceRef.current,
+      Date.now(),
+      TURN_HOLD_MAX_MS,
+    );
+    aggregationTimerRef.current = setTimeout(flushUtterance, delayMs);
   }, [flushUtterance]);
 
   const handleSonioxFinal = useCallback(
@@ -285,6 +300,7 @@ export function useCoachChat(
         });
         coachStoppedAtRef.current = 0;
       }
+      if (!utteranceBufferRef.current) bufferHeldSinceRef.current = Date.now();
       utteranceBufferRef.current = utteranceBufferRef.current
         ? `${utteranceBufferRef.current} ${t}`
         : t;
@@ -685,6 +701,7 @@ export function useCoachChat(
       aggregationTimerRef.current = null;
     }
     utteranceBufferRef.current = '';
+    bufferHeldSinceRef.current = null;
   }, [voiceInActive]);
   useEffect(
     () => () => {

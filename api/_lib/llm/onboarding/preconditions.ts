@@ -58,14 +58,16 @@ const GATES: Record<string, Gate> = {
     !data.morningCheckin ? 'morning_checkin_missing: call submit_morning_checkin first' : null,
   'reflection-card': (data) =>
     !data.reflectionConfig ? 'reflection_missing: call submit_reflection_config first' : null,
+  'weekly-day-picker': (data) =>
+    !data.weeklyConfig ? 'weekly_config_missing: call submit_weekly_config first' : null,
 };
 
 // Per-step data preconditions for a FORWARD advance (sourceStep → sourceStep+1).
 // Returns the missing-field message, or null if the precondition passes. Back-nav
 // (target <= current) is always allowed — callers only check forward advances.
 // The step→beat table is derived from the generated flow (L1-3); the V3 scale
-// stays non-monotonic vs flow order (1,6,7,8,2,3,4,5,5 — identities, not
-// positions). Steps past the scale (legacy 9+ ids) have no V3 beat: nothing to gate.
+// stays non-monotonic vs flow order (1,6,7,8,9,2,3,4,5,5 — identities, not
+// positions). Steps past the scale (legacy 10+ ids) have no V3 beat: nothing to gate.
 export function checkAdvanceData(args: {
   sourceStep: number;
   data: Record<string, unknown>;
@@ -108,6 +110,7 @@ export function traceAdvanceStep0(
     habitConfigs: !!habits && Object.keys(habits).length > 0,
     morningCheckin: !!data.morningCheckin,
     reflectionConfig: !!data.reflectionConfig,
+    weeklyConfig: !!data.weeklyConfig,
     brainDump: typeof brainDumpRaw === 'string' && brainDumpRaw.length > 0,
   };
   console.log(

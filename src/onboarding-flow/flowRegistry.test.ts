@@ -13,6 +13,7 @@ describe('flow registry (useFlow)', () => {
     expect(morning && getPublishedFlow(versionTag(morning))).toBe(morning);
     expect(getPublishedFlow('evening-checkin')?.flowId).toBe('evening-checkin-v1');
     expect(getPublishedFlow('home-tour')?.flowId).toBe('home-tour-v1');
+    expect(getPublishedFlow('weekly-checkin')?.flowId).toBe('weekly-checkin-v1');
   });
 
   it('returns undefined for an unknown id (no onboarding fallback in the registry)', () => {
@@ -35,6 +36,7 @@ describe('flow registry (useFlow)', () => {
         'morning-checkin-v1',
         'evening-checkin-v1',
         'home-tour-v1',
+        'weekly-checkin-v1',
       ]),
     );
   });

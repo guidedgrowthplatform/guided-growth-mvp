@@ -33,6 +33,9 @@ const TAP_CAPTURE: Record<string, BeatCapture> = {
       reflectionConfig: { time: '21:45', days: [1, 2, 3, 4, 5], reminder: true },
     } as BeatCapture['data'],
   },
+  'weekly-day-picker': {
+    data: { weeklyConfig: { day: 0 } } as BeatCapture['data'],
+  },
   'category-grid': { data: { category: 'Health & Fitness' } as BeatCapture['data'] },
   'goals-list': { data: { goals: ['Move daily'] } as BeatCapture['data'] },
   'habit-picker': {
@@ -65,9 +68,7 @@ interface SimulatedRow {
 // serverData memo does the same).
 function saveToRow(row: SimulatedRow, node: FlowNode, cap: BeatCapture): SimulatedRow {
   const next: SimulatedRow = {
-    current_step: node.persist
-      ? Math.max(row.current_step, node.persist.step)
-      : row.current_step,
+    current_step: node.persist ? Math.max(row.current_step, node.persist.step) : row.current_step,
     data: { ...row.data, ...(cap.data as Record<string, unknown>) },
   };
   if (cap.path) next.data.path = cap.path;
@@ -98,7 +99,9 @@ function runMatrix(path: 'simple' | 'braindump', stateCheckKey: 'checkin' | 'sta
     // must land back on it (head gates + display beats allow one-beat-back).
     visited.push({ screenId: node.screenId, resumed: resumedScreenId(row) });
     let cap: BeatCapture =
-      node.type === 'branch' ? { data: {}, path } : (TAP_CAPTURE[node.componentType] ?? { data: {} });
+      node.type === 'branch'
+        ? { data: {}, path }
+        : (TAP_CAPTURE[node.componentType] ?? { data: {} });
     if (node.componentType === 'state-check' && stateCheckKey === 'stateCheck') {
       cap = { data: { stateCheck: { sleep: 3, mood: 4 } } as BeatCapture['data'] };
     }
@@ -114,6 +117,7 @@ function runMatrix(path: 'simple' | 'braindump', stateCheckKey: 'checkin' | 'sta
 const EXACT = new Set([
   'ONBOARD-MORNING-SETUP',
   'ONBOARD-BEGINNER-07',
+  'ONBOARD-WEEKLY-SETUP',
   'ONBOARD-FORK--FORM',
   'ONBOARD-BEGINNER-01',
   'ONBOARD-BEGINNER-02',
@@ -177,6 +181,7 @@ describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
         checkin: { sleep: 3 },
         morningCheckin: { time: '08:00', days: [1], reminder: true },
         reflectionConfig: { time: '21:45', days: [1], reminder: true },
+        weeklyConfig: { day: 0 },
         path: 'simple',
         category: 'Health & Fitness',
         goals: ['Move daily'],
@@ -228,6 +233,7 @@ describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
         checkin: { sleep: 3 },
         morningCheckin: { time: '08:00', days: [1], reminder: true },
         reflectionConfig: { time: '21:45', days: [1], reminder: true },
+        weeklyConfig: { day: 0 },
       },
     };
     expect(resumedScreenId(row)).toBe('ONBOARD-FORK--FORM');
@@ -241,6 +247,7 @@ describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
       checkin: { sleep: 3 },
       morningCheckin: { time: '08:00', days: [1], reminder: true },
       reflectionConfig: { time: '21:45', days: [1], reminder: true },
+      weeklyConfig: { day: 0 },
       path: 'simple',
       category: 'Health & Fitness',
       goals: ['Move daily'],

@@ -53,6 +53,8 @@ const TYPE_TO_COMPONENT: Record<string, FlowComponentType | null> = {
   'state-check': 'state-check',
   'morning-checkin-setup': 'morning-checkin-setup',
   'reflection-card': 'reflection-card',
+  // V3: The Weekly day setup, right after reflection-card, before the path fork.
+  'weekly-day-setup': 'weekly-day-picker',
   'path-selection': 'path-selection',
   'category-grid': 'category-grid',
   'goals-list': 'goals-list',
@@ -72,6 +74,8 @@ const TYPE_TO_COMPONENT: Record<string, FlowComponentType | null> = {
   'habit-review': 'habit-review',
   reflection: 'reflection',
   'home-tour': 'home-tour',
+  // The Weekly (linear flow): the real week-grid beat.
+  'weekly-habits-summary': 'weekly-habits-summary',
 };
 
 /**
@@ -193,7 +197,7 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
   'path-selection': {
     nodeId: 'path-fork',
     beatNumber: 0,
-    backId: 'reflection-setup',
+    backId: 'weekly-day-setup',
     screenId: 'ONBOARD-FORK--FORM',
     componentProps: {
       bindsTo: 'path',
@@ -373,6 +377,31 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
     screenName: 'Reflection Setup',
     contextBlock:
       'Set up a short evening reflection: when, which days, whether they want a reminder, and the style (guided prompts, custom prompts, or freeform). Frame it as a moment for their mind, not a chore.',
+  },
+  // V3 new: The Weekly day setup, right after reflection-setup, before the path
+  // fork. Single-select day (0=Sunday preselected); submit_weekly_config saves
+  // AND self-advances (GREATEST-bump to step 9), matching reflection/morning.
+  'weekly-day-picker': {
+    nodeId: 'weekly-day-setup',
+    beatNumber: 3,
+    backId: 'reflection-setup',
+    screenId: 'ONBOARD-WEEKLY-SETUP',
+    componentProps: {},
+    voice: {
+      openerText:
+        "Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?",
+      expectsInput: true,
+      directLlmAllowed: true,
+    },
+    tool: {
+      toolName: 'submit_weekly_config',
+      persistsFields: ['weeklyConfig'],
+      advancesStep: true,
+    },
+    persist: { step: 9 },
+    screenName: 'The Weekly Day',
+    contextBlock:
+      'Set the day for The Weekly, their weekly coaching session where you and the user look back over the week and plan the next one. Sunday is the suggested default.',
   },
   // V3: into-app is the single convergence point for both paths (plan-cards dropped).
   // No tool: the engine does not need to fire confirm_plan; completion is detected

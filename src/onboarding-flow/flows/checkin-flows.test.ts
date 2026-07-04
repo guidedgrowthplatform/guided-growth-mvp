@@ -3,14 +3,17 @@ import { applyCapture, initFlowMachine, validateFlow } from '../flowMachine';
 import type { BeatCapture, FlowDocument } from '../types';
 import eveningGeneratedJson from './evening-checkin-v1.generated.json';
 import morningGeneratedJson from './morning-checkin-v1.generated.json';
+import weeklyGeneratedJson from './weekly-checkin-v1.generated.json';
 
 // Retargeted at the builder-generated flows (the runtime artifacts) after the
 // L1-6/L1-7 cutover; the hand defs live on as __fixtures__/checkin-flows-v1.ts.
 const morningCheckinV1 = morningGeneratedJson as unknown as FlowDocument;
 const eveningCheckinV1 = eveningGeneratedJson as unknown as FlowDocument;
+const weeklyCheckinV1 = weeklyGeneratedJson as unknown as FlowDocument;
 const CHECKIN_FLOWS = {
   'morning-checkin-v1': morningCheckinV1,
   'evening-checkin-v1': eveningCheckinV1,
+  'weekly-checkin-v1': weeklyCheckinV1,
 } as const;
 
 /** Drive a flow to completion with empty captures, returning the final state. */
@@ -31,6 +34,10 @@ describe('check-in flows: validity', () => {
 
   it('the evening check-in flow has no dangling references', () => {
     expect(validateFlow(eveningCheckinV1)).toEqual([]);
+  });
+
+  it('the weekly check-in flow has no dangling references', () => {
+    expect(validateFlow(weeklyCheckinV1)).toEqual([]);
   });
 });
 
@@ -54,6 +61,41 @@ describe('check-in flows: shape mirrors the builder', () => {
       'reflection',
       'coach-bubble',
     ]);
+  });
+
+  it('weekly: frame -> week-shown -> insights -> brainstorm -> close', () => {
+    expect(weeklyCheckinV1.entryNodeId).toBe('weekly-frame');
+    expect(weeklyCheckinV1.nodes.map((n) => n.componentType)).toEqual([
+      'coach-bubble',
+      'weekly-habits-summary',
+      'coach-bubble',
+      'habit-review',
+      'coach-bubble',
+    ]);
+    expect(weeklyCheckinV1.nodes.map((n) => n.screenId)).toEqual([
+      'WCHECK-FRAME',
+      'WCHECK-WEEK',
+      'WCHECK-INSIGHTS',
+      'WCHECK-EDIT',
+      'WCHECK-CLOSE',
+    ]);
+  });
+
+  it('the weekly flow is Vapi-only: verbatim frame, generative elsewhere, no tools', () => {
+    for (const node of weeklyCheckinV1.nodes) {
+      if (node.type !== 'beat') continue;
+      expect(node.meta?.fill.brain).toBe('vapi');
+      expect(node.meta?.voiceIn.engine).toBe('vapi');
+      expect(node.meta?.voiceOut.engine).toBe('vapi');
+      expect(node.meta?.path).toBe('path-1-vapi');
+      expect(node.meta?.fill.allowedTools).toEqual([]);
+    }
+    const frame = weeklyCheckinV1.nodes.find((n) => n.id === 'weekly-frame');
+    expect(frame?.meta?.voiceOut.mode).toBe('verbatim');
+    const rest = weeklyCheckinV1.nodes.filter((n) => n.id !== 'weekly-frame');
+    for (const node of rest) {
+      expect(node.meta?.voiceOut.mode).toBe('generative');
+    }
   });
 
   it('the state-check beat wires to record_checkin', () => {
@@ -93,7 +135,23 @@ describe('check-in flows: run to completion', () => {
     ]);
   });
 
-  it('CHECKIN_FLOWS indexes both documents by id', () => {
-    expect(Object.keys(CHECKIN_FLOWS).sort()).toEqual(['evening-checkin-v1', 'morning-checkin-v1']);
+  it('the weekly flow walks start to finish', () => {
+    const state = walkToEnd(weeklyCheckinV1);
+    expect(state.status).toBe('complete');
+    expect(state.visited).toEqual([
+      'weekly-frame',
+      'weekly-week-shown',
+      'weekly-insights',
+      'weekly-brainstorm',
+      'weekly-close',
+    ]);
+  });
+
+  it('CHECKIN_FLOWS indexes all three documents by id', () => {
+    expect(Object.keys(CHECKIN_FLOWS).sort()).toEqual([
+      'evening-checkin-v1',
+      'morning-checkin-v1',
+      'weekly-checkin-v1',
+    ]);
   });
 });
