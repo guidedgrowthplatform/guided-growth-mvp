@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSemanticEndOfTurn, resolveTurnPauseMs } from './turnDecision';
+import { clampFlushDelayMs, isSemanticEndOfTurn, resolveTurnPauseMs } from './turnDecision';
 
 describe('isSemanticEndOfTurn', () => {
   it('flags trailing conjunctions / articles / infinitives as incomplete', () => {
@@ -63,5 +63,50 @@ describe('resolveTurnPauseMs', () => {
     expect(resolveTurnPauseMs('I am done.', cfg)).toBe(900);
     expect(resolveTurnPauseMs('I want to go and', cfg)).toBe(2800);
     expect(resolveTurnPauseMs('I went to the store', cfg)).toBe(2000);
+  });
+});
+
+describe('clampFlushDelayMs', () => {
+  const MAX_HOLD = 6000;
+
+  it('no held buffer → the adaptive pause passes through untouched', () => {
+    expect(clampFlushDelayMs(2000, null, 10_000, MAX_HOLD)).toBe(2000);
+  });
+
+  it('inside the hold window → pause unchanged when it fits', () => {
+    // held since t=0, re-armed at t=1000: 2000ms pause ends at 3000 < 6000 cap
+    expect(clampFlushDelayMs(2000, 0, 1000, MAX_HOLD)).toBe(2000);
+  });
+
+  it('near the cap → delay shrinks to whatever hold remains', () => {
+    // held since t=0, re-armed at t=5000: only 1000ms of hold left
+    expect(clampFlushDelayMs(2000, 0, 5000, MAX_HOLD)).toBe(1000);
+  });
+
+  it('past the cap → flush immediately, never negative', () => {
+    expect(clampFlushDelayMs(2000, 0, 7000, MAX_HOLD)).toBe(0);
+  });
+
+  it('repeat-cadence livelock breaks: re-arms every 1500ms flush within the cap', () => {
+    // The C5 silence shape: a user repeats an utterance every ~1.5s, each
+    // repeat re-arming a 2000ms pause — uncapped, the flush never fires.
+    const REARM_EVERY_MS = 1500;
+    const PAUSE_MS = 2000;
+
+    const flushAtWith = (cap: number | null): number | null => {
+      const heldSince = 0;
+      let now = 0;
+      for (let rearms = 0; rearms < 50; rearms += 1) {
+        const delay = cap === null ? PAUSE_MS : clampFlushDelayMs(PAUSE_MS, heldSince, now, cap);
+        if (delay <= REARM_EVERY_MS) return now + delay; // timer wins the race → flush
+        now += REARM_EVERY_MS; // next repeat lands first and re-arms
+      }
+      return null; // never flushed
+    };
+
+    expect(flushAtWith(null)).toBeNull(); // old behavior: starved forever
+    const flushedAt = flushAtWith(MAX_HOLD);
+    expect(flushedAt).not.toBeNull();
+    expect(flushedAt!).toBeLessThanOrEqual(MAX_HOLD);
   });
 });
