@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Orb, type OrbStateSel, type OrbTalkStyle } from '@/components/orb/Orb';
-import { DEFAULT_PARAMS, DEFAULT_PULSE } from '@/components/orb/orbConfig';
+import { loadParams, loadPulse } from './orb/orbPresets';
+import { useIsPlaying } from './beatKit';
 
 // The orb shown on the builder's screens. It IS the canonical tuned orb (same
 // component + config the real app orb is built from), so what you design in the
@@ -42,6 +43,11 @@ export function BeatOrb({
 }: { size?: number } & OrbConfig) {
   const [voiceOn, setVoiceOn] = useState(voiceOn0);
   const [micOn, setMicOn] = useState(micAsking ? false : micOn0);
+  // The look you tuned in the Orb builder (autosaved), read live. Falls back to the
+  // committed app default when nothing has been tuned in this browser yet.
+  const [params] = useState(() => loadParams());
+  const [pulse] = useState(() => loadPulse());
+  const playing = useIsPlaying();
   if (hidden) return null;
 
   const size = bloomed ? Math.round(baseSize * 1.15) : baseSize;
@@ -55,10 +61,11 @@ export function BeatOrb({
       size={size}
       state={state}
       style={style}
-      params={DEFAULT_PARAMS}
-      pulse={DEFAULT_PULSE}
+      params={params}
+      pulse={pulse}
       leftOn={voiceOn}
       rightOn={micOn}
+      frozen={!playing}
       onToggleLeft={() => setVoiceOn((v) => !v)}
       onToggleRight={() => setMicOn((m) => !m)}
     />

@@ -137,6 +137,9 @@ interface OrbProps {
   overlayIcons?: { left: ReactNode; right: ReactNode };
   /** Drop the drop-shadow (flat in the bar). */
   flat?: boolean;
+  /** Static: draw one settled frame and stop (no animation loop). Cheap to render
+   *  many at once, so the builder's docked orbs stay fluid while scrolling. */
+  frozen?: boolean;
 }
 
 export function Orb({
@@ -153,6 +156,7 @@ export function Orb({
   idleIcons,
   overlayIcons,
   flat,
+  frozen,
 }: OrbProps) {
   const orbRef = useRef<HTMLDivElement>(null);
   const leftHalfRef = useRef<HTMLDivElement>(null);
@@ -429,11 +433,19 @@ export function Orb({
       drawHalf(leftCv.current, 'left', dt);
       drawHalf(rightCv.current, 'right', dt);
       drawFull(fullCv.current, dt);
-      raf = requestAnimationFrame(frame);
+      if (!frozen) raf = requestAnimationFrame(frame);
     };
-    raf = requestAnimationFrame(frame);
+    if (frozen) {
+      // Static: settle a few frames (advancing time by hand) so the light is spread,
+      // then stop. No rAF loop, so many of these (the builder's docked orbs + palette
+      // previews) stay cheap and scrolling stays fluid.
+      const t0 = performance.now();
+      for (let i = 0; i < 24; i++) frame(t0 + i * 40);
+    } else {
+      raf = requestAnimationFrame(frame);
+    }
     return () => cancelAnimationFrame(raf);
-  }, [micRef]);
+  }, [micRef, frozen]);
 
   const showLeftIcon = overlayIcons
     ? overlayIcons.left
