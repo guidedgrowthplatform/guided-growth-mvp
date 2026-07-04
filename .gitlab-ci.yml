@@ -61,7 +61,7 @@ deploy_qa_preview:
       echo "Deployed: $DEPLOY_URL"
       if [ -z "$DEPLOY_URL" ]; then echo "no deploy URL parsed; full log:"; cat /tmp/vc.log; exit 1; fi
     - |
-      if [ "$CI_COMMIT_REF_NAME" = "staging" ] || [ "$CI_COMMIT_REF_NAME" = "stable" ]; then
+      if [ "$CI_COMMIT_REF_NAME" = "main" ] || [ "$CI_COMMIT_REF_NAME" = "stable" ]; then
         vercel alias set "$DEPLOY_URL" gg-qa-iota.vercel.app --token "$VERCEL_TOKEN"
         SHOWN_URL="https://gg-qa-iota.vercel.app"
       else
