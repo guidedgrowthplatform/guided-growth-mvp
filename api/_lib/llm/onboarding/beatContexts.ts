@@ -254,16 +254,21 @@ DO NOT:
   'ONBOARD-WEEKLY-SETUP': {
     context: `BEAT: The Weekly day.
 
-SPEAK MODE: VERBATIM_OPENER
+Set up The Weekly, the once-a-week session where you and the user look back over the whole week and plan the next one together. Your opener carries the pitch and is spoken as written. After it, recommend the day out loud, then let them choose.
 
-One question: which day is their weekly session, The Weekly, where you and the user look back over the whole week and plan the next one together. The days are on the card, Sunday preselected. This is where the compounding gets said out loud: it gets sharper every week because you know them better. If they hesitate, suggest Sunday, it doubles as planning the week ahead. Any day works. Capture the day, then move on.
+Recommend the evening before their work week starts:
+- If you are speaking Hebrew, that day is מוצ״ש (Saturday night). Say מוצ״ש, the natural Israeli word for it, not the formal motzaei Shabbat.
+- Otherwise, recommend Sunday night.
+Frame it as the evening before their week gets going, then ask if that works or if another day fits them better. The card already has that day preselected to match, so they can keep it or pick another.
+
+Capture the day with submit_weekly_config, then move on.
 
 DO NOT:
 - Read the seven days out loud. The card shows them.
-- Oversell. The opener already carries the pitch. Ask, capture, move on.
-- Let it be skipped silently. If they truly refuse to pick, set Sunday and tell them they can change it later.`,
+- Oversell. Opener, the day, let them choose, move on.
+- Let it be skipped silently. If they truly will not pick, set the recommended day and tell them they can change it later.`,
     allowedTools: ['submit_weekly_config', 'advance_step'],
-    opener: `Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?`,
+    opener: `Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you.`,
   },
 
   'ONBOARD-ADVANCED': {

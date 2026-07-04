@@ -45,6 +45,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useWeekData } from '@/hooks/useWeekData';
 import { unlockTTS } from '@/lib/services/tts-service';
+import { recommendedWeeklyDay } from '@/utils/weeklyDay';
 import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
 import {
   FLOW_CATEGORIES,
@@ -1178,11 +1179,13 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
 
 /* --------------------------------------------------------- weekly day picker */
 
-// The Weekly day-setup beat: a single-select 7-day card. Sunday preselected
-// (day=0), matching submit_weekly_config's suggested default. Visual style
-// mirrors the DayPicker pill circles used on the reflection/morning-checkin
-// schedule cards, but single-select with full day names underneath for clarity
-// (this pick only happens once, unlike the multi-select weekly schedule days).
+// The Weekly day-setup beat: a single-select 7-day card. The recommended day is
+// preselected by timezone (Sunday night for Monday-start regions, Saturday night
+// for Israel and other Sunday-start weeks), matching the day the coach recommends
+// out loud. Visual style mirrors the DayPicker pill circles used on the
+// reflection/morning-checkin schedule cards, but single-select with full day names
+// underneath for clarity (this pick only happens once, unlike the multi-select
+// weekly schedule days).
 const WEEKLY_DAY_OPTIONS: { day: number; short: string; full: string }[] = [
   { day: 0, short: 'S', full: 'Sunday' },
   { day: 1, short: 'M', full: 'Monday' },
@@ -1196,7 +1199,7 @@ const WEEKLY_DAY_OPTIONS: { day: number; short: string; full: string }[] = [
 function WeeklyDayPickerAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const [day, setDay] = useState<number>(() => {
     const saved = (answers as Record<string, unknown>).weeklyConfig as { day?: number } | undefined;
-    return typeof saved?.day === 'number' ? saved.day : 0;
+    return typeof saved?.day === 'number' ? saved.day : recommendedWeeklyDay();
   });
   const voiceFilledRef = useRef(false);
   const submittedRef = useRef(false);

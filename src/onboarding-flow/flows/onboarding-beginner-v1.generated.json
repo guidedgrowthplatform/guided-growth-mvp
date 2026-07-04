@@ -619,7 +619,7 @@
       "componentType": "weekly-day-picker",
       "componentProps": {},
       "voice": {
-        "openerText": "Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?",
+        "openerText": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you.",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -630,7 +630,7 @@
           "lines": [
             {
               "id": "onboard-weekly-setup-line-1",
-              "text": "Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?",
+              "text": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you.",
               "voiceOnly": false,
               "onScreen": true,
               "engine": "cartesia"
