@@ -7,13 +7,19 @@ const pool = (await import('../../../db.js')).default as {
   connect: ReturnType<typeof vi.fn>;
 };
 
-const { MAX_HABITS } = await import('../schemas.js');
+const { MAX_HABITS, MAX_HABITS_ADVANCED } = await import('../schemas.js');
 
 // addHabit runs inside pool.connect() — fake client routes by SQL shape.
-function habitClient(opts: { hc?: Record<string, unknown> | null; upsert?: unknown }) {
+// `path` is read alongside habitConfigs and drives the lane-aware cap
+// (undefined path → beginner, the stricter cap).
+function habitClient(opts: {
+  hc?: Record<string, unknown> | null;
+  upsert?: unknown;
+  path?: string | null;
+}) {
   const query = vi.fn(async (sql: string) => {
     if (/SELECT data->'habitConfigs'/.test(sql)) {
-      return { rowCount: 1, rows: [{ hc: opts.hc ?? {} }] };
+      return { rowCount: 1, rows: [{ hc: opts.hc ?? {}, path: opts.path ?? null }] };
     }
     if (/INSERT INTO onboarding_states/.test(sql)) {
       return { rowCount: 1, rows: [opts.upsert ?? { data: {}, current_step: 5 }] };
@@ -446,6 +452,62 @@ describe('add_habit', () => {
     const sqls = client.query.mock.calls.map((c) => c[0] as string);
     expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(false);
     expect(sqls.some((s) => /ROLLBACK/.test(s))).toBe(true);
+  });
+
+  // ─── Lane-aware cap (ledger ruling B37: "there is no limit in advanced") ──
+  describe('lane-aware habit cap (B37)', () => {
+    it('beginner path (simple): the third habit is still rejected at cap 2', async () => {
+      const client = habitClient({ hc: atCap, path: 'simple' });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(CTX, { ...validHabit, name: 'ThirdHabit' });
+      expect(r).toEqual({
+        ok: false,
+        error: 'handler_error',
+        message: 'max_habits_reached',
+      });
+      const sqls = client.query.mock.calls.map((c) => c[0] as string);
+      expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(false);
+      expect(sqls.some((s) => /ROLLBACK/.test(s))).toBe(true);
+    });
+
+    it('advanced path (braindump): the third habit is accepted, not dropped', async () => {
+      const client = habitClient({ hc: atCap, path: 'braindump' });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(CTX, { ...validHabit, name: 'ThirdHabit' });
+      expect(r.ok).toBe(true);
+      const sqls = client.query.mock.calls.map((c) => c[0] as string);
+      expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(true);
+      expect(sqls.some((s) => /ROLLBACK/.test(s))).toBe(false);
+    });
+
+    it('advanced path: accepts habits well past the beginner cap', async () => {
+      const tenExisting = Object.fromEntries(
+        Array.from({ length: 10 }, (_, i) => [`Existing${i}`, {}]),
+      );
+      const client = habitClient({ hc: tenExisting, path: 'braindump' });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(CTX, { ...validHabit, name: 'EleventhHabit' });
+      expect(r.ok).toBe(true);
+      const sqls = client.query.mock.calls.map((c) => c[0] as string);
+      expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(true);
+    });
+
+    it('advanced path: only the safety ceiling stops it, and it SAYS so (non-silent)', async () => {
+      const atCeiling = Object.fromEntries(
+        Array.from({ length: MAX_HABITS_ADVANCED }, (_, i) => [`Existing${i}`, {}]),
+      );
+      const client = habitClient({ hc: atCeiling, path: 'braindump' });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(CTX, { ...validHabit, name: 'OverTheCeiling' });
+      expect(r).toEqual({
+        ok: false,
+        error: 'handler_error',
+        message: 'max_habits_capacity',
+      });
+      const sqls = client.query.mock.calls.map((c) => c[0] as string);
+      expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(false);
+      expect(sqls.some((s) => /ROLLBACK/.test(s))).toBe(true);
+    });
   });
 
   it('allows edit when at cap (existing name)', async () => {
