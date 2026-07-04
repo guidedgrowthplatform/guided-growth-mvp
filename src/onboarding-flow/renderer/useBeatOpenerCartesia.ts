@@ -11,8 +11,8 @@
  * Same state shape as useBeatOpenerMp3 so BeatView can treat both uniformly.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
 import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
+import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
 import type { BeatOpenerMp3State } from './useBeatOpenerMp3';
 
 // ~310ms/word spoken-cadence estimate, used only when the audio element can't
@@ -84,5 +84,7 @@ export function useBeatOpenerCartesia(text: string | null, active: boolean): Bea
     if (!active) stop();
   }, [active, stop]);
 
-  return { playing, progress, done, stop };
+  // Cartesia streams TTS in an authed context; the B28 autoplay-hold affordance
+  // is MP3-clip territory, so these stay inert here (shape parity only).
+  return { playing, progress, done, blocked: false, textFallback: false, stop };
 }
