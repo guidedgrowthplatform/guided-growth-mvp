@@ -55,6 +55,13 @@ describe('ONBOARDING_TOOL_ADDENDUM', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/begin the NEXT screen's task|start the next one/i);
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/overrides the BEHAVIOR block/i);
   });
+
+  it('recites the options on a direct ask but keeps the unprompted default', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/READ OPTIONS ON REQUEST/);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/Do not recite the on-screen options unprompted/i);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/DIRECTLY asks to hear them/i);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/read them to me/i);
+  });
 });
 
 describe('goal taxonomy drift guard', () => {
