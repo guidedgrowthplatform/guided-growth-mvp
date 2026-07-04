@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
+import { IconChatText, IconMicMuted } from '@/components/icons';
 import { Orb, type OrbStateSel, type OrbTalkStyle } from '@/components/orb/Orb';
 import { loadParams, loadPulse } from './orb/orbPresets';
 import { useIsPlaying } from './beatKit';
@@ -41,7 +41,8 @@ export function BeatOrb({
   bloomed = false,
   hidden = false,
   talking = null,
-}: { size?: number } & OrbConfig) {
+  live = false,
+}: { size?: number; live?: boolean } & OrbConfig) {
   const [voiceOn, setVoiceOn] = useState(voiceOn0);
   const [micOn, setMicOn] = useState(micAsking ? false : micOn0);
   // The look you tuned in the Orb builder (autosaved), read live. Falls back to the
@@ -67,13 +68,14 @@ export function BeatOrb({
       pulse={pulse}
       leftOn={voiceOn}
       rightOn={micOn}
-      frozen={!playing}
+      frozen={live ? false : !playing}
       onToggleLeft={() => setVoiceOn((v) => !v)}
       onToggleRight={() => setMicOn((m) => !m)}
       idleIcons={{
-        leftOn: <IconChatVoice size={glyph} />,
+        // Icons only on the passive (off) side. Active stays clean.
+        leftOn: null,
         leftOff: <IconChatText size={glyph} />,
-        rightOn: <IconMic size={glyph} />,
+        rightOn: null,
         rightOff: <IconMicMuted size={glyph} />,
       }}
     />

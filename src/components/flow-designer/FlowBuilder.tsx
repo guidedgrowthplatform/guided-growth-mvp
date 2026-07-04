@@ -3432,7 +3432,17 @@ export function FlowBuilder() {
 
         {/* Right bucket: the flow */}
         <div className="flex flex-1 flex-col items-start gap-3">
-          {modeBar}
+          <div className="flex items-center gap-4">
+            {modeBar}
+            {/* A standalone always-live, interactive orb so you can see + click it
+                without entering Play. Same canonical orb, animated. */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
+                Live orb
+              </span>
+              <BeatOrb size={44} live />
+            </div>
+          </div>
           <div className="flex w-[400px] max-w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
             <Icon icon="ic:round-person" className="size-4 text-primary" />
             <span className="text-[11px] font-bold uppercase tracking-wide text-content-tertiary">
