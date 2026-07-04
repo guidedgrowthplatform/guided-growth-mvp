@@ -49,6 +49,7 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { DualButton } from '@/components/ui/DualButton';
 import { BeatOrb, orbConfigForType, type OrbConfig } from './BeatOrb';
+import { LiveOrbScreen } from './LiveOrbScreen';
 import { clipsForStage } from './beatAudio';
 import { BEAT_METADATA, type BeatContextMeta } from './beatMetadata';
 import { Toggle } from '@/components/ui/Toggle';
@@ -3436,13 +3437,14 @@ export function FlowBuilder() {
             {modeBar}
             {/* A standalone always-live, interactive orb so you can see + click it
                 without entering Play. Same canonical orb, animated. */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
                 Live orb
               </span>
-              <BeatOrb size={44} live />
+              <BeatOrb size={130} live />
             </div>
           </div>
+          <LiveOrbScreen />
           <div className="flex w-[400px] max-w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
             <Icon icon="ic:round-person" className="size-4 text-primary" />
             <span className="text-[11px] font-bold uppercase tracking-wide text-content-tertiary">

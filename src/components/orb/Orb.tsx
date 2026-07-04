@@ -524,8 +524,8 @@ const ORB_CSS = `
 .ot-glass{position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:var(--glass);backdrop-filter:blur(var(--blur,0px));-webkit-backdrop-filter:blur(var(--blur,0px));background:radial-gradient(120% 95% at 50% 16%, rgba(255,255,255,.6), rgba(255,255,255,.16) 46%, rgba(255,255,255,0) 72%)}
 .ot-spec{position:absolute;left:27%;top:15%;width:32%;height:24%;border-radius:50%;pointer-events:none;opacity:var(--hi,.4);background:radial-gradient(circle, rgba(255,255,255,.92), rgba(255,255,255,0) 70%);mix-blend-mode:screen}
 .ot-ico{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:4;color:rgba(40,52,78,.82);pointer-events:none;filter:drop-shadow(0 1px 1px rgba(255,255,255,.55))}
-.ot-left .ot-ico{transform:translateX(calc(var(--D) * -0.055))}
-.ot-right .ot-ico{transform:translateX(calc(var(--D) * 0.055))}
+.ot-left .ot-ico{transform:translateX(calc(var(--D) * 0.055))}
+.ot-right .ot-ico{transform:translateX(calc(var(--D) * -0.055))}
 /* Off (passive) half: flat, fully opaque grey like the original button. Hide the
    glassy canvas + sheen so it reads solid, white icon on top. */
 .ot-half.ot-off{background:#94a3b8}
