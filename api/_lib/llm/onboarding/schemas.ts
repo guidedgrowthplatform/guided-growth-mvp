@@ -14,6 +14,7 @@ export type OnboardingToolName =
   | 'submit_morning_checkin'
   | 'record_checkin'
   | 'submit_reflection_config'
+  | 'submit_weekly_config'
   | 'submit_custom_prompts'
   | 'submit_brain_dump'
   | 'advance_step'
@@ -324,6 +325,22 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
         },
       },
       required: ['time', 'days', 'reminder', 'schedule'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'submit_weekly_config',
+    description:
+      "Persist the user's chosen day for The Weekly (their weekly coaching session) on ONBOARD-WEEKLY-SETUP. Call the moment the user names a day — map weekday words to 0-6 (0=Sunday, 1=Monday, ... 6=Saturday). Sunday is the suggested default: if the user hesitates or defers, suggest Sunday and set day=0 once they agree (or after telling them explicitly you are picking Sunday for them).",
+    parameters: {
+      type: 'object',
+      properties: {
+        day: {
+          type: 'number',
+          description: 'Day of week for The Weekly, 0-6 int, 0=Sunday.',
+        },
+      },
+      required: ['day'],
       additionalProperties: false,
     },
   },

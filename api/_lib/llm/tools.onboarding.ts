@@ -25,6 +25,7 @@ export type OnboardingToolName =
   | 'remove_habit'
   | 'update_habit'
   | 'submit_reflection_config'
+  | 'submit_weekly_config'
   | 'submit_morning_checkin'
   | 'record_checkin'
   | 'submit_custom_prompts'
@@ -398,6 +399,28 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
         },
       },
       required: ['time', 'days', 'reminder', 'schedule'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'submit_weekly_config',
+    screen: 'ONBOARD-WEEKLY-SETUP',
+    nonBlocking: true,
+    description:
+      "Save the user's chosen day for The Weekly (their weekly coaching session). DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, chained in the SAME turn — the saved data IS the confirmation, so never wait for the user to say they are ready. AUTO-CALL IMMEDIATELY the moment the user names a day. Map weekday words to 0-6 (0=Sunday, 1=Monday, ... 6=Saturday). Sunday is the suggested default: if the user hesitates or defers, tell them you are picking Sunday and call with day=0. Do not ask for permission — just call.",
+    messages: {
+      requestStart: '',
+      requestFailed: '',
+    },
+    parameters: {
+      type: 'object',
+      properties: {
+        day: {
+          type: 'number',
+          description: 'Day of week for The Weekly, 0-6 int, 0=Sunday.',
+        },
+      },
+      required: ['day'],
       additionalProperties: false,
     },
   },

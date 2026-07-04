@@ -31,6 +31,7 @@ const { addHabit } = await import('../handlers/addHabit.js');
 const { removeHabit } = await import('../handlers/removeHabit.js');
 const { updateHabit } = await import('../handlers/updateHabit.js');
 const { submitReflectionConfig } = await import('../handlers/submitReflectionConfig.js');
+const { submitWeeklyConfig } = await import('../handlers/submitWeeklyConfig.js');
 const { submitBrainDump } = await import('../handlers/submitBrainDump.js');
 const { advanceStep } = await import('../handlers/advanceStep.js');
 const { confirmPlan } = await import('../handlers/confirmPlan.js');
@@ -697,6 +698,52 @@ describe('submit_reflection_config', () => {
     const payload = JSON.parse(params[1] as string);
     expect(payload.reflectionConfig.schedule).toBe('Weekday'); // no preset match → keep LLM label
     expect(payload.reflectionConfig.days).toEqual([1, 3, 5]);
+  });
+});
+
+// ─── submit_weekly_config ────────────────────────────────────────────
+
+describe('submit_weekly_config', () => {
+  it('rejects missing day', async () => {
+    const r = await submitWeeklyConfig(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects day out of range', async () => {
+    const r = await submitWeeklyConfig(CTX, { day: 7 });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects a negative day', async () => {
+    const r = await submitWeeklyConfig(CTX, { day: -1 });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects a non-integer day', async () => {
+    const r = await submitWeeklyConfig(CTX, { day: 2.5 });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('accepts Sunday (day=0), GREATEST-bumps current_step to the V3 weekly-day step (9)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { weeklyConfig: { day: 0 } }, current_step: 9 }],
+    });
+    const r = await submitWeeklyConfig(CTX, { day: 0 });
+    expect(r.ok).toBe(true);
+    const [sql, params] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/current_step = GREATEST\(onboarding_states.current_step, 9\)/);
+    expect(sql).toMatch(/VALUES \(\$1, 9,/);
+    expect(JSON.parse(params[1] as string)).toEqual({ weeklyConfig: { day: 0 } });
+  });
+
+  it('accepts a mid-week day (day=3)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { weeklyConfig: { day: 3 } }, current_step: 9 }],
+    });
+    const r = await submitWeeklyConfig(CTX, { day: 3 });
+    expect(r).toMatchObject({ ok: true, result: { weeklyConfig: { day: 3 } } });
   });
 });
 

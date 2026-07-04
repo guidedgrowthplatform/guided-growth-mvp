@@ -20,7 +20,12 @@ interface SettingsRow {
   schedule_days: unknown;
   reminder_enabled: boolean;
   schedule_label: string | null;
+  weekly_day: number | null;
 }
+
+// Default when weekly_day is absent (never onboarded / column not yet set): 0
+// (Sunday), matching the beat's suggested default.
+const DEFAULT_WEEKLY_DAY = 0;
 
 export const DEFAULT_REFLECTION_SETTINGS: ReflectionSettings = {
   mode: 'prompts',
@@ -29,6 +34,7 @@ export const DEFAULT_REFLECTION_SETTINGS: ReflectionSettings = {
   days: [],
   reminder: true,
   schedule: null,
+  weeklyDay: DEFAULT_WEEKLY_DAY,
 };
 
 function mapRow(row: SettingsRow): ReflectionSettings {
@@ -39,6 +45,7 @@ function mapRow(row: SettingsRow): ReflectionSettings {
     days: Array.isArray(row.schedule_days) ? (row.schedule_days as number[]) : [],
     reminder: Boolean(row.reminder_enabled),
     schedule: row.schedule_label ?? null,
+    weeklyDay: Number.isInteger(row.weekly_day) ? (row.weekly_day as number) : DEFAULT_WEEKLY_DAY,
   };
 }
 
@@ -60,7 +67,7 @@ export function sanitizeDays(input: unknown): number[] {
 
 export async function readReflectionSettings(anonId: string): Promise<ReflectionSettings> {
   const result = await pool.query(
-    `SELECT mode, prompts, reminder_time, schedule_days, reminder_enabled, schedule_label
+    `SELECT mode, prompts, reminder_time, schedule_days, reminder_enabled, schedule_label, weekly_day
      FROM reflection_settings WHERE anon_id = $1`,
     [anonId],
   );
@@ -75,8 +82,8 @@ export async function upsertReflectionSettings(
 ): Promise<ReflectionSettings> {
   const result = await executor.query(
     `INSERT INTO reflection_settings
-       (anon_id, mode, prompts, reminder_time, schedule_days, reminder_enabled, schedule_label, updated_at)
-     VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, now())
+       (anon_id, mode, prompts, reminder_time, schedule_days, reminder_enabled, schedule_label, weekly_day, updated_at)
+     VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, now())
      ON CONFLICT (anon_id) DO UPDATE SET
        mode = EXCLUDED.mode,
        prompts = EXCLUDED.prompts,
@@ -84,8 +91,9 @@ export async function upsertReflectionSettings(
        schedule_days = EXCLUDED.schedule_days,
        reminder_enabled = EXCLUDED.reminder_enabled,
        schedule_label = EXCLUDED.schedule_label,
+       weekly_day = EXCLUDED.weekly_day,
        updated_at = now()
-     RETURNING mode, prompts, reminder_time, schedule_days, reminder_enabled, schedule_label`,
+     RETURNING mode, prompts, reminder_time, schedule_days, reminder_enabled, schedule_label, weekly_day`,
     [
       anonId,
       settings.mode,
@@ -94,6 +102,7 @@ export async function upsertReflectionSettings(
       JSON.stringify(settings.days),
       settings.reminder,
       settings.schedule,
+      settings.weeklyDay,
     ],
   );
   return mapRow(result.rows[0] as SettingsRow);
