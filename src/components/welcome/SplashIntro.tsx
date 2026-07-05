@@ -3,7 +3,6 @@ import { Orb, type OrbMic } from '@/components/orb/Orb';
 import { orbIdle, orbSpeaking as orbSpeakingProps } from '@/components/orb/orbView';
 import { CoachIntroBubble } from '@/components/welcome/CoachIntroBubble';
 import { SPLASH_CAPTIONS } from '@/components/welcome/splashCaptions';
-import { VoiceCone } from '@/components/welcome/VoiceCone';
 
 // Phase durations (ms)
 const PHASE_SPLASH_HOLD = 1200;
@@ -416,27 +415,23 @@ export function SplashIntro({
           travels down + shrinks to its resting pose at the bottom. */}
       {showOrb && (
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          <VoiceCone
-            active={orbSpeaking}
-            intensity={intensity}
-            orbRadius={ORB_SIZE / 2}
-            originYRatio={SPEAK_TOP_RATIO}
-          />
-
           <div
             style={{
               position: 'absolute',
               left: '50%',
               top: orbSettled ? ORB_REST_TOP : SPEAK_TOP,
               transform: `translate(-50%, -50%) scale(${orbSettled ? ORB_REST_SCALE : 1})`,
+              // At the end the orb goes down and fades out, so the next screen
+              // (create account) carries no orb.
+              opacity: phase === 'ready' || phase === 'done' ? 0 : 1,
               transition: prefersReducedMotion
                 ? 'none'
-                : `top ${PHASE_ORB_SETTLE}ms cubic-bezier(0.32,0.02,0.18,1), transform ${PHASE_ORB_SETTLE}ms cubic-bezier(0.32,0.02,0.18,1)`,
+                : `top ${PHASE_ORB_SETTLE}ms cubic-bezier(0.32,0.02,0.18,1), transform ${PHASE_ORB_SETTLE}ms cubic-bezier(0.32,0.02,0.18,1), opacity 420ms ease-out`,
               animation: prefersReducedMotion ? 'none' : 'splash-intro-orb-in 450ms ease-out both',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              willChange: 'top, transform',
+              willChange: 'top, transform, opacity',
             }}
           >
             {/* Orb group: canonical Orb, full blue circle while the coach speaks
@@ -472,7 +467,7 @@ export function SplashIntro({
               {orbSpeaking ? (
                 <Orb {...orbSpeakingProps(ORB_SIZE, 'coach', { mic: orbAmp })} />
               ) : (
-                <Orb {...orbIdle(ORB_SIZE, true, false)} />
+                <Orb {...orbIdle(ORB_SIZE, true, true)} />
               )}
             </div>
           </div>
