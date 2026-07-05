@@ -225,8 +225,9 @@ export function Orb({
       const ocx = side === 'left' ? W + gp / 2 : -gp / 2;
       const ocy = CH / 2;
       const R = CH / 2;
-      // Lift the bright light's center up a touch so it reads centered, not low.
-      const lcy = ocy - R * 0.15;
+      // Lift the light center up so it reads centered, not low (tuned via headless
+      // screenshots: 0.15 sat low, 0.40 sat high, 0.28 centers it).
+      const lcy = ocy - R * 0.28;
       const cpulse = 0.92 + 0.08 * Math.sin(time * 0.9);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, W, CH);
@@ -313,7 +314,7 @@ export function Orb({
       const cy = W / 2;
       const R = W / 2;
       // Lift the bright light's center up a touch so it reads centered, not low.
-      const lcy = cy - R * 0.15;
+      const lcy = cy - R * 0.28;
       const cpulse = 0.9 + 0.1 * Math.sin(time * 0.9);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, W, W);
