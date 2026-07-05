@@ -3,7 +3,8 @@
  * Fetches issue stats, milestone progress, assignee workload, etc.
  */
 
-const GITLAB_API = 'https://gitlab.com/api/v4';
+// self-hosted; override via GITLAB_API_BASE
+const GITLAB_API = process.env.GITLAB_API_BASE ?? 'https://gitlab.guidedgrowthapp.com/api/v4';
 
 function getConfig() {
   const token = process.env.GITLAB_TOKEN;
