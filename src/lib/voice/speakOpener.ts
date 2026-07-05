@@ -12,14 +12,28 @@
  * queue: that queue is owned by the Direct-LLM / coach-chat path and gated by
  * isVoiceOutEnabled(). The opener is a single one-shot line that must play even
  * when the standalone voice-out gate is off (Vapi owns the turn, so speakReplies
- * is false). It hits the same /api/cartesia-tts endpoint, which already defaults
- * to the aligned Pro Voice Clone V1 voice on sonic-3.5, matching Vapi exactly.
+ * is false). Synthesis goes to /api/cartesia-tts-sse (add_timestamps, so the
+ * karaoke can reveal on real word onsets), WAV-wrapped and played through a
+ * plain HTMLAudioElement — NOT the coach chat's WebAudio pipeline, which has no
+ * autoplay-hold affordance. Falls back to /api/cartesia-tts (MP3 blob, no
+ * timestamps). Both default to the aligned Pro Voice Clone V1 voice on
+ * sonic-3.5, matching Vapi exactly.
  */
 import { Capacitor } from '@capacitor/core';
 import { COACH_VOICE_ID } from '@/config/voiceConfig';
 import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
+import { float32ToWavBlob } from '@/lib/audio/float32ToWavBlob';
+import { parseSse } from '@/lib/services/cartesiaVoice';
 import { sessionReady, supabase } from '@/lib/supabase';
 import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
+import {
+  countDisplayWords,
+  onsetsForDisplayWords,
+  revealCountAtTime,
+} from '@/lib/voice/openerWordTimeline';
+
+// Must match api/cartesia-tts-sse.ts SAMPLE_RATE (raw pcm_s16le).
+const SSE_SAMPLE_RATE = 24000;
 
 function getApiBase(): string {
   if (Capacitor.isNativePlatform()) {
@@ -89,6 +103,10 @@ export interface SpeakOpenerOptions {
   onElement?: (el: HTMLAudioElement) => void;
   /** Playback actually started (after any gesture wait). */
   onPlaying?: () => void;
+  /** Word-accurate reveal: display words spoken so far, from real Cartesia
+   * timestamps against the audio clock. Never fires on the legacy fallback
+   * path (no timestamps there) — callers keep progress-based reveal for that. */
+  onRevealWords?: (count: number) => void;
 }
 
 export function speakOpener(
@@ -145,26 +163,63 @@ export function speakOpener(
       const authHeaders = await getAuthHeaders();
       if (abort.signal.aborted) return settle();
       // Latency lane T1: TTS request -> first audible audio. Measurement only.
+      // Wraps the SSE attempt plus its legacy fallback, since either path can
+      // be the one that actually produces audio.
       const ttsRequestedAt = performance.now();
-      const res = await fetch(`${getApiBase()}/api/cartesia-tts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({
-          text: clean,
-          voice_id: COACH_VOICE_ID,
-          ...(Capacitor.isNativePlatform() ? { format: 'base64' } : {}),
-        }),
-        signal: abort.signal,
-      });
-      if (abort.signal.aborted) return settle();
-      if (!res.ok) {
-        console.warn('[opener] Cartesia opener error:', res.status);
-        return settle();
+
+      // SSE endpoint first: same voice/model, plus per-word timestamps so the
+      // karaoke reveals on real word onsets. WAV-wrapping the PCM keeps
+      // playback on the same HTMLAudioElement path as before (autoplay hold,
+      // gesture fallback, B28 affordances all unchanged) — and blob-WAV
+      // reports a finite duration, unlike blob-MP3 (Chrome Infinity bug).
+      let blob: Blob | null = null;
+      let onsets: number[] | null = null;
+      try {
+        const sseRes = await fetch(`${getApiBase()}/api/cartesia-tts-sse`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({ text: clean, voice_id: COACH_VOICE_ID }),
+          signal: abort.signal,
+        });
+        if (abort.signal.aborted) return settle();
+        if (sseRes.ok) {
+          const decoded = parseSse(await sseRes.text());
+          if (decoded && decoded.samples.length > 0) {
+            blob = float32ToWavBlob(decoded.samples, SSE_SAMPLE_RATE);
+            if (decoded.starts.length > 0) {
+              onsets = onsetsForDisplayWords(decoded.starts, countDisplayWords(clean));
+            }
+          }
+        } else {
+          console.warn('[opener] Cartesia SSE opener error, falling back:', sseRes.status);
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return settle();
+        console.warn('[opener] Cartesia SSE opener failed, falling back:', err);
       }
-      const blob = Capacitor.isNativePlatform()
-        ? base64ToBlob(((await res.json()) as { audio: string }).audio, 'audio/mpeg')
-        : await res.blob();
       if (abort.signal.aborted) return settle();
+
+      if (!blob) {
+        const res = await fetch(`${getApiBase()}/api/cartesia-tts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({
+            text: clean,
+            voice_id: COACH_VOICE_ID,
+            ...(Capacitor.isNativePlatform() ? { format: 'base64' } : {}),
+          }),
+          signal: abort.signal,
+        });
+        if (abort.signal.aborted) return settle();
+        if (!res.ok) {
+          console.warn('[opener] Cartesia opener error:', res.status);
+          return settle();
+        }
+        blob = Capacitor.isNativePlatform()
+          ? base64ToBlob(((await res.json()) as { audio: string }).audio, 'audio/mpeg')
+          : await res.blob();
+        if (abort.signal.aborted) return settle();
+      }
 
       const url = URL.createObjectURL(blob);
       const el = new Audio(url);
@@ -172,8 +227,10 @@ export function speakOpener(
       audio = el;
       opts?.onElement?.(el);
       const cleanupUrl = () => URL.revokeObjectURL(url);
+      const onRevealWords = opts?.onRevealWords;
       el.onended = () => {
         stopProgress();
+        if (onsets) onRevealWords?.(onsets.length);
         onProgress?.(1);
         cleanupUrl();
         settle();
@@ -182,16 +239,24 @@ export function speakOpener(
         cleanupUrl();
         settle();
       };
-      if (onProgress) {
+      if (onProgress || (onRevealWords && onsets)) {
         const tick = () => {
           if (settled || !audio) return;
-          const d = audio.duration;
-          if (d && Number.isFinite(d) && d > 0) {
-            onProgress(Math.min(1, audio.currentTime / d));
-          } else if (estimatedDurationMs && estimatedDurationMs > 0 && audio.currentTime > 0) {
-            // duration unknown (blob-MP3 Infinity bug): estimate from elapsed time,
-            // capped below 1 so the line completes only on the real audio end.
-            onProgress(Math.min(0.97, (audio.currentTime * 1000) / estimatedDurationMs));
+          // Word-accurate reveal, only while actually playing (a paused/held
+          // element sits at currentTime 0 where onset[0] may already match —
+          // emitting there would leak a word through the B4 armed-at-zero pin).
+          if (onsets && onRevealWords && !audio.paused) {
+            onRevealWords(revealCountAtTime(onsets, audio.currentTime));
+          }
+          if (onProgress) {
+            const d = audio.duration;
+            if (d && Number.isFinite(d) && d > 0) {
+              onProgress(Math.min(1, audio.currentTime / d));
+            } else if (estimatedDurationMs && estimatedDurationMs > 0 && audio.currentTime > 0) {
+              // duration unknown (blob-MP3 Infinity bug): estimate from elapsed time,
+              // capped below 1 so the line completes only on the real audio end.
+              onProgress(Math.min(0.97, (audio.currentTime * 1000) / estimatedDurationMs));
+            }
           }
           raf = requestAnimationFrame(tick);
         };

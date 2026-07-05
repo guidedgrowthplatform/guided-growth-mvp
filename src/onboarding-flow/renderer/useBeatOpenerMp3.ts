@@ -34,12 +34,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
 import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
+import { onsetsForDisplayWords, revealCountAtTime } from '@/lib/voice/openerWordTimeline';
 import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
 import {
   classifyOpenerPlayFailure,
   createActivationTracker,
   type OpenerActivationTracker,
 } from './openerActivation';
+import { openerCaptionOnsets } from './openerCaptions';
 import { claimPreloadedClip } from './openerPreloadPool';
 
 // How many times a live activation re-arms play() after an AbortError (the
@@ -101,6 +103,13 @@ export interface BeatOpenerMp3State {
    * null until the audio starts (so the caller can gate karaoke on it).
    */
   progress: number | null;
+  /**
+   * Word-accurate reveal count (display words spoken so far), from a real
+   * word-onset timeline (Cartesia SSE timestamps or precomputed captions).
+   * null when no timeline exists or playback isn't live — callers fall back
+   * to the progress fraction. Takes precedence over progress when set.
+   */
+  revealWords: number | null;
   /** Autoplay-rejected and holding for the next user gesture (B28 affordance). */
   blocked: boolean;
   /** Held past OPENER_TEXT_FALLBACK_MS: reveal text without audio (B28). */
@@ -113,13 +122,28 @@ export interface BeatOpenerMp3State {
  * When `active` is true and an MP3 source is present, plays it on mount and
  * tracks playback progress. Stops and resets on deactivation or source change.
  * No-op when src is null.
+ *
+ * `displayWordCount` (the opener text's word count) enables word-accurate
+ * reveal for clips with precomputed captions (openerCaptions.ts). Clips
+ * without captions keep the progress-fraction reveal.
  */
-export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpenerMp3State {
+export function useBeatOpenerMp3(
+  src: string | null,
+  active: boolean,
+  displayWordCount = 0,
+): BeatOpenerMp3State {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
+  const [revealWords, setRevealWords] = useState<number | null>(null);
   const [done, setDone] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [textFallback, setTextFallback] = useState(false);
+
+  // Ref, not an effect dep: the count derives from the beat's opener text and
+  // only meaningfully changes when src does — re-firing the clip on it would
+  // restart audio for a render-order artifact.
+  const displayWordCountRef = useRef(displayWordCount);
+  displayWordCountRef.current = displayWordCount;
 
   // One tracker per hook instance; each effect run begins its own activation.
   // React can run the effect twice for one logical activation (strict-mode
@@ -146,9 +170,18 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
     // Reset for this activation.
     setPlaying(false);
     setProgress(null);
+    setRevealWords(null);
     setDone(false);
     setBlocked(false);
     setTextFallback(false);
+
+    // Word-onset timeline for clips with precomputed captions (second timing
+    // source; live TTS beats get theirs from Cartesia SSE timestamps).
+    const spokenOnsets = openerCaptionOnsets(src);
+    const wordOnsets =
+      spokenOnsets && displayWordCountRef.current > 0
+        ? onsetsForDisplayWords(spokenOnsets, displayWordCountRef.current)
+        : null;
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
     const clearFallbackTimer = () => {
       if (fallbackTimer !== null) {
@@ -218,6 +251,8 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
       }
       pooled?.release();
       setPlaying(false);
+      // null (not a stale mid-clip count) so the progress:1 full reveal wins.
+      setRevealWords(null);
       setProgress(1);
       setDone(true);
     };
@@ -235,6 +270,12 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
     const startProgressLoop = () => {
       const tick = () => {
         if (activation.isSettled()) return;
+        // Word-accurate reveal when a captions timeline exists. Paused guard:
+        // an externally-paused shared element sits at a stale currentTime and
+        // must not keep emitting counts.
+        if (wordOnsets && !el.paused) {
+          setRevealWords(revealCountAtTime(wordOnsets, el.currentTime));
+        }
         const d = el.duration;
         if (d && Number.isFinite(d) && d > 0) {
           setProgress(Math.min(1, el.currentTime / d));
@@ -341,5 +382,5 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
     }
   }, [active, stop]);
 
-  return { playing, progress, done, blocked, textFallback, stop };
+  return { playing, progress, revealWords, done, blocked, textFallback, stop };
 }
