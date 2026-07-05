@@ -911,7 +911,7 @@
           "backId": "path-fork",
           "persistStep": 3,
           "pathField": false,
-          "captureFields": ["brainDumpText"],
+          "captureFields": ["brainDumpText", "brainDumpHabits"],
           "toolName": "submit_brain_dump",
           "toolAdvancesStep": true,
           "toolPersistsFields": ["brainDumpText"]

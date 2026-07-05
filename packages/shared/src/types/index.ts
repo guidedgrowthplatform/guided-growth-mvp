@@ -274,8 +274,14 @@ export interface OnboardingStepData {
   } | null;
   reflectionMode?: ReflectionMode | null;
   brainDumpText?: string | null;
-  // Persisted LLM parse so advanced-results can rehydrate on lost router state (no regex re-invent).
-  brainDumpHabits?: Array<{ name: string; days?: number[]; time?: string }> | null;
+  // Live-skimmer card state at capture (advanced-capture beat) — lets the replay
+  // render real cards, not raw text (B26). Polarity = the Build/Break chip.
+  brainDumpHabits?: Array<{
+    name: string;
+    days?: number[];
+    time?: string;
+    polarity?: 'positive' | 'negative';
+  }> | null;
   brainDumpParseSource?: 'llm' | 'regex_fallback' | null;
   customPrompts?: string[] | null;
   advancedHabitConfigs?: Record<

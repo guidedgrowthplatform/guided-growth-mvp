@@ -45,3 +45,17 @@ describe('serverCaptureForBeat parity with persistsFields', () => {
     });
   }
 });
+
+describe('advanced-capture replay carries the skimmer cards (B26)', () => {
+  it('copies brainDumpHabits alongside brainDumpText', () => {
+    const node = flow.nodes.find((n) => n.componentType === 'advanced-capture')!;
+    const cap = serverCaptureForBeat(node, {
+      ...FULL_DATA,
+      brainDumpHabits: [{ name: 'read before bed', days: [1, 3], polarity: 'positive' }],
+    } as unknown as OnboardingStepData);
+    expect(cap.data.brainDumpText).toBe('a free-text brain dump');
+    expect(cap.data.brainDumpHabits).toEqual([
+      { name: 'read before bed', days: [1, 3], polarity: 'positive' },
+    ]);
+  });
+});

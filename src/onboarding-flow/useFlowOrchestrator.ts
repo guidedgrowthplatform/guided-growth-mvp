@@ -190,6 +190,8 @@ export function serverCaptureForBeat(
     case 'advanced-capture':
       // brain dump is its own componentType now, no longer coach-bubble.
       if (data.brainDumpText != null) out.data.brainDumpText = data.brainDumpText;
+      // Skimmer card state: lets the frozen receipt replay real cards (B26).
+      if (data.brainDumpHabits != null) out.data.brainDumpHabits = data.brainDumpHabits;
       break;
     case 'advanced-frequency':
       // V3: day-picker for braindump habits. Same field as habit-schedule.

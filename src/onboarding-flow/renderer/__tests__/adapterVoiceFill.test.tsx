@@ -117,3 +117,101 @@ describe('ProfileAdapter — voice fill auto-submits onCapture', () => {
     expect(onCapture).not.toHaveBeenCalled();
   });
 });
+
+describe('AdvancedCaptureAdapter — live skimmer capture contract (S2, B26)', () => {
+  const NODE = {
+    id: 'advanced-input',
+    componentType: 'advanced-capture',
+    screenId: 'ONBOARD-ADVANCED',
+    componentProps: {},
+  };
+
+  it('coach submit_brain_dump (fill_field brainDumpText) captures cards, not just raw text', () => {
+    const bus = makeBus();
+    const onCapture = vi.fn();
+    const Adapter = getAdapter('advanced-capture')!;
+    const props = {
+      node: NODE,
+      answers: {},
+      onCapture,
+      readOnly: false,
+    } as unknown as Parameters<typeof Adapter>[0];
+
+    act(() => {
+      root.render(
+        <Provider value={bus.value}>
+          <Adapter {...props} />
+        </Provider>,
+      );
+    });
+
+    bus.push({
+      success: true,
+      action: 'fill_field',
+      params: { fieldName: 'brainDumpText', value: 'go to the gym monday, quit smoking' },
+      message: '',
+      confidence: 1,
+    } as OnboardingVoiceResult);
+
+    expect(onCapture).toHaveBeenCalledTimes(1);
+    const data = onCapture.mock.calls[0][0].data as {
+      brainDumpText: string;
+      brainDumpHabits: { name: string; days?: number[]; polarity?: string }[];
+    };
+    expect(data.brainDumpText).toBe('go to the gym monday, quit smoking');
+    expect(data.brainDumpHabits).toEqual([
+      { name: 'go to the gym', days: [1], polarity: 'positive' },
+      { name: 'quit smoking', polarity: 'negative' },
+    ]);
+
+    // A second tool fire must not double-capture.
+    bus.push({
+      success: true,
+      action: 'fill_field',
+      params: { fieldName: 'brainDumpText', value: 'go to the gym monday, quit smoking' },
+      message: '',
+      confidence: 1,
+    } as OnboardingVoiceResult);
+    expect(onCapture).toHaveBeenCalledTimes(1);
+  });
+
+  it('frozen receipt replays captured cards; falls back to the dump text without them', () => {
+    const bus = makeBus();
+    const Adapter = getAdapter('advanced-capture')!;
+    const withCards = {
+      node: NODE,
+      answers: {
+        brainDumpText: 'raw text',
+        brainDumpHabits: [{ name: 'read before bed', days: [1, 3], polarity: 'positive' }],
+      },
+      onCapture: vi.fn(),
+      readOnly: true,
+    } as unknown as Parameters<typeof Adapter>[0];
+    act(() => {
+      root.render(
+        <Provider value={bus.value}>
+          <Adapter {...withCards} />
+        </Provider>,
+      );
+    });
+    expect(container.textContent).toContain('Read before bed');
+    expect(container.querySelector('textarea')).toBeNull();
+
+    const textOnly = {
+      node: { ...NODE, componentProps: { brainDump: true } },
+      answers: { brainDumpText: 'my old raw dump' },
+      onCapture: vi.fn(),
+      readOnly: true,
+    } as unknown as Parameters<typeof Adapter>[0];
+    act(() => {
+      root.render(
+        <Provider value={bus.value}>
+          <Adapter {...textOnly} />
+        </Provider>,
+      );
+    });
+    expect((container.querySelector('textarea') as HTMLTextAreaElement)?.value).toBe(
+      'my old raw dump',
+    );
+  });
+});

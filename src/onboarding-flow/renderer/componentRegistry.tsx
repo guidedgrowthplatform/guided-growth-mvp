@@ -28,6 +28,7 @@ import {
 import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
+import { HabitScheduleCard } from '@/components/onboarding/HabitScheduleCard';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { ReflectionModeEditor } from '@/components/onboarding/ReflectionModeEditor';
@@ -47,6 +48,7 @@ import { useWeekData } from '@/hooks/useWeekData';
 import { unlockTTS } from '@/lib/services/tts-service';
 import { recommendedWeeklyDay } from '@/utils/weeklyDay';
 import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
+import { BrainDumpCapture } from '../BrainDumpCapture';
 import {
   FLOW_CATEGORIES,
   GENDER_OPTIONS,
@@ -1349,6 +1351,41 @@ function BrainDumpAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPro
   );
 }
 
+/* --------------------------------------------------- advanced live capture */
+
+// Live skimmer (B26): provisional cards form from the local regex on every
+// interim, the LLM pass refines after pauses, manual edits/deletes always win.
+// The frozen receipt replays the captured cards; text-only rows (pre-skimmer)
+// fall back to the read-only dump.
+function AdvancedCaptureAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
+  const captured = (answers.brainDumpHabits ?? []) as {
+    name: string;
+    days?: number[];
+    polarity?: 'positive' | 'negative';
+  }[];
+  if (readOnly) {
+    if (captured.length === 0) {
+      return <BrainDumpAdapter node={node} answers={answers} onCapture={onCapture} readOnly />;
+    }
+    return (
+      <div className="flex flex-col gap-3">
+        {captured.map((h) => (
+          <HabitScheduleCard
+            key={h.name}
+            habitName={h.name.charAt(0).toUpperCase() + h.name.slice(1)}
+            polarity={h.polarity === 'negative' ? 'break' : 'build'}
+            selectedDays={new Set(h.days ?? [])}
+            onChangePolarity={() => {}}
+            onToggleDay={() => {}}
+            onEdit={() => {}}
+          />
+        ))}
+      </div>
+    );
+  }
+  return <BrainDumpCapture node={node} onCapture={onCapture} />;
+}
+
 // Generic coach-bubble: a say-only beat with no interactive card of its own (the
 // coach line is the content, rendered by BeatView). When the beat carries a
 // brainDump prop it falls back to the brain-dump textarea (the advanced lane uses
@@ -1555,23 +1592,37 @@ function WhyIntroAdapter({ onCapture }: BeatAdapterProps) {
 // picker on each card or by voice. Captures all configs and advances.
 function AdvancedFrequencyAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const brainDumpText = (answers.brainDumpText as string) ?? '';
-  // Parse habit names from the brain dump (newline- or comma-separated list, or
-  // fall back to the habitConfigs keys if the brain dump is a prose block).
+  // Name precedence: already-configured habits, then the skimmer's captured
+  // cards, then the raw-dump split (pre-skimmer rows only — this split is what
+  // produced the "the mornings"-class fragment cards, B26).
   const fromConfigs = Object.keys((answers.habitConfigs ?? {}) as Record<string, unknown>);
+  const skimmerHabits = (answers.brainDumpHabits ?? []) as {
+    name: string;
+    days?: number[];
+    polarity?: 'positive' | 'negative';
+  }[];
+  const fromSkimmer = skimmerHabits.map((h) => h.name).filter(Boolean);
   const fromDump = brainDumpText
     .split(/[\n,]+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0 && s.length < 80);
-  const habitNames = fromConfigs.length > 0 ? fromConfigs : fromDump.length > 0 ? fromDump : [];
+  const habitNames =
+    fromConfigs.length > 0 ? fromConfigs : fromSkimmer.length > 0 ? fromSkimmer : fromDump;
   const SAMPLE = ['Morning walk', 'No screens after 10 PM', 'Meditate'];
   const names = habitNames.length > 0 ? habitNames : SAMPLE;
 
   const [configs, setConfigs] = useState<
     Record<string, { days: number[]; time: string; reminder: boolean }>
   >(() => {
+    const skimmerDays = new Map(skimmerHabits.map((h) => [h.name, h.days]));
     const base: Record<string, { days: number[]; time: string; reminder: boolean }> = {};
     for (const name of names) {
-      base[name] = { days: [...WEEKDAYS], time: '09:00', reminder: true };
+      const captured = skimmerDays.get(name);
+      base[name] = {
+        days: captured && captured.length > 0 ? [...captured] : [...WEEKDAYS],
+        time: '09:00',
+        reminder: true,
+      };
     }
     return base;
   });
@@ -1761,7 +1812,7 @@ export const ADAPTER_REGISTRY = {
   // The advanced (braindump) lane renders the brain-dump card. coach-bubble is now
   // generic: say-only by default (the check-in greeting / nudge / wrap beats),
   // falling back to the brain-dump card only when a brainDump prop is set.
-  'advanced-capture': BrainDumpAdapter,
+  'advanced-capture': AdvancedCaptureAdapter,
   'coach-bubble': CoachBubbleAdapter,
   // Check-in flow adapters (morning + evening check-in documents).
   'state-check': StateCheckAdapter,
@@ -1890,7 +1941,13 @@ export function summarizeBeat(node: FlowNode, answers: FlowAnswers): string | nu
       const text = (answers as Record<string, unknown>).reflectionText as string | undefined;
       return text && text.trim() ? 'Reflected.' : null;
     }
-    case 'advanced-capture':
+    case 'advanced-capture': {
+      const skimmed = answers.brainDumpHabits;
+      if (Array.isArray(skimmed) && skimmed.length > 0) {
+        return `${skimmed.length} habit${skimmed.length === 1 ? '' : 's'} captured.`;
+      }
+      return answers.brainDumpText ? String(answers.brainDumpText) : null;
+    }
     case 'coach-bubble':
       return answers.brainDumpText ? String(answers.brainDumpText) : null;
     default:
