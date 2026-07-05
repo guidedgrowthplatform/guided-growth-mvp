@@ -59,3 +59,27 @@ scenarios pass; before-run on staging shows the b1 frozen hold (pill=false, reje
 Conductor merges.
 
 Updated: 2026-07-04 04:4x EAT — !421 (B28+B29) MERGED by the conductor after an independent verification pass on the fix preview; !411 re-synced with staging (absorbed the reflection-setup persistStep fix cleanly, suite green) and remains the ONLY open lane item, awaiting review
+
+---
+
+Updated: 2026-07-05 ~01:00 EAT — TRUNK CUTOVER + MIGRATION absorbed. The gitlab.com group
+was archived 2026-07-04 (migration freeze) and the team moved to self-hosted
+gitlab.guidedgrowthapp.com (this checkout's origin now points there; MR iids preserved).
+staging is retired — main is the trunk; gg-qa-iota builds from main.
+
+Conductor tasks this cycle:
+
+1. Three-flow verification vs CURRENT gg-qa-iota (main build): morning check-in 4/4 beats
+   PASS (state-check taps -> Continue via trusted click -> wrap), evening check-in 5/5 PASS
+   (habit-review "3 done today." -> reflection "Reflected." -> wrap), home tour 5/5 PASS
+   (caption taps land/connect/reveal/chat -> "Let's go" completes). The desktop "not
+   advancing" report does NOT reproduce — consistent with a mid-train build artifact.
+   (One transient full Vercel outage mid-walk, recovered; not app-related.)
+2. !411 un-parked: synced onto main a5013d9c through the cutover. The Weekly landed as
+   hand-table edits in the three files !411 retires — resolved keeping the derived
+   architecture; weekly-day-setup (step 9, ONBOARD-WEEKLY-SETUP, owner weekly-day-picker)
+   now flows from the generator; preconditions gains the weekly gate (byte-identical
+   message) keyed by componentType; cutover fixtures extended. tsc clean, 1638/1638 tests
+   (160 files). Conductor pinged for merge (note_3462).
+3. Standing by for Yair's flow-content batch (The Weekly's new flow already came through
+   the LINEAR_EXPORTS pipeline cleanly — validates the multi-flow design under real use).
