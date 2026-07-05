@@ -134,3 +134,16 @@ ledger's own P0-false-alarm resolution + 10+ tap advances in my staged walk). Th
 deterministic affirmation intercept + listener) passes Yair's exact method on preview
 gg-4e1x24kvz: voice "let's go", zero taps, advance in 15s. Asked for the hold to lift;
 suggested keying tool ground-truth on SSE tool_rounds, not phrasing.
+
+---
+
+Updated: 2026-07-05 ~15:30 EAT — CONDUCTOR CORRECTIONS ABSORBED. (1) note_3527 accepted:
+phrasing-keyed evidence INVALIDATED, tool_rounds is the standing ground-truth rule;
+!440 hold VOID. (2) MERGE FREEZE LIFTED — production now deploys only from the protected
+`production` branch; main is QA-only again. (3) !440 re-test is the CONDUCTOR'S (running,
+keyed on tool_rounds + DOM advance, incl. the early-utterance race). Pre-confirmed the
+race is real on !440 HEAD (note_3530): cardReadyOverride=mp3.done delays the adapter
+mount past the opener; bus doesn't replay; early affirmation drops. Follow-up (listener
+lifted to BeatView, wip/b32-into-app-2026-07-05) lands AFTER !440 merges, per ruling —
+!440 unchanged. Post-opener path (Yonas's actual repro) covered and verified. Queue
+unchanged: !411 synced (merges last), Yair's flow edits preempt.
