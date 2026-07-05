@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
-import { DualButton } from '@/components/ui/DualButton';
+import { Orb } from '@/components/orb/Orb';
+import { orbIdle } from '@/components/orb/orbView';
 import { ORB_REST_SCALE, ORB_REST_TOP } from '@/components/welcome/SplashIntro';
-import { orbRingStep } from '@/components/flow-designer/beats/_beatStyle';
 
 const ORB_SIZE = 150;
 // Orb rises all the way to the top so the centred iOS/Android permission
@@ -106,19 +105,7 @@ export function MicPermission({
           pointerEvents: asking ? 'auto' : 'none',
         }}
       >
-        <DualButton
-          size={ORB_SIZE}
-          leftActive
-          rightActive={granted}
-          activeRings={asking ? 'right' : null}
-          ringCount={3}
-          ringStep={orbRingStep(ORB_SIZE)}
-          intensity={0.5}
-          leftIcon={<IconChatVoice size={38} />}
-          rightIcon={granted ? <IconMic size={38} /> : <IconMicMuted size={38} />}
-          leftAriaLabel="Coach voice"
-          rightAriaLabel="Microphone"
-        />
+        <Orb {...orbIdle(ORB_SIZE, true, granted)} onToggleRight={asking ? handleAllow : undefined} />
       </div>
 
       {/* Prompt + Allow button, directly under the orb. Fades in once the orb
