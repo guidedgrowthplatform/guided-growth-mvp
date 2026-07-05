@@ -40,6 +40,12 @@ const PARSE_TOOL: ToolSchema = {
               items: { type: 'integer' },
             },
             time: { type: 'string', description: 'HH:MM 24h, only when explicitly stated.' },
+            habitType: {
+              type: 'string',
+              enum: ['binary_do', 'binary_avoid'],
+              description:
+                'binary_avoid when the habit is refraining or reducing (quit, stop, no more, less); binary_do for a performed action.',
+            },
           },
           required: ['name', 'frequency'],
         },
@@ -55,6 +61,7 @@ Rules:
 - NEVER invent habits the user did not mention. If nothing concrete is present, return an empty list.
 - Infer frequency, days, and time ONLY when the user stated them ("three times a week", "every weekday", "on Mondays", "at 8 PM"). Otherwise omit days/time.
 - Keep habit names short and positive where natural.
+- Tag habitType binary_avoid for refrain/reduce habits ("quit smoking", "no phone in bed", "less sugar"); binary_do for performed actions. Keep the user's framing — do not rename an avoid habit into a do habit.
 Return the result by calling submit_parsed_habits.`;
 
 export async function handleParseBrainDump(
