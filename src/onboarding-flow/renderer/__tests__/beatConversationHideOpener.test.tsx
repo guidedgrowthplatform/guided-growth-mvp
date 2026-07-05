@@ -100,3 +100,33 @@ describe('BeatConversation past-beat opener turn split (B34 — merged profile b
     expect(leafTexts()).toContain(OPENER);
   });
 });
+
+describe('BeatConversation frozen-card animation (B35 — card blinked out on freeze)', () => {
+  function renderWithCard(active: boolean) {
+    act(() => {
+      root.render(
+        <OnboardingVoiceContext.Provider value={makeValue(thread)}>
+          <BeatConversation
+            screenId="S1"
+            active={active}
+            connecting={false}
+            card={<span id="the-card">CARD</span>}
+          />
+        </OnboardingVoiceContext.Provider>,
+      );
+    });
+    return container.querySelector('#the-card')?.parentElement;
+  }
+
+  it('a past-beat receipt card renders without the fade-in (no opacity-0 restart)', () => {
+    const wrapper = renderWithCard(false);
+    expect(wrapper).toBeTruthy();
+    expect(wrapper!.className).not.toContain('animate-fade-in');
+  });
+
+  it('the active-beat card keeps its reveal fade-in', () => {
+    const wrapper = renderWithCard(true);
+    expect(wrapper).toBeTruthy();
+    expect(wrapper!.className).toContain('animate-fade-in');
+  });
+});

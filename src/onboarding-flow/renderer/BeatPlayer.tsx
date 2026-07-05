@@ -258,7 +258,11 @@ export function BeatConversation({
           finished the opener (cold karaoke complete / warm opener committed, or
           the 12s authored-opener failsafe), so it slots in BELOW the finished
           opener instead of above an in-progress one. */}
-      {card && shouldRevealCard && <div className="animate-fade-in">{card}</div>}
+      {/* Past-beat receipts render steady: the fade-in restarting from opacity 0
+          on the active→frozen remount read as the card vanishing (B35). */}
+      {card && shouldRevealCard && (
+        <div className={active ? 'animate-fade-in' : undefined}>{card}</div>
+      )}
 
       {/* dialogue, the partial extending the last turn's bubble when it continues it */}
       {dialogue.map((m, i) =>
