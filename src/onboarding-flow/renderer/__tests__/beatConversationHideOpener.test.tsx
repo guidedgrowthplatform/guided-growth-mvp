@@ -41,27 +41,62 @@ afterEach(() => {
   container.remove();
 });
 
-function render(value: OnboardingVoiceContextValue, hideOpener: boolean) {
+function render(
+  value: OnboardingVoiceContextValue,
+  opts: { hideOpener?: boolean; active?: boolean } = {},
+) {
   act(() => {
     root.render(
       <OnboardingVoiceContext.Provider value={value}>
-        <BeatConversation screenId="S1" active connecting={false} hideOpener={hideOpener} />
+        <BeatConversation
+          screenId="S1"
+          active={opts.active ?? true}
+          connecting={false}
+          hideOpener={opts.hideOpener ?? false}
+        />
       </OnboardingVoiceContext.Provider>,
     );
   });
 }
 
+const leafTexts = () =>
+  Array.from(container.querySelectorAll('div'))
+    .filter((d) => d.children.length === 0)
+    .map((d) => d.textContent);
+
 describe('BeatConversation hideOpener (B33 — voice mode drew the opener twice)', () => {
   it('suppresses the committed store opener but keeps the dialogue turns', () => {
-    render(makeValue(thread), true);
+    render(makeValue(thread), { hideOpener: true });
     expect(container.textContent).not.toContain(OPENER);
     expect(container.textContent).toContain('sounds good');
     expect(container.textContent).toContain(REPLY);
   });
 
   it('still renders the opener when the flag is off (non-BeatPlayer callers unchanged)', () => {
-    render(makeValue(thread), false);
+    render(makeValue(thread), { hideOpener: false });
     expect(container.textContent).toContain(OPENER);
     expect(container.textContent).toContain(REPLY);
+  });
+});
+
+describe('BeatConversation past-beat opener turn split (B34 — merged profile bubble)', () => {
+  const AGE = 'How old are you?';
+  const GENDER = 'And how do you identify?';
+  const multiTurn: VoiceMessage[] = [
+    { id: 'op2', role: 'ai', text: `${AGE}\n${GENDER}`, screenId: 'S1' },
+    { id: 'u2', role: 'user', text: '30, male', screenId: 'S1', source: 'direct_llm' },
+  ];
+
+  it('replays a committed multi-line opener as one bubble per line', () => {
+    render(makeValue(multiTurn), { active: false });
+    const leaves = leafTexts();
+    expect(leaves).toContain(AGE);
+    expect(leaves).toContain(GENDER);
+    expect(leaves).not.toContain(`${AGE}\n${GENDER}`);
+  });
+
+  it('keeps a single-line committed opener as a single bubble', () => {
+    render(makeValue(thread), { active: false });
+    expect(leafTexts()).toContain(OPENER);
   });
 });
