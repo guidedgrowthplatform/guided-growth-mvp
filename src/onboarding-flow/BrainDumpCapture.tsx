@@ -221,13 +221,17 @@ export function useBrainDumpCapture({
     [parseDump, runRegex],
   );
 
-  // Typed input mirrors the voice legs: each keystroke is an interim (instant
-  // regex cards via the debounced parse), Enter/Add is the finalized chunk.
+  // Typed input mirrors the voice legs: keystrokes are interims, Enter/Add is
+  // the finalized chunk. The regex tier only sees text up to the last completed
+  // WORD — voice interims arrive word-whole, but keystrokes would otherwise card
+  // every prefix ("Go t", "Go to th", ...) faster than the supersede guard
+  // (which collapses at word boundaries) can absorb.
   const handleDraftChange = useCallback(
     (t: string) => {
       setDraft(t);
       setInterim(t);
-      runRegex(`${committedRef.current} ${t}`.trim());
+      const wordBoundary = t.replace(/\S+$/, '').trim();
+      if (wordBoundary) runRegex(`${committedRef.current} ${wordBoundary}`.trim());
       scheduleParse(`${committedRef.current} ${t}`.trim());
     },
     [runRegex, scheduleParse],
