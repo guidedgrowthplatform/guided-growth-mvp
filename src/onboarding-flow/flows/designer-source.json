@@ -655,7 +655,7 @@
           "nodeId": "advanced-input",
           "backId": "path-fork",
           "persistStep": "3",
-          "captureFields": "brainDumpText",
+          "captureFields": "brainDumpText, brainDumpHabits",
           "voiceExpectsInput": true,
           "voiceDirectLlmAllowed": true
         },

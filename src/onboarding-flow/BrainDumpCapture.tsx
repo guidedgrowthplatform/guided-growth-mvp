@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseBrainDump } from '@/api/parseHabits';
 import { HabitScheduleCard } from '@/components/onboarding/HabitScheduleCard';
 import { Button } from '@/components/ui/Button';
+import {
+  useOnboardingVoiceActions,
+  type OnboardingVoiceResult,
+} from '@/contexts/useOnboardingVoiceSession';
 import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
 import { VOICE_IN_ENABLED } from '@/lib/config/voice';
 import type { ParsedHabit as ApiParsedHabit } from '@gg/shared/types';
@@ -104,6 +108,7 @@ export function useBrainDumpCapture({
   const manualDays = useRef<Map<string, number[]>>(new Map());
   const manualPolarity = useRef<Map<string, Polarity>>(new Map());
   const deletedRef = useRef<Set<string>>(new Set());
+  const submittedRef = useRef(false);
 
   const recompute = useCallback(() => {
     const list: CardHabit[] = [];
@@ -218,6 +223,7 @@ export function useBrainDumpCapture({
     manualDays.current = new Map();
     manualPolarity.current = new Map();
     deletedRef.current = new Set();
+    submittedRef.current = false;
   }, [node.id]);
 
   const parseDump = useCallback(
@@ -404,10 +410,53 @@ export function useBrainDumpCapture({
   const transcript = [committed, interim].filter(Boolean).join(' ').trim();
   const canSubmit = transcript.trim().length > 0 || habits.length > 0;
 
+  // Card state read from the refs (not React state) so a capture fired from a
+  // voice action in the same tick sees the just-parsed cards.
+  const snapshotHabits = useCallback((): CardHabit[] => {
+    const list: CardHabit[] = [];
+    for (const key of orderRef.current) {
+      const h = habitsRef.current.get(key);
+      if (!h) continue;
+      list.push({
+        ...h,
+        days: manualDays.current.get(key) ?? h.days,
+        polarity: manualPolarity.current.get(key) ?? h.polarity,
+      });
+    }
+    return list;
+  }, []);
+
   const submit = useCallback(() => {
-    if (!canSubmit) return;
-    onCapture?.({ data: { brainDumpText: transcript.trim() } });
-  }, [canSubmit, onCapture, transcript]);
+    if (submittedRef.current) return;
+    const finalText = [committedRef.current, interim].filter(Boolean).join(' ').trim();
+    if (!finalText && snapshotHabits().length === 0) return;
+    submittedRef.current = true;
+    onCapture?.({
+      data: {
+        brainDumpText: finalText,
+        brainDumpHabits: snapshotHabits().map((h) => ({
+          name: h.name,
+          ...(h.days ? { days: h.days } : {}),
+          polarity: h.polarity,
+        })),
+      },
+    });
+  }, [interim, onCapture, snapshotHabits]);
+
+  // The coach completing the beat by tool (submit_brain_dump → fill_field
+  // brainDumpText) must persist the on-screen cards, not just raw text — the
+  // raw-text-only replay was B26. Seed from the tool arg only if the local
+  // transcript never heard the speech (overlay-typed path).
+  useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (result.action !== 'fill_field') return;
+    const p = result.params as { fieldName?: string; value?: string };
+    if (p.fieldName !== 'brainDumpText') return;
+    if (submittedRef.current) return;
+    if (!committedRef.current.trim() && typeof p.value === 'string' && p.value.trim()) {
+      handleFinalText(p.value.trim());
+    }
+    submit();
+  });
 
   const feed = useMemo(
     () => (
