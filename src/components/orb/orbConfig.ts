@@ -98,15 +98,16 @@ export const DEFAULT_PARAMS: OrbStates = {
   },
 };
 
+// Committed motion = Yair's "Balanced" preset (2026-07-05).
 export const DEFAULT_PULSE: PulseParams = {
   size: 8,
   amt: 46,
-  speed: 36,
-  orbAmt: 100,
-  mem: 60,
-  memSpeed: 35,
-  reactLight: 45,
-  reactDisc: 40,
-  reactAura: 40,
-  reactCore: 35,
+  speed: 40,
+  orbAmt: 85,
+  mem: 58,
+  memSpeed: 32,
+  reactLight: 52,
+  reactDisc: 48,
+  reactAura: 50,
+  reactCore: 44,
 };
