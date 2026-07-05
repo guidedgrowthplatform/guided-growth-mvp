@@ -109,6 +109,20 @@ LLM-cleanup with >2 habits if it merges during this lane.
 - Main checkout (/Users/jonah/Documents/guided-growth-mvp) carries another session's uncommitted work on
   feat/onboarding-voice-track1 — this lane works only in its own worktrees.
 
+## RECONCILE BUGS FROM YAIR'S EVIDENCE PASS — FIXED (2026-07-05, later)
+
+!439 note 3498 / !438 note 3502 found two reconcile bugs, one root cause: the two parse tiers name the
+same habit with PREFIX-RELATED strings (regex stub "quit smoking every" vs AI "quit smoking"), and (a)
+the supersede rule was direction-blind — longer-wins deleted the AI's shorter clean name, so stubs never
+refined; (b) the deleted-set blocked exact keys only, so the AI's related key resurrected a deleted card.
+Fix (132d2f4b on !438, merged to !439 @ 66993193): one identity per habit — normName also strips
+punctuation/smart-quotes; sameHabit() (word-prefix relation) defines identity; AI names absorb related
+entries and migrate manual overrides; regex adds defer to an AI owner; the supersede pass never removes
+AI entries; deletes block the whole relation. Regression tests pinned red-on-unfixed (both symptoms,
+Yair's exact input/response) → green; suites 1655/1658. Remaining this lane: signed-in evidence re-run
+on the new stack-tip preview (creds received) + short evidence notes on !435/!436/!437.
+B32: superseded by builder's !440 (see ledger row); stack !435→!439 merges bottom-up in the morning train.
+
 ## SK-LOOP-2 EVIDENCE RUN (2026-07-05, loop resumed by operator — supersedes the wind-down below)
 
 - Preview sanity PASS: stack-tip bundle carries staging ref ppyouymvnrqxsllrmsl-class refs (5×) and the
