@@ -62,7 +62,11 @@ export function engineForTurn(i: EngineInputs): EngineDecision {
     // and replies are SPOKEN iff the voice-out half is on (B39 fix: this branch
     // carries every beat on the published flow, so voice mode must speak
     // dynamic replies here; voice off keeps them text-only).
-    return { engine: 'direct_llm', micSource: i.micOn ? 'soniox' : 'none', speakReplies: i.voiceOn };
+    return {
+      engine: 'direct_llm',
+      micSource: i.micOn ? 'soniox' : 'none',
+      speakReplies: i.voiceOn,
+    };
   }
 
   // Routed onboarding screens (legacy). Vapi when both orbs on; Direct-LLM

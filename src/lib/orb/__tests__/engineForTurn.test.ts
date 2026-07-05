@@ -64,14 +64,20 @@ describe('engineForTurn', () => {
 
   it('legacy routed: voice_out_only speaks via Cartesia, no mic', () => {
     const d = engineForTurn({
-      ...base, onChatPage: false, hasScreen: true, rawOrbState: 'voice_out_only',
+      ...base,
+      onChatPage: false,
+      hasScreen: true,
+      rawOrbState: 'voice_out_only',
     });
     expect(d).toEqual({ engine: 'direct_llm', micSource: 'none', speakReplies: true });
   });
 
   it('legacy routed: voice_in_only listens via Soniox, silent replies', () => {
     const d = engineForTurn({
-      ...base, onChatPage: false, hasScreen: true, rawOrbState: 'voice_in_only',
+      ...base,
+      onChatPage: false,
+      hasScreen: true,
+      rawOrbState: 'voice_in_only',
     });
     expect(d).toEqual({ engine: 'direct_llm', micSource: 'soniox', speakReplies: false });
   });

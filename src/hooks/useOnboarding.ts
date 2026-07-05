@@ -15,6 +15,7 @@ import { clearOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSes
 import { requestPushPermissionAndRegister } from '@/lib/push';
 import { queryKeys } from '@/lib/query';
 import { Sentry } from '@/lib/sentry';
+import { DERIVED_STEP_MAPS } from '@/onboarding-flow/derivedStepMaps';
 import { useAuthStore } from '@/stores/authStore';
 import type {
   OnboardingPath,
@@ -23,20 +24,9 @@ import type {
   ParsedHabit,
 } from '@gg/shared/types';
 
-// Step → canonical screen_id for session_log labels, on the V3 persist-step
-// scale (the step each beat SAVES; 5 is shared by habit-select + habit-schedule
-// and labels as habit-select). The advanced lane isn't keyed by integer — it
-// falls through to the format-string fallback in the handler below.
-const STEP_TO_SCREEN_ID: Record<number, string> = {
-  1: 'ONBOARD-01',
-  2: 'ONBOARD-FORK',
-  3: 'ONBOARD-BEGINNER-01',
-  4: 'ONBOARD-BEGINNER-02',
-  5: 'ONBOARD-BEGINNER-03',
-  6: 'ONBOARD-STATE-CHECK',
-  7: 'ONBOARD-MORNING-SETUP',
-  8: 'ONBOARD-BEGINNER-07',
-};
+// Step → session_log label, derived from the generated flow (L1-3; 5 labels as
+// habit-select). Advanced lane isn't integer-keyed — format-string fallback below.
+const STEP_TO_SCREEN_ID: Record<number, string> = DERIVED_STEP_MAPS.stepToScreenLabel;
 
 export function useOnboarding() {
   const qc = useQueryClient();

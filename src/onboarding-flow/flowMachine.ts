@@ -194,7 +194,7 @@ export function validateFlow(flow: FlowDocument): string[] {
 }
 
 /** One full walk through the flow: the lane label ('' = linear) + nodes in order. */
-interface WalkPath {
+export interface WalkPath {
   label: string;
   nodes: FlowNode[];
 }
@@ -203,7 +203,7 @@ interface WalkPath {
  * Every enumerable walk through the flow: one path per branch lane (lane chain,
  * then the merge-side spine), or the single linear chain for branchless flows.
  */
-function enumerateWalkPaths(flow: FlowDocument): WalkPath[] {
+export function enumerateWalkPaths(flow: FlowDocument): WalkPath[] {
   const walkFrom = (startId: string | null, into: FlowNode[]): BranchNode | null => {
     // Walk beats from startId, appending to `into`; stop at a branch (returned) or end.
     let id = startId;

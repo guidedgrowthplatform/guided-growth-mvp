@@ -16,7 +16,11 @@ interface CombinedBeat {
 const beats = (onboardingCombined as { beats?: CombinedBeat[] }).beats ?? [];
 
 // Beats whose data tool saves AND advances (addendum SELF-ADVANCING BEATS).
-const SELF_ADVANCING = new Set(['record_checkin', 'submit_morning_checkin', 'submit_reflection_config']);
+const SELF_ADVANCING = new Set([
+  'record_checkin',
+  'submit_morning_checkin',
+  'submit_reflection_config',
+]);
 const OPTION_BEARING = [
   'ONBOARD-FORK--FORM',
   'ONBOARD-BEGINNER-01',
