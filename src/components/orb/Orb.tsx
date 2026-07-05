@@ -225,15 +225,20 @@ export function Orb({
       const ocx = side === 'left' ? W + gp / 2 : -gp / 2;
       const ocy = CH / 2;
       const R = CH / 2;
-      // Lift the light center up so it reads centered, not low (tuned via headless
-      // screenshots: 0.15 sat low, 0.40 sat high, 0.28 centers it).
-      const lcy = ocy - R * 0.28;
+      // Inner light rebuilt to be lean-proof. The base glow and hot core sit dead
+      // center (lcx, lcy), and the churn lobes are placed at EVEN angles around the
+      // center, so their center of mass is pinned to the middle no matter what the
+      // noise does. Noise only breathes each lobe in/out + a little angular wobble.
+      // The old code offset every lobe by a free 2D noise sample, which for this
+      // seed set summed to a net downward pull. That is the lean, gone.
+      const lcx = ocx;
+      const lcy = ocy;
       const cpulse = 0.92 + 0.08 * Math.sin(time * 0.9);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, W, CH);
       ctx.globalCompositeOperation = 'lighter';
       ctx.filter = 'none';
-      const bgGrad = ctx.createRadialGradient(ocx, lcy, 0, ocx, lcy, R * 0.98);
+      const bgGrad = ctx.createRadialGradient(lcx, lcy, 0, lcx, lcy, R * 0.98);
       bgGrad.addColorStop(0, `rgba(255,255,255,${0.24 * cpulse * bright})`);
       bgGrad.addColorStop(0.26, rgba(pal[2], 0.44 * grad * bright));
       bgGrad.addColorStop(0.55, rgba(pal[1], 0.44 * grad * bright));
@@ -244,13 +249,18 @@ export function Orb({
       ctx.arc(ocx, ocy, R * 0.99, 0, 6.2832);
       ctx.fill();
       ctx.filter = `blur(${0.06 * R}px)`;
-      for (const b of blobs) {
+      const N = blobs.length;
+      const rot = time * 0.22;
+      for (let i = 0; i < N; i++) {
+        const b = blobs[i];
         const bt = time * (1 + (b.rspeed - 1) * rand);
-        const nx = noise(b.seed + bt * 0.4, 0) + 0.5 * noise(b.seed * 2 - bt * 0.6, 1.3);
-        const ny = noise(0, b.seed + bt * 0.4) + 0.5 * noise(1.7, b.seed * 2 + bt * 0.36);
-        const drift = R * spread * (0.85 + rand * 0.6);
-        const bx = ocx + nx * drift;
-        const by = lcy + ny * drift;
+        const n01 = 0.5 + 0.5 * noise(b.seed, bt * 0.5);
+        const wob = 0.5 * noise(b.seed * 1.7 + 5, bt * 0.4);
+        const ringBase = 0.15 + 0.72 * (((i * 37) % 9) / 9);
+        const ang = (i / N) * 6.2832 + rot + wob;
+        const orbR = R * spread * ringBase * (0.7 + 0.5 * n01);
+        const bx = lcx + Math.cos(ang) * orbR;
+        const by = lcy + Math.sin(ang) * orbR;
         const radv =
           R *
           b.sz *
@@ -268,13 +278,13 @@ export function Orb({
         ctx.fill();
       }
       const cr = R * coreS;
-      const cg = ctx.createRadialGradient(ocx, lcy, 0, ocx, lcy, cr);
+      const cg = ctx.createRadialGradient(lcx, lcy, 0, lcx, lcy, cr);
       cg.addColorStop(0, `rgba(255,255,255,${cpulse * 0.55 * bright})`);
       cg.addColorStop(0.32, rgba(pal[3], 0.42 * bright));
       cg.addColorStop(1, rgba(pal[3], 0));
       ctx.fillStyle = cg;
       ctx.beginPath();
-      ctx.arc(ocx, lcy, cr, 0, 6.2832);
+      ctx.arc(lcx, lcy, cr, 0, 6.2832);
       ctx.fill();
       ctx.filter = 'none';
     };
@@ -313,14 +323,16 @@ export function Orb({
       const cx = W / 2;
       const cy = W / 2;
       const R = W / 2;
-      // Lift the bright light's center up a touch so it reads centered, not low.
-      const lcy = cy - R * 0.28;
+      // Inner light rebuilt lean-proof (see drawHalf): centered base glow + core,
+      // churn lobes at even angles so their center of mass stays centered.
+      const lcx = cx;
+      const lcy = cy;
       const cpulse = 0.9 + 0.1 * Math.sin(time * 0.9);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, W, W);
       ctx.globalCompositeOperation = 'lighter';
       ctx.filter = 'none';
-      const bgGrad = ctx.createRadialGradient(cx, lcy, 0, cx, lcy, R * 0.98);
+      const bgGrad = ctx.createRadialGradient(lcx, lcy, 0, lcx, lcy, R * 0.98);
       bgGrad.addColorStop(0, `rgba(255,255,255,${0.24 * cpulse * bright})`);
       bgGrad.addColorStop(0.26, rgba(pal[2], 0.44 * grad * bright));
       bgGrad.addColorStop(0.55, rgba(pal[1], 0.44 * grad * bright));
@@ -331,13 +343,18 @@ export function Orb({
       ctx.arc(cx, cy, R * 0.98, 0, 6.2832);
       ctx.fill();
       ctx.filter = `blur(${0.06 * R}px)`;
-      for (const b of blobs) {
+      const N = blobs.length;
+      const rot = time * 0.22;
+      for (let i = 0; i < N; i++) {
+        const b = blobs[i];
         const bt = time * (1 + (b.rspeed - 1) * rand);
-        const nx = noise(b.seed + bt * 0.4, 0) + 0.5 * noise(b.seed * 2 - bt * 0.6, 1.3);
-        const ny = noise(0, b.seed + bt * 0.4) + 0.5 * noise(1.7, b.seed * 2 + bt * 0.36);
-        const drift = R * spread * (0.85 + rand * 0.6);
-        const bx = cx + nx * drift;
-        const by = lcy + ny * drift;
+        const n01 = 0.5 + 0.5 * noise(b.seed, bt * 0.5);
+        const wob = 0.5 * noise(b.seed * 1.7 + 5, bt * 0.4);
+        const ringBase = 0.15 + 0.72 * (((i * 37) % 9) / 9);
+        const ang = (i / N) * 6.2832 + rot + wob;
+        const orbR = R * spread * ringBase * (0.7 + 0.5 * n01);
+        const bx = lcx + Math.cos(ang) * orbR;
+        const by = lcy + Math.sin(ang) * orbR;
         const radv =
           R *
           b.sz *
@@ -355,13 +372,13 @@ export function Orb({
         ctx.fill();
       }
       const cr = R * coreS;
-      const cg = ctx.createRadialGradient(cx, lcy, 0, cx, lcy, cr);
+      const cg = ctx.createRadialGradient(lcx, lcy, 0, lcx, lcy, cr);
       cg.addColorStop(0, `rgba(255,255,255,${cpulse * 0.55 * bright})`);
       cg.addColorStop(0.32, rgba(pal[3], 0.42 * bright));
       cg.addColorStop(1, rgba(pal[3], 0));
       ctx.fillStyle = cg;
       ctx.beginPath();
-      ctx.arc(cx, lcy, cr, 0, 6.2832);
+      ctx.arc(lcx, lcy, cr, 0, 6.2832);
       ctx.fill();
       ctx.filter = 'none';
     };
