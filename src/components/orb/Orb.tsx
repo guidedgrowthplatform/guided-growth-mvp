@@ -225,12 +225,14 @@ export function Orb({
       const ocx = side === 'left' ? W + gp / 2 : -gp / 2;
       const ocy = CH / 2;
       const R = CH / 2;
+      // Lift the bright light's center up a touch so it reads centered, not low.
+      const lcy = ocy - R * 0.08;
       const cpulse = 0.92 + 0.08 * Math.sin(time * 0.9);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, W, CH);
       ctx.globalCompositeOperation = 'lighter';
       ctx.filter = 'none';
-      const bgGrad = ctx.createRadialGradient(ocx, ocy, 0, ocx, ocy, R * 0.98);
+      const bgGrad = ctx.createRadialGradient(ocx, lcy, 0, ocx, lcy, R * 0.98);
       bgGrad.addColorStop(0, `rgba(255,255,255,${0.24 * cpulse * bright})`);
       bgGrad.addColorStop(0.26, rgba(pal[2], 0.44 * grad * bright));
       bgGrad.addColorStop(0.55, rgba(pal[1], 0.44 * grad * bright));
@@ -247,7 +249,7 @@ export function Orb({
         const ny = noise(0, b.seed + bt * 0.4) + 0.5 * noise(1.7, b.seed * 2 + bt * 0.36);
         const drift = R * spread * (0.85 + rand * 0.6);
         const bx = ocx + nx * drift;
-        const by = ocy + ny * drift;
+        const by = lcy + ny * drift;
         const radv =
           R *
           b.sz *
@@ -265,13 +267,13 @@ export function Orb({
         ctx.fill();
       }
       const cr = R * coreS;
-      const cg = ctx.createRadialGradient(ocx, ocy, 0, ocx, ocy, cr);
+      const cg = ctx.createRadialGradient(ocx, lcy, 0, ocx, lcy, cr);
       cg.addColorStop(0, `rgba(255,255,255,${cpulse * 0.55 * bright})`);
       cg.addColorStop(0.32, rgba(pal[3], 0.42 * bright));
       cg.addColorStop(1, rgba(pal[3], 0));
       ctx.fillStyle = cg;
       ctx.beginPath();
-      ctx.arc(ocx, ocy, cr, 0, 6.2832);
+      ctx.arc(ocx, lcy, cr, 0, 6.2832);
       ctx.fill();
       ctx.filter = 'none';
     };
@@ -310,12 +312,14 @@ export function Orb({
       const cx = W / 2;
       const cy = W / 2;
       const R = W / 2;
+      // Lift the bright light's center up a touch so it reads centered, not low.
+      const lcy = cy - R * 0.08;
       const cpulse = 0.9 + 0.1 * Math.sin(time * 0.9);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, W, W);
       ctx.globalCompositeOperation = 'lighter';
       ctx.filter = 'none';
-      const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.98);
+      const bgGrad = ctx.createRadialGradient(cx, lcy, 0, cx, lcy, R * 0.98);
       bgGrad.addColorStop(0, `rgba(255,255,255,${0.24 * cpulse * bright})`);
       bgGrad.addColorStop(0.26, rgba(pal[2], 0.44 * grad * bright));
       bgGrad.addColorStop(0.55, rgba(pal[1], 0.44 * grad * bright));
@@ -332,7 +336,7 @@ export function Orb({
         const ny = noise(0, b.seed + bt * 0.4) + 0.5 * noise(1.7, b.seed * 2 + bt * 0.36);
         const drift = R * spread * (0.85 + rand * 0.6);
         const bx = cx + nx * drift;
-        const by = cy + ny * drift;
+        const by = lcy + ny * drift;
         const radv =
           R *
           b.sz *
@@ -350,13 +354,13 @@ export function Orb({
         ctx.fill();
       }
       const cr = R * coreS;
-      const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr);
+      const cg = ctx.createRadialGradient(cx, lcy, 0, cx, lcy, cr);
       cg.addColorStop(0, `rgba(255,255,255,${cpulse * 0.55 * bright})`);
       cg.addColorStop(0.32, rgba(pal[3], 0.42 * bright));
       cg.addColorStop(1, rgba(pal[3], 0));
       ctx.fillStyle = cg;
       ctx.beginPath();
-      ctx.arc(cx, cy, cr, 0, 6.2832);
+      ctx.arc(cx, lcy, cr, 0, 6.2832);
       ctx.fill();
       ctx.filter = 'none';
     };

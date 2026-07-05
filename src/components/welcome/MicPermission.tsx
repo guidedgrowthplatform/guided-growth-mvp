@@ -43,6 +43,8 @@ export function MicPermission({
 }: MicPermissionProps) {
   const [expanded, setExpanded] = useState(false);
   const [granted, setGranted] = useState(false);
+  // Separate from granted so the mic can turn yellow at the top first, then descend.
+  const [settling, setSettling] = useState(false);
   const prefersReducedMotion =
     typeof window !== 'undefined'
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -75,8 +77,13 @@ export function MicPermission({
   // signal the flow to advance.
   const handleAllow = () => {
     if (granted) return;
+    // 1) mic turns yellow immediately, still up at the top. 2) after a short hold it
+    // descends into the dock, yellow. 3) then the flow advances.
     setGranted(true);
-    timers.current.push(setTimeout(() => onAllow?.(), prefersReducedMotion ? 120 : SETTLE_MS));
+    const hold = prefersReducedMotion ? 100 : 480;
+    const settle = prefersReducedMotion ? 120 : SETTLE_MS;
+    timers.current.push(setTimeout(() => setSettling(true), hold));
+    timers.current.push(setTimeout(() => onAllow?.(), hold + settle));
   };
 
   const asking = expanded && !granted;
@@ -97,8 +104,8 @@ export function MicPermission({
         style={{
           position: 'absolute',
           left: '50%',
-          top: granted ? ORB_REST_TOP : asking ? ASK_TOP : ORB_REST_TOP,
-          transform: `translate(-50%, -50%) scale(${granted ? ORB_REST_SCALE : asking ? 1 : ORB_REST_SCALE})`,
+          top: settling ? ORB_REST_TOP : asking || granted ? ASK_TOP : ORB_REST_TOP,
+          transform: `translate(-50%, -50%) scale(${settling ? ORB_REST_SCALE : asking || granted ? 1 : ORB_REST_SCALE})`,
           transition: orbTransition,
           willChange: 'top, transform',
           cursor: asking ? 'pointer' : 'default',
