@@ -19,11 +19,7 @@ import {
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
-import {
-  COACH_THINKING_INITIAL,
-  coachThinkingReducer,
-  showCoachThinking,
-} from './coachThinking';
+import { COACH_THINKING_INITIAL, coachThinkingReducer, showCoachThinking } from './coachThinking';
 import { openerTurns } from './openerTurns';
 import { countWords, useCoachSpeechReveal } from './useCoachSpeechReveal';
 
@@ -102,6 +98,7 @@ export function BeatConversation({
   card,
   cardReadyOverride,
   connecting = true,
+  hideOpener = false,
 }: {
   screenId: string;
   active: boolean;
@@ -116,6 +113,9 @@ export function BeatConversation({
   // Whether to show the connecting/thinking + authored-opener failsafe. Off on the
   // non-Vapi path (the authored opener is already drawn by BeatPlayer there).
   connecting?: boolean;
+  // On when BeatPlayer draws the authored opener beside this component: the
+  // store/streamed opener copy would render the same line twice (B33).
+  hideOpener?: boolean;
 }) {
   const session = useOnboardingVoice();
   const all = session?.messages;
@@ -226,7 +226,7 @@ export function BeatConversation({
           authored failsafe if voice never spoke, or the authored line replayed
           on a past beat whose thread has no committed opener), always ABOVE
           the card */}
-      {opener && !coldOpenerPending ? (
+      {hideOpener ? null : opener && !coldOpenerPending ? (
         renderTurn(opener, partialExtendsOpener ? livePartial : null)
       ) : liveOpener ? (
         <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{liveOpener}</div>

@@ -203,11 +203,14 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
             reveal so the word highlight tracks the pre-encoded clip. */}
         <BeatPlayer steps={steps} onReveal={handleReveal} overrideRevealCount={openerWordCount} />
         {showTapToPlay && <TapToPlayHint />}
+        {/* BeatPlayer above draws the authored opener; without hideOpener the
+            chat-native stream re-renders the same line as a second bubble (B33). */}
         <BeatConversation
           key={node.id}
           screenId={node.screenId}
           active
           connecting={false}
+          hideOpener
           onText={handleReveal}
         />
       </div>
@@ -236,6 +239,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
           screenId={node.screenId}
           active
           connecting={false}
+          hideOpener
           onText={handleReveal}
         />
       </div>
