@@ -111,3 +111,19 @@ export const DEFAULT_PULSE: PulseParams = {
   reactAura: 50,
   reactCore: 44,
 };
+
+// Beat 3 (the big coach-greeting orb) runs a CALMER motion than the docked default:
+// at full size the same reactivity reads as aggressive, so the pulse + reactivity are
+// dialed down. Passed to beat 3 only (via orbSpeaking); nothing else changes.
+export const BEAT3_PULSE: PulseParams = {
+  size: 6,
+  amt: 30,
+  speed: 32,
+  orbAmt: 50,
+  mem: 50,
+  memSpeed: 28,
+  reactLight: 30,
+  reactDisc: 22,
+  reactAura: 26,
+  reactCore: 28,
+};

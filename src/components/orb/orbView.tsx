@@ -1,6 +1,6 @@
 import type { MutableRefObject, ReactNode } from 'react';
 import { IconChatText, IconMicMuted } from '@/components/icons';
-import { DEFAULT_PARAMS, DEFAULT_PULSE } from './orbConfig';
+import { DEFAULT_PARAMS, DEFAULT_PULSE, type OrbStates, type PulseParams } from './orbConfig';
 import type { OrbMic, OrbStateSel, OrbTalkStyle } from './Orb';
 
 // Canonical orb rendering per the spec (gg-spec/docs/orb-spec.md). Always build the
@@ -35,6 +35,11 @@ export interface OrbViewOpts {
   mic?: MutableRefObject<OrbMic>;
   /** Static single frame, no animation loop (builder canvas / many-at-once). */
   frozen?: boolean;
+  /** Per-beat look override (defaults to the committed DEFAULT_PARAMS). */
+  params?: OrbStates;
+  /** Per-beat motion override so one beat can run its own pulse/reactivity (e.g. beat 3
+   *  is calmer at full size). Defaults to the committed DEFAULT_PULSE. */
+  pulse?: PulseParams;
 }
 
 // Idle: the two-half resting button. leftOn = AI voice on/off, rightOn = mic on/off.
@@ -60,8 +65,8 @@ export function orbSpeaking(size: number, who: 'coach' | 'user', opts: OrbViewOp
     size,
     state: who as OrbStateSel,
     style: 'full' as OrbTalkStyle,
-    params: PARAMS,
-    pulse: PULSE,
+    params: opts.params ?? PARAMS,
+    pulse: opts.pulse ?? PULSE,
     frozen: opts.frozen,
     mic: opts.mic,
   };

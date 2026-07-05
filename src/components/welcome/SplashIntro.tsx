@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Orb, type OrbMic } from '@/components/orb/Orb';
 import { orbIdle, orbSpeaking as orbSpeakingProps } from '@/components/orb/orbView';
+import { BEAT3_PULSE } from '@/components/orb/orbConfig';
 import { CoachIntroBubble } from '@/components/welcome/CoachIntroBubble';
 import { SPLASH_CAPTIONS } from '@/components/welcome/splashCaptions';
 
@@ -465,7 +466,7 @@ export function SplashIntro({
               />
 
               {orbSpeaking ? (
-                <Orb {...orbSpeakingProps(ORB_SIZE, 'coach', { mic: orbAmp })} />
+                <Orb {...orbSpeakingProps(ORB_SIZE, 'coach', { mic: orbAmp, pulse: BEAT3_PULSE })} />
               ) : (
                 <Orb {...orbIdle(ORB_SIZE, true, true)} />
               )}
