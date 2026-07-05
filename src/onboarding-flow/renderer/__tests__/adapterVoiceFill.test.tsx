@@ -118,100 +118,74 @@ describe('ProfileAdapter — voice fill auto-submits onCapture', () => {
   });
 });
 
-describe('AdvancedCaptureAdapter — live skimmer capture contract (S2, B26)', () => {
-  const NODE = {
-    id: 'advanced-input',
-    componentType: 'advanced-capture',
-    screenId: 'ONBOARD-ADVANCED',
-    componentProps: {},
-  };
+describe('IntoAppAdapter — confirm_plan voice action advances like the tap (B32)', () => {
+  const makeProps = (onCapture: () => void, readOnly = false) => ({
+    node: { componentProps: {} },
+    answers: {},
+    onCapture,
+    readOnly,
+  });
 
-  it('coach submit_brain_dump (fill_field brainDumpText) captures cards, not just raw text', () => {
+  const confirm = (success = true): OnboardingVoiceResult => ({
+    success,
+    action: 'confirm_plan',
+    params: {},
+    message: '',
+    confidence: 1,
+  });
+
+  it('captures once on a successful confirm_plan', () => {
     const bus = makeBus();
     const onCapture = vi.fn();
-    const Adapter = getAdapter('advanced-capture')!;
-    const props = {
-      node: NODE,
-      answers: {},
-      onCapture,
-      readOnly: false,
-    } as unknown as Parameters<typeof Adapter>[0];
-
+    const Adapter = getAdapter('into-app')!;
     act(() => {
       root.render(
         <Provider value={bus.value}>
-          <Adapter {...props} />
+          <Adapter {...(makeProps(onCapture) as unknown as Parameters<typeof Adapter>[0])} />
         </Provider>,
       );
     });
-
-    bus.push({
-      success: true,
-      action: 'fill_field',
-      params: { fieldName: 'brainDumpText', value: 'go to the gym monday, quit smoking' },
-      message: '',
-      confidence: 1,
-    } as OnboardingVoiceResult);
-
+    bus.push(confirm());
     expect(onCapture).toHaveBeenCalledTimes(1);
-    const data = onCapture.mock.calls[0][0].data as {
-      brainDumpText: string;
-      brainDumpHabits: { name: string; days?: number[]; polarity?: string }[];
-    };
-    expect(data.brainDumpText).toBe('go to the gym monday, quit smoking');
-    expect(data.brainDumpHabits).toEqual([
-      { name: 'go to the gym', days: [1], polarity: 'positive' },
-      { name: 'quit smoking', polarity: 'negative' },
-    ]);
-
-    // A second tool fire must not double-capture.
-    bus.push({
-      success: true,
-      action: 'fill_field',
-      params: { fieldName: 'brainDumpText', value: 'go to the gym monday, quit smoking' },
-      message: '',
-      confidence: 1,
-    } as OnboardingVoiceResult);
+    // one-shot: a duplicate event must not double-advance
+    bus.push(confirm());
     expect(onCapture).toHaveBeenCalledTimes(1);
   });
 
-  it('frozen receipt replays captured cards; falls back to the dump text without them', () => {
+  it('ignores failed confirm_plan and unrelated actions', () => {
     const bus = makeBus();
-    const Adapter = getAdapter('advanced-capture')!;
-    const withCards = {
-      node: NODE,
-      answers: {
-        brainDumpText: 'raw text',
-        brainDumpHabits: [{ name: 'read before bed', days: [1, 3], polarity: 'positive' }],
-      },
-      onCapture: vi.fn(),
-      readOnly: true,
-    } as unknown as Parameters<typeof Adapter>[0];
+    const onCapture = vi.fn();
+    const Adapter = getAdapter('into-app')!;
     act(() => {
       root.render(
         <Provider value={bus.value}>
-          <Adapter {...withCards} />
+          <Adapter {...(makeProps(onCapture) as unknown as Parameters<typeof Adapter>[0])} />
         </Provider>,
       );
     });
-    expect(container.textContent).toContain('Read before bed');
-    expect(container.querySelector('textarea')).toBeNull();
+    bus.push(confirm(false));
+    bus.push({
+      success: true,
+      action: 'record_checkin',
+      params: {},
+      message: '',
+      confidence: 1,
+    } as OnboardingVoiceResult);
+    expect(onCapture).not.toHaveBeenCalled();
+  });
 
-    const textOnly = {
-      node: { ...NODE, componentProps: { brainDump: true } },
-      answers: { brainDumpText: 'my old raw dump' },
-      onCapture: vi.fn(),
-      readOnly: true,
-    } as unknown as Parameters<typeof Adapter>[0];
+  it('a past (readOnly) into-app card never captures — the active beat owns advancement', () => {
+    const bus = makeBus();
+    const onCapture = vi.fn();
+    const Adapter = getAdapter('into-app')!;
     act(() => {
       root.render(
         <Provider value={bus.value}>
-          <Adapter {...textOnly} />
+          <Adapter {...(makeProps(onCapture, true) as unknown as Parameters<typeof Adapter>[0])} />
         </Provider>,
       );
     });
-    expect((container.querySelector('textarea') as HTMLTextAreaElement)?.value).toBe(
-      'my old raw dump',
-    );
+    bus.push(confirm());
+    expect(onCapture).not.toHaveBeenCalled();
   });
 });

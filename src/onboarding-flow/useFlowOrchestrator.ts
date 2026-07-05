@@ -55,6 +55,7 @@ export function entryServerStep(node: FlowNode | undefined): number | undefined 
   if (!node) return undefined;
   return ENTRY_SERVER_STEP[node.screenId];
 }
+import { settleBeatTransition } from '@/lib/telemetry/latencySpans';
 import type { OnboardingPath, OnboardingState, OnboardingStepData } from '@gg/shared/types';
 import {
   applyCapture,
@@ -642,6 +643,13 @@ export function useFlowOrchestrator(
     if (!captureCompletesBeat(node, cap)) return;
     advancedNodeRef.current = activeNodeId;
     applyAndAdvance(cap, false);
+    // Latency lane T1: commit leg of beat_transition_ms (trigger marked at the
+    // tool event / Realtime receipt). No-op when nothing is pending.
+    settleBeatTransition({
+      flow_tag: optionsRef.current?.flowTag ?? null,
+      to_step: serverStep,
+      node: activeNodeId,
+    });
   }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
 
   // Answered-fork advance (evidence arrival, no climb required). The fork can be
@@ -668,6 +676,13 @@ export function useFlowOrchestrator(
     if (advancedNodeRef.current === activeNodeId) return; // fire once per beat
     advancedNodeRef.current = activeNodeId;
     applyAndAdvance(cap, false);
+    // Latency lane T1: commit leg of beat_transition_ms (fork evidence-arrival
+    // advance). No-op when nothing is pending.
+    settleBeatTransition({
+      flow_tag: optionsRef.current?.flowTag ?? null,
+      to_step: serverStep,
+      node: activeNodeId,
+    });
   }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
 
   const canGoBack = machineCanGoBack(state, flow);

@@ -62,6 +62,20 @@ describe('buildSystemPromptForRequest', () => {
     expect(systemPrompt).toContain('## Tone Discipline');
   });
 
+  it('includes the read-options-on-request rule (recite when directly asked)', async () => {
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'HOME-MORNING',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    expect(systemPrompt).toContain('## Reading The On-Screen Options');
+    expect(systemPrompt).toMatch(/what are my options\?/i);
+    // default (no unprompted lists) + the direct-ask exception both present
+    expect(systemPrompt).toMatch(/unprompted/i);
+    expect(systemPrompt).toContain('DO read them');
+  });
+
   it('injects PRODUCT_CONTEXT off onboarding, omits it on onboarding screens', async () => {
     const off = await buildSystemPromptForRequest({
       anon_id: 'a',

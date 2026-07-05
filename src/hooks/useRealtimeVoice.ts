@@ -5,6 +5,7 @@ import { track } from '@/analytics';
 import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useVoice } from '@/hooks/useVoice';
+import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 
 export type RealtimeVoiceState =
   | 'idle'
@@ -447,8 +448,14 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           voice_mode: 'realtime',
           voice_vendor: 'vapi',
         });
+        // This hook powers first-run ONBOARDING realtime voice only (single
+        // call site: OnboardingVoiceProvider). Its starts are cap-exempt so
+        // onboarding never consumes the daily Vapi cap (see VAPI_DAILY_CAP /
+        // CAP_EXEMPT_PAYLOAD_KEY in lib/config/voice). If this hook is ever
+        // reused for non-onboarding (coach) voice, gate cap_exempt on an option.
         voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(screen), {
           voice_vendor: 'vapi',
+          cap_exempt: true,
         });
         setStateSynced('listening');
         const t = tokenRef.current;
@@ -466,6 +473,13 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           turnCountRef.current += 1;
           if (firstAudioMsRef.current === null && startInvokedAtRef.current !== null) {
             firstAudioMsRef.current = performance.now() - startInvokedAtRef.current;
+            // Latency lane T1: previously this value only shipped inside
+            // complete_voice_session at session end; emit at occurrence too so
+            // cold-start latency is visible even for sessions that never end
+            // cleanly. Measurement only, no behavior change.
+            emitLatencySpan('vapi_first_audio_ms', firstAudioMsRef.current, {
+              voice_vendor: 'vapi',
+            });
           }
           setStateSynced('speaking');
           const t = tokenRef.current;

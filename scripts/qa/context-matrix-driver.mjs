@@ -37,20 +37,26 @@ if (!/^qa-onboarding-[a-z0-9-]+@guidedgrowth\.test$/.test(EMAIL)) {
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 
-// Turn scripts. `probe` turns test the improvisation boundary (the coach must
-// NOT recite on-screen option lists); `answer` turns supply data so state
-// accumulates for later beats. Self-advancing beats must NOT fire advance_step.
+// Turn scripts. `probe` turns test the read-options boundary and carry the
+// EXPECTED behavior (ruling 2026-07-05): `probe: 'recite'` = the user DIRECTLY
+// asked for the options, so the coach SHOULD read the current screen's options;
+// `probe: 'no-recite'` = mere uncertainty with no request, so the coach must
+// NOT volunteer the list. `answer` turns supply data so state accumulates for
+// later beats. Self-advancing beats must NOT fire advance_step.
 const BEGINNER = [
   { screen: 'ONBOARD-01--FORM', msg: "I'm 34, and I'm a man" },
   { screen: 'ONBOARD-STATE-CHECK', msg: 'Mood is good, slept alright, energy is decent, not too stressed' },
   { screen: 'ONBOARD-MORNING-SETUP', msg: '8am every day works' },
   { screen: 'ONBOARD-BEGINNER-07', msg: 'Ask me a few questions each evening, 9pm on weekdays' },
   { screen: 'ONBOARD-FORK--FORM', msg: "This is new for me, I've never tracked habits" },
-  { screen: 'ONBOARD-BEGINNER-01', msg: "I'm not sure. What are my options?", probe: true },
+  // Uncertainty WITHOUT a request → coach grounds, does not list (default holds).
+  { screen: 'ONBOARD-BEGINNER-01', msg: "Ugh, I don't even know where to start", probe: 'no-recite' },
+  // Direct ask → coach reads the options (ruling flip).
+  { screen: 'ONBOARD-BEGINNER-01', msg: "I'm not sure. What are my options?", probe: 'recite' },
   { screen: 'ONBOARD-BEGINNER-01', msg: 'Sleep better I guess' },
-  { screen: 'ONBOARD-BEGINNER-02', msg: 'Hmm, what can I pick here?', probe: true },
+  { screen: 'ONBOARD-BEGINNER-02', msg: 'Hmm, what can I pick here?', probe: 'recite' },
   { screen: 'ONBOARD-BEGINNER-02', msg: 'Falling asleep earlier' },
-  { screen: 'ONBOARD-BEGINNER-03', msg: 'Which habits are there? Read them to me', probe: true },
+  { screen: 'ONBOARD-BEGINNER-03', msg: 'Which habits are there? Read them to me', probe: 'recite' },
   { screen: 'ONBOARD-BEGINNER-03', msg: 'A wind-down routine before bed sounds right' },
   { screen: 'ONBOARD-BEGINNER-04', msg: 'Every weekday at 10pm, no reminder needed' },
   { screen: 'ONBOARD-COMPLETE', msg: 'Looks good, let’s start' },
@@ -128,11 +134,19 @@ async function runPath(name, script, token) {
   const chatSessionId = randomUUID();
   for (let i = 0; i < script.length; i++) {
     const { screen, msg, probe } = script[i];
+    // probe carries the expected behavior ('recite' | 'no-recite'); a bare true
+    // stays back-compatible. A human reads the transcript against `expect`.
+    const expect = typeof probe === 'string' ? probe : null;
     const res = await turn(token, chatSessionId, screen, msg);
-    const file = `${OUT}/${name}-${String(i).padStart(2, '0')}-${screen}${probe ? '-PROBE' : ''}.json`;
-    writeFileSync(file, JSON.stringify({ screen, probe: !!probe, user: msg, ...res }, null, 2));
+    const file = `${OUT}/${name}-${String(i).padStart(2, '0')}-${screen}${
+      probe ? `-PROBE${expect ? '-' + expect : ''}` : ''
+    }.json`;
+    writeFileSync(
+      file,
+      JSON.stringify({ screen, probe: !!probe, expect, user: msg, ...res }, null, 2),
+    );
     console.log(
-      `${name} ${screen}${probe ? ' [probe]' : ''}: http=${res.status} tools=[${res.tools
+      `${name} ${screen}${probe ? ` [probe:${expect ?? 'yes'}]` : ''}: http=${res.status} tools=[${res.tools
         .map((t) => `${t.name}${t.ok === false ? '!FAIL' : ''}`)
         .join(',')}] errors=${res.errors.length} text="${res.text.slice(0, 70).replace(/\n/g, ' ')}"`,
     );

@@ -2,7 +2,7 @@ import type { HabitType } from '@gg/shared/types';
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
 import { inferSchedule, SCHEDULE_DAYS, type ScheduleOption } from '../../tools.onboarding.js';
-import { MAX_HABITS, SCHEDULE_OPTIONS } from '../schemas.js';
+import { MAX_HABITS, MAX_HABITS_ADVANCED, SCHEDULE_OPTIONS } from '../schemas.js';
 import {
   getBoolean,
   getNumberArray,
@@ -67,21 +67,31 @@ export async function addHabit(
   const nameLower = name.toLowerCase();
 
   // Advisory lock so read+cap-check+write is atomic — concurrent calls can't
-  // both pass the MAX_HABITS gate. pool is max:1; pool.query can't span a txn.
+  // both pass the cap gate. pool is max:1; pool.query can't span a txn.
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [ctx.anon_id]);
 
-    const existingRes = await client.query<{ hc: Record<string, unknown> | null }>(
-      `SELECT data->'habitConfigs' AS hc FROM onboarding_states WHERE anon_id = $1`,
-      [ctx.anon_id],
-    );
+    // path drives the cap (ledger ruling B37: "there is no limit in advanced").
+    // 'braindump' = advanced. Missing path defaults to beginner (the stricter
+    // cap), so a legacy row without a path can never over-count.
+    const existingRes = await client.query<{
+      hc: Record<string, unknown> | null;
+      path: string | null;
+    }>(`SELECT data->'habitConfigs' AS hc, path FROM onboarding_states WHERE anon_id = $1`, [
+      ctx.anon_id,
+    ]);
     const existing = (existingRes.rows[0]?.hc ?? {}) as Record<string, unknown>;
+    const isAdvanced = existingRes.rows[0]?.path === 'braindump';
+    const cap = isAdvanced ? MAX_HABITS_ADVANCED : MAX_HABITS;
     const isEdit = Object.keys(existing).some((k) => k.toLowerCase() === nameLower);
-    if (!isEdit && Object.keys(existing).length >= MAX_HABITS) {
+    if (!isEdit && Object.keys(existing).length >= cap) {
       await client.query('ROLLBACK');
-      return handlerError('max_habits_reached');
+      // Beginner: the product cap of 2. Advanced: only the safety ceiling, which
+      // no real user reaches — surface a distinct code so the coach SAYS it and
+      // never silently drops the habit (ruling B37).
+      return handlerError(isAdvanced ? 'max_habits_capacity' : 'max_habits_reached');
     }
 
     // Polarity: provided value wins; else preserve what an earlier add_habit call

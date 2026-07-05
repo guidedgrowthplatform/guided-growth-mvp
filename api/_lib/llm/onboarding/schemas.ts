@@ -42,7 +42,14 @@ export const SCHEDULE_OPTIONS = ['Weekday', 'Weekend', 'Every day'] as const;
 export const PATH_OPTIONS = ['simple', 'braindump'] as const;
 
 export const MAX_GOALS = 2;
+// Habit cap is lane-aware (ledger ruling B37: "there is no limit in advanced").
+// MAX_HABITS is the BEGINNER product cap (kept for the beginner path and the
+// Vapi parity handler that imports it). The advanced/braindump path has no
+// product limit — MAX_HABITS_ADVANCED is only a generous safety ceiling so a
+// runaway tool loop can't write unbounded rows, and hitting it is surfaced to
+// the user (never a silent drop). It matches normalizeParsedHabits' clamp.
 export const MAX_HABITS = 2;
+export const MAX_HABITS_ADVANCED = 50;
 export const AGE_MIN = 13;
 export const AGE_MAX = 120;
 
@@ -138,7 +145,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
       'ONE HABIT AT A TIME — STRICT (habits-ACROSS, not fields-WITHIN): even if the user names two habits in one breath ("walking and meditation"), capture and FULLY configure habit #1 (pick + days + time + reminder) BEFORE you call add_habit for habit #2. Do not batch picks with defaults and then come back to configure them. ' +
       'WITHIN a single habit, batch-parsing a full sentence is fine — "walking every day at 9:30 PM with a reminder" → add_habit(name="Walking", days=[0,1,2,3,4,5,6], time="21:30", reminder=true, schedule="Every day") in one call. ' +
       'TWO-CALL CONFIGURATION PATTERN per habit (when the user did NOT pre-state the schedule): (1) call add_habit(name=<exact label>) — records the pick with server defaults. (2) Ask the user for days, time, reminder — one short question at a time, waiting for each answer. (3) Call add_habit AGAIN with the same name plus the full schedule. Server merges by name. (4) THEN move to habit #2 if any. ' +
-      'Only `name` is required by the tool, but a habit is not "configured" until you have asked the user for days + time + reminder. Server enforces max 2 habits.',
+      'Only `name` is required by the tool, but a habit is not "configured" until you have asked the user for days + time + reminder. Habit limit depends on the path: the beginner path caps at 2 habits; the advanced path has no fixed limit.',
     parameters: {
       type: 'object',
       properties: {

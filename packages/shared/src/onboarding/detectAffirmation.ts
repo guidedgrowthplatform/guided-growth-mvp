@@ -1,3 +1,11 @@
+/**
+ * Sanctioned exception to the drop-local-parsers decision.
+ *
+ * Yair decided on 2026-07-03 to keep this local parser for the
+ * revisit-confirm shortcut, where instant affirmation detection saves
+ * user-perceived time.
+ */
+
 import type { ScreenKind } from './screenKind.js';
 
 export interface AffirmationResult {

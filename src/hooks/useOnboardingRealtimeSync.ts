@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { queryKeys } from '@/lib/query';
 import { supabase } from '@/lib/supabase';
+import { markBeatTransition } from '@/lib/telemetry/latencySpans';
 import { useAuthStore } from '@/stores/authStore';
 import type { OnboardingState } from '@gg/shared/types';
 
@@ -117,6 +118,18 @@ export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
               console.log('[realtime] dropped (stale)', next.updated_at, '<', current?.updated_at);
             }
             return;
+          }
+          // Latency lane T1: a row that climbs current_step past the cached one
+          // is the Vapi-path trigger leg of beat_transition_ms (server tool
+          // write -> Realtime receipt -> orchestrator advance). Marked before
+          // the cache write settles into the orchestrator effect. Measurement
+          // only; initial hydration (no cached row) is not a transition.
+          if (
+            typeof current?.current_step === 'number' &&
+            typeof next.current_step === 'number' &&
+            next.current_step > current.current_step
+          ) {
+            markBeatTransition(`rt:${next.updated_at ?? next.current_step}`, 'realtime');
           }
           qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, (cur) =>
             mergeRealtimeRow(cur, next),

@@ -24,6 +24,7 @@ const MIN_ESTIMATE_MS = 1200;
 export function useBeatOpenerCartesia(text: string | null, active: boolean): BeatOpenerMp3State {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
+  const [revealWords, setRevealWords] = useState<number | null>(null);
   const [done, setDone] = useState(false);
 
   const handleRef = useRef<SpeakOpenerHandle | null>(null);
@@ -35,6 +36,8 @@ export function useBeatOpenerCartesia(text: string | null, active: boolean): Bea
     handleRef.current?.stop();
     handleRef.current = null;
     setPlaying(false);
+    // null (not a stale mid-clip count) so the progress:1 full reveal wins.
+    setRevealWords(null);
     setProgress(1);
     setDone(true);
   }, []);
@@ -45,6 +48,7 @@ export function useBeatOpenerCartesia(text: string | null, active: boolean): Bea
     settledRef.current = false;
     setPlaying(false);
     setProgress(null);
+    setRevealWords(null);
     setDone(false);
 
     let el: HTMLAudioElement | null = null;
@@ -61,6 +65,7 @@ export function useBeatOpenerCartesia(text: string | null, active: boolean): Bea
         el.muted = isQaMuted();
       },
       onPlaying: () => setPlaying(true),
+      onRevealWords: (count) => setRevealWords(count),
     });
     handleRef.current = handle;
 
@@ -69,6 +74,7 @@ export function useBeatOpenerCartesia(text: string | null, active: boolean): Bea
       settledRef.current = true;
       handleRef.current = null;
       setPlaying(false);
+      setRevealWords(null);
       setProgress(1);
       setDone(true);
     });
@@ -86,5 +92,5 @@ export function useBeatOpenerCartesia(text: string | null, active: boolean): Bea
 
   // Cartesia streams TTS in an authed context; the B28 autoplay-hold affordance
   // is MP3-clip territory, so these stay inert here (shape parity only).
-  return { playing, progress, done, blocked: false, textFallback: false, stop };
+  return { playing, progress, revealWords, done, blocked: false, textFallback: false, stop };
 }
