@@ -1263,12 +1263,24 @@ function WeeklyDayPickerAdapter({ answers, onCapture, readOnly }: BeatAdapterPro
 
 // Terminal completion beat. A real node now (replaces the hardcoded "You're all
 // set" line in FlowRenderer): the coach line plays as the beat opener and the
-// user taps in. Captures {} to complete the flow.
-function IntoAppAdapter({ node, onCapture }: BeatAdapterProps) {
+// user taps in or confirms by voice. Captures {} to complete the flow.
+function IntoAppAdapter({ node, onCapture, readOnly }: BeatAdapterProps) {
   const props = node.componentProps as { ctaLabel?: string };
+  const submittedRef = useRef(false);
+  const submit = () => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    onCapture({ data: {} });
+  };
+  // A spoken "let's go" arrives as the LLM's confirm_plan; without a consumer
+  // the voice path dead-ends here (B32).
+  useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (readOnly) return;
+    if (result.action === 'confirm_plan') submit();
+  });
   return (
     <CardShell>
-      <Cta label={props.ctaLabel ?? "Let's go"} onClick={() => onCapture({ data: {} })} />
+      <Cta label={props.ctaLabel ?? "Let's go"} onClick={submit} />
     </CardShell>
   );
 }

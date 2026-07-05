@@ -117,3 +117,64 @@ describe('ProfileAdapter — voice fill auto-submits onCapture', () => {
     expect(onCapture).not.toHaveBeenCalled();
   });
 });
+
+describe('IntoAppAdapter — spoken confirm_plan completes the flow (B32)', () => {
+  const r = (action: string): OnboardingVoiceResult =>
+    ({ success: true, action, params: {}, message: '', confidence: 1 }) as OnboardingVoiceResult;
+
+  function renderIntoApp(bus: ReturnType<typeof makeBus>, onCapture: () => void, readOnly = false) {
+    const Adapter = getAdapter('into-app')!;
+    const props = {
+      node: { id: 'into-app', componentType: 'into-app', componentProps: {} },
+      answers: {},
+      onCapture,
+      readOnly,
+    } as unknown as Parameters<typeof Adapter>[0];
+    act(() => {
+      root.render(
+        <Provider value={bus.value}>
+          <Adapter {...props} />
+        </Provider>,
+      );
+    });
+  }
+
+  it('captures once on confirm_plan from the bus', () => {
+    const bus = makeBus();
+    const onCapture = vi.fn();
+    renderIntoApp(bus, onCapture);
+
+    bus.push(r('confirm_plan'));
+
+    expect(onCapture).toHaveBeenCalledTimes(1);
+    expect(onCapture.mock.calls[0][0]).toMatchObject({ data: {} });
+  });
+
+  it('never double-captures: repeated confirm_plan and a tap after it stay one capture', () => {
+    const bus = makeBus();
+    const onCapture = vi.fn();
+    renderIntoApp(bus, onCapture);
+
+    bus.push(r('confirm_plan'));
+    bus.push(r('confirm_plan'));
+    act(() => {
+      container.querySelector('button')?.click();
+    });
+
+    expect(onCapture).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores unrelated actions and readOnly renders', () => {
+    const bus = makeBus();
+    const onCapture = vi.fn();
+    renderIntoApp(bus, onCapture);
+    bus.push(r('fill_field'));
+    expect(onCapture).not.toHaveBeenCalled();
+
+    const busRo = makeBus();
+    const onCaptureRo = vi.fn();
+    renderIntoApp(busRo, onCaptureRo, true);
+    busRo.push(r('confirm_plan'));
+    expect(onCaptureRo).not.toHaveBeenCalled();
+  });
+});
