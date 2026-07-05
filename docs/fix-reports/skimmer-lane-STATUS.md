@@ -66,10 +66,10 @@ Gate re-check continues on a ~30-minute cadence; read-only prep only until it op
 
 | ID | Item | Status | MR |
 |---|---|---|---|
-| B32 | plan-review "Let's go" does not transition into the app (DEMO-CRITICAL finale dead-end) | in progress — root-causing | |
-| B33 | duplicate opener text every beat with voice on (static opener bubble + live transcript echo) | in progress — root-causing | |
-| B34 | age+gender merged into one bubble on the voice path (B5 voice-leg) | queued, phase 2 | |
-| B35 | habit-schedule card vanishes after fill on the voice path (B21-family) | queued, phase 2 | |
+| B32 | plan-review "Let's go" does not transition into the app (DEMO-CRITICAL finale dead-end) | FIXED, draft MR — root cause: the `into-app` beat's only voice advance is `confirm_plan`, and IntoAppAdapter had no voice-action listener; spoken confirms were silently dropped. Fix: consume confirm_plan → onCapture (ProfileAdapter pattern, submittedRef-guarded). 3 regression tests. tsc + 1635 green. Preview evidence pending | [!434](https://gitlab.guidedgrowthapp.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/434) |
+| B33 | duplicate opener text every beat with voice on | FIXED, draft MR — root cause: BeatPlayer karaokes the authored opener AND (voice on → chatEnabled) useOnboardingChat streams/commits the same opener into the store, which BeatConversation rendered unguarded (live partial during TTS, committed copy after). Fix: opt-in `hideOpener` on BeatConversation, passed only from the two direct-LLM BeatView branches; Vapi + past-beat replay untouched. 2 regression tests. tsc + 1634 green. FLAGGED follow-up ledger row: opener AUDIO also plays twice (useBeatOpenerCartesia + tts-service both speak it — the "two sounds" report); separate scoped MR, not folded into this one | [!435](https://gitlab.guidedgrowthapp.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/435) |
+| B34 | age+gender merged into one bubble on the voice path (B5 voice-leg) | in progress — root-causing (delegated survey running) | |
+| B35 | habit-schedule card vanishes after fill on the voice path (B21-family) | in progress — root-causing (delegated survey running) | |
 | S1 | Port the skimmer core (BrainDumpCapture.tsx, useBrainDumpCapture, parseBrainDumpRegex.ts + regex unit tests, drop sim fallback) | unblocked, phase 3 (source: feat/capture-real-beat @ e0000659) | |
 | S2 | Register + schema (ADAPTER_REGISTRY advanced-capture → BrainDumpCapture; per-habit days/polarity in the capture contract; replay renders cards) | open, phase 3 | |
 | S3 | Voice-in + reconcile verification (interim STT hookup; ~1s/clause card formation; LLM refine after pauses; typed parity) | open, phase 3 | |
@@ -109,7 +109,12 @@ LLM-cleanup with >2 habits if it merges during this lane.
 - Main checkout (/Users/jonah/Documents/guided-growth-mvp) carries another session's uncommitted work on
   feat/onboarding-voice-track1 — this lane works only in its own worktrees.
 
-Updated: 2026-07-05 (2) — gate re-checked again: unchanged (main 7dc0e20b, no B32–B35 MRs, no port-source
-push). Operator asked whether the lane is done: answered NO — S1–S4 remain gated/blocked. S5 drafted and
-pushed to gg-spec branch skimmer-lane-s5-daily-reporting during the hold. Loop continues on the 30-min
-gate-recheck cadence.
+Updated: 2026-07-05 (3) — PHASE 1 BUILT: B32 draft !434 (pipeline #988 green; preview
+https://gg-emuc7cxkb-guided-growths-projects.vercel.app) and B33 draft !435 (pipeline #989 running).
+Both fixes root-caused via delegated read-only surveys (.frugal-fable/b32|b33/notes.md on the lane
+worktree), implemented + unit-pinned in this session. B34/B35 surveys running in background. Next:
+preview voice-walk evidence for !434/!435 (fake-mic harness pattern from the b39 verification), then
+B34/B35 fixes, then S1–S4.
+
+Earlier today (2): gate re-check unchanged; operator asked if the lane was done — answered NO; S5 drafted
+on gg-spec branch skimmer-lane-s5-daily-reporting.
