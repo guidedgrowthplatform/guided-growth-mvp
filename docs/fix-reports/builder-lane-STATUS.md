@@ -107,3 +107,16 @@ build reproduces the dead-end live (22 /api/llm dispatches, zero advance). NOTE:
 builder QA account's staged row was WIPED mid-day (likely the skimmer lane's parallel
 verification) — harness now re-stages by tap-walking the full beginner lane first;
 final before/after runs in progress, will be posted on !440.
+
+---
+
+Updated: 2026-07-05 ~12:30 EAT — B32 EVIDENCE DONE, !440 READY (marked ready, conductor
+pinged, note_3514). Evidence surfaced a SECOND break: the model NEVER calls confirm_plan
+on ONBOARD-COMPLETE (0/14 voice turns, right screen/tools/addendum verified in captured
+request bodies; it narrates "You're all set!" instead) — so any confirm_plan-consuming
+fix alone (!440 v1, likely !434 too) is starved. Composed fix on !440: deterministic
+affirmation intercept in sendUserTurn (detectAffirmation, ONBOARD-COMPLETE) emits the
+synthetic confirm_plan action; the !440 adapter listener advances like the tap. After-run
+on the fix preview: voice "let's go" -> beat advances in 15s, ZERO taps, coach still
+replies. Harness + artifacts: .frugal-fable/b32/ (before-final = stuck on main build;
+after-composed = PASS). tsc clean, 1635/1635.
