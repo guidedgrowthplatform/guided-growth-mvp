@@ -13,8 +13,12 @@
  * its own state, voice capture, and save path. This view only changes how the
  * beat is presented (reveal timing + karaoke + the frozen/summary past state).
  */
-import { useCallback, useLayoutEffect } from 'react';
-import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
+import { useCallback, useLayoutEffect, useRef } from 'react';
+import {
+  type OnboardingVoiceResult,
+  useOnboardingVoice,
+  useOnboardingVoiceActions,
+} from '@/contexts/useOnboardingVoiceSession';
 import { CHAT_VAPI_BEAT_SCREENS, LOCAL_CAPTURE_BEATS } from '@/lib/onboarding/onboardingStepBeats';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 import { applyName } from './applyName';
@@ -60,6 +64,19 @@ export interface BeatViewProps {
 
 export function BeatView({ node, answers, active, onCapture, onReveal }: BeatViewProps) {
   const session = useOnboardingVoice();
+  // B32 voice leg lives on the BEAT, not the card: the into-app card mounts only
+  // when BeatPlayer reveals it (after the opener), but "let's go" routinely lands
+  // DURING the opener — a card-scoped listener drops it and the bus has no replay.
+  const finaleAdvancedRef = useRef(false);
+  useOnboardingVoiceActions(
+    (result: OnboardingVoiceResult) => {
+      if (finaleAdvancedRef.current) return;
+      if (result.action !== 'confirm_plan' || !result.success) return;
+      finaleAdvancedRef.current = true;
+      onCapture({ data: {} });
+    },
+    active && node.componentType === 'into-app',
+  );
   // getAdapter returns a module-stable component reference per componentType, so
   // identity only changes when the beat (and thus the card) changes — which is
   // exactly when a state reset is correct. Safe despite the static-components rule.

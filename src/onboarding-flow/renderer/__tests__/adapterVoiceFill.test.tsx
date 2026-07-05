@@ -11,6 +11,7 @@ import {
   type OnboardingVoiceContextValue,
   type OnboardingVoiceResult,
 } from '@/contexts/useOnboardingVoiceSession';
+import { BeatView } from '../BeatView';
 import { getAdapter } from '../componentRegistry';
 
 // Minimal controllable voice bus: the card subscribes, the test pushes actions.
@@ -118,13 +119,38 @@ describe('ProfileAdapter — voice fill auto-submits onCapture', () => {
   });
 });
 
-describe('IntoAppAdapter — confirm_plan voice action advances like the tap (B32)', () => {
-  const makeProps = (onCapture: () => void, readOnly = false) => ({
-    node: { componentProps: {} },
-    answers: {},
-    onCapture,
-    readOnly,
-  });
+describe('BeatView finale — confirm_plan voice action advances like the tap (B32)', () => {
+  // The listener lives on the BEAT (BeatView), not the card adapter: the card
+  // mounts only after the opener reveals, and an early "let's go" was dropped.
+  const intoAppNode = {
+    id: 'into-app',
+    type: 'beat',
+    beatNumber: 9,
+    name: 'Into the App',
+    screenId: 'ONBOARD-COMPLETE',
+    nextId: 'weekly-projection-blank',
+    backId: null,
+    context: { screenId: 'ONBOARD-COMPLETE', screenName: 'Into the App', contextBlock: '' },
+    componentType: 'into-app',
+    componentProps: {},
+    voice: { openerText: "Here's your plan.", expectsInput: true, directLlmAllowed: true },
+    tool: null,
+    persist: null,
+  } as unknown as import('../../types').FlowNode;
+
+  const renderBeat = (onCapture: () => void, busValue: OnboardingVoiceContextValue, active = true) =>
+    act(() => {
+      root.render(
+        <Provider value={busValue}>
+          <BeatView
+            node={intoAppNode}
+            answers={{}}
+            active={active}
+            onCapture={onCapture}
+          />
+        </Provider>,
+      );
+    });
 
   const confirm = (success = true): OnboardingVoiceResult => ({
     success,
@@ -134,17 +160,13 @@ describe('IntoAppAdapter — confirm_plan voice action advances like the tap (B3
     confidence: 1,
   });
 
-  it('captures once on a successful confirm_plan', () => {
+  it('captures once on a successful confirm_plan, even BEFORE the card step reveals', () => {
     const bus = makeBus();
     const onCapture = vi.fn();
-    const Adapter = getAdapter('into-app')!;
-    act(() => {
-      root.render(
-        <Provider value={bus.value}>
-          <Adapter {...(makeProps(onCapture) as unknown as Parameters<typeof Adapter>[0])} />
-        </Provider>,
-      );
-    });
+    renderBeat(onCapture, bus.value);
+    // No timers advanced: the BeatPlayer card step has NOT revealed yet — the
+    // beat-level listener must still catch the action (the old adapter-scoped
+    // listener dropped exactly this case).
     bus.push(confirm());
     expect(onCapture).toHaveBeenCalledTimes(1);
     // one-shot: a duplicate event must not double-advance
@@ -155,14 +177,7 @@ describe('IntoAppAdapter — confirm_plan voice action advances like the tap (B3
   it('ignores failed confirm_plan and unrelated actions', () => {
     const bus = makeBus();
     const onCapture = vi.fn();
-    const Adapter = getAdapter('into-app')!;
-    act(() => {
-      root.render(
-        <Provider value={bus.value}>
-          <Adapter {...(makeProps(onCapture) as unknown as Parameters<typeof Adapter>[0])} />
-        </Provider>,
-      );
-    });
+    renderBeat(onCapture, bus.value);
     bus.push(confirm(false));
     bus.push({
       success: true,
@@ -174,18 +189,41 @@ describe('IntoAppAdapter — confirm_plan voice action advances like the tap (B3
     expect(onCapture).not.toHaveBeenCalled();
   });
 
-  it('a past (readOnly) into-app card never captures — the active beat owns advancement', () => {
+  it('an inactive (past) into-app beat never captures — the active beat owns advancement', () => {
+    const bus = makeBus();
+    const onCapture = vi.fn();
+    renderBeat(onCapture, bus.value, false);
+    bus.push(confirm());
+    expect(onCapture).not.toHaveBeenCalled();
+  });
+
+  it('the tap CTA still fires capture, and readOnly hides it', () => {
     const bus = makeBus();
     const onCapture = vi.fn();
     const Adapter = getAdapter('into-app')!;
+    const props = { node: { componentProps: {} }, answers: {}, onCapture, readOnly: false };
     act(() => {
       root.render(
         <Provider value={bus.value}>
-          <Adapter {...(makeProps(onCapture, true) as unknown as Parameters<typeof Adapter>[0])} />
+          <Adapter {...(props as unknown as Parameters<typeof Adapter>[0])} />
         </Provider>,
       );
     });
-    bus.push(confirm());
-    expect(onCapture).not.toHaveBeenCalled();
+    const btn = container.querySelector('button');
+    expect(btn).not.toBeNull();
+    act(() => {
+      btn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(onCapture).toHaveBeenCalledTimes(1);
+    act(() => {
+      root.render(
+        <Provider value={bus.value}>
+          <Adapter
+            {...({ ...props, readOnly: true } as unknown as Parameters<typeof Adapter>[0])}
+          />
+        </Provider>,
+      );
+    });
+    expect(container.querySelector('button')).toBeNull();
   });
 });

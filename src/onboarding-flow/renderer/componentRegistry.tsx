@@ -1266,16 +1266,8 @@ function WeeklyDayPickerAdapter({ answers, onCapture, readOnly }: BeatAdapterPro
 // user taps in. Captures {} to complete the flow.
 function IntoAppAdapter({ node, onCapture, readOnly }: BeatAdapterProps) {
   const props = node.componentProps as { ctaLabel?: string };
-  // Voice leg of the tap CTA (B32): the addendum has the coach call confirm_plan
-  // on "let's go", but the tool is validate-only server-side — without this
-  // listener the machine never leaves into-app and the finale dead-ends.
-  const advancedRef = useRef(false);
-  useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
-    if (readOnly || advancedRef.current) return;
-    if (result.action !== 'confirm_plan' || !result.success) return;
-    advancedRef.current = true;
-    onCapture({ data: {} });
-  });
+  // B32 voice leg (confirm_plan -> capture) lives in BeatView, NOT here: this
+  // card mounts only after the opener reveals, dropping early "let's go" actions.
   return (
     <CardShell>
       {!readOnly && (
