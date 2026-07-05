@@ -58,12 +58,22 @@ export function MicPermission({
     };
     const run = () => {
       push(() => {
-        setExpanded(true);
+        setExpanded(true); // grow up + ask (grey mic)
         if (loop) {
+          // Demo the happy path so the dock shows the real outcome, not a retract to
+          // grey: after the ask, "allow" (mic turns gold at the top), settle down into
+          // the dock with the mic ON and gold, hold, then reset and loop.
+          const t1 = EXPAND_MS + HOLD_MS; // allow
+          const t2 = t1 + 560; // start descending, gold
+          const t3 = t2 + SETTLE_MS + 600; // reset for the next loop
+          push(() => setGranted(true), t1);
+          push(() => setSettling(true), t2);
           push(() => {
             setExpanded(false);
-            push(run, RETRACT_HOLD_MS);
-          }, EXPAND_MS + HOLD_MS);
+            setGranted(false);
+            setSettling(false);
+          }, t3);
+          push(run, t3 + RETRACT_HOLD_MS);
         }
       }, 280);
     };
@@ -73,8 +83,8 @@ export function MicPermission({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPlay, loop]);
 
-  // Grant: mic half turns blue and the orb slides down into its dock, then we
-  // signal the flow to advance.
+  // Grant: mic half turns gold (mic on) and the orb slides down into its dock, then
+  // we signal the flow to advance.
   const handleAllow = () => {
     if (granted) return;
     // 1) mic turns yellow immediately, still up at the top. 2) after a short hold it
