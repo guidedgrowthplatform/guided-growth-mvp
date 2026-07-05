@@ -56,6 +56,7 @@ const DEPTH_SLIDERS: { k: keyof OrbParams; label: string; min: number; max: numb
   { k: 'depth', label: 'Glass depth', min: 0, max: 100 },
 ];
 const PULSE_SLIDERS: { k: keyof PulseParams; label: string; min: number; max: number }[] = [
+  { k: 'react', label: 'Voice reactivity', min: 0, max: 100 },
   { k: 'size', label: 'Base size', min: 0, max: 40 },
   { k: 'amt', label: 'Extra pulse', min: 0, max: 100 },
   { k: 'speed', label: 'Pulse speed', min: 0, max: 100 },

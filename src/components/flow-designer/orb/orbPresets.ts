@@ -274,13 +274,20 @@ export function resetParams(): OrbStates {
 // (disc vs outer membrane vs inner light), separate from the look presets in
 // AUTHOR_PRESETS. Apply from the Pulse tab.
 export const MOTION_PRESETS: Record<string, PulseParams> = {
-  'Yair default': { size: 8, amt: 60, speed: 50, orbAmt: 100, mem: 60, memSpeed: 35 },
+  'Yair default': { size: 8, amt: 60, speed: 50, orbAmt: 100, mem: 60, memSpeed: 35, react: 45 },
   // Orb disc holds still; only the outer membrane breathes, slowly.
-  'Calm membrane': { size: 8, amt: 40, speed: 30, orbAmt: 0, mem: 62, memSpeed: 20 },
+  'Calm membrane': { size: 8, amt: 40, speed: 30, orbAmt: 0, mem: 62, memSpeed: 20, react: 40 },
   // Orb disc still, no membrane; only the inner light drifts.
-  'Inner only': { size: 6, amt: 40, speed: 42, orbAmt: 0, mem: 0, memSpeed: 20 },
+  'Inner only': { size: 6, amt: 40, speed: 42, orbAmt: 0, mem: 0, memSpeed: 20, react: 45 },
   // Everything moves, but gently and slow.
-  'Gentle all': { size: 6, amt: 45, speed: 26, orbAmt: 58, mem: 55, memSpeed: 24 },
+  'Gentle all': { size: 6, amt: 45, speed: 26, orbAmt: 58, mem: 55, memSpeed: 24, react: 40 },
+  // --- Voice-reactivity options (light + disc grow in sync; try these first) ---
+  // Barely reacts to the voice; light and disc drift together, very calm.
+  'Calm & in sync': { size: 8, amt: 40, speed: 34, orbAmt: 70, mem: 55, memSpeed: 28, react: 30 },
+  // A clear but even reaction, light and disc move as one.
+  'Balanced sync': { size: 8, amt: 46, speed: 40, orbAmt: 85, mem: 58, memSpeed: 32, react: 52 },
+  // Strong, lively reaction to the voice (still in sync).
+  'Lively sync': { size: 9, amt: 55, speed: 48, orbAmt: 100, mem: 60, memSpeed: 36, react: 78 },
 };
 const LS_PULSE = 'gg-flow-builder-v18:orb-pulse';
 export function loadPulse(): PulseParams {

@@ -213,7 +213,8 @@ export function Orb({
       const P = isActive ? c.params.talk : c.params.idle;
       const offMul = on ? 1 : 0.5;
       const m = micRef.current;
-      const micF = isActive && m.on ? 0.6 + m.amp * 0.55 : 1;
+      const react = (c.pulse.react ?? 45) / 100;
+      const micF = 1 + (isActive && m.on ? m.amp * react : 0) * 0.7;
       const em = isActive ? 1.25 * micF : 1;
       const glow = (P.glow / 100) * offMul * em;
       const bright = (P.bright / 100) * offMul;
@@ -340,7 +341,8 @@ export function Orb({
       const pal = c.state === 'coach' ? BLUE : GOLD;
       const P = c.params.talk;
       const m = micRef.current;
-      const micF = m.on ? 0.6 + m.amp * 0.55 : 1;
+      const react = (c.pulse.react ?? 45) / 100;
+      const micF = 1 + (m.on ? m.amp * react : 0) * 0.7;
       const glow = (P.glow / 100) * 1.2 * micF;
       const bright = P.bright / 100;
       const grad = P.grad / 100;
@@ -462,19 +464,22 @@ export function Orb({
       // orbAmt scales the whole DISC expansion. 0 keeps the disc perfectly stable
       // while the membrane and inner light still move on their own.
       const oa = (pz.orbAmt ?? 100) / 100;
+      // Voice reactivity: ONE shared drive so the inner light and the disc grow and
+      // shrink together (in sync) with the voice, instead of the light outrunning the
+      // circle. `react` scales it; 0 = the disc ignores the voice (only the base breathe).
+      const react = (pz.react ?? 45) / 100;
+      const av = m.on ? m.amp * react : 0;
       if (full) {
-        const micF = m.on ? 0.5 + m.amp * 0.9 : 1;
         const swing = (0.5 + 0.5 * Math.sin(t2 * prate * 2)) * pamt * 0.22;
-        const grow = 1 + (pbase + swing) * micF * oa;
+        const grow = 1 + (pbase + swing + av * 0.42) * oa;
         orb.style.transform = `scale(${grow.toFixed(3)})`;
       } else {
         orb.style.transform = '';
       }
       const activeSide = c.state === 'coach' ? 'left' : c.state === 'user' ? 'right' : null;
       if (talking && c.style === 'directional' && activeSide) {
-        const micF = m.on ? 0.5 + m.amp * 0.9 : 1;
         const swing = (0.5 + 0.5 * Math.sin(t2 * prate * 2)) * pamt * 0.2;
-        const gv = 1 + (pbase * 0.85 + swing) * micF * oa;
+        const gv = 1 + (pbase * 0.85 + swing + av * 0.4) * oa;
         if (leftHalfRef.current)
           leftHalfRef.current.style.transform =
             activeSide === 'left' ? `scale(${gv.toFixed(3)})` : '';
