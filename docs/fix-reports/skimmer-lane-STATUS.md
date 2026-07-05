@@ -109,6 +109,63 @@ LLM-cleanup with >2 habits if it merges during this lane.
 - Main checkout (/Users/jonah/Documents/guided-growth-mvp) carries another session's uncommitted work on
   feat/onboarding-voice-track1 — this lane works only in its own worktrees.
 
+## WIND-DOWN SNAPSHOT (2026-07-05, operator ended the loop)
+
+All construction is done and in draft MRs with green pipelines; the LIVE preview evidence batch did not
+run. Verified: unit level (1655 tests incl. capture/replay/voice-tool contracts) + each MR's branch
+pipeline + previews deployed. NOT yet verified live: the SK-LOOP-2 checklist (typed + fake-mic spoken
+dump on a preview at phone viewport, edit/delete persistence through the LLM reconcile, refresh replay,
+no-fragment check) — B26 stays "fix built, closure evidence pending" until someone runs it.
+
+Ready-made evidence surface for whoever resumes: STACK-TIP PREVIEW (B33+B34+B35+S1+S2 all in one build)
+https://gg-ma10vr9t5-guided-growths-projects.vercel.app (pipeline #997 green; sanity-check
+VITE_SUPABASE_URL = staging ref ppyouymvnrqxcsllrmsl before trusting it). B32 has its own preview
+https://gg-emuc7cxkb-guided-growths-projects.vercel.app (!434). Fake-mic harness pattern:
+docs/fix-reports/c5-voice-2026-07-04/ on context-lane-status-2026-07-03 (headless Playwright,
+use-fake-device + use-file-for-fake-audio-capture; never the operator's Chrome; kill each voice session
+when its check lands). Test user: qa-onboarding-fable-skimmer@guidedgrowth.test via
+scripts/qa/create-test-users.mjs (operator may need to run it — the permission layer denied the context
+lane's attempt). Merge order for the conductor: !434 independent; !435 → !436 → !437 → !438 → !439
+(retarget each to main as its parent merges).
+
+FRUGAL-FABLE: standing instruction for this Fable session
+
+STEP 0, before anything: confirm Ultracode is OFF for this session.
+frugal-fable and Ultracode are opposites (one conserves, one spends
+everything and loops). If Ultracode is on, toggle it off first
+(/ultracode or the toggle by the model selector), then proceed.
+
+USE the frugal-fable skill for any token-heavy work: multi-file builds,
+research, testing, debugging, migrations, anything spanning many files
+or sources. Keep small, tightly-coupled, or judgment-heavy work IN this
+session (delegation overhead would cost more than it saves).
+
+If the skill is not available, install the TEAM-VENDORED pinned copy,
+then continue (never a live unpinned clone; supply-chain rule):
+  cp -R ../gg-spec/skills/frugal-fable ~/.claude/skills/frugal-fable
+(vendored copy vetted at upstream commit 8d93ef1c)
+
+Rules to actually follow, not just load:
+- Keep Fable on judgment: decompose, architect, integrate, final review.
+  Delegate bounded, verifiable slices to Haiku/Sonnet, Opus for hard or
+  high-stakes ones. Never let a weak agent own quality-critical construction.
+- Context firewall: delegated agents write output to a scratch dir
+  (.frugal-fable/<task>/, gitignored) and return ONLY a path + 3-line
+  summary + confidence. Read files on demand at synthesis. Never dump full
+  sub-agent output back into context.
+- The real brake is a token budget in a Workflow (budget.remaining() gate),
+  not the skill text. On constrained usage or unsupervised runs, use
+  references/frugal-research.js or gate fan-out on budget.
+- After a delegated workflow returns, do NOT auto-launch a second gap-fill
+  pass. Synthesize and stop unless Yair asks to widen scope.
+- The research lane mentions bdata and deep-research-cheap. Don't assume they
+  exist. If they're not installed, use the bundled frugal-research.js or plain
+  WebSearch/WebFetch.
+
+PROPAGATE: any handoff you write for another Fable session MUST include this
+exact block (Ultracode-off check, use frugal-fable, the context-firewall rule,
+the pinned/vendored install command, and this propagate instruction).
+
 Updated: 2026-07-05 (3) — PHASE 1 BUILT: B32 draft !434 (pipeline #988 green; preview
 https://gg-emuc7cxkb-guided-growths-projects.vercel.app) and B33 draft !435 (pipeline #989 running).
 Both fixes root-caused via delegated read-only surveys (.frugal-fable/b32|b33/notes.md on the lane
