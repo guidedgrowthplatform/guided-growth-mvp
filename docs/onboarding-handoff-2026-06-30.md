@@ -84,7 +84,6 @@ A research pass mapped this branch against the team's active branches (`feat/che
 **Genuinely new on this branch (keep and upstream):**
 - The build fix (`cb011ece`, `tsc -b ... --force`). No team branch has it, and it fixes a 500 on every Direct-LLM coach turn for everyone. Upstream first, standalone.
 - The runtime Vapi toggle (`qaVapi.ts`, `QAVapiToggle.tsx`, the `voice.ts` rewrite).
-- The standalone Soniox profile parser (`parseProfileSpeech.ts`).
 - The `engineForTurn` local-capture gate.
 - `submit_profile` carrying the name (confirm whether their handler already does this).
 
