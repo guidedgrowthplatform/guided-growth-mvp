@@ -4,7 +4,25 @@ Lane doc: gg-spec/docs/fable-lane-live-skimmer-2026-07-04.md (parent: fable-wind
 Closes: B26 (advanced path never consults the LLM, renders raw text fragments as habit names).
 Status branch: skimmer-lane-status-2026-07-04 (docs-only, never merged until the end).
 
-## LAUNCH GATE: NOT MET (re-checked 2026-07-05, on gitlab.guidedgrowthapp.com)
+## GATE DISSOLVED 2026-07-05 (conductor decision, relayed by the operator)
+
+No B32–B35 MRs ever appeared and Yair confirmed the bundle is not being worked elsewhere. The gate is
+replaced by OWNERSHIP TRANSFER: this lane now owns B32–B35 as its first phase (single ownership of the
+shared hot files removes the conflict the gate protected against). New order of work:
+
+1. B32 (plan-review "Let's go" dead-end) + B33 (duplicated opener text with voice on) — demo-critical,
+   one small draft MR each or a stacked pair.
+2. B34 (age+gender merged bubble, voice path) + B35 (vanishing habit-schedule card, voice path).
+3. S1–S4 skimmer work as planned, stacked on top.
+
+Branch off current origin/main; all MRs target main as drafts; standing rules unchanged (authored
+sources + flow:sync, fix reports, preview evidence). The 30-minute gate-recheck loop is stopped.
+
+PORT SOURCE RESOLVED: feat/capture-real-beat pushed to the new GitLab at e0000659
+(src/onboarding-flow/BrainDumpCapture.tsx, parseBrainDumpRegex.ts, parseBrainDumpRegex.test.ts — the
+regex tests already exist upstream). Port content against current main, never merge (~400 commits stale).
+
+## Superseded: original launch gate (kept for the record)
 
 Gate: builder-lane bug bundle B32–B35 merged into the integration branch (now `main`) before this lane forks.
 
@@ -48,23 +66,22 @@ Gate re-check continues on a ~30-minute cadence; read-only prep only until it op
 
 | ID | Item | Status | MR |
 |---|---|---|---|
-| S1 | Port the skimmer core (BrainDumpCapture.tsx, useBrainDumpCapture, parseBrainDumpRegex.ts + regex unit tests, drop sim fallback) | BLOCKED (gate + port source, see blockers) | |
-| S2 | Register + schema (ADAPTER_REGISTRY advanced-capture → BrainDumpCapture; per-habit days/polarity in the capture contract; replay renders cards) | open, gated | |
-| S3 | Voice-in + reconcile verification (interim STT hookup; ~1s/clause card formation; LLM refine after pauses; typed parity) | open, gated | |
-| S4 | Preview proof + B26 closure (phone viewport, spoken + typed dumps, edits/deletes survive reconcile, replay after refresh) | open, gated | |
+| B32 | plan-review "Let's go" does not transition into the app (DEMO-CRITICAL finale dead-end) | in progress — root-causing | |
+| B33 | duplicate opener text every beat with voice on (static opener bubble + live transcript echo) | in progress — root-causing | |
+| B34 | age+gender merged into one bubble on the voice path (B5 voice-leg) | queued, phase 2 | |
+| B35 | habit-schedule card vanishes after fill on the voice path (B21-family) | queued, phase 2 | |
+| S1 | Port the skimmer core (BrainDumpCapture.tsx, useBrainDumpCapture, parseBrainDumpRegex.ts + regex unit tests, drop sim fallback) | unblocked, phase 3 (source: feat/capture-real-beat @ e0000659) | |
+| S2 | Register + schema (ADAPTER_REGISTRY advanced-capture → BrainDumpCapture; per-habit days/polarity in the capture contract; replay renders cards) | open, phase 3 | |
+| S3 | Voice-in + reconcile verification (interim STT hookup; ~1s/clause card formation; LLM refine after pauses; typed parity) | open, phase 3 | |
+| S4 | Preview proof + B26 closure (phone viewport, spoken + typed dumps, edits/deletes survive reconcile, replay after refresh) | open, phase 3 | |
 | S5 | Daily-reporting scoping note (phase 2 stub, no code) | DRAFTED 2026-07-05 during the gate hold: gg-spec branch skimmer-lane-s5-daily-reporting (docs/skimmer-phase2-daily-reporting-2026-07-05.md, 00635aa). Docs-only; conductor/Yair merges. Refine the "what changes" list after S1–S4 land | |
 
 ## Blockers
 
-1. **NEEDS-HUMAN (Yair): the port source is not reachable.** Skimmer v1 lives at
-   `/Users/yairamsel/Developer/ggmvp-skimmer` (per docs/live-capture-surfaces-2026-06-27.md), branch
-   feat/capture-real-beat @ e0000659 (feat/live-skimmer is an ancestor). Not on the old server (was 404),
-   not on the new server (no capture-real/live-skimmer refs), and improvement-plan-2026-07-02.md item 11
-   records the checkout carries UNCOMMITTED work. Ask: commit + push feat/capture-real-beat to
-   gitlab.guidedgrowthapp.com (or hand over BrainDumpCapture.tsx, useBrainDumpCapture.ts,
-   parseBrainDumpRegex.ts). Fallback: reimplement from the survey's architecture spec (two-tier parse,
-   450ms debounce, Map + order array + override maps + deleted-set) — worse fidelity, lane doc prefers a port.
-2. Launch gate (above): builder bundle B32–B35 not yet MR'd.
+None open. RESOLVED 2026-07-05: (1) port source pushed as feat/capture-real-beat @ e0000659;
+(2) launch gate dissolved — this lane owns B32–B35 (see gate-change section above).
+Still pending on others, non-blocking: B37 cap decision (draft !430, NEEDS-YAIR) — retest skimmer
+LLM-cleanup with >2 habits if it merges during this lane.
 
 ## Read-only prep findings (verified on origin/main @ 5df99b72; re-verify hot files at fork time)
 
