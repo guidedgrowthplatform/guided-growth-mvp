@@ -173,3 +173,9 @@ point 3 overtaken by events (re-test PASSED T1 + T2 race ×2, !440 merged). Head
 updated to current trunk/production state. Notes-check degraded this tick: GitLab API
 token not available in this shell (credential search stopped per policy) — review notes
 on !411 will be caught next tick or via conductor ping.
+
+**2026-07-05 ~20:47**: main moved to 37853412 (latency-t1-spans telemetry —
+beat_transition_ms spans stitched by turn id; touches useFlowOrchestrator + adds
+latencySpans.ts). !411 re-synced: clean auto-merge incl. orchestrator, tsc clean,
+1658/1658, pushed 155121dc. gg-spec new commits are latency-lane T2 baseline docs —
+still no flow-content Exports from Yair.
