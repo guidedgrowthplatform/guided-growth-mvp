@@ -68,16 +68,36 @@ export const ONBOARDING_VAPI_IDLE_TIMEOUT_MS = envNumber(
 );
 
 // ─── Vapi (Path 1) daily cap ────────────────────────────────────────────────
-// Test override; gg-spec UX-12 says 5. Revert before launch.
-export const VAPI_DAILY_CAP = envNumber(import.meta.env.VITE_VAPI_DAILY_CAP, 25);
+// gg-spec UX-12: 5 realtime (Vapi) voice sessions per calendar day.
+// Reverted from the 25 test override on 2026-07-05 (release prep).
+// Overridable via VITE_VAPI_DAILY_CAP for QA only.
+export const VAPI_DAILY_CAP = envNumber(import.meta.env.VITE_VAPI_DAILY_CAP, 5);
 export const VAPI_CAP_DISABLED = import.meta.env.VITE_VOICE_CAP_DISABLED === '1';
+
+// Payload flag set on a `voice_started` event by first-run onboarding voice.
+// Cap-exempt starts do NOT count toward VAPI_DAILY_CAP, so onboarding never
+// consumes the daily coach-chat allowance and is never blocked by the cap.
+// The anti-abuse ceiling for exempt onboarding voice is enforced separately
+// (server/infra backstop — see the fix report on this branch).
+export const CAP_EXEMPT_PAYLOAD_KEY = 'cap_exempt';
+
+interface CapPayload {
+  voice_vendor?: string;
+  cap_exempt?: boolean;
+}
 
 export interface CapCountableEvent {
   event_type: string;
   timestamp: string;
-  payload?: { voice_vendor?: string } | Record<string, unknown> | null;
+  payload?: CapPayload | Record<string, unknown> | null;
 }
 
+/**
+ * Count today's cap-COUNTABLE Vapi voice sessions. A `voice_started` event
+ * counts when it is Vapi-vendored, dated today, and NOT cap-exempt. Onboarding
+ * marks its starts cap_exempt (see CAP_EXEMPT_PAYLOAD_KEY), so onboarding voice
+ * never consumes the daily cap.
+ */
 export function countVapiToday(
   events: ReadonlyArray<CapCountableEvent>,
   now: Date = new Date(),
@@ -86,8 +106,9 @@ export function countVapiToday(
   let n = 0;
   for (const e of events) {
     if (e.event_type !== 'voice_started') continue;
-    const p = e.payload as { voice_vendor?: string } | null | undefined;
+    const p = e.payload as CapPayload | null | undefined;
     if (p?.voice_vendor !== 'vapi') continue;
+    if (p?.cap_exempt === true) continue;
     if (new Date(e.timestamp).toDateString() !== today) continue;
     n += 1;
   }
