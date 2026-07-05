@@ -19,6 +19,9 @@ interface CardHabit {
   days?: number[];
   polarity: Polarity;
   confirmed?: boolean;
+  // Named by the LLM pass: owns this habit's identity — a regex stub never
+  // displaces it, and later AI passes may rename it (key migration).
+  ai?: boolean;
 }
 
 interface IncomingHabit {
@@ -54,7 +57,19 @@ function habitTypeToPolarity(h: ApiParsedHabit): Polarity | undefined {
 }
 
 function normName(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, ' ').trim();
+  return s
+    .toLowerCase()
+    .replace(/[‘’]/g, "'")
+    .replace(/[.,;:!?"“”]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// The two parse tiers describe ONE habit with prefix-related names (regex stub
+// "quit smoking every" vs AI "quit smoking"; stub "drink water in the" vs AI
+// "drink water in the mornings"). Word-prefix relation = same identity.
+function sameHabit(a: string, b: string): boolean {
+  return a === b || a.startsWith(`${b} `) || b.startsWith(`${a} `);
 }
 
 function capitalize(s: string): string {
@@ -109,6 +124,13 @@ export function useBrainDumpCapture({
     setHabits(list);
   }, []);
 
+  // A deleted card must stay dead through every reconcile, including when the
+  // AI later returns the habit under a prefix-related name (the resurrection bug).
+  const isDeleted = useCallback((key: string) => {
+    for (const d of deletedRef.current) if (sameHabit(d, key)) return true;
+    return false;
+  }, []);
+
   const addParsed = useCallback(
     (parsed: IncomingHabit[], fromAI: boolean, confirm = false) => {
       for (const p of parsed) {
@@ -118,24 +140,63 @@ export function useBrainDumpCapture({
         if (!fromAI && name.split(/\s+/).length > 4) continue;
         const key = normName(name);
         if (!key) continue;
-        if (deletedRef.current.has(key)) continue;
-        const existing = habitsRef.current.get(key);
-        habitsRef.current.set(key, {
-          name: fromAI ? name : (existing?.name ?? name),
-          days: p.days ?? existing?.days,
-          polarity: fromAI
-            ? (p.polarity ?? existing?.polarity ?? leadPolarity(name))
-            : (existing?.polarity ?? p.polarity ?? leadPolarity(name)),
-          confirmed: existing?.confirmed || (fromAI && confirm),
-        });
-        if (!orderRef.current.includes(key)) orderRef.current.push(key);
+        if (isDeleted(key)) continue;
+
+        if (fromAI) {
+          // The AI name is authoritative: absorb every prefix-related entry
+          // (regex stubs AND older AI names), carrying the first one's state and
+          // its manual overrides to the new key.
+          let carry: CardHabit | undefined = habitsRef.current.get(key);
+          for (const related of [...orderRef.current]) {
+            if (related === key || !sameHabit(related, key)) continue;
+            const old = habitsRef.current.get(related);
+            habitsRef.current.delete(related);
+            if (orderRef.current.includes(key)) {
+              orderRef.current = orderRef.current.filter((k) => k !== related);
+            } else {
+              orderRef.current = orderRef.current.map((k) => (k === related ? key : k));
+            }
+            const md = manualDays.current.get(related);
+            if (md && !manualDays.current.has(key)) manualDays.current.set(key, md);
+            manualDays.current.delete(related);
+            const mp = manualPolarity.current.get(related);
+            if (mp && !manualPolarity.current.has(key)) manualPolarity.current.set(key, mp);
+            manualPolarity.current.delete(related);
+            carry = carry ?? old;
+          }
+          habitsRef.current.set(key, {
+            name,
+            days: p.days ?? carry?.days,
+            polarity: p.polarity ?? carry?.polarity ?? leadPolarity(name),
+            confirmed: carry?.confirmed || confirm,
+            ai: true,
+          });
+          if (!orderRef.current.includes(key)) orderRef.current.push(key);
+        } else {
+          // Regex tier: an AI entry already owning this identity wins outright.
+          const aiOwner = orderRef.current.some(
+            (k) => k !== key && habitsRef.current.get(k)?.ai && sameHabit(k, key),
+          );
+          if (aiOwner) continue;
+          const existing = habitsRef.current.get(key);
+          habitsRef.current.set(key, {
+            name: existing?.name ?? name,
+            days: p.days ?? existing?.days,
+            polarity: existing?.polarity ?? p.polarity ?? leadPolarity(name),
+            confirmed: existing?.confirmed ?? false,
+            ai: existing?.ai ?? false,
+          });
+          if (!orderRef.current.includes(key)) orderRef.current.push(key);
+        }
       }
 
-      // An interim partial cards "go to the" a beat before "go to the gym"
-      // lands; the longer name supersedes the stub unless the user touched it.
+      // Regex-tier growth: an interim cards "go to the" a beat before "go to
+      // the gym" lands; the longer stub supersedes the shorter one. Never an AI
+      // entry (the AI's clean name is often SHORTER than the stub — deleting it
+      // here was the never-refines bug) and never a user-touched card.
       for (const short of [...orderRef.current]) {
         const sh = habitsRef.current.get(short);
-        if (!sh || sh.confirmed) continue;
+        if (!sh || sh.confirmed || sh.ai) continue;
         if (manualDays.current.has(short) || manualPolarity.current.has(short)) continue;
         const supersededBy = orderRef.current.some(
           (long) => long !== short && long.startsWith(`${short} `),
@@ -147,7 +208,7 @@ export function useBrainDumpCapture({
       }
       recompute();
     },
-    [recompute],
+    [isDeleted, recompute],
   );
 
   useEffect(() => {
