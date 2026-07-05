@@ -184,3 +184,10 @@ still no flow-content Exports from Yair.
 api/\_lib/gitlab.ts + .env.local.example; the migration owner's edits, landed as a
 proper MR). !411 re-synced: clean merge (2 files, no overlap), tsc clean, 1658/1658,
 pushed. gg-spec unchanged — still no flow-content Exports.
+
+**2026-07-05 ~22:26 — LANE QUEUE COMPLETE**: !411 MERGED into main @ 22a7a5fc (conductor;
+merged head = a96c689b, exactly the last verified sync — 1658/1658 green; source branch
+auto-deleted). With !440 @ 145e0767 this closes every builder-lane deliverable: L1-3
+derive-maps + The Weekly integration (!411) and B32 plan-review handoff (!440) both on
+main. Remaining watch only: Yair's flow-content Exports (preempt; still not arrived) and
+any post-merge follow-ups/review notes. Heartbeat relaxed to ~60 min accordingly.
