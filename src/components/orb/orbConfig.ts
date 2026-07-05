@@ -79,7 +79,7 @@ export const DEFAULT_PARAMS: OrbStates = {
     body: 42,
     glow: 132,
     bright: 130,
-    speed: 62,
+    speed: 46,
     grad: 84,
     core: 40,
     spread: 60,
@@ -94,8 +94,8 @@ export const DEFAULT_PARAMS: OrbStates = {
 
 export const DEFAULT_PULSE: PulseParams = {
   size: 8,
-  amt: 60,
-  speed: 50,
+  amt: 46,
+  speed: 36,
   orbAmt: 100,
   mem: 60,
   memSpeed: 35,
