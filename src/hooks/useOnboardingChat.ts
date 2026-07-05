@@ -659,6 +659,23 @@ export function useOnboardingChat({
         onAdvanceRef.current?.();
         return;
       }
+      // B32: terminal confirm beat — an affirmation IS the approval. The model's
+      // confirm_plan call is unreliable (0/14 observed live), so the handoff must
+      // not gate on it: emit the synthetic action the into-app adapter consumes.
+      // No return — the turn still dispatches so the coach replies naturally.
+      if (
+        chatNative &&
+        screenIdRef.current === 'ONBOARD-COMPLETE' &&
+        detectAffirmation(text, 'single').affirmed
+      ) {
+        onVoiceAction({
+          success: true,
+          action: 'confirm_plan',
+          params: {},
+          message: '',
+          confidence: 1,
+        });
+      }
       // Session not minted yet (cold voice-in entry) — hold; flushed on ready.
       if (!chatSessionIdRef.current) {
         pendingTurnRef.current = text;
@@ -675,7 +692,7 @@ export function useOnboardingChat({
       }
       startStream(text);
     },
-    [isOnboardingScreen, appendMessage, startStream, resetSpeechTurn],
+    [isOnboardingScreen, appendMessage, startStream, resetSpeechTurn, chatNative, onVoiceAction],
   );
 
   return { sendUserTurn, chatBusy: llm.isStreaming, interrupt, regenerate };
