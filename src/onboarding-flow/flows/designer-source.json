@@ -386,14 +386,14 @@
       "background": "coach",
       "sheetStage": "ONBOARD-WEEKLY-SETUP: The Weekly Day",
       "transition": null,
-      "context": "BEAT: The Weekly day.\n\nSPEAK MODE: VERBATIM_OPENER\n\nOne question: which day is their weekly session, The Weekly, where you and the user look back over the whole week and plan the next one together. The days are on the card, Sunday preselected. This is where the compounding gets said out loud: it gets sharper every week because you know them better. If they hesitate, suggest Sunday, it doubles as planning the week ahead. Any day works. Capture the day, then move on.\n\nDO NOT:\n- Read the seven days out loud. The card shows them.\n- Oversell. The opener already carries the pitch. Ask, capture, move on.\n- Let it be skipped silently. If they truly refuse to pick, set Sunday and tell them they can change it later.",
+      "context": "BEAT: The Weekly day.\n\nSet up The Weekly, the once-a-week session where you and the user look back over the whole week and plan the next one together. Your opener carries the pitch and is spoken as written. After it, recommend the day out loud, then let them choose.\n\nRecommend the evening before their work week starts:\n- If you are speaking Hebrew, that day is מוצ״ש (Saturday night). Say מוצ״ש, the natural Israeli word for it, not the formal motzaei Shabbat.\n- Otherwise, recommend Sunday night.\nFrame it as the evening before their week gets going, then ask if that works or if another day fits them better. The card already has that day preselected to match, so they can keep it or pick another.\n\nCapture the day with submit_weekly_config, then move on.\n\nDO NOT:\n- Read the seven days out loud. The card shows them.\n- Oversell. Opener, the day, let them choose, move on.\n- Let it be skipped silently. If they truly will not pick, set the recommended day and tell them they can change it later.",
       "props": {
-        "coachLine": "Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?"
+        "coachLine": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you."
       },
       "meta": {
         "voiceEngine": "Cartesia",
         "voiceMode": "Verbatim",
-        "spokenContent": "Once a week, we'll zoom out. We look at the whole week together and we plan the next one. And it gets sharper every week, because I'll know you better. Which day should that be?",
+        "spokenContent": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you.",
         "openerMode": "B",
         "allowedTools": "submit_weekly_config, advance_step",
         "openerShowsAsBubble": true,
