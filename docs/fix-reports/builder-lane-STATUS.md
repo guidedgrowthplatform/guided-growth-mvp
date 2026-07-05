@@ -179,3 +179,8 @@ beat_transition_ms spans stitched by turn id; touches useFlowOrchestrator + adds
 latencySpans.ts). !411 re-synced: clean auto-merge incl. orchestrator, tsc clean,
 1658/1658, pushed 155121dc. gg-spec new commits are latency-lane T2 baseline docs —
 still no flow-content Exports from Yair.
+
+**2026-07-05 ~21:22**: main moved to f3645d2b (chore/gitlab-selfhosted-migration —
+api/\_lib/gitlab.ts + .env.local.example; the migration owner's edits, landed as a
+proper MR). !411 re-synced: clean merge (2 files, no overlap), tsc clean, 1658/1658,
+pushed. gg-spec unchanged — still no flow-content Exports.
