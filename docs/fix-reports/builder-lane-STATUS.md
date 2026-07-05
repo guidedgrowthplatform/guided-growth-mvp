@@ -3,6 +3,10 @@
 Lane doc: gg-spec/docs/fable-lane-builder-engine-2026-07-03.md (parent: fable-window-plan-2026-07-03.md).
 Base: origin/staging @ 5750a2fb (merge train !398 !400 !401 !397 !403 !402 verified merged).
 
+**CURRENT (2026-07-05)**: staging retired — main is trunk (QA-only); production deploys
+ONLY from protected `production` branch. Merge freeze lifted. !440 (B32) MERGED @ 145e0767.
+Sole open lane item: !411, kept synced to main, conductor merges last.
+
 **MERGE HOLD LIFTED** (observed 2026-07-03 ~22:00 EAT): Yair merged the whole chain
 !408 !412 !413 !414 !416 !418 !410 !419 into staging 16:10-16:39 EAT. Remaining: !411 only
 (L1-3 derive-maps), reconciled with the landed chain (planned generate-flow.ts conflict
@@ -158,3 +162,14 @@ latency outlasts the opener, and the model itself called confirm_plan in these r
 Ground truth = DOM advance + SSE tool_rounds per the new standing rule. !411 re-synced
 onto post-B32 main (1660/1660, 163 files, pushed) — the LAST open lane item, conductor
 merges. Remaining watch: !411 merge, review notes, Yair's flow-content edits (preempt).
+
+**2026-07-05 (post-!440-merge tick)**: main moved to 0e0a2d3f (chore/parser-queue-x1-x4 —
+retires parseProfileSpeech + its tests, extends detectAffirmation, adds voice-name
+normalization tests). !411 re-synced onto it: merge clean, tsc clean, 1658/1658 tests
+(count down from 1660 = the retired parser's tests removed on main), pushed 0967373e.
+gg-spec new commits are docs/QA-run only — no flow-content Exports yet. Conductor's
+corrections message re-received and re-confirmed: all four points already incorporated;
+point 3 overtaken by events (re-test PASSED T1 + T2 race ×2, !440 merged). Header above
+updated to current trunk/production state. Notes-check degraded this tick: GitLab API
+token not available in this shell (credential search stopped per policy) — review notes
+on !411 will be caught next tick or via conductor ping.
