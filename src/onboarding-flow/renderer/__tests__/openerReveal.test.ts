@@ -48,4 +48,21 @@ describe('openerRevealPin', () => {
   it('progress wins over blocked-state flags (already playing via late gesture)', () => {
     expect(openerRevealPin({ ...base, progress: 0.3, textFallback: true })).toBe(3);
   });
+
+  it('word-accurate revealWords wins over the linear progress interpolation', () => {
+    expect(openerRevealPin({ ...base, revealWords: 2, progress: 0.9, playing: true })).toBe(2);
+  });
+
+  it('revealWords 0 pins at 0 (leading silence while playing)', () => {
+    expect(openerRevealPin({ ...base, revealWords: 0, playing: true })).toBe(0);
+  });
+
+  it('revealWords clamps to the display word count', () => {
+    expect(openerRevealPin({ ...base, revealWords: 15, playing: true })).toBe(10);
+  });
+
+  it('null/absent revealWords changes nothing: B4 pin and progress path intact', () => {
+    expect(openerRevealPin({ ...base, revealWords: null })).toBe(0);
+    expect(openerRevealPin({ ...base, revealWords: null, progress: 0.5 })).toBe(5);
+  });
 });

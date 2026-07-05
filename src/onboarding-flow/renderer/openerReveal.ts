@@ -16,6 +16,12 @@ export interface OpenerRevealArgs {
   wordCount: number;
   /** Playback fraction 0..1, or null while unknown (not started / no duration). */
   progress: number | null;
+  /**
+   * Word-accurate reveal count from a real onset timeline (Cartesia SSE
+   * timestamps or precomputed captions). Non-null only while playback is live
+   * with a timeline; wins over the linear progress interpolation.
+   */
+  revealWords?: number | null;
   /** Beat has an audio opener (MP3 clip or live Cartesia). */
   hasOpenerAudio: boolean;
   /** Audio element is actively playing. */
@@ -31,8 +37,11 @@ export interface OpenerRevealArgs {
  * null lets the karaoke run its own timer.
  */
 export function openerRevealPin(args: OpenerRevealArgs): number | null {
-  const { wordCount, progress, hasOpenerAudio, playing, done, textFallback } = args;
+  const { wordCount, progress, revealWords, hasOpenerAudio, playing, done, textFallback } = args;
   if (wordCount <= 0) return null;
+  if (revealWords !== null && revealWords !== undefined) {
+    return Math.min(revealWords, wordCount);
+  }
   if (progress !== null) return Math.round(progress * wordCount);
   if (hasOpenerAudio && !done) {
     // B29: playing with no usable duration metadata: reveal on the timer.

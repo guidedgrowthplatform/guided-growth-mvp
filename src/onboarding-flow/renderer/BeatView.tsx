@@ -91,7 +91,8 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
       ? (node.meta.voiceOut.mp3Assets?.[0]?.file ?? null)
       : null;
   const hasOpenerMp3 = !!openerMp3Src;
-  const mp3Audio = useBeatOpenerMp3(openerMp3Src, active && hasOpenerMp3);
+  const openerWordTotal = opener ? opener.trim().split(/\s+/).filter(Boolean).length : 0;
+  const mp3Audio = useBeatOpenerMp3(openerMp3Src, active && hasOpenerMp3, openerWordTotal);
   // Variable lines (engine 'cartesia', e.g. the name-greeting profile beat) get
   // live TTS: same state shape, so downstream karaoke gating is engine-agnostic.
   const isCartesiaOpener = node.meta?.voiceOut?.engine === 'cartesia' && !!opener;
@@ -108,14 +109,16 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     setScreenContextDeferred(node.screenId, !mp3.done);
     return () => setScreenContextDeferred(node.screenId, false);
   }, [active, hasOpenerMp3, isHybridOpenerBeat, mp3.done, node.screenId, setScreenContextDeferred]);
-  // Map 0..1 progress fraction to a word count so Karaoke can light words in
-  // sync. The armed-not-started pin (B4), the playing-without-duration reveal
+  // Pin the karaoke to real word onsets (revealWords) when a timeline exists,
+  // else map the 0..1 progress fraction to a word count.
+  // The armed-not-started pin (B4), the playing-without-duration reveal
   // (B29), and the long-hold text fallback (B28) all live in openerRevealPin;
   // see its header for the invariants. BeatPlayer's VOICE_REVEAL_MAX_MS safety
   // still un-strands the beat if audio never starts.
   const openerWordCount = openerRevealPin({
-    wordCount: opener ? opener.trim().split(/\s+/).filter(Boolean).length : 0,
+    wordCount: openerWordTotal,
     progress: mp3.progress,
+    revealWords: mp3.revealWords,
     hasOpenerAudio,
     playing: mp3.playing,
     done: mp3.done,
