@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import { streamLLM } from '@/api/llm';
 import { isOnboardingScreen, logDebugEvent } from '@/lib/debug/onboardingDebug';
+import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import type {
   CoachingStyle,
@@ -303,6 +304,15 @@ export function useLLM(
               mode: opts.mode,
               latency_ms: e.latency_ms,
             });
+            // Latency lane T1: server-leg TTFT measured on the API function
+            // (request start -> first delta), shipped on the done event.
+            if (typeof e.ttft_ms === 'number') {
+              emitLatencySpan('llm_ttft_ms', e.ttft_ms, {
+                leg: 'server',
+                screen_id: screenId,
+                mode: opts.mode,
+              });
+            }
             try {
               logEvent(
                 'llm_call',

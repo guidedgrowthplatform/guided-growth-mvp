@@ -33,6 +33,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
+import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
 import {
   classifyOpenerPlayFailure,
@@ -156,11 +157,16 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
       }
     };
 
+    // Latency lane T1: beat activation -> audible playback. Measurement only.
+    const requestedAt = performance.now();
+
     // Preloaded element when the pool has it (buffered at flow mount, B15) and
     // no other consumer holds it (the claim serializes the handout); fresh
     // element as the lazy fallback when preloading missed, failed, or the
     // element is already claimed.
     const pooled = claimPreloadedClip(src);
+    // Captured at claim time: `ready` can flip while we await the gate below.
+    const poolReadyAtClaim = pooled ? pooled.ready : false;
     const el = pooled?.el ?? new Audio(src);
     if (!pooled) el.preload = 'auto';
     try {
@@ -278,6 +284,11 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
           clearFallbackTimer();
           setBlocked(false);
           setTextFallback(false);
+          emitLatencySpan('mp3_first_audio_ms', performance.now() - requestedAt, {
+            pool_hit: pooled !== null,
+            pool_ready_at_claim: poolReadyAtClaim,
+            clip: src,
+          });
           setPlaying(true);
           startProgressLoop();
         })

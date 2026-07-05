@@ -5,6 +5,7 @@ import { track } from '@/analytics';
 import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useVoice } from '@/hooks/useVoice';
+import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 
 export type RealtimeVoiceState =
   | 'idle'
@@ -472,6 +473,13 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           turnCountRef.current += 1;
           if (firstAudioMsRef.current === null && startInvokedAtRef.current !== null) {
             firstAudioMsRef.current = performance.now() - startInvokedAtRef.current;
+            // Latency lane T1: previously this value only shipped inside
+            // complete_voice_session at session end; emit at occurrence too so
+            // cold-start latency is visible even for sessions that never end
+            // cleanly. Measurement only, no behavior change.
+            emitLatencySpan('vapi_first_audio_ms', firstAudioMsRef.current, {
+              voice_vendor: 'vapi',
+            });
           }
           setStateSynced('speaking');
           const t = tokenRef.current;
