@@ -109,6 +109,25 @@ LLM-cleanup with >2 habits if it merges during this lane.
 - Main checkout (/Users/jonah/Documents/guided-growth-mvp) carries another session's uncommitted work on
   feat/onboarding-voice-track1 — this lane works only in its own worktrees.
 
+## SK-LOOP-2 EVIDENCE RUN (2026-07-05, loop resumed by operator — supersedes the wind-down below)
+
+- Preview sanity PASS: stack-tip bundle carries staging ref ppyouymvnrqxsllrmsl-class refs (5×) and the
+  single prod ref is the fail-closed guard constant.
+- Evidence harness built from the c5 fake-mic pattern: .frugal-fable/evidence/skimmer-evidence.mjs
+  (typed + spoken modes, verdicts.json + screenshots + network/console logs to /tmp/skimmer-evidence/out/).
+  Route: /onboarding-flow-preview?startAt=advanced-input behind the Get-started gesture gate; the card
+  reveals after the beat's MP3 opener (B4 semantics) — the runner polls and releases tap-to-play holds.
+- **PREVIEW CAUGHT A REAL S1 DEFECT** (typed-run3): every keystroke prefix carded ("Wa", "Go t", … 39
+  stubs) — voice interims arrive word-whole so the sim never showed it; the supersede guard collapses
+  only at word boundaries. FIXED on !438 (a203c397): typed input parses at the last completed word
+  boundary; regression test red-on-unfixed/green-on-fixed; merged forward to !439 (945961cd).
+- KNOWN LIMIT of anon preview evidence: /api/llm/parse-brain-dump returns 401 without a session — the
+  LLM-refine leg + refresh-persist leg need the signed-in QA user (qa-onboarding-fable-skimmer@
+  guidedgrowth.test; creation may hit the permission wall — operator assist likely).
+- Verdicts from run3 that already stand: break_polarity PASS ("quit smoking" carded Break),
+  edit_survives_reconcile PASS (manual flip held), surface + live formation PASS (mechanism, pre-fix
+  noise aside). Re-run on the new stack-tip preview is next.
+
 ## WIND-DOWN SNAPSHOT (2026-07-05, operator ended the loop)
 
 All construction is done and in draft MRs with green pipelines; the LIVE preview evidence batch did not
