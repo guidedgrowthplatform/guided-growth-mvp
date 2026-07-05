@@ -120,3 +120,17 @@ synthetic confirm_plan action; the !440 adapter listener advances like the tap. 
 on the fix preview: voice "let's go" -> beat advances in 15s, ZERO taps, coach still
 replies. Harness + artifacts: .frugal-fable/b32/ (before-final = stuck on main build;
 after-composed = PASS). tsc clean, 1635/1635.
+
+---
+
+Updated: 2026-07-05 ~14:15 EAT — !440 HOLD RECONCILED (note_3527). Yair's verification
+(note_3512) FAILed the v1 build correctly but misdiagnosed the mechanism: it keyed
+"confirm_plan succeeded" off the coach's reply phrasing ("You're all set... Welcome to
+Guided Growth!"). Captured SSE bodies from the SAME build show that exact phrase in 11
+separate streams, each with tool_rounds:0 — pure model narration, no tool call, so
+onCapture never fired and the advance path was never exercised (consistent with the
+ledger's own P0-false-alarm resolution + 10+ tap advances in my staged walk). The hold's
+"shared beat-advance regression" premise is disproven. The composed fix (74a159b8,
+deterministic affirmation intercept + listener) passes Yair's exact method on preview
+gg-4e1x24kvz: voice "let's go", zero taps, advance in 15s. Asked for the hold to lift;
+suggested keying tool ground-truth on SSE tool_rounds, not phrasing.
