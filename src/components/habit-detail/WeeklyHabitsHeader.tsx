@@ -24,7 +24,6 @@ export function WeeklyHabitsHeader({
   columns,
 }: WeeklyHabitsHeaderProps) {
   const labels = dayLabels.slice(0, columns);
-  const total = columns + 1; // reported days plus today
 
   return (
     <div>
@@ -37,19 +36,16 @@ export function WeeklyHabitsHeader({
         </span>
       </div>
 
-      <div
-        className="mt-4 grid gap-1"
-        style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}
-      >
+      <div className="mt-4 flex justify-end gap-[3px]">
         {labels.map((label, index) => (
           <div
             key={`${label}-${index}`}
-            className="text-center text-[10px] font-bold text-content-tertiary"
+            className="w-4 text-center text-[10px] font-bold text-content-tertiary"
           >
             {label}
           </div>
         ))}
-        <div className="text-center text-[10px] font-bold text-primary">{todayLabel}</div>
+        <div className="w-4 text-center text-[10px] font-bold text-primary">{todayLabel}</div>
       </div>
     </div>
   );
