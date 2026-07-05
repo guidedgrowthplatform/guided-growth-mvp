@@ -117,3 +117,75 @@ describe('ProfileAdapter — voice fill auto-submits onCapture', () => {
     expect(onCapture).not.toHaveBeenCalled();
   });
 });
+
+describe('IntoAppAdapter — confirm_plan voice action advances like the tap (B32)', () => {
+  const makeProps = (onCapture: () => void, readOnly = false) => ({
+    node: { componentProps: {} },
+    answers: {},
+    onCapture,
+    readOnly,
+  });
+
+  const confirm = (success = true): OnboardingVoiceResult => ({
+    success,
+    action: 'confirm_plan',
+    params: {},
+    message: '',
+    confidence: 1,
+  });
+
+  it('captures once on a successful confirm_plan', () => {
+    const bus = makeBus();
+    const onCapture = vi.fn();
+    const Adapter = getAdapter('into-app')!;
+    act(() => {
+      root.render(
+        <Provider value={bus.value}>
+          <Adapter {...(makeProps(onCapture) as unknown as Parameters<typeof Adapter>[0])} />
+        </Provider>,
+      );
+    });
+    bus.push(confirm());
+    expect(onCapture).toHaveBeenCalledTimes(1);
+    // one-shot: a duplicate event must not double-advance
+    bus.push(confirm());
+    expect(onCapture).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores failed confirm_plan and unrelated actions', () => {
+    const bus = makeBus();
+    const onCapture = vi.fn();
+    const Adapter = getAdapter('into-app')!;
+    act(() => {
+      root.render(
+        <Provider value={bus.value}>
+          <Adapter {...(makeProps(onCapture) as unknown as Parameters<typeof Adapter>[0])} />
+        </Provider>,
+      );
+    });
+    bus.push(confirm(false));
+    bus.push({
+      success: true,
+      action: 'record_checkin',
+      params: {},
+      message: '',
+      confidence: 1,
+    } as OnboardingVoiceResult);
+    expect(onCapture).not.toHaveBeenCalled();
+  });
+
+  it('a past (readOnly) into-app card never captures — the active beat owns advancement', () => {
+    const bus = makeBus();
+    const onCapture = vi.fn();
+    const Adapter = getAdapter('into-app')!;
+    act(() => {
+      root.render(
+        <Provider value={bus.value}>
+          <Adapter {...(makeProps(onCapture, true) as unknown as Parameters<typeof Adapter>[0])} />
+        </Provider>,
+      );
+    });
+    bus.push(confirm());
+    expect(onCapture).not.toHaveBeenCalled();
+  });
+});
