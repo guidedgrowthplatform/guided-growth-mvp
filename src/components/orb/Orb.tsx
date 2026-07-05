@@ -195,9 +195,14 @@ export function Orb({
       const d = cv.clientWidth;
       const h = cv.clientHeight;
       if (!d) return;
-      if (cv.width !== Math.round(d * dpr)) {
-        cv.width = Math.round(d * dpr);
-        cv.height = Math.round(h * dpr);
+      // Check BOTH dims: a canvas defaults to 300x150, so if the wanted width lands
+      // on exactly 300 a width-only check passes by accident and the height stays
+      // stuck at 150, drawing the light into the bottom half. Resize on either miss.
+      const wantW = Math.round(d * dpr);
+      const wantH = Math.round(h * dpr);
+      if (cv.width !== wantW || cv.height !== wantH) {
+        cv.width = wantW;
+        cv.height = wantH;
       }
       const c = cfg.current;
       const talking = c.state !== 'idle';
@@ -317,9 +322,13 @@ export function Orb({
       if (!ctx) return;
       const d = cv.clientWidth;
       if (!d) return;
-      if (cv.width !== Math.round(d * dpr)) {
-        cv.width = Math.round(d * dpr);
-        cv.height = Math.round(d * dpr);
+      // Check BOTH dims: a canvas defaults to 300x150, so a width-only check passes
+      // by accident when the wanted size is exactly 300, leaving the height at 150 and
+      // pooling the whole light into the bottom half. Resize on either mismatch.
+      const want = Math.round(d * dpr);
+      if (cv.width !== want || cv.height !== want) {
+        cv.width = want;
+        cv.height = want;
       }
       const c = cfg.current;
       const W = cv.width;
