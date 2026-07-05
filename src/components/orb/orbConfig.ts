@@ -74,27 +74,27 @@ export const DEFAULT_PARAMS: OrbStates = {
     iris: 66,
     depth: 32,
   },
-  // Talking (coach + user full circle) = Timothy's "Aurora" with a touch more churn
-  // and speed (rand 70, speed 62). Lower aura than Bloom so the core light reads
-  // through, especially the gold when the user speaks.
+  // Talking (coach + user full circle) = Yair's saved "Yair Talking Jul 5" look
+  // (2026-07-05): softer glow, high randomness + particle glow, low aura so the core
+  // reads through, especially the gold when the user speaks.
   talk: {
     glass: 38,
-    blur: 10,
+    blur: 14,
     hi: 50,
     rim: 70,
     body: 42,
-    glow: 132,
-    bright: 130,
+    glow: 80,
+    bright: 96,
     speed: 46,
-    grad: 84,
-    core: 40,
+    grad: 74,
+    core: 45,
     spread: 60,
-    pglow: 90,
-    rand: 70,
+    pglow: 96,
+    rand: 100,
     pulse: 55,
-    aura: 40,
-    iris: 72,
-    depth: 30,
+    aura: 23,
+    iris: 67,
+    depth: 39,
   },
 };
 
