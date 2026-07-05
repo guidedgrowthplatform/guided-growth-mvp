@@ -17,5 +17,31 @@ UNBLOCKS injected (conductor + Yair, 2026-07-03 late evening):
 3. Lane QA user qa-onboarding-fable-latency@guidedgrowth.test CONFIRMED, signs in on staging with the usual QA password.
 4. PostHog: no direct credentials needed. Conductor builds the dashboard from the lane panel spec and runs HogQL percentile reads on request; route operator -> conductor.
 
-Remaining blocker: ONE. The session itself does not hold the QA password, so the T1 verification walk needs either (a) operator drops QA_PASSWORD into .env.local for an automated walk attempt, or (b) operator runs the 3-minute manual text-path walk on the !415 preview (https://gg-bfi5ha28j-guided-growths-projects.vercel.app) with devtools /ingest visible and reports the spans. The walk gates the merge; baseline runs (5 text-path) start immediately after.
-Constraints honored: Vapi max 10/day (0 used), voice OFF, own test user only (fable-latency, now released back to this lane per the 10:17 PM message).
+UPDATE 2026-07-05: T1 VERIFIED LIVE + T2 TEXT-PATH BASELINE RECORDED.
+
+1. QA password unblock received (conductor via operator). Operator typed the password
+   personally; the session held it only in the browser, never in a file.
+2. T1 verification walk DONE on the !415 preview (gg-e13p65dtf, tip 51e4c899):
+   cartesia_first_audio_ms, mp3_first_audio_ms (pool props), llm_ttft_ms client AND
+   server legs all confirmed landing in /ingest with values (posthog debug mirror).
+   beat_transition_ms does NOT fire on the text path: all text advances are manual
+   taps; trigger sites are coach-driven only (code-verified, 3 trigger + 2 settle
+   sites). Conductor decision requested: accept N/A for text baseline, or authorize
+   1 Vapi session for a landing proof. T1 otherwise COMPLETE. !415 ready for the
+   train on conductor go.
+3. T2 baseline RECORDED: 5 full text-path runs (B1,B2,B3,B4R,B5) on the !415
+   preview, restart-fresh per run, fixed answers, voice OFF (Vapi 0/10). Full
+   table + per-run raws + deviations in gg-spec docs/latency-baseline-2026-07.md.
+   Headlines: llm_ttft opener p50 7092 client / 3154 server (a ~3.9s client-side
+   gap, prime T3 candidate); chat server TTFT tail to 7767; mp3 pool healthy
+   (p50 182.5, zero misses in 66); cartesia ~4s gesture-gated on text path.
+4. OPS: gg-spec on gitlab.com is ARCHIVED (push rejected 403) — migration moved
+   ahead of the ops note for that repo. Baseline commit 17486c2 exists LOCALLY on
+   branch latency-lane-baseline-2026-07 (operator machine) and is included below
+   for the record. App repo still accepts pushes; per the new ops protocol this
+   STATUS file + commit messages are the report and no new MRs are opened.
+   READY TO MERGE: !415 (existing MR, unaffected) + the gg-spec baseline branch
+   once a writable gg-spec remote exists.
+
+Constraints honored: Vapi max 10/day (0 used), voice OFF, own test user only,
+no flag flips, no new MRs/issues/comments on gitlab.com since the ops change.
