@@ -65,7 +65,15 @@ export type LLMStreamEvent =
   // Emitted alongside tool_result for a mutating (write) tool that threw — lets
   // the client surface a write failure the user must know about.
   | { type: 'tool_failed'; id: string; name: string; error: string; message?: string }
-  | { type: 'done'; latency_ms: number; total_tokens: number; tool_rounds: number }
+  // ttft_ms: server-side request-start -> first streamed delta (latency lane T1).
+  // Optional so older servers/clients interop during rollout.
+  | {
+      type: 'done';
+      latency_ms: number;
+      total_tokens: number;
+      tool_rounds: number;
+      ttft_ms?: number;
+    }
   | { type: 'error'; code: string; message: string };
 
 export interface LLMToolEvent {

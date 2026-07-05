@@ -11,6 +11,7 @@ import {
 import { STATIC_FEED_MODE } from '@/lib/onboarding/staticFeed';
 import { toolEventToVoiceActions } from '@/lib/onboarding/toolEventToVoiceActions';
 import { queryKeys } from '@/lib/query';
+import { markBeatTransition } from '@/lib/telemetry/latencySpans';
 import type { OnboardingState } from '@gg/shared/types';
 import type { LLMToolEvent } from '@gg/shared/types/llm';
 
@@ -83,6 +84,9 @@ export function useChatToolEvents({
             if (mapped === undefined) {
               console.warn('[onboarding] navigate_next: unmapped target_screen', target);
             }
+            // Latency lane T1: trigger leg of beat_transition_ms (settled by the
+            // orchestrator's coach-driven advance). Measurement only.
+            markBeatTransition(evt.id, 'tool_event', evt.name);
             qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, (prev) => {
               if (!prev) return prev;
               const targetStep = mapped ?? prev.current_step + 1;
@@ -111,6 +115,8 @@ export function useChatToolEvents({
               ? payload.result.current_step
               : undefined;
           if (step !== undefined) {
+            // Latency lane T1: trigger leg of beat_transition_ms.
+            markBeatTransition(evt.id, 'tool_event', evt.name);
             // Routed flow: bare set (not Math.max) — back-nav walk-forward can
             // lower the step, which useAgentNavigation's leading-edge detector
             // needs to re-fire. Chat-native has no useAgentNavigation and bumps
@@ -166,6 +172,8 @@ export function useChatToolEvents({
             queryKeys.onboarding.state,
           )?.current_step;
           if (typeof before === 'number' && typeof after === 'number' && after > before) {
+            // Latency lane T1: trigger leg of beat_transition_ms.
+            markBeatTransition(evt.id, 'tool_event', evt.name);
             willAdvance = true;
           }
           break;

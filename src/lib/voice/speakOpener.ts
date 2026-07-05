@@ -19,6 +19,7 @@ import { Capacitor } from '@capacitor/core';
 import { COACH_VOICE_ID } from '@/config/voiceConfig';
 import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
 import { sessionReady, supabase } from '@/lib/supabase';
+import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 
 function getApiBase(): string {
   if (Capacitor.isNativePlatform()) {
@@ -143,6 +144,8 @@ export function speakOpener(
     try {
       const authHeaders = await getAuthHeaders();
       if (abort.signal.aborted) return settle();
+      // Latency lane T1: TTS request -> first audible audio. Measurement only.
+      const ttsRequestedAt = performance.now();
       const res = await fetch(`${getApiBase()}/api/cartesia-tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -201,6 +204,10 @@ export function speakOpener(
           await el.play();
         }
         if (settled) return;
+        emitLatencySpan('cartesia_first_audio_ms', performance.now() - ttsRequestedAt, {
+          text_chars: clean.length,
+          gesture_fallback: Boolean(opts?.gestureFallback),
+        });
         opts?.onPlaying?.();
       } catch (err) {
         // Autoplay rejection (iOS) or stale stop. Never strand the mic closed.

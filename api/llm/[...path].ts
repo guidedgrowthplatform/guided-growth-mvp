@@ -45,7 +45,13 @@ type LLMStreamEvent =
   | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; id: string; ok: boolean; result: unknown }
   | { type: 'tool_failed'; id: string; name: string; error: string; message?: string }
-  | { type: 'done'; latency_ms: number; total_tokens: number; tool_rounds: number }
+  | {
+      type: 'done';
+      latency_ms: number;
+      total_tokens: number;
+      tool_rounds: number;
+      ttft_ms?: number;
+    }
   // `debug` is only populated when the request carries `x-gg-debug: 1` — it
   // names the failing stage + error class for QA without leaking internals
   // (or stack traces) to normal clients.
@@ -346,6 +352,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
 
   const startedAt = performance.now();
+  // Latency lane T1: request start -> first streamed delta (server-leg TTFT).
+  // Set once across tool rounds; shipped on the done event + session_log end row.
+  let firstDeltaAtMs: number | null = null;
   let totalTokens = 0;
   let toolRounds = 0;
   type EndStatus = 'ok' | 'error' | 'tool_cap' | 'cancelled';
@@ -401,6 +410,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             status: endStatus,
             error_code: endCode,
             latency_ms: Math.round(performance.now() - startedAt),
+            ttft_ms: firstDeltaAtMs === null ? null : Math.round(firstDeltaAtMs),
             total_tokens: totalTokens,
             tool_rounds: toolRounds,
             mode,
@@ -643,6 +653,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         for await (const evt of stream) {
           switch (evt.type) {
             case 'delta': {
+              if (firstDeltaAtMs === null) {
+                firstDeltaAtMs = performance.now() - startedAt;
+              }
               assistantContent += evt.content;
               send({ type: 'delta', content: evt.content });
               break;
@@ -880,6 +893,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       latency_ms: latencyMs,
       total_tokens: totalTokens,
       tool_rounds: toolRounds,
+      ...(firstDeltaAtMs !== null ? { ttft_ms: Math.round(firstDeltaAtMs) } : {}),
     });
     await persistChatTurn();
     res.end();
