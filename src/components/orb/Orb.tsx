@@ -251,30 +251,52 @@ export function Orb({
       ctx.filter = `blur(${0.06 * R}px)`;
       const N = blobs.length;
       const rot = time * 0.22;
+      // Even-angle lobes, then shift the whole cluster so its brightness-weighted
+      // center of mass lands EXACTLY on the light center every frame. Per-lobe radius
+      // varies for organic fill; re-centering cancels any net pull, so the light
+      // cannot lean in any direction, in any frame (kills the old rotating bias where
+      // radius was coupled to angle and the heavy side swung around over time).
+      const lob: Array<{ dx: number; dy: number; radv: number; ci: number }> = [];
+      let mx = 0;
+      let my = 0;
+      let wsum = 0;
       for (let i = 0; i < N; i++) {
         const b = blobs[i];
         const bt = time * (1 + (b.rspeed - 1) * rand);
         const n01 = 0.5 + 0.5 * noise(b.seed, bt * 0.5);
         const wob = 0.5 * noise(b.seed * 1.7 + 5, bt * 0.4);
-        const ringBase = 0.15 + 0.72 * (((i * 37) % 9) / 9);
+        const ringBase = 0.32 + 0.5 * (((i * 37) % 9) / 9);
         const ang = (i / N) * 6.2832 + rot + wob;
         const orbR = R * spread * ringBase * (0.7 + 0.5 * n01);
-        const bx = lcx + Math.cos(ang) * orbR;
-        const by = lcy + Math.sin(ang) * orbR;
+        const dx = Math.cos(ang) * orbR;
+        const dy = Math.sin(ang) * orbR;
         const radv =
           R *
           b.sz *
           (0.9 + 0.14 * noise(b.seed * 3, bt * 0.4)) *
           (0.5 + 0.9 * glow) *
           (0.7 + spread);
-        const col = pal[b.ci];
-        const al = (0.12 + 0.34 * pglow) * bright;
-        const g = ctx.createRadialGradient(bx, by, 0, bx, by, radv);
+        const w = radv * radv;
+        mx += dx * w;
+        my += dy * w;
+        wsum += w;
+        lob.push({ dx, dy, radv, ci: b.ci });
+      }
+      if (wsum > 0) {
+        mx /= wsum;
+        my /= wsum;
+      }
+      const al = (0.12 + 0.34 * pglow) * bright;
+      for (const o of lob) {
+        const bx = lcx + o.dx - mx;
+        const by = lcy + o.dy - my;
+        const col = pal[o.ci];
+        const g = ctx.createRadialGradient(bx, by, 0, bx, by, o.radv);
         g.addColorStop(0, rgba(col, al));
         g.addColorStop(1, rgba(col, 0));
         ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(bx, by, radv, 0, 6.2832);
+        ctx.arc(bx, by, o.radv, 0, 6.2832);
         ctx.fill();
       }
       const cr = R * coreS;
@@ -345,30 +367,52 @@ export function Orb({
       ctx.filter = `blur(${0.06 * R}px)`;
       const N = blobs.length;
       const rot = time * 0.22;
+      // Even-angle lobes, then shift the whole cluster so its brightness-weighted
+      // center of mass lands EXACTLY on the light center every frame. Per-lobe radius
+      // varies for organic fill; re-centering cancels any net pull, so the light
+      // cannot lean in any direction, in any frame (kills the old rotating bias where
+      // radius was coupled to angle and the heavy side swung around over time).
+      const lob: Array<{ dx: number; dy: number; radv: number; ci: number }> = [];
+      let mx = 0;
+      let my = 0;
+      let wsum = 0;
       for (let i = 0; i < N; i++) {
         const b = blobs[i];
         const bt = time * (1 + (b.rspeed - 1) * rand);
         const n01 = 0.5 + 0.5 * noise(b.seed, bt * 0.5);
         const wob = 0.5 * noise(b.seed * 1.7 + 5, bt * 0.4);
-        const ringBase = 0.15 + 0.72 * (((i * 37) % 9) / 9);
+        const ringBase = 0.32 + 0.5 * (((i * 37) % 9) / 9);
         const ang = (i / N) * 6.2832 + rot + wob;
         const orbR = R * spread * ringBase * (0.7 + 0.5 * n01);
-        const bx = lcx + Math.cos(ang) * orbR;
-        const by = lcy + Math.sin(ang) * orbR;
+        const dx = Math.cos(ang) * orbR;
+        const dy = Math.sin(ang) * orbR;
         const radv =
           R *
           b.sz *
           (0.9 + 0.14 * noise(b.seed * 3, bt * 0.4)) *
           (0.5 + 0.9 * glow) *
           (0.7 + spread);
-        const col = pal[b.ci];
-        const al = (0.12 + 0.34 * pglow) * bright;
-        const g = ctx.createRadialGradient(bx, by, 0, bx, by, radv);
+        const w = radv * radv;
+        mx += dx * w;
+        my += dy * w;
+        wsum += w;
+        lob.push({ dx, dy, radv, ci: b.ci });
+      }
+      if (wsum > 0) {
+        mx /= wsum;
+        my /= wsum;
+      }
+      const al = (0.12 + 0.34 * pglow) * bright;
+      for (const o of lob) {
+        const bx = lcx + o.dx - mx;
+        const by = lcy + o.dy - my;
+        const col = pal[o.ci];
+        const g = ctx.createRadialGradient(bx, by, 0, bx, by, o.radv);
         g.addColorStop(0, rgba(col, al));
         g.addColorStop(1, rgba(col, 0));
         ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(bx, by, radv, 0, 6.2832);
+        ctx.arc(bx, by, o.radv, 0, 6.2832);
         ctx.fill();
       }
       const cr = R * coreS;
