@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Icon } from '@iconify/react';
-import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY, INK, SUBTLE, BORDER, SPACE } from './_beatStyle';
 
@@ -99,6 +99,7 @@ function PathSelectionBeat(props?: Record<string, string>) {
   const [localSel, setLocalSel] = useState<'new' | 'exp' | null>(null);
   const sel = flow ? flow.path : localSel;
   const setSel = (v: 'new' | 'exp') => (flow ? flow.setPath(v) : setLocalSel(v));
+  const reveal = useElementReveal(2);
 
   // Each card is its own step, so the coach line lands first, then "I already
   // track habits" fades in, then "I'm new to this" fades in after it.
@@ -112,26 +113,30 @@ function PathSelectionBeat(props?: Record<string, string>) {
       id: 'exp',
       speaker: 'coach',
       render: (
-        <ChoiceCard
-          icon="mdi:format-list-checks"
-          title={props?.expTitle ?? 'I already track habits'}
-          sub={props?.expSub ?? "Read me your list and we'll get it organized."}
-          selected={sel === 'exp'}
-          onSelect={() => setSel('exp')}
-        />
+        <Bloom show={reveal > 0}>
+          <ChoiceCard
+            icon="mdi:format-list-checks"
+            title={props?.expTitle ?? 'I already track habits'}
+            sub={props?.expSub ?? "Read me your list and we'll get it organized."}
+            selected={sel === 'exp'}
+            onSelect={() => setSel('exp')}
+          />
+        </Bloom>
       ),
     },
     {
       id: 'new',
       speaker: 'coach',
       render: (
-        <ChoiceCard
-          icon="mdi:sprout-outline"
-          title={props?.newTitle ?? "I'm new to this"}
-          sub={props?.newSub ?? "We'll start fresh and build your first habits together."}
-          selected={sel === 'new'}
-          onSelect={() => setSel('new')}
-        />
+        <Bloom show={reveal > 1}>
+          <ChoiceCard
+            icon="mdi:sprout-outline"
+            title={props?.newTitle ?? "I'm new to this"}
+            sub={props?.newSub ?? "We'll start fresh and build your first habits together."}
+            selected={sel === 'new'}
+            onSelect={() => setSel('new')}
+          />
+        </Bloom>
       ),
     },
   ];

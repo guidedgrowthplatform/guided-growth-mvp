@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
-import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY, INK, SPACE } from './_beatStyle';
 
@@ -118,17 +118,20 @@ function CategoryGridPicker({
   const customIsSelected =
     !!sel && !CATS.some((c) => c.label === sel);
 
+  const reveal = useElementReveal(CATS.length);
+
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
-        {CATS.map((c) => (
-          <CategoryCard
-            key={c.label}
-            image={c.image}
-            label={c.label}
-            selected={sel === c.label}
-            onSelect={() => pick(c.label)}
-          />
+        {CATS.map((c, i) => (
+          <Bloom key={c.label} show={i < reveal}>
+            <CategoryCard
+              image={c.image}
+              label={c.label}
+              selected={sel === c.label}
+              onSelect={() => pick(c.label)}
+            />
+          </Bloom>
         ))}
       </div>
 

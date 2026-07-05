@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { GoalCard } from '@/components/onboarding/GoalCard';
-import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { goalsByCategory } from '@/data/onboardingHabits';
 import { SECTION_LABEL, SPACE } from './_beatStyle';
@@ -31,6 +31,7 @@ function GoalsListBeat(props?: Record<string, string>) {
 
   const selected = flow ? flow.goals : localSel;
   const maxReached = selected.length >= MAX_SUBCATEGORIES;
+  const reveal = useElementReveal(subcategories.length);
 
   const toggle = (sub: string) =>
     flow
@@ -73,16 +74,17 @@ function GoalsListBeat(props?: Record<string, string>) {
           <p style={{ ...SECTION_LABEL, marginBottom: SPACE.xs }}>
             Subcategory
           </p>
-          {subcategories.map((sub) => {
+          {subcategories.map((sub, i) => {
             const on = selected.includes(sub);
             return (
-              <GoalCard
-                key={sub}
-                label={sub}
-                selected={on}
-                disabled={!on && maxReached}
-                onToggle={() => toggle(sub)}
-              />
+              <Bloom key={sub} show={i < reveal}>
+                <GoalCard
+                  label={sub}
+                  selected={on}
+                  disabled={!on && maxReached}
+                  onToggle={() => toggle(sub)}
+                />
+              </Bloom>
             );
           })}
 

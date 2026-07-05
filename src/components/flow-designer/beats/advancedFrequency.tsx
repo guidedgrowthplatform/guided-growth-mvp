@@ -3,7 +3,7 @@ import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/H
 import { classifyHabitPolarity } from '@/components/onboarding/habitPolarity';
 import { toggleSetItem, WEEKDAYS } from '@/components/onboarding/constants';
 import type { HabitScheduleCfg } from '../flowStateCtx';
-import { BeatPlayer, useAnimations, type BeatDef, type BeatStep } from '../beatKit';
+import { BeatPlayer, Bloom, useAnimations, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 
 // Advanced path, the frequency step. Redesigned 2026-06-29.
@@ -62,20 +62,23 @@ function AdvancedFrequencyBeat(props?: Record<string, string>) {
     setEntries((prev) => prev.map((e, i) => (i === idx ? { ...e, polarity } : e)));
   }
 
+  const reveal = useElementReveal(entries.length);
+
   const cards = (
     <div className="flex w-full max-w-[360px] flex-col gap-4">
       {entries.map((e, idx) => (
-        <HabitScheduleCard
-          key={e.name}
-          habitName={e.name}
-          polarity={e.polarity}
-          selectedDays={e.days}
-          onChangePolarity={(p) => changePolarity(idx, p)}
-          onToggleDay={(d) => toggleDay(idx, d)}
-          onEdit={() => undefined}
-          showDays
-          animateDaysIn={anims}
-        />
+        <Bloom key={e.name} show={idx < reveal}>
+          <HabitScheduleCard
+            habitName={e.name}
+            polarity={e.polarity}
+            selectedDays={e.days}
+            onChangePolarity={(p) => changePolarity(idx, p)}
+            onToggleDay={(d) => toggleDay(idx, d)}
+            onEdit={() => undefined}
+            showDays
+            animateDaysIn={anims}
+          />
+        </Bloom>
       ))}
       {/* The grow keyframe the card references when animateDaysIn is set. */}
       <style>{`@keyframes ggDaysGrow{from{max-height:0;opacity:0}to{max-height:160px;opacity:1}}`}</style>

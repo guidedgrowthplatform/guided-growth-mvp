@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { Toggle } from '@/components/ui/Toggle';
 import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
-import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { DayPicker } from '@/components/ui/DayPicker';
+import { WEEKDAYS, toggleSetItem } from '@/components/onboarding/constants';
+import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY as BLUE, INK, SUBTLE } from './_beatStyle';
 
@@ -200,6 +202,8 @@ function EveningSetupCard({
   onStyleChange,
   prompts,
   onPromptChange,
+  days,
+  onToggleDay,
   time,
   onTimeChange,
   reminder,
@@ -209,12 +213,15 @@ function EveningSetupCard({
   onStyleChange: (v: ReflectionStyle) => void;
   prompts: string[];
   onPromptChange: (i: number, v: string) => void;
+  days: Set<number>;
+  onToggleDay: (d: number) => void;
   time: string;
   onTimeChange: (v: string) => void;
   reminder: boolean;
   onReminderChange: (v: boolean) => void;
 }) {
   const [timeOpen, setTimeOpen] = useState(false);
+  const reveal = useElementReveal(5);
 
   return (
     <>
@@ -271,63 +278,7 @@ function EveningSetupCard({
         <div style={{ height: 1, background: 'rgba(15,23,42,0.06)', marginLeft: -20, marginRight: -20 }} />
 
         {/* Style */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <span
-            style={{
-              fontFamily: FONT,
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.6px',
-              textTransform: 'uppercase',
-              color: SUBTLE,
-            }}
-          >
-            Reflection style
-          </span>
-          <StylePicker value={style} onChange={onStyleChange} />
-          <StyleDescription style={style} />
-        </div>
-
-        {/* Freeform fallback textarea, visible only when style is "freeform".
-            Lets mic-off users type their reflection instead of speaking. */}
-        {style === 'freeform' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span
-              style={{
-                fontFamily: FONT,
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.6px',
-                textTransform: 'uppercase',
-                color: SUBTLE,
-              }}
-            >
-              Or type your thoughts
-            </span>
-            <textarea
-              rows={5}
-              placeholder="Whatever comes up tonight..."
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                borderRadius: 14,
-                border: `1.5px solid ${EVENING_BORDER}`,
-                background: EVENING_BG,
-                fontFamily: FONT,
-                fontSize: 14,
-                fontWeight: 500,
-                color: INK,
-                outline: 'none',
-                resize: 'vertical',
-                lineHeight: 1.55,
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-        )}
-
-        {/* Prompt editor, visible only when style is "your template" */}
-        {style === 'your template' && (
+        <Bloom show={reveal > 0}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <span
               style={{
@@ -339,79 +290,155 @@ function EveningSetupCard({
                 color: SUBTLE,
               }}
             >
-              Your prompts
+              Reflection style
             </span>
-            {prompts.map((p, i) => (
-              <PromptInput
-                key={i}
-                placeholder={DEFAULT_PROMPTS[i] ?? 'Add a prompt...'}
-                value={p}
-                onChange={(v) => onPromptChange(i, v)}
-              />
-            ))}
+            <StylePicker value={style} onChange={onStyleChange} />
+            <StyleDescription style={style} />
           </div>
-        )}
+        </Bloom>
+
+        {/* Freeform fallback textarea, visible only when style is "freeform".
+            Lets mic-off users type their reflection instead of speaking. */}
+        <Bloom show={reveal > 1}>
+          {style === 'freeform' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span
+                style={{
+                  fontFamily: FONT,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.6px',
+                  textTransform: 'uppercase',
+                  color: SUBTLE,
+                }}
+              >
+                Or type your thoughts
+              </span>
+              <textarea
+                rows={5}
+                placeholder="Whatever comes up tonight..."
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  borderRadius: 14,
+                  border: `1.5px solid ${EVENING_BORDER}`,
+                  background: EVENING_BG,
+                  fontFamily: FONT,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: INK,
+                  outline: 'none',
+                  resize: 'vertical',
+                  lineHeight: 1.55,
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          )}
+        </Bloom>
+
+        {/* Prompt editor, visible only when style is "your template" */}
+        <Bloom show={reveal > 1}>
+          {style === 'your template' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <span
+                style={{
+                  fontFamily: FONT,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.6px',
+                  textTransform: 'uppercase',
+                  color: SUBTLE,
+                }}
+              >
+                Your prompts
+              </span>
+              {prompts.map((p, i) => (
+                <PromptInput
+                  key={i}
+                  placeholder={DEFAULT_PROMPTS[i] ?? 'Add a prompt...'}
+                  value={p}
+                  onChange={(v) => onPromptChange(i, v)}
+                />
+              ))}
+            </div>
+          )}
+        </Bloom>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: 'rgba(15,23,42,0.06)', marginLeft: -20, marginRight: -20 }} />
+
+        {/* Days */}
+        <Bloom show={reveal > 2}>
+          <div style={{ padding: '4px 0' }}>
+            <DayPicker selectedDays={days} onToggleDay={onToggleDay} />
+          </div>
+        </Bloom>
 
         {/* Divider */}
         <div style={{ height: 1, background: 'rgba(15,23,42,0.06)', marginLeft: -20, marginRight: -20 }} />
 
         {/* Time */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <span
-            style={{
-              fontFamily: FONT,
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.6px',
-              textTransform: 'uppercase',
-              color: SUBTLE,
-            }}
-          >
-            When?
-          </span>
-          <button
-            type="button"
-            onClick={() => setTimeOpen(true)}
+        <Bloom show={reveal > 3}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span
+              style={{
+                fontFamily: FONT,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.6px',
+                textTransform: 'uppercase',
+                color: SUBTLE,
+              }}
+            >
+              When?
+            </span>
+            <button
+              type="button"
+              onClick={() => setTimeOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                padding: '14px 20px',
+                borderRadius: 18,
+                border: `1.5px solid ${BLUE}`,
+                background: 'rgba(19,91,235,0.04)',
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ fontFamily: FONT, fontSize: 22, fontWeight: 800, color: BLUE }}>
+                {formatTime12(time)}
+              </span>
+              <Icon icon="mdi:clock-outline" width={20} height={20} style={{ color: BLUE }} />
+            </button>
+          </div>
+        </Bloom>
+
+        {/* Remind me toggle. Reminder is ON by default per spec. */}
+        <Bloom show={reveal > 4}>
+          <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              width: '100%',
-              padding: '14px 20px',
-              borderRadius: 18,
-              border: `1.5px solid ${BLUE}`,
-              background: 'rgba(19,91,235,0.04)',
-              cursor: 'pointer',
+              padding: '4px 0',
             }}
           >
-            <span style={{ fontFamily: FONT, fontSize: 22, fontWeight: 800, color: BLUE }}>
-              {formatTime12(time)}
-            </span>
-            <Icon icon="mdi:clock-outline" width={20} height={20} style={{ color: BLUE }} />
-          </button>
-        </div>
-
-        {/* Remind me toggle. Reminder is ON by default per spec. */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '4px 0',
-          }}
-        >
-          <div>
-            <div style={{ fontFamily: FONT, fontSize: 15, fontWeight: 600, color: INK }}>
-              Remind me
+            <div>
+              <div style={{ fontFamily: FONT, fontSize: 15, fontWeight: 600, color: INK }}>
+                Remind me
+              </div>
+              <div style={{ fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: SUBTLE, marginTop: 1 }}>
+                {reminder
+                  ? `Notification at ${formatTime12(time)}`
+                  : 'Notifications off'}
+              </div>
             </div>
-            <div style={{ fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: SUBTLE, marginTop: 1 }}>
-              {reminder
-                ? `Notification at ${formatTime12(time)}`
-                : 'Notifications off'}
-            </div>
+            <Toggle checked={reminder} onChange={onReminderChange} />
           </div>
-          <Toggle checked={reminder} onChange={onReminderChange} />
-        </div>
+        </Bloom>
       </div>
 
       {timeOpen && (
@@ -427,8 +454,10 @@ function ReflectionCardBeat(props?: Record<string, string>) {
   // Default style is "suggested template". Reminder starts ON per spec.
   const [style, setStyle] = useState<ReflectionStyle>('suggested template');
   const [prompts, setPrompts] = useState<string[]>(['', '', '']);
+  const [days, setDays] = useState<Set<number>>(new Set(WEEKDAYS));
   const [time, setTime] = useState('21:30');
   const [reminder, setReminder] = useState(true);
+  const toggleDay = (d: number) => setDays((p) => toggleSetItem(p, d));
 
   // Lift the chosen evening time to shared flow state so the plan recap and
   // home tour show the real time the user set, not a placeholder.
@@ -465,6 +494,8 @@ function ReflectionCardBeat(props?: Record<string, string>) {
           onStyleChange={setStyle}
           prompts={prompts}
           onPromptChange={handlePromptChange}
+          days={days}
+          onToggleDay={toggleDay}
           time={time}
           onTimeChange={setTime}
           reminder={reminder}
