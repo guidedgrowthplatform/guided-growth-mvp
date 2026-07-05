@@ -41,7 +41,12 @@ export interface PulseParams {
   orbAmt: number; // how much the orb DISC expands/contracts (0 = disc stays stable) 0..100
   mem: number; // outer membrane breathe amount 0..100
   memSpeed: number; // outer membrane breathe tempo (independent of the disc) 0..100
-  react: number; // voice reactivity: how hard the light AND disc grow with the voice, in sync 0..100
+  // Per-part voice reactivity: how hard each part grows/brightens with the voice. Set
+  // each independently to choreograph the orb (0 = that part ignores the voice). 0..100.
+  reactLight: number; // the inner light (the moving glow blobs)
+  reactDisc: number; // the disc (the whole circle scale)
+  reactAura: number; // the outer aura / membrane
+  reactCore: number; // the bright center core
 }
 
 // The current locked look (Yair's "Start"). Idle is the resting two-half orb; talk
@@ -100,5 +105,8 @@ export const DEFAULT_PULSE: PulseParams = {
   orbAmt: 100,
   mem: 60,
   memSpeed: 35,
-  react: 45,
+  reactLight: 45,
+  reactDisc: 40,
+  reactAura: 40,
+  reactCore: 35,
 };

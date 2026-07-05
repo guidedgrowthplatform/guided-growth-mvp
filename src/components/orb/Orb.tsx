@@ -213,8 +213,8 @@ export function Orb({
       const P = isActive ? c.params.talk : c.params.idle;
       const offMul = on ? 1 : 0.5;
       const m = micRef.current;
-      const react = (c.pulse.react ?? 45) / 100;
-      const micF = 1 + (isActive && m.on ? m.amp * react : 0) * 0.7;
+      const reactLight = (c.pulse.reactLight ?? 45) / 100;
+      const micF = 1 + (isActive && m.on ? m.amp * reactLight : 0) * 0.9;
       const em = isActive ? 1.25 * micF : 1;
       const glow = (P.glow / 100) * offMul * em;
       const bright = (P.bright / 100) * offMul;
@@ -305,9 +305,10 @@ export function Orb({
         ctx.arc(bx, by, o.radv, 0, 6.2832);
         ctx.fill();
       }
-      const cr = R * coreS;
+      const coreK = m.on ? m.amp * ((c.pulse.reactCore ?? 35) / 100) : 0;
+      const cr = R * coreS * (1 + coreK * 0.7);
       const cg = ctx.createRadialGradient(lcx, lcy, 0, lcx, lcy, cr);
-      cg.addColorStop(0, `rgba(255,255,255,${cpulse * 0.55 * bright})`);
+      cg.addColorStop(0, `rgba(255,255,255,${Math.min(1, cpulse * 0.55 * bright * (1 + coreK * 0.5)).toFixed(3)})`);
       cg.addColorStop(0.32, rgba(pal[3], 0.42 * bright));
       cg.addColorStop(1, rgba(pal[3], 0));
       ctx.fillStyle = cg;
@@ -341,8 +342,8 @@ export function Orb({
       const pal = c.state === 'coach' ? BLUE : GOLD;
       const P = c.params.talk;
       const m = micRef.current;
-      const react = (c.pulse.react ?? 45) / 100;
-      const micF = 1 + (m.on ? m.amp * react : 0) * 0.7;
+      const reactLight = (c.pulse.reactLight ?? 45) / 100;
+      const micF = 1 + (m.on ? m.amp * reactLight : 0) * 0.9;
       const glow = (P.glow / 100) * 1.2 * micF;
       const bright = P.bright / 100;
       const grad = P.grad / 100;
@@ -426,9 +427,10 @@ export function Orb({
         ctx.arc(bx, by, o.radv, 0, 6.2832);
         ctx.fill();
       }
-      const cr = R * coreS;
+      const coreK = m.on ? m.amp * ((c.pulse.reactCore ?? 35) / 100) : 0;
+      const cr = R * coreS * (1 + coreK * 0.7);
       const cg = ctx.createRadialGradient(lcx, lcy, 0, lcx, lcy, cr);
-      cg.addColorStop(0, `rgba(255,255,255,${cpulse * 0.55 * bright})`);
+      cg.addColorStop(0, `rgba(255,255,255,${Math.min(1, cpulse * 0.55 * bright * (1 + coreK * 0.5)).toFixed(3)})`);
       cg.addColorStop(0.32, rgba(pal[3], 0.42 * bright));
       cg.addColorStop(1, rgba(pal[3], 0));
       ctx.fillStyle = cg;
@@ -464,14 +466,14 @@ export function Orb({
       // orbAmt scales the whole DISC expansion. 0 keeps the disc perfectly stable
       // while the membrane and inner light still move on their own.
       const oa = (pz.orbAmt ?? 100) / 100;
-      // Voice reactivity: ONE shared drive so the inner light and the disc grow and
-      // shrink together (in sync) with the voice, instead of the light outrunning the
-      // circle. `react` scales it; 0 = the disc ignores the voice (only the base breathe).
-      const react = (pz.react ?? 45) / 100;
-      const av = m.on ? m.amp * react : 0;
+      // Per-part voice reactivity: each part grows with the voice by its own amount so
+      // the orb can be choreographed. avDisc drives the circle, avAura the membrane.
+      // (avLight for the inner glow and reactCore for the core live in the draw fns.)
+      const avDisc = m.on ? m.amp * ((pz.reactDisc ?? 40) / 100) : 0;
+      const avAura = m.on ? m.amp * ((pz.reactAura ?? 40) / 100) : 0;
       if (full) {
         const swing = (0.5 + 0.5 * Math.sin(t2 * prate * 2)) * pamt * 0.22;
-        const grow = 1 + (pbase + swing + av * 0.42) * oa;
+        const grow = 1 + (pbase + swing) * oa + avDisc * 0.5;
         orb.style.transform = `scale(${grow.toFixed(3)})`;
       } else {
         orb.style.transform = '';
@@ -479,7 +481,7 @@ export function Orb({
       const activeSide = c.state === 'coach' ? 'left' : c.state === 'user' ? 'right' : null;
       if (talking && c.style === 'directional' && activeSide) {
         const swing = (0.5 + 0.5 * Math.sin(t2 * prate * 2)) * pamt * 0.2;
-        const gv = 1 + (pbase * 0.85 + swing + av * 0.4) * oa;
+        const gv = 1 + (pbase * 0.85 + swing) * oa + avDisc * 0.45;
         if (leftHalfRef.current)
           leftHalfRef.current.style.transform =
             activeSide === 'left' ? `scale(${gv.toFixed(3)})` : '';
@@ -498,7 +500,7 @@ export function Orb({
         const auraP = (aset.aura ?? 0) / 100;
         const memAmt = (pz.mem ?? 60) / 100;
         const mrate = 0.5 + ((pz.memSpeed ?? 35) / 100) * 2.2;
-        const micA = m.on ? 0.7 + m.amp * 0.8 : 1;
+        const micA = 1 + avAura * 0.8;
         const memSwing = (0.5 + 0.5 * Math.sin(t2 * mrate)) * (0.05 + 0.26 * memAmt);
         shell.style.setProperty('--mem', auraP.toFixed(3));
         shell.style.setProperty('--memscale', (1 + auraP * memSwing * micA).toFixed(3));
