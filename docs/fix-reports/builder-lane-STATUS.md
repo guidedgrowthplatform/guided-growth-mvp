@@ -89,3 +89,21 @@ Conductor tasks this cycle:
 Updated: 2026-07-05 ~09:15 EAT — LANE CLOSED by operator ("everything done"). All build
 work merged to trunk. !411 remains open, synced to main 7dc0e20b, green (1641 tests /
 161 files), un-parked and pinged — conductor merges. Watch loop disarmed.
+
+---
+
+Updated: 2026-07-05 ~11:00 EAT — BUNDLE ARBITRATION + B32 STATUS. Conductor ruling: the
+skimmer lane independently fixed B32-B35 (!434-!437); builder's !440 WINS B32 (!434
+superseded); builder STANDS DOWN on B33/B34/B35 (skimmer's !435/!436/!437 ship, live
+skimmer !438/!439 stacked on them). Remaining builder scope: !440 evidence -> conductor
+merges; keep !411 synced (merges last); Yair's flow-content edits when they arrive.
+
+B32 (!440, fix/b32-plan-review-handoff): fix + 3 jsdom tests DONE (1635/1635, tsc clean).
+Root cause: confirm_plan is validate-only; chat-native flow has no consumer; orchestrator
+coach-advance bails on persist-less beats -> terminal chain voice-dead. Fix: IntoAppAdapter
+subscribes to the confirm_plan voice action, mirrors the tap (one-shot, readOnly-guarded).
+Evidence harness (.frugal-fable/b32-evidence.mjs, Playwright fake-mic): before-run on main
+build reproduces the dead-end live (22 /api/llm dispatches, zero advance). NOTE: the
+builder QA account's staged row was WIPED mid-day (likely the skimmer lane's parallel
+verification) — harness now re-stages by tap-walking the full beginner lane first;
+final before/after runs in progress, will be posted on !440.
