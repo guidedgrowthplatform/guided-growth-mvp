@@ -111,8 +111,8 @@ Owns everything from "we have the user's words" to "the card is filled and saved
 - B2. Re-verify the realtime fill on the Direct-LLM route: tool webhook -> onboarding_states write -> postgres_changes -> frontend auto-fill. Mint's plan flags this as the thing most affected by Vapi off, so confirm it end to end without Vapi.
 - B3. Feed beat context from the export into the coach's per-beat system prompt: the `context` paragraphs (the BEAT: ... path guidance) plus `spokenContent`. The coach should get exactly the beat's authored context.
 - B4. Per-element asks: the `perElement` lines drive the coach through a card's sub-questions in order (sleep -> mood -> energy -> stress, etc), matching the AV-sync so an element's line plays as it reveals.
-- B5. Delete the abandoned local parser (`parseProfileSpeech` + test). The coach fills, not a local parse.
-Files: `/api/llm` + `buildSystemPromptForRequest`, the tool registry, the realtime fill path, beat-context bundling, `parseProfileSpeech.ts` (delete).
+- B5. Delete the abandoned local profile parser and its test. The coach fills, not a local parse.
+Files: `/api/llm` + `buildSystemPromptForRequest`, the tool registry, the realtime fill path, beat-context bundling.
 Done-condition: speaking (or typing) an answer on each interactive beat fills the card via the coach's tool call and persists, on the Direct-LLM route.
 
 ### The seam (why A and B do not collide)

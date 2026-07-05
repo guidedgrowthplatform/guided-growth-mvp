@@ -1,6 +1,13 @@
 /**
  * Parse free-form text ("brain dump") into structured habit objects.
  *
+ * Fallback-only today: demoted from primary parsing at commit 595ffdf8 after
+ * the 2026-07-02 call decision to drop local parsers from active use.
+ *
+ * Revival candidate: Yair decided on 2026-07-03 that local parsing is wanted
+ * for the live-skimmer instant layer, so habit cards can form while the user
+ * is still speaking.
+ *
  * Splits on commas, newlines, and the word "and" to identify individual
  * habit descriptions, then extracts a cleaned habit name and a frequency hint.
  */
