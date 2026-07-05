@@ -77,4 +77,18 @@ describe('normalizeParsedHabits', () => {
     const habits = Array.from({ length: 120 }, (_, i) => ({ name: `H${i}`, frequency: 'daily' }));
     expect(normalizeParsedHabits({ habits })).toHaveLength(50);
   });
+  it('passes habitType through only when a known enum value', () => {
+    const out = normalizeParsedHabits({
+      habits: [
+        { name: 'quit smoking', frequency: 'daily', habitType: 'binary_avoid' },
+        { name: 'run', frequency: 'daily', habitType: 'binary_do' },
+        { name: 'read', frequency: 'daily', habitType: 'made_up' },
+        { name: 'stretch', frequency: 'daily' },
+      ],
+    });
+    expect(out[0].habitType).toBe('binary_avoid');
+    expect(out[1].habitType).toBe('binary_do');
+    expect(out[2].habitType).toBeUndefined();
+    expect(out[3].habitType).toBeUndefined();
+  });
 });

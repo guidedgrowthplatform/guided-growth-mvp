@@ -22,7 +22,13 @@ export function normalizeParsedHabits(raw: unknown): ParsedHabit[] {
   const out: ParsedHabit[] = [];
   for (const item of (raw as { habits: unknown[] }).habits) {
     if (!item || typeof item !== 'object') continue;
-    const h = item as { name?: unknown; frequency?: unknown; days?: unknown; time?: unknown };
+    const h = item as {
+      name?: unknown;
+      frequency?: unknown;
+      days?: unknown;
+      time?: unknown;
+      habitType?: unknown;
+    };
     const name = typeof h.name === 'string' ? h.name.trim().slice(0, 100) : '';
     if (!name) continue;
 
@@ -39,6 +45,9 @@ export function normalizeParsedHabits(raw: unknown): ParsedHabit[] {
       if (days.length > 0) habit.days = days;
     }
     if (typeof h.time === 'string' && TIME_RE.test(h.time)) habit.time = h.time;
+    if (h.habitType === 'binary_do' || h.habitType === 'binary_avoid') {
+      habit.habitType = h.habitType;
+    }
 
     out.push(habit);
     if (out.length >= MAX_HABITS) break;
