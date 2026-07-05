@@ -579,7 +579,7 @@ const ORB_CSS = `
 .ot-mem2{width:80%;height:80%;opacity:.82;filter:blur(calc(var(--D) * 0.035));animation:ot-wob2 5.2s ease-in-out infinite}
 @keyframes ot-wob{0%,100%{border-radius:46% 54% 52% 48% / 52% 46% 54% 48%;rotate:0deg}50%{border-radius:54% 46% 48% 52% / 46% 54% 47% 53%;rotate:8deg}}
 @keyframes ot-wob2{0%,100%{border-radius:52% 48% 46% 54% / 48% 52% 50% 50%;rotate:0deg}50%{border-radius:47% 53% 55% 45% / 53% 47% 52% 48%;rotate:-9deg}}
-.ot-orb{position:relative;z-index:1;width:var(--D);height:var(--D);border-radius:50%;overflow:hidden;--gap:max(5px, calc(var(--D)*0.06));--innerR:calc(var(--D)*0.0494);box-shadow:0 8px 22px rgba(20,30,60,.26), 0 0 24px 2px rgba(175,195,255,.16)}
+.ot-orb{position:relative;z-index:1;width:var(--D);height:var(--D);border-radius:50%;overflow:hidden;--gap:max(5px, calc(var(--D)*0.06));--innerR:calc(var(--D)*0.0494);box-shadow:0 0 0 1px rgba(28,42,78,.14), 0 8px 22px rgba(20,30,60,.26), 0 0 24px 2px rgba(175,195,255,.16)}
 .ot-shell.ot-flat .ot-orb{box-shadow:none}
 .ot-orb.ot-full{--gap:0px;--innerR:0px}
 .ot-half{position:absolute;top:0;height:100%;width:calc(50% - var(--gap)/2);overflow:hidden;background:radial-gradient(125% 125% at 50% 34%, rgba(255,255,255, calc(0.20 + 0.16*(1 - var(--body)))), rgba(255,255,255, calc(0.04 + 0.05*(1 - var(--body)))) 52%, rgba(8,11,22, calc(0.10 + 0.52*var(--body))) 100%)}
