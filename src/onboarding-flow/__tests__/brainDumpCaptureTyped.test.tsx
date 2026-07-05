@@ -34,6 +34,14 @@ const cardNames = () =>
     (d) => d.closest('div.w-full')?.querySelector('span')?.textContent?.trim() ?? '',
   );
 
+// 'Build' | 'Break' per card, same order as cardNames(), read off the polarity
+// chip's aria-label so a manual flip is verifiable without reaching into state.
+const cardPolarities = () =>
+  Array.from(container.querySelectorAll('div.w-full')).map((card) => {
+    const chip = card.querySelector('[aria-label^="Habit type "]');
+    return /Build/.test(chip?.getAttribute('aria-label') ?? '') ? 'Build' : 'Break';
+  });
+
 describe('BrainDumpCapture typed input — no keystroke-prefix stub cards', () => {
   it('cards only whole-word states while typing, and finalizes clean', () => {
     act(() => {
@@ -153,5 +161,35 @@ describe('BrainDumpCapture reconcile — AI names own prefix-related stubs', () 
     });
 
     expect(cardNames().some((n) => /smok/i.test(n))).toBe(false);
+  });
+
+  it('a manual polarity flip on the stub survives the AI key migration', async () => {
+    let resolveAI!: (h: ParsedHabit[]) => void;
+    parseMock.mockImplementation(() => new Promise((r) => (resolveAI = r)));
+    const { typeAll, clickAdd } = mount();
+
+    typeAll(
+      'ok so i wanna quit smoking every day, and go to the gym maybe three times a week, drink water in the mornings',
+    );
+    const gymIdx = cardNames().findIndex((n) => /gym/i.test(n));
+    expect(gymIdx).toBeGreaterThanOrEqual(0);
+    // Flip "Go to the gym" Build -> Break by tap, same as note-3498's manual check.
+    act(() => {
+      (
+        container.querySelectorAll('[aria-label^="Habit type "]')[gymIdx] as HTMLButtonElement
+      ).click();
+    });
+    expect(cardPolarities()[gymIdx]).toBe('Break');
+
+    clickAdd();
+    await act(async () => {
+      resolveAI(AI_RESULT);
+    });
+
+    const refinedIdx = cardNames().findIndex((n) => /gym/i.test(n));
+    expect(refinedIdx).toBeGreaterThanOrEqual(0);
+    // The AI's own habitType for this habit is binary_do (Build); the manual
+    // override must still win after the stub's key migrates to the AI's key.
+    expect(cardPolarities()[refinedIdx]).toBe('Break');
   });
 });
