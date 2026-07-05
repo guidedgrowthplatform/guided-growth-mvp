@@ -147,3 +147,14 @@ mount past the opener; bus doesn't replay; early affirmation drops. Follow-up (l
 lifted to BeatView, wip/b32-into-app-2026-07-05) lands AFTER !440 merges, per ruling —
 !440 unchanged. Post-opener path (Yonas's actual repro) covered and verified. Queue
 unchanged: !411 synced (merges last), Yair's flow edits preempt.
+
+---
+
+Updated: 2026-07-05 ~15:45 EAT — **!440 (B32) MERGED** (main 145e0767). Conductor's
+independent re-verification on the composed preview: T1 normal PASS (advance in ~9s,
+tool_rounds=1); T2 early-utterance race PASS x2 (speech feeding before the card/opener
+existed in the DOM; the theoretical mount race did not reproduce — transcription+LLM
+latency outlasts the opener, and the model itself called confirm_plan in these runs).
+Ground truth = DOM advance + SSE tool_rounds per the new standing rule. !411 re-synced
+onto post-B32 main (1660/1660, 163 files, pushed) — the LAST open lane item, conductor
+merges. Remaining watch: !411 merge, review notes, Yair's flow-content edits (preempt).
