@@ -227,7 +227,17 @@ export function BeatConversation({
           on a past beat whose thread has no committed opener), always ABOVE
           the card */}
       {hideOpener ? null : opener && !coldOpenerPending ? (
-        renderTurn(opener, partialExtendsOpener ? livePartial : null)
+        active ? (
+          renderTurn(opener, partialExtendsOpener ? livePartial : null)
+        ) : (
+          // Past-beat replay: a committed multi-prompt opener keeps its authored
+          // turn breaks — one bubble per line, not one merged bubble (B34).
+          openerTurns(opener.text).map((line, i) => (
+            <div key={`${opener.id}-turn-${i}`} className={COACH_BUBBLE_CLASS}>
+              {line}
+            </div>
+          ))
+        )
       ) : liveOpener ? (
         <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{liveOpener}</div>
       ) : showConnecting && fallbackOn && fallbackOpener ? (
