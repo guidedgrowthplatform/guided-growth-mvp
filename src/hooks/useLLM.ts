@@ -3,6 +3,7 @@ import { track } from '@/analytics';
 import { streamLLM } from '@/api/llm';
 import { isOnboardingScreen, logDebugEvent } from '@/lib/debug/onboardingDebug';
 import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
+import { fixSentenceJoinSpacing } from '@/lib/text/sentenceJoinSpacing';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import type {
   CoachingStyle,
@@ -292,8 +293,14 @@ export function useLLM(
             flushDeltaBuffer();
             // Skip a blank assistant turn (tool-only). Truly empty (no text, no
             // tools) → fallback line so the turn never renders as silence.
-            const display =
-              acc.trim() === '' && localTools.length === 0 ? EMPTY_TURN_FALLBACK : acc;
+            // B56a: the model's own turn text sometimes glues a confirmation
+            // sentence directly onto the next sentence with no separating
+            // space (e.g. "for weekdays.Now, let's set..."). Fixed once here,
+            // at the single point the turn's full text is finalized, so every
+            // downstream consumer (chat bubble, TTS, persistence) sees it.
+            const display = fixSentenceJoinSpacing(
+              acc.trim() === '' && localTools.length === 0 ? EMPTY_TURN_FALLBACK : acc,
+            );
             if (display.trim() !== '') {
               const assistant: LLMChatMessage = {
                 id: makeId(idCounterRef.current),

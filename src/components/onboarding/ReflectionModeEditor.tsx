@@ -10,7 +10,14 @@ interface ReflectionModeEditorProps {
 }
 
 // Shared mode-choice + custom-prompt editor for both onboarding paths.
-// 'prompts' mode = answer questions (a user-editable list); 'freeform' = no questions.
+// 'prompts' mode = answer questions; 'freeform' = no questions. Within 'prompts'
+// mode, this card doubles as both the guided default (the coach's recommended
+// "suggested template" of fixed questions, shown when no custom prompts have
+// been entered yet) and the custom-prompt editor (once the user actually adds
+// one). B57: 'prompts' is the correct default mode, but the card must read as
+// "Daily Reflection" while it still represents the default, not "Custom
+// Prompts". Labeling it "Custom Prompts" pre-selected with nothing entered
+// reads as the wrong option chosen by default.
 export function ReflectionModeEditor({
   mode,
   onModeChange,
@@ -18,6 +25,11 @@ export function ReflectionModeEditor({
   onPromptsChange,
 }: ReflectionModeEditorProps) {
   const [newPrompt, setNewPrompt] = useState('');
+  const hasCustomPrompts = prompts.some((p) => p.trim());
+  const promptsCardLabel = hasCustomPrompts ? 'Custom Prompts' : 'Daily Reflection';
+  const promptsCardIcon = hasCustomPrompts
+    ? 'material-symbols:format-list-bulleted'
+    : 'ic:round-menu-book';
 
   function updatePrompt(index: number, value: string) {
     onPromptsChange(prompts.map((p, i) => (i === index ? value : p)));
@@ -76,13 +88,8 @@ export function ReflectionModeEditor({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <Icon
-              icon="material-symbols:format-list-bulleted"
-              width={18}
-              height={15}
-              className="text-content"
-            />
-            <span className="pl-[12px] text-[18px] font-bold text-content">Custom Prompts</span>
+            <Icon icon={promptsCardIcon} width={18} height={15} className="text-content" />
+            <span className="pl-[12px] text-[18px] font-bold text-content">{promptsCardLabel}</span>
           </div>
           <div
             className={`flex size-[20px] items-center justify-center rounded-full border-2 ${

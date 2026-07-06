@@ -144,6 +144,28 @@ describe('useLLM', () => {
     );
   });
 
+  it('B56a: inserts a space when a confirmation sentence is glued to the next sentence', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'delta', content: 'Your habit is set for weekdays.' },
+        { type: 'delta', content: "Now, let's set your time." },
+        { type: 'done', latency_ms: 90, total_tokens: 20, tool_rounds: 0 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    await act(async () => {
+      await hookRef!.sendMessage('every day');
+    });
+    await flush();
+
+    expect(hookRef!.messages[1]).toMatchObject({
+      role: 'assistant',
+      content: "Your habit is set for weekdays. Now, let's set your time.",
+    });
+  });
+
   it('tool loop: tool_call/tool_result attach to assistant message', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       mockSSE([
