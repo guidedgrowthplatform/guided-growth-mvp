@@ -41,12 +41,12 @@ export const CHECKIN_LOCAL_OPENER = false;
 // to let a true end-of-turn (v5 endpoint token / finished:true) shortcut the
 // timer while keeping multi-final buffering and the TURN_HOLD_MAX_MS ceiling
 // live as the safety net (see .frugal-fable/m1-audit/findings.md section 3).
-export const SEMANTIC_TURN_END = false;
+export const SEMANTIC_TURN_END = import.meta.env.VITE_SEMANTIC_TURN_END === 'true';
 
 // Model bump to Soniox stt-rt-v5, independent of SEMANTIC_TURN_END (audit risk
 // 6: ship the model bump alone first, confirm transcript-quality parity,
 // before layering the dispatch change on top). Off = byte-identical v4 request.
-export const SONIOX_V5 = false;
+export const SONIOX_V5 = import.meta.env.VITE_SONIOX_V5 === 'true';
 
 // Short absorb window used in place of the adaptive armFlush() delay when a
 // semantic turn-end fires: long enough to let a same-breath continuation
