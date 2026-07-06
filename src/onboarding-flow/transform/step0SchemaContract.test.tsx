@@ -76,6 +76,42 @@ const SAMPLE_EXPORT = {
     },
     {
       beat: '3',
+      name: 'Advanced capture (close sample)',
+      componentType: 'advanced-capture',
+      sheetStage: 'ONBOARD-ADVANCED: Brain Dump',
+      props: {
+        coachLine: 'Read me the list of the habits that you already track.',
+      },
+      meta: {
+        engine: { nodeId: 'advanced-close-sample' },
+        mp3Assets: [
+          {
+            id: 'close',
+            label: 'ONBOARD-ADVANCED close',
+            file: '/voice/ob/close.wav',
+            transcript: 'Those are all in, and I marked each as build or break.',
+            timing: 'close',
+          },
+        ],
+      },
+      narration: [
+        {
+          kind: 'bubble',
+          n: 1,
+          say: 'Read me the list of the habits that you already track.',
+          clip: 'onboard_advanced_1',
+        },
+        { kind: 'reveal', n: 99 },
+        {
+          kind: 'close',
+          n: 1,
+          say: 'Those are all in, and I marked each as build or break.',
+          clip: 'close',
+        },
+      ],
+    },
+    {
+      beat: '4',
       name: 'Component-owned sample',
       componentType: 'mic-permission',
       // 'qa' is a builder visibility tag, NOT a render variant; it must be
@@ -113,10 +149,22 @@ describe('STEP-0: Export parse', () => {
     expect(() => parseExportDocument(bad)).toThrow(/narration/);
   });
 
-  it('rejects a narration kind outside bubble|reveal', () => {
+  it('rejects a narration kind outside bubble|reveal|close', () => {
     const bad = JSON.parse(JSON.stringify(SAMPLE_EXPORT));
     bad.beats[0].narration[0].kind = 'card';
     expect(() => parseExportDocument(bad)).toThrow();
+  });
+
+  it('accepts the close segment kind and the close mp3Assets timing slot', () => {
+    const doc = parseExportDocument(SAMPLE_EXPORT);
+    const adv = doc.beats.find((b) => b.name === 'Advanced capture (close sample)');
+    expect(adv?.narration?.[2]).toEqual({
+      kind: 'close',
+      n: 1,
+      say: 'Those are all in, and I marked each as build or break.',
+      clip: 'close',
+    });
+    expect(adv?.meta.mp3Assets?.[0].timing).toBe('close');
   });
 });
 
@@ -145,6 +193,18 @@ describe('STEP-0: transform carries the contract onto generated nodes', () => {
     expect(proj.narration).toHaveLength(2);
     expect(proj.narration?.[0].clip).toBe('onboard_weekly_projection_p78_1');
     expect(proj.narration?.[1]).toEqual({ kind: 'reveal', n: 1 });
+
+    // Close segment (the advanced-capture closeCoachLine shape) round-trips
+    // onto the node, alongside its close-timed mp3Assets entry.
+    const adv = flow.nodes.find((n) => n.id === 'advanced-close-sample') as BeatNode;
+    expect(adv).toBeDefined();
+    expect(adv.narration?.[2]).toEqual({
+      kind: 'close',
+      n: 1,
+      say: 'Those are all in, and I marked each as build or break.',
+      clip: 'close',
+    });
+    expect(adv.meta?.voiceOut.mp3Assets?.[0].timing).toBe('close');
   });
 
   it('hideOrb + componentOwned flow through; builder visibility variants do not', () => {

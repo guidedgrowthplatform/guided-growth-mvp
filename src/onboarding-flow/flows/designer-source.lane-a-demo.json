@@ -15,7 +15,9 @@
       "meta": {
         "voiceEngine": "MP3",
         "voiceMode": "Verbatim",
-        "engine": { "nodeId": "demo-state-check" }
+        "engine": {
+          "nodeId": "demo-state-check"
+        }
       },
       "narration": [
         {
@@ -30,10 +32,26 @@
           "say": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
           "clip": "/voice/onboard_state_check.mp3"
         },
-        { "kind": "reveal", "n": 1, "say": "How's your sleep?" },
-        { "kind": "reveal", "n": 2, "say": "How's your mood?" },
-        { "kind": "reveal", "n": 3, "say": "How's your energy?" },
-        { "kind": "reveal", "n": 4, "say": "How's your stress?" }
+        {
+          "kind": "reveal",
+          "n": 1,
+          "say": "How's your sleep?"
+        },
+        {
+          "kind": "reveal",
+          "n": 2,
+          "say": "How's your mood?"
+        },
+        {
+          "kind": "reveal",
+          "n": 3,
+          "say": "How's your energy?"
+        },
+        {
+          "kind": "reveal",
+          "n": 4,
+          "say": "How's your stress?"
+        }
       ]
     },
     {
@@ -51,8 +69,29 @@
       },
       "meta": {
         "voiceEngine": "None",
-        "engine": { "nodeId": "demo-goal-custom", "voiceExpectsInput": true }
-      }
+        "engine": {
+          "nodeId": "demo-goal-custom",
+          "voiceExpectsInput": true
+        }
+      },
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "Tell me the goal you want to add, and I'll set it up.",
+          "clip": "/voice/onboarding_focus_area.mp3"
+        },
+        {
+          "kind": "reveal",
+          "n": 1
+        },
+        {
+          "kind": "close",
+          "n": 1,
+          "say": "That's in. I'll set it up for you.",
+          "clip": "/voice/checkin_complete.mp3"
+        }
+      ]
     },
     {
       "beat": "3",
@@ -85,11 +124,15 @@
       "componentType": "weekly-projection",
       "sheetStage": "ONBOARD-WEEKLY-PROJECTION-P78: Weekly Projection P78",
       "context": "Weekly projection demo: the most-likely frame with a clip-backed narration bubble, then the grid reveals.",
-      "props": { "state": "p78" },
+      "props": {
+        "state": "p78"
+      },
       "meta": {
         "voiceEngine": "MP3",
         "voiceMode": "Verbatim",
-        "engine": { "nodeId": "demo-weekly-p78" }
+        "engine": {
+          "nodeId": "demo-weekly-p78"
+        }
       },
       "narration": [
         {
@@ -98,7 +141,10 @@
           "say": "Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.",
           "clip": "/voice/onboard_weekly_p78.mp3"
         },
-        { "kind": "reveal", "n": 1 }
+        {
+          "kind": "reveal",
+          "n": 1
+        }
       ]
     }
   ]

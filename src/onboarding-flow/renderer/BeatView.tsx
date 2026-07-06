@@ -72,11 +72,12 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // component plays its own audio/orb sequence (A4).
   const hasNarration = (node.narration?.length ?? 0) > 0 && !node.componentOwned;
   const opener = node.voice.openerText ? applyName(node.voice.openerText, answers.nickname) : null;
-  // Past narration beats replay their scripted bubble lines (newline = turn
-  // break, the openerTurns convention) instead of the single authored opener.
+  // Past narration beats replay their SPOKEN bubble lines (bubbles + closes,
+  // newline = turn break, the openerTurns convention) instead of the single
+  // authored opener. Reveal says stay out: they were verbal-only, never drawn.
   const narrationOpener = hasNarration
     ? (node.narration ?? [])
-        .filter((s) => s.kind === 'bubble' && s.say)
+        .filter((s) => s.kind !== 'reveal' && s.say)
         .map((s) => applyName(s.say!, answers.nickname))
         .join('\n') || null
     : null;
@@ -162,7 +163,9 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
       <NarrationBeatView
         node={node}
         answers={answers}
-        card={<Adapter node={node} answers={answers} onCapture={onCapture} />}
+        // The driver wires the card's capture itself: close segments hold the
+        // capture until the coach's post-interaction lines finish.
+        renderCard={(capture) => <Adapter node={node} answers={answers} onCapture={capture} />}
         onCapture={onCapture}
         onReveal={handleReveal}
       />

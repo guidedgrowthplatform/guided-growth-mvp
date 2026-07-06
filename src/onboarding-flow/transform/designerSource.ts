@@ -5,10 +5,11 @@
  * by designerSourceJson.ts and validated loud at parse.
  */
 
-/** Ordered bubble/reveal segment authored on a designer beat (STEP-0 contract).
- * Mirrors the engine's NarrationSegment 1:1; the transform carries it verbatim. */
+/** Ordered bubble/reveal/close segment authored on a designer beat (STEP-0
+ * contract). Mirrors the engine's NarrationSegment 1:1; the transform carries
+ * it verbatim. 'close' = spoken after the beat's interaction completes. */
 export interface DesignerNarrationSegment {
-  kind: 'bubble' | 'reveal';
+  kind: 'bubble' | 'reveal' | 'close';
   n: number;
   say?: string;
   clip?: string;
@@ -21,7 +22,8 @@ export interface DesignerMp3Clip {
   transcript: string;
   opener?: string;
   elementId?: string;
-  timing?: 'opener' | 'element' | 'full-beat';
+  /** 'close' = spoken after the beat's interaction (STEP-0 close slot). */
+  timing?: 'opener' | 'element' | 'full-beat' | 'close';
 }
 
 export interface DesignerBeatMeta {
