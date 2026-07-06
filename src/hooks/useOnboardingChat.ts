@@ -150,11 +150,6 @@ export function useOnboardingChat({
   const openerCardRef = useRef<{ screenId: string; card: OnboardingCard } | null>(null);
   const screenIdRef = useRef(screenId);
   screenIdRef.current = screenId;
-  // A beat that advances mid-stream (a beat-completing tool fires while the
-  // coach is still streaming) changes screenId before the prior stream drains.
-  // sendOpener no-ops against an in-flight stream, so the next beat's opener
-  // would never fire — hold it here and flush once the stream settles.
-  const pendingOpenerRef = useRef<string | null>(null);
   // Rehydration (stable session): seed the persisted thread once per session id,
   // and remember which beats it covered so their openers aren't re-streamed
   // (duplicate bubble). Keyed by session id so a user switch re-rehydrates.
@@ -235,31 +230,6 @@ export function useOnboardingChat({
       });
     },
     [appendMessage, qc],
-  );
-
-  // Fire the beat's opener now, or hold it until the in-flight stream drains.
-  const fireOrDeferOpener = useCallback(
-    (sid: string) => {
-      if (llmRef.current.isStreaming) {
-        pendingOpenerRef.current = sid;
-        return;
-      }
-      pendingOpenerRef.current = null;
-      streamActiveRef.current = true;
-      void llmRef.current.sendOpener().then((ok) => {
-        if (ok) return;
-        // Busy no-op (a stream was already in flight) — the pending-opener
-        // machinery owns the re-fire; only a real failure degrades. Read the
-        // LIVE in-flight flag, not render-state isStreaming: this promise
-        // continuation is a microtask that beats React's re-render, so
-        // isStreaming is still true from the streaming render even after a
-        // real failure — the stale read skipped the fallback entirely (B44
-        // dead air).
-        if (llmRef.current.isBusy()) return;
-        landOpenerFallback(sid);
-      });
-    },
-    [landOpenerFallback],
   );
 
   // Barge-in: stop the coach's TTS and abort any in-flight reply. cancel() is a
@@ -360,18 +330,21 @@ export function useOnboardingChat({
         return;
       }
       if (opener) {
-        // The OPENER is rendered by the LLM verbatim (server-scripted), the same
-        // way the home check-in fires sendOpener — NOT seeded as hardcoded text.
-        // The card attaches to the streamed opener turn (openerCardRef); on any
-        // failure the error effect degrades to the authored line + card.
+        // B48: the opener is SEEDED verbatim, never LLM-generated. sendOpener()
+        // is a real generation turn — even with a VERBATIM_OPENER beat context,
+        // an LLM asked to "speak first" can paraphrase (a live QA walk showed
+        // the profile beat's locked line rendered as an improvised greeting).
+        // The scripted/narration opener must be the ONLY opener a beat with an
+        // authored line ever shows, so seed it directly here, same as the
+        // legacy overlay path below — no sendOpener, no beatAudioOwner claim,
+        // nothing for the model to get wrong. A genuine conversational REPLY
+        // to a user turn still goes through sendMessage (fully live, untouched).
         suppressTrailingRef.current = false;
-        openerCardRef.current = card ? { screenId, card } : null;
+        openerCardRef.current = null;
         // Chat-native is ONE continuous feed — always append so every prior beat
         // stays scrollable; never wipe (only auth is hidden, by the page).
-        startThread(screenId, [], 'append');
-        // Defer if a prior turn is still streaming (the data tool that just
-        // advanced the beat) — else sendOpener no-ops and the opener is lost.
-        fireOrDeferOpener(screenId);
+        const openerId = `opener-${screenId}-${visitCounterRef.current++}`;
+        startThread(screenId, [{ id: openerId, role: 'ai', text: opener, cards }], 'append');
       } else {
         // No authored line (auth gate / sub-screens) → don't seed the chat thread.
         // The synchronous StaticFeed fallback (page renders it while `messages` is
@@ -422,25 +395,6 @@ export function useOnboardingChat({
     pendingTurnRef.current = null;
     startStream(text);
   }, [chatSessionId, llm.isStreaming, startStream]);
-
-  // Flush a held opener once the prior (beat-advancing) stream settles. Drop it
-  // if the beat moved on again before it could fire (a newer screen-change owns
-  // the opener now).
-  useEffect(() => {
-    if (llm.isStreaming || !pendingOpenerRef.current) return;
-    const sid = pendingOpenerRef.current;
-    pendingOpenerRef.current = null;
-    if (sid !== screenIdRef.current) return;
-    suppressTrailingRef.current = false;
-    streamActiveRef.current = true;
-    void llmRef.current.sendOpener().then((ok) => {
-      // Same live-read rationale as fireOrDeferOpener: render-state
-      // isStreaming is stale inside this microtask and would misread a real
-      // failure as a busy no-op, silently dropping the fallback.
-      if (ok || llmRef.current.isBusy()) return;
-      landOpenerFallback(sid);
-    });
-  }, [llm.isStreaming, landOpenerFallback]);
 
   const toolActive = enabled || streamActiveRef.current;
 

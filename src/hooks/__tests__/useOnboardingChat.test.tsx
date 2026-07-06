@@ -786,7 +786,7 @@ describe('LLM failure resilience: silent auto-retry then friendly bubble (B11)',
   });
 });
 
-describe('opener fallback (B44): name substitution + liveness', () => {
+describe('scripted opener (B48): seeded verbatim, never LLM-generated + liveness', () => {
   beforeEach(() => {
     (getOrCreateOnboardingChatSessionId as ReturnType<typeof vi.fn>).mockReturnValue(STABLE_ID);
   });
@@ -795,82 +795,70 @@ describe('opener fallback (B44): name substitution + liveness', () => {
     qc.setQueryData(queryKeys.onboarding.state, null);
   });
 
-  it('a failed opener stream degrades to the authored line with the name substituted (never the literal {name})', async () => {
+  it('a beat with an authored opener seeds it verbatim with the name substituted, with zero /api/llm calls', async () => {
     qc.setQueryData(queryKeys.onboarding.state, {
       current_step: 1,
       data: { nickname: 'Yonas' },
       path: null,
     } as never);
-    const appendMessage = vi.fn();
-    const fetchMock = vi
-      .fn()
-      .mockImplementation(() =>
-        Promise.resolve(
-          mockSSE([{ type: 'error', code: 'openai_error', message: 'upstream unavailable' }]),
-        ),
-      );
+    const startThread = vi.fn();
+    const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
     act(() => {
       root.render(
         <Wrapper>
-          <Bridge screenId="ONBOARD-01--FORM" appendMessage={appendMessage} chatNative />
+          <Bridge screenId="ONBOARD-01--FORM" startThread={startThread} chatNative />
         </Wrapper>,
       );
     });
     await flush();
     await flush();
 
-    const fallback = appendMessage.mock.calls
-      .map((c) => c[0] as VoiceMessage)
-      .find((m) => String(m.id).startsWith('opener-fallback-'));
-    expect(fallback).toBeDefined();
-    expect(fallback!.text).toContain('Yonas');
-    expect(fallback!.text).not.toContain('{name}');
+    // The scripted opener is seeded directly (no generation call in between).
+    expect(fetchMock.mock.calls.filter((c) => String(c[0]).includes('/api/llm'))).toHaveLength(0);
+    const call = startThreadCall(startThread, 0);
+    expect(call.screenId).toBe('ONBOARD-01--FORM');
+    const [, initial] = startThread.mock.calls[0] as [string, VoiceMessage[]];
+    expect(initial[0]?.text).toContain('Yonas');
+    expect(initial[0]?.text).not.toContain('{name}');
   });
 
-  it('the next user turn after an opener fallback still dispatches to /api/llm (not a dead beat)', async () => {
+  it('a genuine user turn on the same beat still dispatches to /api/llm (not a dead beat)', async () => {
     qc.setQueryData(queryKeys.onboarding.state, {
       current_step: 1,
       data: { nickname: 'Yonas' },
       path: null,
     } as never);
+    const startThread = vi.fn();
     const appendMessage = vi.fn();
-    const fetchMock = vi
-      .fn()
-      // Opener stream fails once...
-      .mockImplementationOnce(() =>
-        Promise.resolve(
-          mockSSE([{ type: 'error', code: 'openai_error', message: 'upstream unavailable' }]),
-        ),
-      )
-      // ...then the next (user) turn succeeds normally.
-      .mockImplementation(() =>
-        Promise.resolve(
-          mockSSE([
-            { type: 'delta', content: 'got it' },
-            { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
-          ]),
-        ),
-      );
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        mockSSE([
+          { type: 'delta', content: 'got it' },
+          { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
+        ]),
+      ),
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     act(() => {
       root.render(
         <Wrapper>
-          <Bridge screenId="ONBOARD-01--FORM" appendMessage={appendMessage} chatNative />
+          <Bridge
+            screenId="ONBOARD-01--FORM"
+            startThread={startThread}
+            appendMessage={appendMessage}
+            chatNative
+          />
         </Wrapper>,
       );
     });
     await flush();
     await flush();
 
-    // Opener fallback landed (dead-air degrade), confirming the failure path fired.
-    expect(
-      appendMessage.mock.calls
-        .map((c) => c[0] as VoiceMessage)
-        .some((m) => String(m.id).startsWith('opener-fallback-')),
-    ).toBe(true);
+    // No LLM call yet — the opener was seeded, not generated.
+    expect(fetchMock.mock.calls.filter((c) => String(c[0]).includes('/api/llm'))).toHaveLength(0);
 
     await act(async () => {
       hookRef!.sendUserTurn('Yonas');
@@ -879,9 +867,9 @@ describe('opener fallback (B44): name substitution + liveness', () => {
     await flush();
 
     const llmCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes('/api/llm'));
-    // The opener call + the live user-turn call both hit /api/llm — the beat
-    // is not dead after the opener degraded.
-    expect(llmCalls.length).toBeGreaterThanOrEqual(2);
+    // The live user-turn call hits /api/llm — the beat is not dead just
+    // because the opener never called the LLM.
+    expect(llmCalls.length).toBeGreaterThanOrEqual(1);
     expect(
       appendMessage.mock.calls
         .map((c) => c[0] as VoiceMessage)

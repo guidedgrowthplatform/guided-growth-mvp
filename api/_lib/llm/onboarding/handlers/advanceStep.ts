@@ -40,23 +40,34 @@ export async function advanceStep(
     );
   }
 
+  // CAPTURE GUARD — unconditional on every forward advance (targetStep >
+  // currentStep, whichever of the +1/+2 shapes below it takes). The beat the
+  // user is CURRENTLY ON owns currentStep; if that beat requires a capture
+  // (its GATES entry in preconditions.ts) and the capture has not happened
+  // yet, refuse. This is what stops a self-advancing beat (state-check,
+  // morning-setup, reflection, weekly-day) from being walked past by
+  // advance_step alone — those beats only ever advance via their own data
+  // tool (record_checkin / submit_morning_checkin / ...), never this tool.
+  // Checked ONCE here regardless of the +1/+2 branch below, so neither shape
+  // can skip it (B47: submit_profile → advance_step → advance_step landed on
+  // state-check and left it again without record_checkin ever firing).
+  if (targetStep > currentStep) {
+    const missing = checkAdvanceData({ sourceStep: currentStep, data, path, brainDumpRaw });
+    if (missing) return handlerError(missing);
+  }
+
   // +2 is a tap/voice catch-up: tap-navigation into the current screen does NOT
   // bump current_step, so a subsequent agent advance lands two ahead. Allow it
-  // ONLY when BOTH steps being left already have their data saved.
+  // ONLY when BOTH steps being left already have their data saved (the check
+  // above already covered currentStep; this covers the step in between).
   if (targetStep === currentStep + 2) {
-    for (let s = currentStep; s < targetStep; s++) {
+    for (let s = currentStep + 1; s < targetStep; s++) {
       if (checkAdvanceData({ sourceStep: s, data, path, brainDumpRaw })) {
         return handlerError(
           `cannot_skip_steps: current_step=${currentStep}, target_step=${targetStep}. Advance one step at a time.`,
         );
       }
     }
-  }
-
-  // Forward advance — the source screen's data must be saved.
-  if (targetStep === currentStep + 1) {
-    const missing = checkAdvanceData({ sourceStep: currentStep, data, path, brainDumpRaw });
-    if (missing) return handlerError(missing);
   }
 
   traceAdvanceStep0('direct', { currentStep, targetStep, data, path, brainDumpRaw });
