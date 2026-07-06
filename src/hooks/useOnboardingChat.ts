@@ -26,6 +26,7 @@ import {
   ttsKaraokeActive,
   useTtsPlaybackStore,
 } from '@/lib/services/tts-service';
+import { applyName } from '@/onboarding-flow/renderer/applyName';
 import { claimBeatAudio, releaseBeatAudio } from '@/onboarding-flow/renderer/beatAudioOwner';
 import { detectAffirmation } from '@gg/shared/onboarding/detectAffirmation';
 import type { OnboardingState } from '@gg/shared/types';
@@ -220,7 +221,7 @@ export function useOnboardingChat({
       const pending = openerCardRef.current;
       const nickname = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data
         ?.nickname;
-      const line = getOnboardingOpenerForState(sid, nickname) ?? '';
+      const line = applyName(getOnboardingOpenerForState(sid, nickname) ?? '', nickname);
       const card = pending && pending.screenId === sid ? pending.card : null;
       if (!line && !card) return;
       openerFallbackSidsRef.current.add(sid);
@@ -329,8 +330,9 @@ export function useOnboardingChat({
       qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
     const revisit = getOnboardingRevisitOpener(screenId, onboardingState);
     landedCompleteRef.current = revisit?.complete === true;
+    const nickname = onboardingState?.data?.nickname;
     const opener =
-      revisit?.text ?? getOnboardingOpenerForState(screenId, onboardingState?.data?.nickname);
+      revisit?.text ?? applyName(getOnboardingOpenerForState(screenId, nickname) ?? '', nickname);
     // Chat-native page: attach this beat's inline card to its opener message so
     // it renders at the turn and freezes in scrollback when the flow advances.
     const card = chatNative ? cardForScreenId(screenId, onboardingState) : null;
