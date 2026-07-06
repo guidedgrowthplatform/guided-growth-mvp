@@ -35,3 +35,21 @@ export const FULL_DUPLEX_BARGE_IN = true;
 // Render + speak the MCHECK/ECHECK opener client-side (no LLM round-trip).
 // Off until device-verified; flip on to enable the instant opener.
 export const CHECKIN_LOCAL_OPENER = false;
+
+// M1 latency lane: dispatch on Soniox's own semantic turn-end signal instead of
+// waiting out the adaptive armFlush() pause. Off until device-verified; flip on
+// to let a true end-of-turn (v5 endpoint token / finished:true) shortcut the
+// timer while keeping multi-final buffering and the TURN_HOLD_MAX_MS ceiling
+// live as the safety net (see .frugal-fable/m1-audit/findings.md section 3).
+export const SEMANTIC_TURN_END = false;
+
+// Model bump to Soniox stt-rt-v5, independent of SEMANTIC_TURN_END (audit risk
+// 6: ship the model bump alone first, confirm transcript-quality parity,
+// before layering the dispatch change on top). Off = byte-identical v4 request.
+export const SONIOX_V5 = false;
+
+// Short absorb window used in place of the adaptive armFlush() delay when a
+// semantic turn-end fires: long enough to let a same-breath continuation
+// re-arm the normal timer, short enough that a true end-of-turn still reads
+// as "instant" to the user.
+export const SEMANTIC_ABSORB_MS = 250;

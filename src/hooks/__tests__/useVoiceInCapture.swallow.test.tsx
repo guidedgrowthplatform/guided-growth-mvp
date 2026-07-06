@@ -95,7 +95,7 @@ describe('useVoiceInCapture — #232 swallow gate (hook behavior)', () => {
     expect(capturedOpts).not.toBeNull();
 
     fireFinal('the quick brown fox');
-    expect(onTranscript).toHaveBeenCalledWith('the quick brown fox');
+    expect(onTranscript).toHaveBeenCalledWith('the quick brown fox', undefined);
 
     exhaustBudget(); // 3 recoverable errors → 3 restarts consume the budget
     fireError('voice connection lost'); // 4th: past budget, but a final was heard

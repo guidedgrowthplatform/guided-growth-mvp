@@ -10,6 +10,8 @@ import { getOnboardingOpenerForState } from '@/components/onboarding/onboardingO
 import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
 import {
   FULL_DUPLEX_BARGE_IN,
+  SEMANTIC_ABSORB_MS,
+  SEMANTIC_TURN_END,
   TURN_AGGREGATION_MS,
   TURN_HOLD_MAX_MS,
   TURN_PAUSE_COMPLETE_MS,
@@ -67,8 +69,10 @@ import {
 import { engineForTurn } from '@/lib/orb/engineForTurn';
 import { orbStateFrom, type OrbState } from '@/lib/orb/orbState';
 import { queryKeys } from '@/lib/query';
+import type { SonioxFinalMeta } from '@/lib/services/soniox-stream';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
 import { useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 import { createListenerBus } from '@/lib/util/listenerBus';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
 import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
@@ -1388,6 +1392,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const bufferHeldSinceRef = useRef<number | null>(null);
   const chatBusyRef = useRef(chatBusy);
   chatBusyRef.current = chatBusy;
+  // M1 latency lane instrumentation (mirrors useCoachChat): last Soniox final
+  // receipt, and whether the CURRENTLY-armed flush timer was scheduled via the
+  // semantic absorb window or the normal adaptive pause.
+  const lastFinalAtRef = useRef(0);
+  const armedViaSemanticRef = useRef(false);
   const flushUtterance = useCallback(() => {
     if (aggregationTimerRef.current) {
       clearTimeout(aggregationTimerRef.current);
@@ -1396,6 +1405,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     const text = utteranceBufferRef.current.trim();
     utteranceBufferRef.current = '';
     bufferHeldSinceRef.current = null;
+    const lastFinalAt = lastFinalAtRef.current;
+    const decidedBySemanticTimer = armedViaSemanticRef.current;
+    armedViaSemanticRef.current = false;
     if (!text) {
       // Barge-in produced no real user turn → re-answer the interrupted reply.
       if (owesResponseRef.current && !regeneratedRef.current) {
@@ -1407,10 +1419,24 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     }
     owesResponseRef.current = false;
     regeneratedRef.current = false;
+    // New span (M1 latency lane): last Soniox final receipt -> dispatch fires.
+    // Emitted in BOTH flag states — this is the before/after measurement.
+    if (lastFinalAt) {
+      emitLatencySpan('turn_end_to_dispatch_ms', Date.now() - lastFinalAt, {
+        decided_by: decidedBySemanticTimer ? 'semantic' : 'timeout',
+        surface: 'onboarding',
+        flag_on: SEMANTIC_TURN_END,
+      });
+    }
     sendUserTurn(text);
   }, [sendUserTurn, regenerateCoach]);
+  // Re-arming (same-breath interim/final) always goes through this normal
+  // path — only the FIRST arm after a semantic end token uses the short
+  // absorb window (see emitVoiceInFinal). Per audit risk 3: the absorb window
+  // only shortens the TIMER, buffering across finals is unaffected.
   const armFlush = useCallback(() => {
     if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
+    armedViaSemanticRef.current = false;
     const pauseMs = resolveTurnPauseMs(utteranceBufferRef.current, {
       base: TURN_AGGREGATION_MS,
       complete: TURN_PAUSE_COMPLETE_MS,
@@ -1418,6 +1444,21 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     });
     const delayMs = clampFlushDelayMs(
       pauseMs,
+      bufferHeldSinceRef.current,
+      Date.now(),
+      TURN_HOLD_MAX_MS,
+    );
+    aggregationTimerRef.current = setTimeout(flushUtterance, delayMs);
+  }, [flushUtterance]);
+
+  // Semantic-end fast path (flag-gated): schedules the flush after the short
+  // SEMANTIC_ABSORB_MS window instead of the adaptive pause. TURN_HOLD_MAX_MS
+  // and the interim/final re-arm safety net stay live exactly as in armFlush.
+  const armSemanticFlush = useCallback(() => {
+    if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
+    armedViaSemanticRef.current = true;
+    const delayMs = clampFlushDelayMs(
+      SEMANTIC_ABSORB_MS,
       bufferHeldSinceRef.current,
       Date.now(),
       TURN_HOLD_MAX_MS,
@@ -1459,7 +1500,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // Final voice turn → clear the live partial, barge-in, then BUFFER it; the
   // aggregation timer flushes the whole utterance to the LLM as one turn.
   const emitVoiceInFinal = useCallback(
-    (text: string) => {
+    (text: string, meta?: SonioxFinalMeta) => {
       const trimmed = text.trim();
       if (!trimmed) return;
       notifyTranscriptListeners({ role: 'user', kind: 'final', text: trimmed });
@@ -1468,9 +1509,14 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       utteranceBufferRef.current = utteranceBufferRef.current
         ? `${utteranceBufferRef.current} ${trimmed}`
         : trimmed;
-      armFlush();
+      lastFinalAtRef.current = Date.now();
+      if (SEMANTIC_TURN_END && meta?.semanticEnd) {
+        armSemanticFlush();
+      } else {
+        armFlush();
+      }
     },
-    [notifyTranscriptListeners, bargeInterrupt, armFlush],
+    [notifyTranscriptListeners, bargeInterrupt, armFlush, armSemanticFlush],
   );
 
   const handleVoiceInError = useCallback(

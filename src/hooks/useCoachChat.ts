@@ -3,6 +3,8 @@ import { isCheckinScreen, trackCheckinStarted } from '@/analytics/coachFunnel';
 import { track } from '@/analytics/posthog';
 import {
   CHECKIN_LOCAL_OPENER,
+  SEMANTIC_ABSORB_MS,
+  SEMANTIC_TURN_END,
   TURN_AGGREGATION_MS,
   TURN_HOLD_MAX_MS,
   TURN_PAUSE_COMPLETE_MS,
@@ -32,8 +34,10 @@ import {
   stopVoice,
 } from '@/lib/services/cartesiaVoice';
 import { nextSentenceChunks, flushSentenceTail } from '@/lib/services/sentenceChunks';
+import type { SonioxFinalMeta } from '@/lib/services/soniox-stream';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 import {
   clampFlushDelayMs,
   isSemanticEndOfTurn,
@@ -185,6 +189,10 @@ export function useCoachChat(
   const awaitingResumeRef = useRef(false);
   // The adaptive pause the current flush timer was armed with (Phase 1).
   const lastArmedPauseRef = useRef(TURN_AGGREGATION_MS);
+  // M1 semantic turn-end (Phase 2, flag-gated): whether the CURRENTLY-armed
+  // flush timer was scheduled via the semantic absorb window or the normal
+  // adaptive pause — feeds turn_end_to_dispatch_ms's decided_by prop.
+  const armedViaSemanticRef = useRef(false);
   // When the first final landed in the (still unflushed) buffer — clamps how
   // long re-arms can defer the flush (TURN_HOLD_MAX_MS).
   const bufferHeldSinceRef = useRef<number | null>(null);
@@ -251,10 +259,13 @@ export function useCoachChat(
     utteranceBufferRef.current = '';
     bufferHeldSinceRef.current = null;
     const finalsMerged = finalsInTurnRef.current;
-    const msSinceLastFinal = lastFinalAtRef.current ? Date.now() - lastFinalAtRef.current : 0;
+    const lastFinalAt = lastFinalAtRef.current;
+    const msSinceLastFinal = lastFinalAt ? Date.now() - lastFinalAt : 0;
     const pauseMs = lastArmedPauseRef.current;
+    const decidedBySemanticTimer = armedViaSemanticRef.current;
     finalsInTurnRef.current = 0;
     awaitingResumeRef.current = false;
+    armedViaSemanticRef.current = false;
     if (!text) return;
     const verdict = isSemanticEndOfTurn(text);
     track('coach_turn_completed', {
@@ -266,14 +277,28 @@ export function useCoachChat(
       text_len: text.length,
     });
     turnSubmittedAtRef.current = Date.now();
+    // New span (M1 latency lane): last Soniox final receipt -> dispatch fires.
+    // Emitted in BOTH flag states — this is the before/after measurement.
+    if (lastFinalAt) {
+      emitLatencySpan('turn_end_to_dispatch_ms', Date.now() - lastFinalAt, {
+        decided_by: decidedBySemanticTimer ? 'semantic' : 'timeout',
+        surface: 'coach',
+        flag_on: SEMANTIC_TURN_END,
+      });
+    }
     submitTurnRef.current(text);
   }, []);
 
   // Arm (or re-arm) the flush timer with an ADAPTIVE pause: shorter when the
   // buffered transcript sounds finished, longer when it sounds mid-thought, so a
   // trailing "and…" isn't cut off and a clear "I'm done." replies promptly.
+  // Re-arming (e.g. from a same-breath interim/final) always goes through this
+  // normal path — only the FIRST arm after a semantic end token uses the short
+  // absorb window (see handleSonioxFinal), per audit risk 3: the absorb window
+  // only shortens the TIMER, buffering across finals is unaffected.
   const armFlush = useCallback(() => {
     if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
+    armedViaSemanticRef.current = false;
     const pauseMs = resolveTurnPauseMs(utteranceBufferRef.current, {
       base: TURN_AGGREGATION_MS,
       complete: TURN_PAUSE_COMPLETE_MS,
@@ -289,8 +314,25 @@ export function useCoachChat(
     aggregationTimerRef.current = setTimeout(flushUtterance, delayMs);
   }, [flushUtterance]);
 
+  // Semantic-end fast path (flag-gated): schedules the flush after the short
+  // SEMANTIC_ABSORB_MS window instead of the adaptive pause. TURN_HOLD_MAX_MS
+  // and the interim/final re-arm safety net stay live exactly as in armFlush —
+  // this only replaces the TIMER LENGTH for the first arm.
+  const armSemanticFlush = useCallback(() => {
+    if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
+    armedViaSemanticRef.current = true;
+    lastArmedPauseRef.current = SEMANTIC_ABSORB_MS;
+    const delayMs = clampFlushDelayMs(
+      SEMANTIC_ABSORB_MS,
+      bufferHeldSinceRef.current,
+      Date.now(),
+      TURN_HOLD_MAX_MS,
+    );
+    aggregationTimerRef.current = setTimeout(flushUtterance, delayMs);
+  }, [flushUtterance]);
+
   const handleSonioxFinal = useCallback(
-    (t: string) => {
+    (t: string, meta?: SonioxFinalMeta) => {
       onTranscriptStreamRef.current?.('user', t, 'final');
       if (finalsInTurnRef.current === 0 && coachStoppedAtRef.current) {
         track('coach_turn_handoff_ms', {
@@ -309,9 +351,13 @@ export function useCoachChat(
       finalsInTurnRef.current += 1;
       lastFinalAtRef.current = Date.now();
       awaitingResumeRef.current = true;
-      armFlush();
+      if (SEMANTIC_TURN_END && meta?.semanticEnd) {
+        armSemanticFlush();
+      } else {
+        armFlush();
+      }
     },
-    [setInterim, armFlush],
+    [setInterim, armFlush, armSemanticFlush],
   );
 
   // Clear the interim once the user's message commits (hand-off, no stale linger).
