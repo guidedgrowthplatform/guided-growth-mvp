@@ -2,6 +2,15 @@
 
 Lane B of gg-spec/docs/onboarding-consolidation-plan-2026-07-06.md. One-time seed, render to flow builder/engine; after the seed the flow builder is the source of truth. Newest entry on top.
 
+## 2026-07-06 (evening): GATES OPEN, THE SEED IS UP. Full Lane B stack in draft, awaiting conductor merges
+
+- !444 MERGED (plus A1 narration driver, A2/A5 adapters, A4 component-owned all landed on main). The final schema added a close narration kind and mp3Asset timing close (adopting the Lane B review notes); clip resolution goes mp3Assets id join, then absolute path, then /voice/ob/<id>.wav.
+- THE STACK (conductor merges bottom-up): !443 converter (rebased onto main, close-kind + null-guard updates) -> !452 assets (37 wav clips, 37/37 name-keyed captions spliced into openerCaptions.ts, 4 updated female art files) -> !453 content (designer-source seeded at de67b298, generated flows re-synced, 22 nodes).
+- Verification on the content branch: npx vitest run src/onboarding-flow, 33 files, 288 tests, ALL GREEN. flow:sync validation clean.
+- Structural notes riding !453 (review flags in its description): why-intro dropped with a one-line ENGINE_BEAT_SPECS backId fix (state-check backs to profile), close lines as narration kind close (advanced-frequency confirm converted, advanced-capture given an explicit bubble+close script), test fixtures updated to the seeded flow, step0 no-invention probe moved to the linear flows.
+- REMAINING after the train merges: the side-by-side acceptance pass, app preview vs gg-onboarding-render.pages.dev, beat by beat (copy, order, reveal sequence, clips, captions). Planned as a budget-gated Sonnet fan-out per frugal-fable; that parity check is the acceptance test of the whole consolidation.
+- Machine note: the Mac's disk hit 100% full (ENOSPC) mid-run; reclaimed ~4.4GB (npm cache + a partial install). Still tight for future heavy work.
+
 ## 2026-07-06 (later): gate 2 GO, !444 reviewed, converter aligned, captions ingested; ONE gate left
 
 - Gate 2 SATISFIED: the freshness certificate landed. Content truth 1741d095, seed sha de67b298 (adds per-word captions). Verified: FlowDesigner/metadata/voiceClips byte-identical between the two shas.
