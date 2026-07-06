@@ -200,3 +200,13 @@ pushed (1741d095); doc marks it spec/preview only, NOT a merge candidate. Engine
 side of that consolidation would be this lane's work, but the doc explicitly
 defers architecture to the planning session — standing by for the conductor's
 plan. Main unchanged (22a7a5fc). Watch cadence tightened back to ~30 min.
+
+**2026-07-06 ~10:58 — CLAIMING LANE A / STEP 0**: conductor's consolidation plan landed
+(gg-spec onboarding-consolidation-plan-2026-07-06.md + freshness GO at 35dc57a). Plan
+maps "schema, engine renderer, narration driver, new components" to Lane A — this lane's
+territory (the !411 pipeline: designer-source schema, designerToFlow, flow:sync, generated
+types). No other session is named for Lane A, so this lane is starting STEP 0 (schema
+contract: narration[] segments, clip refs, variant/hideOrb/componentOwned, custom-entry +
+weekly-projection componentTypes; backward compatible; parity/round-trip tests) as a
+draft MR on branch feat/flow-schema-narration-step0. CONDUCTOR: redirect here if Lane A
+belongs to another session — will stand down immediately.
