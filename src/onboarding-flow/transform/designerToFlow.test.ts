@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateFlow } from '../flowMachine';
+import type { BeatNode } from '../types';
 import { onboardingBeginnerV1 } from '../flows/__fixtures__/onboarding-beginner-v1';
 import generatedJson from '../flows/onboarding-beginner-v1.generated.json';
 import { loadPublishedFlow, versionTag } from '../useFlow';
@@ -72,7 +73,7 @@ describe('designerToFlow no-op swap correctness', () => {
     // into state-check's two opening bubbles; the node no longer exists and
     // state-check backs onto profile.
     expect(flow.nodes.find((n) => n.id === 'why-intro')).toBeUndefined();
-    const stateCheck = flow.nodes.find((n) => n.id === 'state-check');
+    const stateCheck = flow.nodes.find((n) => n.id === 'state-check') as BeatNode | undefined;
     expect(stateCheck).toBeDefined();
     expect(stateCheck?.backId).toBe('profile');
     expect(flow.nodes.find((n) => n.id === 'goal-custom')).toBeDefined();
