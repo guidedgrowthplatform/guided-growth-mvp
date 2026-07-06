@@ -6,7 +6,6 @@ import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { appendChatTurn, fetchOnboardingThread } from '@/api/chat';
 import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOverlay';
-import { getOnboardingOpenerForState } from '@/components/onboarding/onboardingOpeners';
 import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
 import {
   FULL_DUPLEX_BARGE_IN,
@@ -78,8 +77,9 @@ import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
 import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
 import { clampFlushDelayMs, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
 import { isVapiCapableBeat, isIdleCaptureBeat } from '@/onboarding-flow/beatEngineMeta';
-import { applyName } from '@/onboarding-flow/renderer/applyName';
 import { registerQaSendUserTurn } from '@/onboarding-flow/qaConvoHarness';
+import { applyName } from '@/onboarding-flow/renderer/applyName';
+import { resolveOnboardingOpener } from '@/onboarding-flow/renderer/resolveBeatOpener';
 import { ONBOARDING_BEAT_MP3S } from '@/onboarding-flow/renderer/useBeatOpenerMp3';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
@@ -1091,7 +1091,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         // the mic gate can never strand the call mic-closed.
         const nickname =
           typeof filled.nickname === 'string' ? (filled.nickname as string) : undefined;
-        const openerBase = getOnboardingOpenerForState(sid, nickname) ?? '';
+        const openerBase = resolveOnboardingOpener(sid, nickname);
         const openerText = applyName(openerBase, nickname);
         // Route the Cartesia opener through the SAME message store as Vapi turns so
         // it renders from the transcript (not pre-rendered authored text) and gets

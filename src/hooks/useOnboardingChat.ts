@@ -1,10 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import { fetchScreenRoutes } from '@/api/context';
-import {
-  getOnboardingOpenerForState,
-  getOnboardingRevisitOpener,
-} from '@/components/onboarding/onboardingOpeners';
+import { getOnboardingRevisitOpener } from '@/components/onboarding/onboardingOpeners';
 import type { OnboardingVoiceResult, VoiceMessage } from '@/contexts/useOnboardingVoiceSession';
 import { useChatToolEvents } from '@/hooks/useChatToolEvents';
 import { useLLM } from '@/hooks/useLLM';
@@ -28,6 +25,7 @@ import {
 } from '@/lib/services/tts-service';
 import { applyName } from '@/onboarding-flow/renderer/applyName';
 import { claimBeatAudio, releaseBeatAudio } from '@/onboarding-flow/renderer/beatAudioOwner';
+import { resolveOnboardingOpener } from '@/onboarding-flow/renderer/resolveBeatOpener';
 import { detectAffirmation } from '@gg/shared/onboarding/detectAffirmation';
 import type { OnboardingState } from '@gg/shared/types';
 import type { CoachingStyle } from '@gg/shared/types/llm';
@@ -221,7 +219,7 @@ export function useOnboardingChat({
       const pending = openerCardRef.current;
       const nickname = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data
         ?.nickname;
-      const line = applyName(getOnboardingOpenerForState(sid, nickname) ?? '', nickname);
+      const line = applyName(resolveOnboardingOpener(sid, nickname), nickname);
       const card = pending && pending.screenId === sid ? pending.card : null;
       if (!line && !card) return;
       openerFallbackSidsRef.current.add(sid);
@@ -337,7 +335,7 @@ export function useOnboardingChat({
     landedCompleteRef.current = revisit?.complete === true;
     const nickname = onboardingState?.data?.nickname;
     const opener =
-      revisit?.text ?? applyName(getOnboardingOpenerForState(screenId, nickname) ?? '', nickname);
+      revisit?.text ?? applyName(resolveOnboardingOpener(screenId, nickname), nickname);
     // Chat-native page: attach this beat's inline card to its opener message so
     // it renders at the turn and freezes in scrollback when the flow advances.
     const card = chatNative ? cardForScreenId(screenId, onboardingState) : null;
