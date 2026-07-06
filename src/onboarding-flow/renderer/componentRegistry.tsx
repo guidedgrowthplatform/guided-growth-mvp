@@ -949,6 +949,27 @@ function ScheduleCard({
   const [reminder, setReminder] = useState(initialReminder);
   const [schedule, setSchedule] = useState<ScheduleOption>(initialSchedule);
 
+  // B53: `initialDays`/`initialSchedule` are only read once by the useState
+  // lazy initializers above (mount-time). If this card mounts before the
+  // backend save (voice tool call) lands, or the tool event fires before this
+  // card subscribes to it, the local state locks onto the WEEKDAYS/Weekday
+  // fallback and never re-derives from a later-arriving correct value (e.g. a
+  // save of all 7 days for "every day"/"every night"), even though the prop
+  // now carries it. Resync whenever the incoming persisted days actually
+  // change, so the picker reflects what was really saved.
+  const initialDaysKey =
+    initialDays && initialDays.length > 0 ? [...initialDays].sort((a, b) => a - b).join(',') : '';
+  const lastSyncedDaysKey = useRef(initialDaysKey);
+  useEffect(() => {
+    if (initialDaysKey === lastSyncedDaysKey.current) return;
+    lastSyncedDaysKey.current = initialDaysKey;
+    if (!initialDaysKey) return;
+    const nextDays = new Set(initialDays as number[]);
+    setDays(nextDays);
+    setSchedule(inferSchedule(nextDays) ?? initialSchedule);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDaysKey]);
+
   const changeSchedule = (value: ScheduleOption) => {
     setSchedule(value);
     setDays(new Set(SCHEDULE_DAYS[value]));
@@ -1101,6 +1122,24 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
     (answers.reflectionMode as ReflectionMode) ?? 'prompts',
   );
   const [prompts, setPrompts] = useState<string[]>(() => (answers.customPrompts as string[]) ?? []);
+
+  // B53: same mount-time-only capture as ScheduleCard — `saved?.days` is only
+  // read once by the useState lazy initializer above. Resync when the
+  // persisted days actually change (e.g. a later tool-call save lands after
+  // this card already mounted with the WEEKDAYS fallback), so the picker
+  // reflects what was really saved instead of a stale default.
+  const savedDaysKey =
+    saved?.days && saved.days.length > 0 ? [...saved.days].sort((a, b) => a - b).join(',') : '';
+  const lastSyncedDaysKey = useRef(savedDaysKey);
+  useEffect(() => {
+    if (savedDaysKey === lastSyncedDaysKey.current) return;
+    lastSyncedDaysKey.current = savedDaysKey;
+    if (!savedDaysKey) return;
+    const nextDays = new Set(saved!.days);
+    setDays(nextDays);
+    setSchedule(inferSchedule(nextDays) ?? (saved?.schedule as ScheduleOption) ?? 'Weekday');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedDaysKey]);
 
   const changeSchedule = (value: ScheduleOption) => {
     setSchedule(value);
