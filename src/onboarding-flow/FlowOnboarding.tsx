@@ -37,12 +37,20 @@ export function FlowOnboarding() {
 
   // Warm every beat-opener clip at flow mount so playback start never rides
   // the network when a beat activates (B15). Idempotent per src.
+  //
+  // B42: every mp3Assets entry is warmed, not just index 0. A narration beat
+  // (ONBOARD-STATE-CHECK and the like) carries one clip per bubble/reveal
+  // segment (2 bubbles + 4 reveal-element clips), and the narration driver
+  // only claims a pooled element for a segment once it becomes active -- a
+  // clip missing from this warm-up pays a full cold network fetch at reveal
+  // time (the MR !444 note 3673 prefetch requirement), compounding across a
+  // beat's segments into the multi-second-per-row stall this fixes.
   useEffect(() => {
     if (!flow) return;
     preloadOpenerClips(
       flow.nodes.flatMap((n) =>
-        n.meta?.voiceOut?.engine === 'mp3' && n.meta.voiceOut.mp3Assets?.[0]?.file
-          ? [n.meta.voiceOut.mp3Assets[0].file]
+        n.meta?.voiceOut?.engine === 'mp3'
+          ? (n.meta.voiceOut.mp3Assets ?? []).flatMap((a) => (a.file ? [a.file] : []))
           : [],
       ),
     );

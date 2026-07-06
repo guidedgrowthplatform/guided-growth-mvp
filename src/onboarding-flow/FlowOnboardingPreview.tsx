@@ -68,15 +68,19 @@ export function FlowOnboardingPreview() {
   const { flow, tag } = useFlow(null);
   const persistence = useLocalPersistence();
 
-  // Same B15 warm-up as the real FlowOnboarding: the preview is the QA surface,
-  // so it must exercise the same preload path (it previously skipped the pool,
-  // which made preview playback ride the network and hid B15 regressions).
+  // Same B15/B42 warm-up as the real FlowOnboarding: the preview is the QA
+  // surface, so it must exercise the same preload path (it previously
+  // skipped the pool, which made preview playback ride the network and hid
+  // B15 regressions). Every mp3Assets entry is warmed, not just index 0 --
+  // see FlowOnboarding.tsx's matching comment for the B42 reveal-pacing
+  // rationale (a narration beat's per-segment clips need to be pre-warmed,
+  // not just the beat's first clip).
   useEffect(() => {
     if (!flow) return;
     preloadOpenerClips(
       flow.nodes.flatMap((n) =>
-        n.meta?.voiceOut?.engine === 'mp3' && n.meta.voiceOut.mp3Assets?.[0]?.file
-          ? [n.meta.voiceOut.mp3Assets[0].file]
+        n.meta?.voiceOut?.engine === 'mp3'
+          ? (n.meta.voiceOut.mp3Assets ?? []).flatMap((a) => (a.file ? [a.file] : []))
           : [],
       ),
     );
