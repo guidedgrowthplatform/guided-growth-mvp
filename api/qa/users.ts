@@ -17,10 +17,10 @@ import { supabaseAdmin } from '../_lib/supabase-admin.js';
 import { handlePreflight } from '../_lib/auth.js';
 import { refuseIfProd } from '../_lib/dbEnv.js';
 
-const QA_EMAIL_PATTERN = /^qa-onboarding-[a-z0-9-]+@guidedgrowth\.test$/;
+const QA_EMAIL_PATTERN = /^qa-(onboarding|weekly)-[a-z0-9-]+@guidedgrowth\.test$/;
 
 function nameFromEmail(email: string): string {
-  const slug = email.replace(/^qa-onboarding-/, '').replace(/@guidedgrowth\.test$/, '');
+  const slug = email.replace(/^qa-(onboarding|weekly)-/, '').replace(/@guidedgrowth\.test$/, '');
   return slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : email;
 }
 
