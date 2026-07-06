@@ -207,12 +207,14 @@ describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
     expect(getNode(flow, st.currentNodeId)?.screenId).toBe('ONBOARD-AUTH--FORM');
   });
 
-  it('R2: the guard lifts the moment any beat evidence exists (profile done → why-intro)', () => {
+  it('R2: the guard lifts the moment any beat evidence exists (profile done → state-check)', () => {
+    // The consolidation seed merged why-intro into state-check, so the first
+    // beat after profile is the state check.
     const row: SimulatedRow = {
       current_step: 1,
       data: { nickname: 'Fable', age: 30, gender: 'Male' },
     };
-    expect(resumedScreenId(row)).toBe('ONBOARD-WHY-INTRO');
+    expect(resumedScreenId(row)).toBe('ONBOARD-STATE-CHECK');
   });
 
   it('B10: advance_step(2) after profile does not catapult past the pre-fork beats', () => {
@@ -220,7 +222,7 @@ describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
       current_step: 2,
       data: { nickname: 'Yonas', age: 30, gender: 'Male' },
     };
-    expect(resumedScreenId(row)).toBe('ONBOARD-WHY-INTRO');
+    expect(resumedScreenId(row)).toBe('ONBOARD-STATE-CHECK');
   });
 
   it('fork with no path stops AT the fork (no fall-through to the merge node)', () => {
