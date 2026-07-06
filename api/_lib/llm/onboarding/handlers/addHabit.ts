@@ -30,7 +30,7 @@ function isScheduleOption(v: string): boolean {
 // This is a coarse, low-false-positive check on purpose: word-level overlap,
 // not semantic matching. It only runs when the caller actually has the raw
 // turn text (ctx.user_text) and only on a brand-new habit name (isEdit
-// short-circuits it upstream) — schedule-only follow-up calls in the two-call
+// short-circuits it upstream). Schedule-only follow-up calls in the two-call
 // configure pattern don't restate the name, so they're never checked here.
 const STOPWORDS = new Set([
   'a',
@@ -76,10 +76,10 @@ function meaningfulTokens(s: string): string[] {
     .filter((t) => t.length > 2 && !STOPWORDS.has(t));
 }
 
-// True when the habit name shares no meaningful token with the user's turn —
-// i.e. it looks like a substitution or a fabrication rather than a paraphrase
-// of what they said. Names too short to tokenize meaningfully (e.g. "Gym")
-// never trip this — the check needs at least one real token to compare.
+// True when the habit name shares no meaningful token with the user's turn,
+// meaning it looks like a substitution or a fabrication rather than a
+// paraphrase of what they said. Names too short to tokenize meaningfully
+// (e.g. "Gym") never trip this, the check needs at least one real token to compare.
 export function looksUngrounded(name: string, userText: string): boolean {
   const nameTokens = meaningfulTokens(name);
   if (nameTokens.length === 0) return false;
@@ -156,8 +156,8 @@ export async function addHabit(
 
     // B54 data-integrity guard: only on a brand-new habit, and only when the
     // caller supplied the raw turn text. Ungrounded means the name shares no
-    // real word with what the user said this turn — reject so the coach is
-    // forced to either ask again or save the user's own words instead of a
+    // real word with what the user said this turn, so reject and force the
+    // coach to either ask again or save the user's own words instead of a
     // guessed/substituted name (see systemPromptAddendum.ts DATA INTEGRITY).
     if (!isEdit && ctx.user_text && looksUngrounded(name, ctx.user_text)) {
       await client.query('ROLLBACK');

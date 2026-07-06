@@ -10,7 +10,7 @@ export {
 } from '../../toolArgs.js';
 
 // user_text is the raw current-turn user message, when the caller has it handy.
-// Optional and currently read only by addHabit's data-integrity guard — every
+// Optional and currently read only by addHabit's data-integrity guard. Every
 // other handler ignores it, so this is additive and does not change their behavior.
 export type OnboardingHandlerCtx = { anon_id: string; screen_id?: string; user_text?: string };
 
