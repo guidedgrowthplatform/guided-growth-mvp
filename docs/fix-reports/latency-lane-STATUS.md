@@ -45,3 +45,40 @@ UPDATE 2026-07-05: T1 VERIFIED LIVE + T2 TEXT-PATH BASELINE RECORDED.
 
 Constraints honored: Vapi max 10/day (0 used), voice OFF, own test user only,
 no flag flips, no new MRs/issues/comments on gitlab.com since the ops change.
+
+UPDATE 2026-07-06: ADDENDUM MISSIONS 1+2 EXECUTED (same day).
+
+M1 SEMANTIC TURN-END: audit + wiring DONE.
+
+- Audit (.frugal-fable/m1-audit/findings.md): todays "semantic end-of-turn" on the
+  direct path is a transcript-text heuristic + 900-2800ms adaptive timer (ceiling
+  6000ms), duplicated in useCoachChat and OnboardingVoiceProvider. Soniox's own
+  end signal only flushed the STT buffer, never shortcut LLM dispatch. Vapi
+  surfaces are lockfile territory (out of lane scope), push-to-talk is tap/8s.
+- Wiring SHIPPED dark on branch latency-m1-semantic-turnend-2026-07-06 (36c551f5,
+  off origin/main 0b565456): SONIOX_V5 flag (model bump + Soniox voice-agent
+  preset) + SEMANTIC_TURN_END flag (dispatch arms at a 250ms absorb window on a
+  real Soniox end signal; buffering, interim re-arm, 6s ceiling stay as safety
+  net) + NEW span turn_end_to_dispatch_ms (decided_by semantic|timeout, surface,
+  flag_on; emits in both flag states = the before/after measurement).
+- Evidence: vitest 54/54 on the 5 touched suites, tsc error parity with main
+  (14 = 14, zero new). v5 wire shape doc-verified (fields = v4 + 3 new knobs;
+  end signal is a token our parser already special-cases).
+- READY TO MERGE on conductor go. Rollout per audit risk 6: flip SONIOX_V5
+  alone on QA first (transcript parity), then SEMANTIC_TURN_END.
+- Measurement plan: flag-OFF QA traffic records the before; after the QA flips,
+  compare turn_end_to_dispatch_ms p50/p90 + decided_by=timeout share per surface.
+
+M2 STT ROUTING: recommendation DONE, one page, on gg-spec branch
+latency-m2-stt-routing-reco-2026-07 (docs/stt-routing-recommendation-2026-07.md).
+Vapi mid-call transcriber switching does NOT exist (only failure-fallback);
+per-user routing at call start via assistantOverrides is feasible but gated on a
+QA test + the multilingual-hints ruling. Direct path: land M1, measure a week,
+prototype Deepgram Flux (3x price) ONLY if v5 semantic p50 stays above ~500ms or
+timeout-decided turns exceed ~20%. Research citations in
+.frugal-fable/m2-stt-research/findings.md.
+
+OPS NOTES 2026-07-06: migration complete, both repos repointed to
+gitlab.guidedgrowthapp.com and all previously stranded commits pushed (baseline
+17486c2, STATUS 7d87b11f). The new server has NO staging branch; main is the
+integration branch now, both mission branches are cut from origin/main.
