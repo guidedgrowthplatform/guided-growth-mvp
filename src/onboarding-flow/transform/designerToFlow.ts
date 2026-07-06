@@ -68,6 +68,10 @@ const TYPE_TO_COMPONENT: Record<string, FlowComponentType | null> = {
   'into-app': 'into-app',
   // Five weekly-projection beats appended after into-app.
   'weekly-projection': 'weekly-projection',
+  // STEP-0: create-your-own goal/habit name-it screens (props.kind: goal|habit).
+  // In the forked onboarding flow these are DETOUR nodes (see the custom-entry
+  // pass below); in linear flows they chain like any other beat.
+  'custom-entry': 'custom-entry',
   // Check-in + tour components (linear flows; specs come from the authored
   // Export beat, never ENGINE_BEAT_SPECS — see designerToLinearFlowDocument).
   'coach-bubble': 'coach-bubble',
@@ -609,6 +613,36 @@ function stringProp(props: Record<string, unknown> | undefined, key: string): st
   return typeof value === 'string' ? value : undefined;
 }
 
+/**
+ * STEP-0 presentation fields, carried verbatim from the designer beat onto the
+ * engine node (narration script, orb suppression, component-owned audio, and the
+ * render-time art variant). Spread-only-when-present keeps every flow authored
+ * before STEP-0 byte-identical through flow:sync (backward compatibility gate).
+ *
+ * `variant` name collision, resolved here: the builder Export already uses
+ * `variant` as a BUILDER VISIBILITY tag ('shared' | 'production' | 'qa', see
+ * FlowBuilder's inVariant). Those are authoring-view concerns, never runtime
+ * presentation, so they are filtered out; anything else (e.g. 'female', the
+ * women's art switch, same screenId per Yair's 2026-07-06 ruling) flows through.
+ */
+const BUILDER_VISIBILITY_VARIANTS = new Set(['shared', 'production', 'qa']);
+
+function presentationFields(
+  beat: DesignerBeat | undefined,
+): Pick<BeatNode, 'narration' | 'variant' | 'hideOrb' | 'componentOwned'> {
+  if (!beat) return {};
+  const variant =
+    beat.variant != null && !BUILDER_VISIBILITY_VARIANTS.has(beat.variant)
+      ? beat.variant
+      : undefined;
+  return {
+    ...(beat.narration && beat.narration.length > 0 ? { narration: beat.narration } : {}),
+    ...(variant ? { variant } : {}),
+    ...(beat.hideOrb != null ? { hideOrb: beat.hideOrb } : {}),
+    ...(beat.componentOwned != null ? { componentOwned: beat.componentOwned } : {}),
+  };
+}
+
 const slug = (value: string): string =>
   value
     .toLowerCase()
@@ -934,6 +968,7 @@ export function designerToLinearFlowDocument(
       meta: resolveMeta(beat, spec),
       tool,
       persist: null,
+      ...presentationFields(beat),
     };
   });
 
@@ -995,10 +1030,11 @@ export function designerToFlowDocument(
   for (const [type, beats] of beatsByDesignerType) firstByDesignerType.set(type, beats[0]);
 
   // Pass 1: spine component types in order. Skip: null-mapped, advanced-lane,
-  // weekly-projection (all handled in dedicated passes).
+  // weekly-projection, custom-entry (all handled in dedicated passes).
   const SKIP_IN_SPINE = new Set<FlowComponentType>([
     ...ADVANCED_LANE_COMPONENTS,
     'weekly-projection',
+    'custom-entry',
   ]);
   const spineComponents: FlowComponentType[] = [];
   // Track which designer types we have seen to avoid duplicates (multiple designer
@@ -1062,6 +1098,7 @@ export function designerToFlowDocument(
         meta,
         tool: spec.tool,
         persist: spec.persist,
+        ...presentationFields(designerBeat),
       };
       nodeById.set(spec.nodeId, branch);
       return;
@@ -1082,6 +1119,7 @@ export function designerToFlowDocument(
       meta,
       tool: spec.tool,
       persist: spec.persist,
+      ...presentationFields(designerBeat),
     };
     nodeById.set(spec.nodeId, node);
   });
@@ -1115,6 +1153,7 @@ export function designerToFlowDocument(
     meta: resolveMeta(advCaptureDesigner, advCaptureSpec),
     tool: advCaptureSpec.tool,
     persist: advCaptureSpec.persist,
+    ...presentationFields(advCaptureDesigner),
   };
 
   const advFreqDesigner = firstDesignerBeatByComponent.get('advanced-frequency');
@@ -1140,6 +1179,7 @@ export function designerToFlowDocument(
     meta: resolveMeta(advFreqDesigner, advFreqSpec),
     tool: advFreqSpec.tool,
     persist: advFreqSpec.persist,
+    ...presentationFields(advFreqDesigner),
   };
 
   // Pass 4: five weekly-projection nodes, one per designer beat, chained in order.
@@ -1171,8 +1211,78 @@ export function designerToFlowDocument(
       meta: resolveMeta(beat, spec),
       tool: spec.tool,
       persist: spec.persist,
+      ...presentationFields(beat),
     };
   });
+
+  // Pass 4b (STEP-0): custom-entry DETOUR nodes, one per designer beat. These are
+  // the create-your-own goal/habit name-it screens: not part of any nextId chain,
+  // reached by runtime navigation from the beat they serve (goals-list "Create
+  // your own goal" / habit-picker "Create your own habit") and returning to it.
+  // nextId stays null (the detour never advances the spine); backId, when
+  // authored (meta.engine.backId), names the serving beat. The navigation
+  // mechanics land with the custom-entry component work (Lane A A3); the schema
+  // carries the nodes so Lane B can author them now.
+  const customEntryDesignerBeats = designerFlow.filter(
+    (beat) => componentFor(beat.type) === 'custom-entry',
+  );
+  const customEntryNodes: BeatNode[] = customEntryDesignerBeats.map((beat, idx) => {
+    const screenId = screenIdFromSheetStage(beat.sheetStage);
+    if (!screenId) {
+      throw new Error(
+        `designerToFlow: custom-entry beat "${beat.beat ?? '?'}" needs a "SCREEN-ID: Name" sheetStage`,
+      );
+    }
+    const kind = stringProp(beat.props, 'kind') ?? (idx === 0 ? 'goal' : 'habit');
+    const nodeId = beat.meta?.engine?.nodeId ?? `custom-entry-${kind}`;
+    const name = beat.name ?? `Create your own ${kind}`;
+    const opener = stringProp(beat.props, 'coachLine') ?? stringProp(beat.props, 'text') ?? null;
+    const componentProps: Record<string, unknown> = { ...(beat.props ?? {}), kind };
+    delete componentProps.text;
+    delete componentProps.coachLine;
+    const voice: VoiceConfig = {
+      openerText: opener,
+      expectsInput: beat.meta?.engine?.voiceExpectsInput ?? true,
+      directLlmAllowed: beat.meta?.engine?.voiceDirectLlmAllowed ?? true,
+    };
+    const spec: EngineBeatSpec = {
+      nodeId,
+      beatNumber: 0,
+      backId: beat.meta?.engine?.backId ?? null,
+      screenId,
+      componentProps,
+      voice,
+      tool: null,
+      persist: null,
+      screenName: name,
+      contextBlock: beat.context ?? '',
+    };
+    return {
+      id: nodeId,
+      type: 'beat',
+      beatNumber: 0,
+      name,
+      screenId,
+      nextId: null,
+      backId: spec.backId,
+      context: { screenId, screenName: name, contextBlock: beat.context ?? '' },
+      componentType: 'custom-entry',
+      componentProps,
+      voice,
+      meta: resolveMeta(beat, spec),
+      tool: null,
+      persist: null,
+      ...presentationFields(beat),
+    };
+  });
+  const customEntryIds = customEntryNodes.map((n) => n.id);
+  const customEntryDupes = customEntryIds.filter((id, i) => customEntryIds.indexOf(id) !== i);
+  if (customEntryDupes.length > 0) {
+    throw new Error(
+      `designerToFlow: duplicate custom-entry node id(s) ${[...new Set(customEntryDupes)].join(', ')}; ` +
+        'author distinct meta.engine.nodeId or kind values',
+    );
+  }
 
   // Pass 5: assemble all nodes in canonical order.
   // Spine up to (not including) path-fork, then beginner lane nodes, then
@@ -1215,6 +1325,9 @@ export function designerToFlowDocument(
 
   // Weekly projection nodes.
   for (const pn of projectionNodes) nodes.push(pn);
+
+  // Custom-entry detour nodes (STEP-0), after the chains they never sit inside.
+  for (const cn of customEntryNodes) nodes.push(cn);
 
   // Patch into-app's nextId to point at the first projection node (if any).
   if (projectionNodeIds.length > 0) {

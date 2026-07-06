@@ -26,7 +26,7 @@
  */
 import { z } from 'zod';
 import designerSourceJson from '../flows/designer-source.json';
-import type { DesignerBeat, DesignerBeatMeta } from './designerSource';
+import type { DesignerBeat, DesignerBeatMeta, DesignerNarrationSegment } from './designerSource';
 
 // Strict schemas: every key the builder Export may carry is enumerated, so a
 // typo'd or new field fails flow:sync loud instead of being silently dropped.
@@ -37,7 +37,8 @@ const ExportMp3AssetSchema = z.strictObject({
   transcript: z.string(),
   opener: z.string().optional(),
   elementId: z.string().optional(),
-  timing: z.enum(['opener', 'element', 'full-beat']).optional(),
+  // 'close' (STEP-0): the clip plays after the beat's interaction completes.
+  timing: z.enum(['opener', 'element', 'full-beat', 'close']).optional(),
 });
 
 const ExportPerElementSchema = z.strictObject({
@@ -45,6 +46,19 @@ const ExportPerElementSchema = z.strictObject({
   line: z.string(),
   order: z.number().optional(),
   showsAsBubble: z.boolean().optional(),
+  // STEP-0: per-line MP3-verbatim clip ref (render metadata's elements[].clip).
+  clip: z.string().optional(),
+});
+
+// STEP-0: one ordered bubble/reveal/close segment of a beat's narration script.
+// Mirrors the engine's NarrationSegment; carried verbatim onto the flow node.
+// 'close' = a coach bubble spoken after the beat's interaction completes (the
+// advanced-capture close line, the advanced-frequency confirm).
+const ExportNarrationSegmentSchema = z.strictObject({
+  kind: z.enum(['bubble', 'reveal', 'close']),
+  n: z.number(),
+  say: z.string().optional(),
+  clip: z.string().optional(),
 });
 
 // persistStep / maxSelections: authored as strings, tolerate numbers (parseNumber downstream).
@@ -111,6 +125,10 @@ const ExportBeatSchema = z.strictObject({
   // values are free-form JSON; the KEY set stays whatever the component reads.
   props: z.record(z.string(), z.unknown()).optional(),
   meta: ExportBeatMetaSchema,
+  // STEP-0 presentation contract (onboarding-consolidation-plan-2026-07-06).
+  narration: z.array(ExportNarrationSegmentSchema).optional(),
+  hideOrb: z.boolean().optional(),
+  componentOwned: z.boolean().optional(),
 });
 
 const ExportDocumentSchema = z.strictObject({
@@ -234,6 +252,11 @@ function mapBeat(beat: ExportBeat): DesignerBeat {
     ...(beat.background ? { background: beat.background } : {}),
     ...(beat.showOnPath !== undefined ? { showOnPath: beat.showOnPath } : {}),
     ...(meta ? { meta } : {}),
+    // STEP-0 presentation contract, carried verbatim (zod already validated).
+    ...(beat.narration ? { narration: beat.narration as DesignerNarrationSegment[] } : {}),
+    ...(beat.variant != null ? { variant: beat.variant } : {}),
+    ...(beat.hideOrb != null ? { hideOrb: beat.hideOrb } : {}),
+    ...(beat.componentOwned != null ? { componentOwned: beat.componentOwned } : {}),
   };
 }
 
