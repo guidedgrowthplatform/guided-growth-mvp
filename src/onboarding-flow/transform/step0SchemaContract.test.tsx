@@ -19,6 +19,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { validateFlow } from '../flowMachine';
 import { getAdapter } from '../renderer/componentRegistry';
 import type { BeatCapture, BeatNode, FlowNode, NarrationSegment } from '../types';
+import eveningCheckinJson from '../flows/designer-source.evening-checkin.json';
+import homeTourJson from '../flows/designer-source.home-tour.json';
+import morningCheckinJson from '../flows/designer-source.morning-checkin.json';
+import weeklyCheckinJson from '../flows/designer-source.weekly-checkin.json';
 import {
   DESIGNER_ONBOARDING_FLOW_FROM_JSON,
   designerBeatsFromExport,
@@ -217,18 +221,28 @@ describe('STEP-0: transform carries the contract onto generated nodes', () => {
   });
 
   it('beats without STEP-0 fields gain NO new keys (backward compatibility)', () => {
-    const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
-    for (const node of flow.nodes) {
-      expect('narration' in node, `${node.id} gained narration`).toBe(false);
-      expect('variant' in node, `${node.id} gained variant`).toBe(false);
-      expect('hideOrb' in node, `${node.id} gained hideOrb`).toBe(false);
-      expect('componentOwned' in node, `${node.id} gained componentOwned`).toBe(false);
+    // The onboarding doc authors STEP-0 fields since the consolidation seed
+    // (2026-07-06), so the no-invention probe runs over the linear flows, which
+    // stay pre-STEP-0 authored. The transform must never invent the fields.
+    for (const raw of [morningCheckinJson, eveningCheckinJson, homeTourJson, weeklyCheckinJson]) {
+      const doc = parseExportDocument(raw);
+      const flow = designerToFlowDocument(designerBeatsFromExport(doc), { flowId: doc.flowId });
+      for (const node of flow.nodes) {
+        expect('narration' in node, `${doc.flowId}/${node.id} gained narration`).toBe(false);
+        expect('variant' in node, `${doc.flowId}/${node.id} gained variant`).toBe(false);
+        expect('hideOrb' in node, `${doc.flowId}/${node.id} gained hideOrb`).toBe(false);
+        expect('componentOwned' in node, `${doc.flowId}/${node.id} gained componentOwned`).toBe(
+          false,
+        );
+      }
     }
   });
 
   it('forked onboarding flow: custom-entry beats become detour nodes, graph stays valid', () => {
+    // The seeded onboarding doc ships its own custom-entry beats; strip them so
+    // the fixture pair below defines the expectations without id collisions.
     const withCustom = [
-      ...DESIGNER_ONBOARDING_FLOW_FROM_JSON,
+      ...DESIGNER_ONBOARDING_FLOW_FROM_JSON.filter((b) => b.type !== 'custom-entry'),
       {
         type: 'custom-entry',
         beat: '90',

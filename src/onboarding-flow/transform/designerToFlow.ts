@@ -183,7 +183,9 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
   'state-check': {
     nodeId: 'state-check',
     beatNumber: 2,
-    backId: 'why-intro',
+    // Consolidation seed 2026-07-06: why-intro merged into state-check (the
+    // render's two framing bubbles), so back from here goes to profile.
+    backId: 'profile',
     screenId: 'ONBOARD-STATE-CHECK',
     componentProps: {},
     voice: {
