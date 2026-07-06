@@ -8,6 +8,7 @@ import {
   useOnboardingVoice as useOnboardingVoiceSession,
   useOnboardingTranscripts,
 } from '@/contexts/useOnboardingVoiceSession';
+import { useCoachVoiceActivity } from '@/hooks/useCoachVoiceActivity';
 import { useDisplayName } from '@/hooks/useDisplayName';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
@@ -42,6 +43,8 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   const isAssistantSpeaking = onboardingVoiceSession?.isAssistantSpeaking ?? false;
   const isUserSpeaking = onboardingVoiceSession?.isUserSpeaking ?? false;
   const voiceInListening = onboardingVoiceSession?.voiceInListening ?? false;
+  const assistantVolumeLevel = onboardingVoiceSession?.assistantVolumeLevel ?? 0;
+  const userAudioLevel = onboardingVoiceSession?.userAudioLevel ?? 0;
   const chatBusy = onboardingVoiceSession?.chatBusy ?? false;
   const assistantMergeOpen = onboardingVoiceSession?.assistantMergeOpen ?? false;
   const sessionMessages = onboardingVoiceSession?.messages;
@@ -124,8 +127,16 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
     else setPartialUser('');
   }, isVoiceInOnly);
 
-  const { intensity: micRingIntensity, speaking: micSpeaking } = useMicVoiceActivity(
+  // Soniox-fed RMS only runs in voice-in-only mode (never while Vapi owns the
+  // mic — see OnboardingVoiceProvider's voiceInShouldBeLive); userAudioLevel
+  // (Daily's local-audio-level observer, B51) covers the real Vapi call case.
+  const { intensity: sonioxMicIntensity, speaking: micSpeaking } = useMicVoiceActivity(
     isVoiceInOnly && voiceInListening,
+  );
+  const micRingIntensity = isVoiceInOnly ? sonioxMicIntensity : userAudioLevel;
+  const { intensity: coachIntensity } = useCoachVoiceActivity(
+    isAssistantSpeaking,
+    assistantVolumeLevel,
   );
 
   // Idle gradient = blue, listening gradient = yellow.
@@ -299,6 +310,7 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
             ringCount={3}
             ringStep={4}
             intensity={micRingIntensity}
+            coachIntensity={coachIntensity}
             micAllowed={micAllowed}
             onToggleVoice={toggleVoice}
             onToggleMic={handleToggleMic}

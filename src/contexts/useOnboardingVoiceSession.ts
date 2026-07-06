@@ -45,6 +45,13 @@ export interface OnboardingVoiceContextValue {
   isUserSpeaking: boolean;
   // voice-in mic armed/listening; orb-ring source (isUserSpeaking is Vapi-only)
   voiceInListening: boolean;
+  // B51: real-time amplitude, 0..1, for the in-flow orb's voice-reactive pulse.
+  // assistantVolumeLevel comes straight from Vapi's 'volume-level' event;
+  // userAudioLevel from Daily's local-audio-level observer (real signal even
+  // during a live Vapi call, when audioMetricsStore's Soniox-fed RMS is not
+  // running). Both are 0 when no call is active.
+  assistantVolumeLevel: number;
+  userAudioLevel: number;
   errorMessage: string | null;
   currentScreenId: string | null;
   overlayOpen: boolean;

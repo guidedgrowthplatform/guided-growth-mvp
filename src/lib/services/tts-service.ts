@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { COACH_VOICE_ID, type VoiceGender } from '@/config/voiceConfig';
+import { registerCoachAudioElement, unregisterCoachAudioElement } from '@/lib/audio/coachAudioBus';
 import { getAuthHeaders } from '@/lib/services/api-auth';
 import { isVoiceOutEnabled } from './voiceGate';
 
@@ -304,6 +305,7 @@ export function stopTTS(): void {
   } else if (currentAudio) {
     currentAudio.pause();
     currentAudio.currentTime = 0;
+    unregisterCoachAudioElement(currentAudio);
     currentAudio = null;
   }
   setSpeaking(false);
@@ -345,12 +347,14 @@ async function playChunkElement(
   }
   audio.volume = volume;
   currentAudio = audio;
+  registerCoachAudioElement(audio);
 
   return await new Promise<boolean>((resolve) => {
     const cleanup = () => {
       URL.revokeObjectURL(audioUrl);
       if (currentAudio === audio) currentAudio = null;
       if (currentAudioResolver === settle) currentAudioResolver = null;
+      unregisterCoachAudioElement(audio);
     };
     // onended OR external stopTTS() (via currentAudioResolver)
     const settle = () => {
