@@ -365,7 +365,10 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
       "Save the user's evening reflection schedule. DATA ONLY — does NOT advance to the next screen. Use `navigate_next(target_step=10)` AFTER this returns. " +
       'PRECONDITION: do NOT call this until the user has actually answered when they want their reflection. ' +
       "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The reflection screen is the user's choice; do not bypass it. " +
-      'Once the user gives you a time (e.g. "around 9 PM" → time="21:00", or "9:45 PM" → "21:45"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=10) in the same turn.',
+      'DAILY-CADENCE WORDS ARE EXPLICIT INPUT, NOT A MISSING FIELD. If the user says "every day", "every night", "daily", "nightly", or "each night", that IS their days/schedule answer — call with days=[0,1,2,3,4,5,6] and schedule="Every day". Do NOT fall back to the Weekday default in that case; the Weekday-default rule below only applies when the user gave no cadence preference at all. ' +
+      'Time examples: "around 9 PM" → time="21:00". "9:45 PM" → time="21:45". "half past nine at night" → time="21:30". Always convert PM hours to 24-hour by adding 12 (except 12 PM = "12:00"); AM hours keep their number (12 AM = "00:00"). ' +
+      'Worked example: user says "every night around nine" → submit_reflection_config(time="21:00", days=[0,1,2,3,4,5,6], reminder=true, schedule="Every day"). ' +
+      'Once the user gives you a time and no explicit cadence was stated, infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=10) in the same turn.',
     messages: {
       requestStart: '',
       requestFailed: '',
@@ -431,7 +434,10 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
       "Save the user's morning check-in schedule. DATA ONLY — does NOT advance to the next screen; chain navigate_next(target_step=9) AFTER this returns, in the same turn. " +
       'PRECONDITION: do NOT call this until the user has actually answered when they want their morning check-in. ' +
       "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The morning-setup screen is the user's choice; do not bypass it. " +
-      'Once the user gives a time (e.g. "around 7:30 in the morning" → time="07:30"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=9) in the same turn.',
+      'DAILY-CADENCE WORDS ARE EXPLICIT INPUT, NOT A MISSING FIELD. If the user says "every day", "every morning", "daily", or "each day", that IS their days/schedule answer — call with days=[0,1,2,3,4,5,6] and schedule="Every day". Do NOT fall back to the Weekday default in that case; the Weekday-default rule below only applies when the user gave no cadence preference at all. ' +
+      'Time examples: "around 7:30 in the morning" → time="07:30". "7 AM" → time="07:00". "half past six" → time="06:30". Always convert PM hours to 24-hour by adding 12 (except 12 PM = "12:00"); AM hours keep their number (12 AM = "00:00"). ' +
+      'Worked example: user says "every day around 7:30" → submit_morning_checkin(time="07:30", days=[0,1,2,3,4,5,6], reminder=true, schedule="Every day"). ' +
+      'Once the user gives a time and no explicit cadence was stated, infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=9) in the same turn.',
     messages: {
       requestStart: '',
       requestFailed: '',
