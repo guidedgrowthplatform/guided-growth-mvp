@@ -2,6 +2,13 @@
 
 Lane A of gg-spec/docs/onboarding-consolidation-plan-2026-07-06. Owner territory: schema, engine renderer, narration driver, new components. Updates append at the top.
 
+## 2026-07-06 A1 DONE, MR !447 open (draft, stacked on !444)
+
+- Narration driver landed: NarrationBeatView + narrationSchedule (pure) + narrationClips + NarrationRevealContext; StateCheckAdapter first bloom consumer; BeatView routing + legacy-audio suppression on narration beats; past-beat scripted-line replay.
+- Audio reuses useBeatOpenerMp3 per segment (pool, gesture fallback, activation tokens, QA mute); karaoke via openerRevealPin; captions per clip via openerCaptions.ts keyed by resolved src (word-accurate when present, duration fallback otherwise).
+- Demo preview /flow-preview/lane-a-demo (flow lane-a-demo-v1, QA-gated, droppable post-Lane-B): verified live, sequencing in sync, no console errors. 265 tests green.
+- Next: A2 weekly-projection real grid (port grid math from the render's beats/weeklyProjection.tsx onto WeeklyHabitsSummary).
+
 ## 2026-07-06 STEP 0 DONE, MR !444 open (draft), GATES LANE B
 
 - Schema contract landed on branch `lane-a-step0-schema`, MR !444 (draft, target main).
