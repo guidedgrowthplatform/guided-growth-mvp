@@ -9,6 +9,7 @@ import {
 import { useCoachChat } from '@/hooks/useCoachChat';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { createListenerBus, type ListenerBus } from '@/lib/util/listenerBus';
+import { registerQaSendUserTurn } from '@/onboarding-flow/qaConvoHarness';
 
 // Lifts useCoachChat above the overlay so the chat session, Soniox stream,
 // and LLM message history survive overlay open/close + page navigation.
@@ -83,6 +84,12 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
     hasMore,
     loadingOlder,
   } = api;
+
+  // QA convo-harness test seam (QA_SCREEN_ENABLED builds only), same purpose
+  // as OnboardingVoiceProvider's registration: expose the identical sendText
+  // a real typed/voice check-in turn calls, so an external Playwright driver
+  // can inject text turns into the real home/check-in chat surface.
+  useEffect(() => registerQaSendUserTurn('coach', sendText), [sendText]);
 
   const value = useMemo<CoachVoiceContextValue>(
     () => ({
