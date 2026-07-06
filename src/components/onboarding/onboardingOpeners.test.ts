@@ -83,15 +83,13 @@ describe('getOnboardingRevisitOpener', () => {
 });
 
 describe('getOnboardingOpener coverage', () => {
+  // Per Yair's 2026-07-07 ruling, only these screens keep a locked registry
+  // line; ONBOARD-FORK--FORM and ONBOARD-BEGINNER-01/02/03/07 and
+  // ONBOARD-ADVANCED were removed so the flow document's seed/render copy
+  // wins instead (see resolveBeatOpener.test.ts for that fallback coverage).
   it.each([
     'ONBOARD-01--FORM',
-    'ONBOARD-FORK--FORM',
-    'ONBOARD-BEGINNER-01',
-    'ONBOARD-BEGINNER-02',
-    'ONBOARD-BEGINNER-03',
-    'ONBOARD-BEGINNER-07',
     'ONBOARD-BEGINNER-06',
-    'ONBOARD-ADVANCED',
     'ONBOARD-ADVANCED-02',
     'ONBOARD-ADVANCED-04',
     'ONBOARD-ADVANCED-05',
@@ -99,6 +97,17 @@ describe('getOnboardingOpener coverage', () => {
   ])('%s has a non-empty opener', (screenId) => {
     const opener = getOnboardingOpener(screenId);
     expect(opener && opener.length > 0).toBe(true);
+  });
+
+  it.each([
+    'ONBOARD-FORK--FORM',
+    'ONBOARD-BEGINNER-01',
+    'ONBOARD-BEGINNER-02',
+    'ONBOARD-BEGINNER-03',
+    'ONBOARD-BEGINNER-07',
+    'ONBOARD-ADVANCED',
+  ])('%s has no locked registry line (render copy wins instead)', (screenId) => {
+    expect(getOnboardingOpener(screenId)).toBeUndefined();
   });
 });
 
@@ -126,8 +135,12 @@ describe('getOnboardingOpenerForState — profile beat name capture', () => {
   });
 
   it('non-profile screens ignore nickname and return the standard opener', () => {
-    expect(getOnboardingOpenerForState('ONBOARD-BEGINNER-01', undefined)).toBe(
-      getOnboardingOpener('ONBOARD-BEGINNER-01'),
+    expect(getOnboardingOpenerForState('ONBOARD-BEGINNER-06', undefined)).toBe(
+      getOnboardingOpener('ONBOARD-BEGINNER-06'),
     );
+  });
+
+  it('non-profile screens without a locked line return undefined regardless of nickname', () => {
+    expect(getOnboardingOpenerForState('ONBOARD-BEGINNER-01', 'Yonas')).toBeUndefined();
   });
 });
