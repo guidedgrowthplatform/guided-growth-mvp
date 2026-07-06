@@ -2,6 +2,16 @@
 
 Lane A of gg-spec/docs/onboarding-consolidation-plan-2026-07-06. Owner territory: schema, engine renderer, narration driver, new components. Updates append at the top.
 
+## 2026-07-06 LANE A COMPLETE: A2/A3/A5 (!448) + A4 (!449) up; full stack drafted
+
+- Merge order: !444 (STEP 0) -> !447 (A1) -> !448 (A2+A3+A5) -> !449 (A4). All drafts, conductor merges.
+- A2: WeeklyProjectionAdapter renders the real WeeklyHabitsSummary via weeklyProjectionData.ts (grid math ported from the render's beats/weeklyProjection.tsx: start-day week, weekday-only rituals, per-frame percentages, gaps Tue-Thu empty, reported-only header percent). Real captured habits feed the rows when present. Shared grid component untouched (weekly-summary-component territory); streak math exported for its future streak column.
+- A3: custom-entry frozen receipt shows the captured name.
+- A5: habitSelectionRules.ts, two goals = one habit per goal (replace inside goal), one goal = up to cap; voice adds route through the rule.
+- A4: componentOwned beats render adapter-only (no driver audio, completion-signal advance; SplashIntro.onComplete already signal-driven); hideOrb suppresses the docked FlowVoiceControls while active. Seam note posted on the orb session's !446. components/orb/* and welcome/ untouched.
+- All verified live on /flow-preview/lane-a-demo (76% p78 real grid, receipt value, orb unmount/return round-trip) + 281 tests green + tsc clean.
+- Remaining Lane A liabilities: none planned. Follow-ups live with other territories: Lane B authors narration content + captions (openerCaptions.ts keyed by resolved src), orb session wires greeting/mic sequences to the seams, weekly-summary-component owns the grid's streak column.
+
 ## 2026-07-06 A1 DONE, MR !447 open (draft, stacked on !444)
 
 - Narration driver landed: NarrationBeatView + narrationSchedule (pure) + narrationClips + NarrationRevealContext; StateCheckAdapter first bloom consumer; BeatView routing + legacy-audio suppression on narration beats; past-beat scripted-line replay.
