@@ -84,6 +84,17 @@ export function IntroGate({ children }: { children: React.ReactNode }) {
   // Gate unmounted mid-intro: stop the clip and return it to the pool.
   useEffect(
     () => () => {
+      // B46: pause the underlying element directly, in addition to release()'s
+      // own pause+rewind. release() already stops it in the ordinary case, but
+      // this is a synchronous, unconditional belt-and-suspenders stop so a
+      // stray reference (e.g. a dev Strict Mode double-effect, or a pooled
+      // element SplashIntro adopted onto its own audioRef) can never keep
+      // playing into the next beat's own audio.
+      try {
+        openerRef.current?.el.pause();
+      } catch {
+        // ignore
+      }
       openerRef.current?.release();
       openerRef.current = null;
     },
@@ -170,6 +181,18 @@ export function IntroGate({ children }: { children: React.ReactNode }) {
       audioSrc={INTRO_AUDIO_SRC}
       adoptedOpener={openerRef.current}
       onComplete={() => {
+        // B46: explicit, unconditional pause BEFORE release()/setDone(true).
+        // setDone(true) unmounts SplashIntro and mounts children (FlowRenderer)
+        // in the same commit, and the next beat's own opener (e.g. the profile
+        // beat's Cartesia line) starts as soon as it becomes active with no
+        // wait on this gate's audio. Pausing here, synchronously, closes the
+        // window where the greeting clip could still be audibly playing when
+        // the next beat's voice starts (the two-voices-at-once bleed).
+        try {
+          openerRef.current?.el.pause();
+        } catch {
+          // ignore
+        }
         openerRef.current?.release();
         openerRef.current = null;
         try {

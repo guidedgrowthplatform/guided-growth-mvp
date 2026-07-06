@@ -40,8 +40,13 @@ vi.mock('@/hooks/useOnboarding', () => ({
   },
 }));
 
+// B46: a fake <audio> element + release() so tests can assert the gate stops
+// the clip (pause()) at the onComplete/unmount boundary, not just that
+// release() was called.
+const fakeOpenerEl = { pause: vi.fn() };
+const fakeOpenerRelease = vi.fn();
 vi.mock('./renderer/openerGestureStart', () => ({
-  startOpenerFromGesture: () => ({ release: () => {} }),
+  startOpenerFromGesture: () => ({ el: fakeOpenerEl, release: fakeOpenerRelease }),
   blessOpenerClipsInGesture: () => {},
 }));
 
@@ -72,6 +77,8 @@ const INTRO_SEEN_KEY = 'gg_onboarding_intro_seen';
 beforeEach(() => {
   currentStep = 0;
   localStorage.removeItem(INTRO_SEEN_KEY);
+  fakeOpenerEl.pause.mockClear();
+  fakeOpenerRelease.mockClear();
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -101,7 +108,7 @@ function clickGetStarted() {
 }
 
 describe('IntroGate (B43)', () => {
-  it('keeps the greeting mounted through the flow\'s own step-1 nickname-seed write', () => {
+  it("keeps the greeting mounted through the flow's own step-1 nickname-seed write", () => {
     render();
     clickGetStarted();
     expect(container.querySelector('[data-testid="greeting"]')).toBeTruthy();
@@ -130,5 +137,36 @@ describe('IntroGate (B43)', () => {
     localStorage.setItem(INTRO_SEEN_KEY, '1');
     render();
     expect(container.querySelector('[data-testid="chat"]')).toBeTruthy();
+  });
+
+  it('B46: advancing mid-clip stops the greeting clip before the next beat mounts', () => {
+    render();
+    clickGetStarted();
+    expect(container.querySelector('[data-testid="greeting"]')).toBeTruthy();
+    // The clip is still "playing" (nothing has paused it yet).
+    expect(fakeOpenerEl.pause).not.toHaveBeenCalled();
+
+    // Advance past the greeting mid-clip, exactly like the live repro: the
+    // user taps forward while the coach is still speaking.
+    act(() => completeGreeting.current());
+
+    // The next beat (children/FlowRenderer) is now mounted...
+    expect(container.querySelector('[data-testid="chat"]')).toBeTruthy();
+    // ...and the greeting clip was paused before/at that same transition, so
+    // it can never be heard overlapping the next beat's own voice.
+    expect(fakeOpenerEl.pause).toHaveBeenCalled();
+    expect(fakeOpenerRelease).toHaveBeenCalled();
+  });
+
+  it('B46: unmounting the gate mid-intro also stops the clip', () => {
+    render();
+    clickGetStarted();
+    expect(container.querySelector('[data-testid="greeting"]')).toBeTruthy();
+    expect(fakeOpenerEl.pause).not.toHaveBeenCalled();
+
+    act(() => root.unmount());
+
+    expect(fakeOpenerEl.pause).toHaveBeenCalled();
+    expect(fakeOpenerRelease).toHaveBeenCalled();
   });
 });
