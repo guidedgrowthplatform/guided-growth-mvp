@@ -114,6 +114,22 @@ export interface UseRealtimeVoiceReturn {
   isSpeaking: boolean;
   error: string | null;
   getClient: () => Vapi | null;
+  /**
+   * B51: real-time assistant playback amplitude, 0..1, straight from Vapi's
+   * own `volume-level` event (the actual TTS output level — Vapi's audio is a
+   * Daily/WebRTC-owned element the app doesn't create, so this SDK event is
+   * the only real (non-synthesized) amplitude signal available for it).
+   * 0 whenever the assistant isn't speaking.
+   */
+  assistantVolumeLevel: number;
+  /**
+   * B51: real-time user mic amplitude, 0..1, from Daily's local-audio-level
+   * observer (`DailyCall.startLocalAudioLevelObserver`). Unlike
+   * audioMetricsStore's RMS (fed only by Soniox, which never runs while Vapi
+   * owns the mic), this is real data during an actual Vapi call. 0 when no
+   * call is active or the observer hasn't reported yet.
+   */
+  userAudioLevel: number;
 }
 
 const PUBLIC_KEY = import.meta.env.VITE_VAPI_PUBLIC_KEY as string | undefined;
@@ -192,6 +208,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
 
   const [state, setState] = useState<RealtimeVoiceState>('idle');
   const [error, setError] = useState<string | null>(null);
+  // B51: real Vapi/Daily amplitude signals (see UseRealtimeVoiceReturn docs).
+  const [assistantVolumeLevel, setAssistantVolumeLevel] = useState(0);
+  const [userAudioLevel, setUserAudioLevel] = useState(0);
 
   const mountedRef = useRef(true);
   const vapiRef = useRef<Vapi | null>(null);
@@ -256,6 +275,20 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const cleanup = useCallback(() => {
     if (tearingDownRef.current) return;
     tearingDownRef.current = true;
+
+    // B51: stop the Daily local-audio-level observer before the call tears
+    // down (best-effort — the call itself is being destroyed either way) and
+    // drop both amplitude signals so a stale value can't linger into idle.
+    try {
+      const daily = vapiRef.current?.getDailyCallObject();
+      if (daily?.isLocalAudioLevelObserverRunning()) {
+        daily.stopLocalAudioLevelObserver();
+      }
+    } catch {
+      /* best-effort only */
+    }
+    setAssistantVolumeLevel(0);
+    setUserAudioLevel(0);
 
     if (sessionStartRef.current !== null) {
       const ctx = deriveContext(metadata.screen);
@@ -460,6 +493,29 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
         setStateSynced('listening');
         const t = tokenRef.current;
         if (t) setOwnerPhase(t, 'listening');
+        // B51: user-mic amplitude for the orb. audioMetricsStore's RMS is fed
+        // only by Soniox, which never runs while Vapi owns the mic (see
+        // OnboardingVoiceProvider's voiceInShouldBeLive comment), so during a
+        // real Vapi call there is otherwise no live user-side signal at all.
+        // Daily's local-audio-level observer is the actual mic level Vapi's
+        // own transport already computes. Best-effort: a missing Daily object
+        // or an observer failure just means the orb's user-mic side stays
+        // flat, never breaks the call.
+        try {
+          const daily = client.getDailyCallObject();
+          if (daily && !daily.isLocalAudioLevelObserverRunning()) {
+            daily.on('local-audio-level', (evt) => {
+              if (!mountedRef.current || tearingDownRef.current) return;
+              const lvl = evt.audioLevel;
+              setUserAudioLevel(Number.isFinite(lvl) ? Math.max(0, Math.min(1, lvl)) : 0);
+            });
+            void daily.startLocalAudioLevelObserver().catch((err) => {
+              console.warn('[vapi] startLocalAudioLevelObserver failed', err);
+            });
+          }
+        } catch (err) {
+          console.warn('[vapi] local audio level observer setup failed', err);
+        }
         try {
           onCallStartRef.current?.();
         } catch (err) {
@@ -490,8 +546,19 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       client.on('speech-end', () => {
         if (!mountedRef.current || tearingDownRef.current) return;
         setStateSynced('listening');
+        setAssistantVolumeLevel(0);
         const t = tokenRef.current;
         if (t) setOwnerPhase(t, 'listening');
+      });
+
+      // B51: assistant playback amplitude (real Vapi TTS output level), so the
+      // in-flow orb can pulse to the actual coach audio instead of sitting
+      // static. Fires continuously while the assistant is speaking; Vapi does
+      // not guarantee a final 0 on speech-end, so speech-end above and the
+      // stop() path both also clear it defensively.
+      client.on('volume-level', (volume: number) => {
+        if (!mountedRef.current || tearingDownRef.current) return;
+        setAssistantVolumeLevel(Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0);
       });
 
       client.on('message', (message: unknown) => {
@@ -612,5 +679,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     isSpeaking: state === 'speaking',
     error,
     getClient,
+    assistantVolumeLevel,
+    userAudioLevel,
   };
 }

@@ -20,6 +20,7 @@
 import { useCallback } from 'react';
 import { OrbControls } from '@/components/voice/OrbControls';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
+import { useCoachVoiceActivity } from '@/hooks/useCoachVoiceActivity';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { orbStateFrom } from '@/lib/orb/orbState';
@@ -45,10 +46,23 @@ export function FlowVoiceControls() {
   const isAssistantSpeaking = session?.isAssistantSpeaking ?? false;
   const isUserSpeaking = session?.isUserSpeaking ?? false;
   const voiceInListening = session?.voiceInListening ?? false;
+  const assistantVolumeLevel = session?.assistantVolumeLevel ?? 0;
+  const userAudioLevel = session?.userAudioLevel ?? 0;
 
   const isVoiceInOnly = orbStateFrom(voiceChosen, micRuntimeOn) === 'voice_in_only';
-  const { intensity: micRingIntensity, speaking: micSpeaking } = useMicVoiceActivity(
+  // Soniox-fed RMS (audioMetricsStore) only ever runs in voice-in-only mode —
+  // it never runs while Vapi owns the mic (see OnboardingVoiceProvider's
+  // voiceInShouldBeLive). During a real Vapi call (full 'vapi' engine state,
+  // both voice + mic on) userAudioLevel (Daily's local-audio-level observer,
+  // wired in useRealtimeVoice, B51) is the only live signal, so it's used
+  // whenever the Soniox path isn't the active one.
+  const { intensity: sonioxMicIntensity, speaking: micSpeaking } = useMicVoiceActivity(
     isVoiceInOnly && voiceInListening,
+  );
+  const micRingIntensity = isVoiceInOnly ? sonioxMicIntensity : userAudioLevel;
+  const { intensity: coachIntensity } = useCoachVoiceActivity(
+    isAssistantSpeaking,
+    assistantVolumeLevel,
   );
 
   const handleToggleMic = useCallback(() => {
@@ -99,6 +113,7 @@ export function FlowVoiceControls() {
           ringCount={3}
           ringStep={4}
           intensity={micRingIntensity}
+          coachIntensity={coachIntensity}
           micAllowed={micAllowed}
           onToggleVoice={toggleVoice}
           onToggleMic={handleToggleMic}

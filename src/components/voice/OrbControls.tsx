@@ -1,6 +1,8 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Orb, type OrbMic } from '@/components/orb/Orb';
 import { orbIdle, orbSpeaking } from '@/components/orb/orbView';
+import { resolveOrbMic } from '@/lib/orb/orbState';
+import { registerQaOrbLevel } from '@/lib/orb/qaOrbLevel';
 
 interface OrbControlsProps {
   size: number;
@@ -9,7 +11,14 @@ interface OrbControlsProps {
   activeRings: 'left' | 'right' | 'ready' | 'idle' | null;
   ringCount: number;
   ringStep: number;
+  /** User-mic amplitude (right/gold side), 0..1. */
   intensity?: number;
+  /**
+   * Coach amplitude (left/blue side), 0..1 (B51). Optional and defaults to 0
+   * so existing callers that only pass `intensity` keep compiling; the coach
+   * side just stays flat until a caller wires this in.
+   */
+  coachIntensity?: number;
   micAllowed: boolean;
   onToggleVoice: () => void;
   onToggleMic: () => void;
@@ -23,19 +32,41 @@ interface OrbControlsProps {
 // (full blue/gold circle); 'ready'/'idle'/null all render the idle two-half
 // button, matching the prior DualButton behaviour where only 'left'/'right'
 // triggered a directional speaking look.
+//
+// B51: the mic ref now carries BOTH directions' amplitude, whichever side is
+// actually live. Previously `mic.on` was hardwired to `activeRings === 'right'`
+// (user mic only), so the coach-speaking side ('left') never pulsed at all —
+// the orb looked static every time the coach talked. Applying amp whenever a
+// live level exists (independent of activeRings) also means a ring-state gap
+// can't silently zero out real amplitude; see FlowVoiceControls for a case
+// where user-mic amplitude should show even before the ring flips to 'right'.
 export function OrbControls({
   size,
   leftActive,
   rightActive,
   activeRings,
   intensity,
+  coachIntensity,
   micAllowed,
   onToggleVoice,
   onToggleMic,
   onRequestMic,
 }: OrbControlsProps) {
   const mic = useRef<OrbMic>({ on: false, amp: 0 });
-  mic.current = { on: activeRings === 'right', amp: intensity ?? 0 };
+  mic.current = resolveOrbMic(activeRings, coachIntensity ?? 0, intensity ?? 0);
+
+  // B51 QA seam: exposes window.__ggQaOrbLevel() for preview/Playwright amp
+  // sampling. No-op (and stripped by the QA_SCREEN_ENABLED gate) for real users.
+  useEffect(
+    () =>
+      registerQaOrbLevel(() => {
+        const m = mic.current;
+        const source: 'coach' | 'user' | 'idle' =
+          activeRings === 'left' ? 'coach' : activeRings === 'right' ? 'user' : 'idle';
+        return { source, amp: m.amp };
+      }),
+    [activeRings],
+  );
 
   const orbProps =
     activeRings === 'left'
@@ -47,7 +78,12 @@ export function OrbControls({
   const handleRightClick = micAllowed ? onToggleMic : onRequestMic;
 
   return (
-    <div className="relative" style={{ width: size, height: size }} role="group" aria-label="Voice controls">
+    <div
+      className="relative"
+      style={{ width: size, height: size }}
+      role="group"
+      aria-label="Voice controls"
+    >
       <Orb {...orbProps} />
       <button
         type="button"

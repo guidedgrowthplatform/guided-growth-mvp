@@ -16,6 +16,7 @@
  * speakOpener() call, settles immediately as done with no audio.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { registerCoachAudioElement, unregisterCoachAudioElement } from '@/lib/audio/coachAudioBus';
 import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
 import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
 import { type BeatAudioOwnerKind, claimBeatAudio, releaseBeatAudio } from './beatAudioOwner';
@@ -38,6 +39,7 @@ export function useBeatOpenerCartesia(
   const [done, setDone] = useState(false);
 
   const handleRef = useRef<SpeakOpenerHandle | null>(null);
+  const elRef = useRef<HTMLAudioElement | null>(null);
   const settledRef = useRef(false);
   // Same reasoning as useBeatOpenerMp3: read fresh inside the effect without
   // making ownership identity an effect dep (it tracks the caller's props,
@@ -59,6 +61,10 @@ export function useBeatOpenerCartesia(
     settledRef.current = true;
     handleRef.current?.stop();
     handleRef.current = null;
+    if (elRef.current) {
+      unregisterCoachAudioElement(elRef.current);
+      elRef.current = null;
+    }
     setPlaying(false);
     // null (not a stale mid-clip count) so the progress:1 full reveal wins.
     setRevealWords(null);
@@ -103,9 +109,13 @@ export function useBeatOpenerCartesia(
       gestureFallback: true,
       onElement: (audioEl) => {
         el = audioEl;
+        elRef.current = audioEl;
         el.muted = isQaMuted();
       },
-      onPlaying: () => setPlaying(true),
+      onPlaying: () => {
+        setPlaying(true);
+        if (el) registerCoachAudioElement(el);
+      },
       onRevealWords: (count) => setRevealWords(count),
     });
     handleRef.current = handle;
@@ -114,6 +124,10 @@ export function useBeatOpenerCartesia(
       if (settledRef.current) return;
       settledRef.current = true;
       handleRef.current = null;
+      if (elRef.current) {
+        unregisterCoachAudioElement(elRef.current);
+        elRef.current = null;
+      }
       setPlaying(false);
       setRevealWords(null);
       setProgress(1);

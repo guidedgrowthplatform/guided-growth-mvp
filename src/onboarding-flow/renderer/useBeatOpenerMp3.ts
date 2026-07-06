@@ -33,6 +33,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
+import { registerCoachAudioElement, unregisterCoachAudioElement } from '@/lib/audio/coachAudioBus';
 import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 import { onsetsForDisplayWords, revealCountAtTime } from '@/lib/voice/openerWordTimeline';
 import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
@@ -284,6 +285,7 @@ export function useBeatOpenerMp3(
       } catch {
         /* ignore */
       }
+      unregisterCoachAudioElement(el);
       pooled?.release();
       // B40: give up the beat-audio claim on settle so the NEXT beat (or a
       // retry of this one) can claim cleanly. Safe to call unconditionally -
@@ -372,6 +374,7 @@ export function useBeatOpenerMp3(
             clip: src,
           });
           setPlaying(true);
+          registerCoachAudioElement(el);
           startProgressLoop();
         })
         .catch((err: unknown) => {
@@ -413,6 +416,7 @@ export function useBeatOpenerMp3(
       // Belt and braces: release both the pooled element and the B40 audio
       // claim even if a stale settle (activation.settle() returned false)
       // skipped them above.
+      unregisterCoachAudioElement(el);
       pooled?.release();
       if (ownershipRef.current) {
         releaseBeatAudio(ownershipRef.current.beatId, ownershipRef.current.owner);
