@@ -5,6 +5,15 @@
  * by designerSourceJson.ts and validated loud at parse.
  */
 
+/** Ordered bubble/reveal segment authored on a designer beat (STEP-0 contract).
+ * Mirrors the engine's NarrationSegment 1:1; the transform carries it verbatim. */
+export interface DesignerNarrationSegment {
+  kind: 'bubble' | 'reveal';
+  n: number;
+  say?: string;
+  clip?: string;
+}
+
 export interface DesignerMp3Clip {
   id?: string;
   label: string;
@@ -73,4 +82,13 @@ export interface DesignerBeat {
   showOnPath?: string | null;
   /** Builder-authored sidecar metadata. Optional during the transition. */
   meta?: DesignerBeatMeta;
+  /** Ordered bubble/reveal script (STEP-0); absent = single-opener beat. */
+  narration?: DesignerNarrationSegment[];
+  /** Authoring variant tag, e.g. 'female' for the women's art switch. The Export
+   * already carries variant; from STEP-0 the transform preserves it. */
+  variant?: string | null;
+  /** Suppress the docked orb on this beat (the component draws its own). */
+  hideOrb?: boolean;
+  /** The component owns its audio/orb sequence (greeting, mic). */
+  componentOwned?: boolean;
 }

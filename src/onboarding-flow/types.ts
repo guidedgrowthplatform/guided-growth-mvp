@@ -125,6 +125,26 @@ export interface PersistConfig {
   pathField?: boolean;
 }
 
+/**
+ * One ordered segment of a beat's narration script (the STEP-0 schema contract,
+ * onboarding-consolidation-plan-2026-07-06). The segments sequence INSIDE one
+ * beat, in array order:
+ *   - kind 'bubble': a coach speech bubble; `say` types in sync with the audio.
+ *   - kind 'reveal': the beat's nth card/element blooms; `say`, when present, is
+ *     spoken verbal-only (never drawn as a bubble). Empty `say` = visual-only.
+ * `n` is the 1-based index within the segment's kind (bubble 1..N, reveal 1..N;
+ * reveal 99 = "all remaining elements at once", the render's convention).
+ * `clip` is an MP3-verbatim ref: clip present = play the recorded file (plus its
+ * caption file when one exists); no clip = live TTS (only the name greeting) or
+ * silent. Beats without narration keep the single-opener behavior unchanged.
+ */
+export interface NarrationSegment {
+  kind: 'bubble' | 'reveal';
+  n: number;
+  say?: string;
+  clip?: string;
+}
+
 /** All componentType keys the renderer registry knows how to mount. */
 export type FlowComponentType =
   | 'auth'
@@ -145,6 +165,8 @@ export type FlowComponentType =
   | 'into-app'
   | 'why-intro'
   | 'weekly-projection'
+  // Create-your-own goal/habit name-it screens (props.kind: 'goal' | 'habit').
+  | 'custom-entry'
   // Check-in flow component types (morning + evening check-in documents).
   | 'state-check'
   | 'habit-review'
@@ -176,6 +198,16 @@ export interface BeatNode {
   tool: ToolConfig | null;
   /** null = capture-only beat that advances without a save (e.g. mic permission). */
   persist: PersistConfig | null;
+  /** Ordered bubble/reveal script inside this beat; absent = single-opener beat. */
+  narration?: NarrationSegment[];
+  /** Authoring variant tag (e.g. 'female' = the women's art switch); render-time
+   * concern on the SAME screenId, never a separate screen (Yair-ruled 2026-07-06). */
+  variant?: string;
+  /** true = suppress the docked orb on this beat (the component draws its own). */
+  hideOrb?: boolean;
+  /** true = the component owns its audio/orb sequence (greeting, mic); the
+   * narration driver must not double-play it. */
+  componentOwned?: boolean;
 }
 
 export interface BranchLane {
@@ -208,6 +240,11 @@ export interface BranchNode {
   meta?: BeatRuntimeMeta;
   tool: ToolConfig | null;
   persist: PersistConfig | null;
+  /** Same presentation contract as BeatNode (the fork beat narrates too). */
+  narration?: NarrationSegment[];
+  variant?: string;
+  hideOrb?: boolean;
+  componentOwned?: boolean;
 }
 
 export type FlowNode = BeatNode | BranchNode;

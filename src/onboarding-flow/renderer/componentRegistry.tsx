@@ -1776,6 +1776,68 @@ function WeeklyProjectionAdapter({ node, onCapture }: BeatAdapterProps) {
   );
 }
 
+/* -------------------------------------------------- custom-entry (STEP-0 new) */
+
+// Create-your-own goal/habit name-it screen (render beats 14 + 16). A titled
+// text field + an add button; `kind` comes from componentProps ('goal'|'habit').
+// Capture merges the entered name into the flow answers: a custom goal appends
+// to `goals`, a custom habit adds a default-config `habitConfigs` entry (the
+// schedule beat then sets its days). Voice-capture wiring lands with A3; this is
+// the STEP-0 round-trip adapter.
+function CustomEntryAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
+  const props = node.componentProps as {
+    kind?: string;
+    title?: string;
+    placeholder?: string;
+    addLabel?: string;
+  };
+  const kind = props.kind === 'habit' ? 'habit' : 'goal';
+  const [name, setName] = useState('');
+
+  const submit = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (kind === 'goal') {
+      const goals = [...(answers.goals ?? []), trimmed];
+      onCapture({ data: { goals } });
+      return;
+    }
+    const habitConfigs = {
+      ...(answers.habitConfigs ?? {}),
+      [trimmed]: { ...DEFAULT_HABIT_CONFIG, days: [...DEFAULT_HABIT_CONFIG.days] },
+    };
+    onCapture({ data: { habitConfigs } });
+  };
+
+  return (
+    <CardShell frozen={readOnly}>
+      <div className="flex flex-col gap-2">
+        <span className="text-[14px] font-medium text-content-secondary">
+          {props.title ?? (kind === 'goal' ? 'Your goal' : 'Your habit')}
+        </span>
+        <OnboardingInput
+          icon={kind === 'goal' ? 'si:target-line' : 'si:add-circle-line'}
+          placeholder={
+            props.placeholder ??
+            (kind === 'goal' ? 'For example, sleep more consistently' : 'For example, evening walk')
+          }
+          value={name}
+          onChange={setName}
+          disabled={readOnly}
+          onEnter={submit}
+        />
+      </div>
+      {!readOnly && (
+        <Cta
+          label={props.addLabel ?? (kind === 'goal' ? 'Add goal' : 'Add habit')}
+          disabled={!name.trim()}
+          onClick={submit}
+        />
+      )}
+    </CardShell>
+  );
+}
+
 /* -------------------------------------------------- weekly-habits-summary */
 
 // The Weekly's real week-grid beat: renders the actual trailing 7-day habit
@@ -1837,6 +1899,8 @@ export const ADAPTER_REGISTRY = {
   'home-tour': HomeTourAdapter,
   'weekly-habits-summary': WeeklyHabitsSummaryAdapter,
   'weekly-day-picker': WeeklyDayPickerAdapter,
+  // STEP-0 new: create-your-own goal/habit name-it screen.
+  'custom-entry': CustomEntryAdapter,
 } satisfies Record<FlowComponentType, AdapterComponent | null>;
 
 export function getAdapter(componentType: string): AdapterComponent | undefined {
@@ -1865,6 +1929,7 @@ const FROZEN_BY_TYPE = {
   'plan-cards': true,
   'advanced-capture': true,
   'weekly-day-picker': true,
+  'custom-entry': true,
   'mic-permission': false,
   'primary-button': false,
   'advanced-frequency': false,
