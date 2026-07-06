@@ -101,7 +101,12 @@ const probeText = () => container.querySelector('[data-testid="probe"]')?.textCo
 function mount() {
   act(() => {
     root.render(
-      <NarrationBeatView node={NODE} answers={{}} card={<ProbeCard />} onCapture={() => {}} />,
+      <NarrationBeatView
+        node={NODE}
+        answers={{}}
+        renderCard={() => <ProbeCard />}
+        onCapture={() => {}}
+      />,
     );
   });
 }
@@ -152,5 +157,94 @@ describe('NarrationBeatView', () => {
     });
     expect(bubbles()).toHaveLength(1);
     expect(probeText()).toBeNull();
+  });
+
+  it('close segments hold the capture until the close script finishes', () => {
+    const CLOSE_NODE = {
+      ...NODE,
+      id: 'demo-close',
+      narration: [
+        { kind: 'bubble', n: 1, say: 'Read me your list.', clip: '/voice/demo_open.mp3' },
+        { kind: 'reveal', n: 99 },
+        { kind: 'close', n: 1, say: 'Those are all in.', clip: '/voice/demo_close.mp3' },
+      ] as NarrationSegment[],
+    } as unknown as BeatNode;
+
+    const captures: unknown[] = [];
+    act(() => {
+      root.render(
+        <NarrationBeatView
+          node={CLOSE_NODE}
+          answers={{}}
+          renderCard={(capture) => (
+            <button data-testid="fire" onClick={() => capture({ data: {} })}>
+              Looks good
+            </button>
+          )}
+          onCapture={(c) => captures.push(c)}
+        />,
+      );
+    });
+
+    // Script: opener bubble, then the reveal mounts the card.
+    act(() => finishClip('/voice/demo_open.mp3'));
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    // Reveal 99 (no clip) advances on its dwell; the card is up.
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    const fire = container.querySelector('[data-testid="fire"]') as HTMLButtonElement;
+    expect(fire).toBeTruthy();
+    // Close line not on screen yet, capture not forwarded.
+    expect(container.textContent).not.toContain('Those are all in.');
+
+    // Interaction completes: the close bubble draws (karaoke mid-reveal,
+    // riding the clip), the capture is HELD.
+    act(() => fire.click());
+    expect(container.textContent).toContain('Those are');
+    expect(captures).toHaveLength(0);
+
+    // The close clip settles: the full line shows, the capture forwards
+    // after the breath.
+    act(() => finishClip('/voice/demo_close.mp3'));
+    expect(container.textContent).toContain('Those are all in.');
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(captures).toHaveLength(1);
+  });
+
+  it('a stalled close clip cannot strand the beat (12s safety)', () => {
+    const CLOSE_NODE = {
+      ...NODE,
+      id: 'demo-close-stall',
+      narration: [
+        { kind: 'close', n: 1, say: 'Wrapping up.', clip: '/voice/demo_stall.mp3' },
+      ] as NarrationSegment[],
+    } as unknown as BeatNode;
+
+    const captures: unknown[] = [];
+    act(() => {
+      root.render(
+        <NarrationBeatView
+          node={CLOSE_NODE}
+          answers={{}}
+          renderCard={(capture) => (
+            <button data-testid="fire" onClick={() => capture({ data: {} })} />
+          )}
+          onCapture={(c) => captures.push(c)}
+        />,
+      );
+    });
+    const fire = container.querySelector('[data-testid="fire"]') as HTMLButtonElement;
+    act(() => fire.click());
+    expect(captures).toHaveLength(0);
+    // The clip never settles; the safety cap forwards the capture anyway.
+    act(() => {
+      vi.advanceTimersByTime(12100);
+    });
+    expect(captures).toHaveLength(1);
   });
 });

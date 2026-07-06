@@ -3,9 +3,11 @@ import type { NarrationSegment } from '../../types';
 import { narrationClipSrc } from './narrationClips';
 import {
   cardVisibleAt,
+  closeSegments,
   narrationDone,
   REVEAL_ALL,
   revealCountAt,
+  scriptSegments,
   silentDwellMs,
   visibleBubbles,
 } from './narrationSchedule';
@@ -65,11 +67,39 @@ describe('narrationSchedule', () => {
   });
 });
 
+describe('scriptSegments / closeSegments (the close split)', () => {
+  const WITH_CLOSE: NarrationSegment[] = [
+    { kind: 'bubble', n: 1, say: 'Read me your list.', clip: 'onboard_advanced_1' },
+    { kind: 'reveal', n: REVEAL_ALL },
+    { kind: 'close', n: 1, say: 'Those are all in.', clip: 'close' },
+  ];
+
+  it('splits the pre-interaction script from the closes, order kept', () => {
+    expect(scriptSegments(WITH_CLOSE).map((s) => s.kind)).toEqual(['bubble', 'reveal']);
+    expect(closeSegments(WITH_CLOSE).map((s) => s.say)).toEqual(['Those are all in.']);
+  });
+
+  it('close segments never appear as script bubbles or reveals', () => {
+    const script = scriptSegments(WITH_CLOSE);
+    expect(visibleBubbles(script, script.length).map((b) => b.say)).toEqual(['Read me your list.']);
+    expect(revealCountAt(script, script.length)).toBe(REVEAL_ALL);
+  });
+});
+
 describe('narrationClipSrc', () => {
   it('resolves ids to /voice/ob and passes absolute paths through', () => {
     expect(narrationClipSrc('state_sleep')).toBe('/voice/ob/state_sleep.wav');
     expect(narrationClipSrc('/voice/onboard_state_check.mp3')).toBe(
       '/voice/onboard_state_check.mp3',
     );
+  });
+
+  it('prefers the beat mp3Assets entry with a matching id (the Lane B model)', () => {
+    const assets = [
+      { id: 'close', label: 'close', file: '/voice/onboarding/adv_close.mp3', transcript: 'x' },
+    ];
+    expect(narrationClipSrc('close', assets)).toBe('/voice/onboarding/adv_close.mp3');
+    // Unmatched ids still fall through to the path rules.
+    expect(narrationClipSrc('state_sleep', assets)).toBe('/voice/ob/state_sleep.wav');
   });
 });

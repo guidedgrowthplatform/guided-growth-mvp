@@ -11,6 +11,9 @@
  *   - kind 'reveal': the card's nth element blooms as the segment STARTS,
  *     while its say (if any) is spoken verbal-only (never drawn as a bubble);
  *     n = 99 means "all remaining elements";
+ *   - kind 'close': a coach bubble spoken AFTER the beat's interaction
+ *     completes (never part of the pre-interaction script; the driver plays
+ *     closes when the capture fires, then forwards it);
  *   - a segment with a clip advances when its audio settles; a segment with
  *     no clip advances on the text-cadence dwell below (matches BeatPlayer's
  *     fallback so silent beats read the same as before).
@@ -22,6 +25,16 @@ import { countWords } from '../useCoachSpeechReveal';
 
 /** Sentinel n meaning "every remaining element" (the render's convention). */
 export const REVEAL_ALL = 99;
+
+/** The pre-interaction script: every segment except the closes, in order. */
+export function scriptSegments(segments: NarrationSegment[]): NarrationSegment[] {
+  return segments.filter((s) => s.kind !== 'close');
+}
+
+/** The close script: segments spoken after the interaction, in order. */
+export function closeSegments(segments: NarrationSegment[]): NarrationSegment[] {
+  return segments.filter((s) => s.kind === 'close');
+}
 
 /** The bubble segments visible once segment `activeIdx` is playing (0-based). */
 export function visibleBubbles(

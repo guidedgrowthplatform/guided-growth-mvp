@@ -190,7 +190,25 @@
         "authoring": {}
       },
       "tool": null,
-      "persist": null
+      "persist": null,
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "Tell me the goal you want to add, and I'll set it up.",
+          "clip": "/voice/onboarding_focus_area.mp3"
+        },
+        {
+          "kind": "reveal",
+          "n": 1
+        },
+        {
+          "kind": "close",
+          "n": 1,
+          "say": "That's in. I'll set it up for you.",
+          "clip": "/voice/checkin_complete.mp3"
+        }
+      ]
     },
     {
       "id": "demo-weekly-p78",
