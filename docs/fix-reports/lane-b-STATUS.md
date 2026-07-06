@@ -2,6 +2,16 @@
 
 Lane B of gg-spec/docs/onboarding-consolidation-plan-2026-07-06.md. One-time seed, render to flow builder/engine; after the seed the flow builder is the source of truth. Newest entry on top.
 
+## 2026-07-06 (later): gate 2 GO, !444 reviewed, converter aligned, captions ingested; ONE gate left
+
+- Gate 2 SATISFIED: the freshness certificate landed. Content truth 1741d095, seed sha de67b298 (adds per-word captions). Verified: FlowDesigner/metadata/voiceClips byte-identical between the two shas.
+- Schema review posted on !444 (note 3620) per the plan's reviewer role: contract approved from the Lane B side, six notes (key ones: narration clip ids resolve through the mp3Assets join, not a path convention; close/confirm lines stay props-driven, no narration slot, and the driver must treat trailing segments after the interaction point as completion lines).
+- Converter aligned to the !444 contract and re-run at de67b298 (commit 89c4e7c6 on lane-b/seed-converter, !443): narration at beat top level, perElement carries clip ids. 26 beats, 38/38 clips, 0 problems. Delta vs the 1741d095 dry run is exactly the alignment changes.
+- Job-1 flag closed: the ONBOARD-ADVANCED close line is carried explicitly (props.closeCoachLine verbatim + close mp3Asset with matching transcript).
+- Captions (B4) ingested: new scripts/flow-sync/ingest-captions.ts maps clipCaptions.ts into the engine's openerCaptions.ts keyed by mp3Assets src path. 37/37, bidirectional check. No mlx-whisper needed. The six whisper-split clips are safe as-is (onsetsForDisplayWords maps token onsets to display words proportionally; caption word text is never displayed).
+- Button ruled by the conductor: into-app keeps "Start".
+- REMAINING GATE: !444 merged (pipeline red, being fixed by its lane). On merge: re-check the final schema shape, verify custom-entry wiring against the !444 sample beats, run flow:sync + parity, then the stacked content + assets MRs and the side-by-side acceptance pass vs gg-onboarding-render.pages.dev.
+
 ## 2026-07-06: read-only prep complete, converter draft MR up, BOTH GATES STILL CLOSED
 
 ### Gate status (checked 2026-07-06)
