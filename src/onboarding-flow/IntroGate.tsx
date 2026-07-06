@@ -51,7 +51,22 @@ type Phase = 'get-started' | 'coach-greeting';
 export function IntroGate({ children }: { children: React.ReactNode }) {
   const { state } = useOnboarding();
   // current_step >= 1 means past the auth beat — resume into chat, no intro.
-  const hasProgress = (state?.current_step ?? 0) >= 1;
+  //
+  // B43: snapshot this ONCE at mount (lazy useState init), not as a value
+  // re-derived every render. FlowOnboarding seeds saveStep(1, { nickname })
+  // on its own mount whenever a nickname is already known (every QA/signed-in
+  // account, per QAControlScreen) -- that write lands in the SAME
+  // onboarding.state query-cache entry this hook subscribes to, so on a
+  // genuinely fresh start `current_step` climbs to 1 a beat or two after
+  // mount, mid-greeting. A live-reactive hasProgress then flips true and this
+  // component bails to `children` before (or during) SplashIntro, skipping
+  // the greeting -- the flow's own bookkeeping write masquerading as
+  // "returning user, already past this screen". A real returning user's
+  // step is already >= 1 in the FIRST fetched row (AppGate blocks render
+  // until that fetch resolves), so a mount-time snapshot still resumes them
+  // straight into chat; it just stops the flow's later write from closing
+  // the gate on a session that started fresh.
+  const [hasProgress] = useState(() => (state?.current_step ?? 0) >= 1);
   const [done, setDone] = useState(readSeen);
   const [phase, setPhase] = useState<Phase>('get-started');
   const navigate = useNavigate();
