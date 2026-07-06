@@ -45,11 +45,13 @@ const PRESETS = [
   { slug: '1mo-gaps',        days: 28 },
 ];
 
+// Staging's user_habits check accepts only the LEGACY spellings (binary_do /
+// binary_avoid) — 043_rename_habit_polarity never ran there. weekData.ts reads both.
 const HABITS = [
-  { name: 'Morning walk',      habit_type: 'binary_build',  cadence: 'daily',   schedule_days: null },
-  { name: 'Read 10 pages',     habit_type: 'binary_build',  cadence: 'daily',   schedule_days: null },
-  { name: 'No phone after 10pm', habit_type: 'binary_break', cadence: 'daily',  schedule_days: null },
-  { name: 'Workout',           habit_type: 'binary_build',  cadence: '3x/week', schedule_days: [1, 3, 5] },
+  { name: 'Morning walk',      habit_type: 'binary_do',    cadence: 'daily',   schedule_days: null },
+  { name: 'Read 10 pages',     habit_type: 'binary_do',    cadence: 'daily',   schedule_days: null },
+  { name: 'No phone after 10pm', habit_type: 'binary_avoid', cadence: 'daily', schedule_days: null },
+  { name: 'Workout',           habit_type: 'binary_do',    cadence: '3x/week', schedule_days: [1, 3, 5] },
 ];
 
 function estimatePreset(slug, days) {
