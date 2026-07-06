@@ -393,16 +393,29 @@ One confirm. Show the whole plan: the check-in time, the evening reflection time
   // beats advance via the frontend (no tool).
   // ---------------------------------------------------------------------------
 
-  // First voice line. The orb blooms; coach speaks. No data, frontend advances.
+  // ORPHANED (B52): this beat id is never a live screenId. The greeting moment
+  // it describes is owned entirely by IntroGate/SplashIntro (splash_welcome.mp3
+  // + splashCaptions.ts), which runs before the engine mounts any beat, the same
+  // way designerToFlow.ts skips 'splash'/'get-started'/'splash-intro' beat types
+  // from the engine ("Intro beats render via IntroGate, not as engine nodes").
+  // getBeatContext() is only ever called with a beat's actual screen_id, and no
+  // flow document (onboarding-beginner-v1 or otherwise) carries this one, so
+  // this entry cannot reach the LLM or the client. Kept (not deleted) only so a
+  // future Sheet resync has a same-shaped row to overlay onto; content below is
+  // the REAL splash line (see splashCaptions.ts) instead of the stale placeholder
+  // it held before, so nothing reading this table sees mismatched copy. The
+  // Supabase-synced beat_contexts row this beat maps to is still on the older
+  // placeholder text as of this fix and should be corrected at the source
+  // (Master Sheet Beats Context tab) so a future sync doesn't reintroduce it.
   'COACH-GREETING': {
-    context: `BEAT: First hello.
+    context: `BEAT: First hello (orphaned, see note above -- owned by IntroGate/SplashIntro, never an engine beat).
 
 SPEAK MODE: VERBATIM_OPENER
 
 The orb blooms and you speak for the first time. One warm line that lands the surprise of a real voice and invites them in. Then the flow moves on.`,
     allowedTools: [],
     opener:
-      "Hey. I'm your coach inside Guided Growth. Give me two minutes and we'll set up something that actually sticks.",
+      "Hey, I might have startled you. You're probably not used to an app just talking to you. I'm your AI coach here at your service at Guided Growth, and I'm excited to help you improve things in your life that are important to you. So let's get you in, and we'll get started.",
   },
 
   // Mic permission ask. No data, frontend advances on the permission result.

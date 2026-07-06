@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { SplashIntro } from '@/components/welcome/SplashIntro';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import {
   blessOpenerClipsInGesture,
   startOpenerFromGesture,
@@ -50,6 +51,14 @@ type Phase = 'get-started' | 'coach-greeting';
 
 export function IntroGate({ children }: { children: React.ReactNode }) {
   const { state } = useOnboarding();
+  // B52: the greeting clip has to respect the user's voice preference like
+  // every other beat's opener. Before this, IntroGate never read voiceMode at
+  // all, so a returning-to-onboarding user who had already turned voice off
+  // (e.g. a QA account, or a prior in-session toggle-off that persisted)
+  // still heard the coach speak on the very next fresh start. Captions still
+  // render either way (SplashIntro's `muted` only silences the <audio>).
+  const { preferences } = useUserPreferences();
+  const introMuted = preferences.voiceMode !== 'voice';
   // current_step >= 1 means past the auth beat — resume into chat, no intro.
   //
   // B43: snapshot this ONCE at mount (lazy useState init), not as a value
@@ -150,6 +159,12 @@ export function IntroGate({ children }: { children: React.ReactNode }) {
               // play() doubles as the audio unlock for every later beat.
               // SplashIntro adopts this element instead of re-playing it.
               openerRef.current ??= startOpenerFromGesture(INTRO_AUDIO_SRC);
+              // B52: startOpenerFromGesture() only applies the QA mute toggle
+              // at play()-time, so a real voice-off preference has to be
+              // applied here, synchronously, in the same gesture frame -
+              // otherwise the clip is audible for a frame or more before
+              // SplashIntro's own muted-prop sync effect catches up.
+              if (introMuted) openerRef.current.el.muted = true;
               // Same gesture also blesses every beat clip (play+pause the
               // pooled elements), covering per-element autoplay policies for
               // the whole flow on main AND preview routes (B28).
@@ -179,6 +194,7 @@ export function IntroGate({ children }: { children: React.ReactNode }) {
       autoPlay
       skipSplash
       audioSrc={INTRO_AUDIO_SRC}
+      muted={introMuted}
       adoptedOpener={openerRef.current}
       onComplete={() => {
         // B46: explicit, unconditional pause BEFORE release()/setDone(true).
