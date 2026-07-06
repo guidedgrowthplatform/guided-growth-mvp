@@ -38,6 +38,13 @@ describe('ONBOARDING_TOOL_ADDENDUM', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).not.toContain('confirm_step_complete');
   });
 
+  it('locks the check-in-is-not-a-habit rule (B50)', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('THE CHECK-IN IS NOT A HABIT');
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(
+      /NEVER call add_habit or update_habit to create or store a check-in/,
+    );
+  });
+
   it('steers the final confirm screen to confirm_plan, not advance_step', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toContain('confirm_plan');
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/PLAN CONFIRM \(ONBOARD-COMPLETE/);

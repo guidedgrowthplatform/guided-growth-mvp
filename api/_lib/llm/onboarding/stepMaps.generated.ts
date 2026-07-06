@@ -41,6 +41,33 @@ export const STEP_OWNERS: Record<number, Partial<Record<string, string>>> = {
   },
 };
 
+/** The componentType being LEFT at each STORED step (one-ahead display scale), per lane. */
+/** The forward advance gate prefers this over STEP_OWNERS (B50). */
+export const ADVANCE_GATE_OWNERS: Record<number, Partial<Record<string, string>>> = {
+  '1': {
+    simple: 'profile-input',
+    braindump: 'profile-input',
+  },
+  '2': {
+    simple: 'path-selection',
+    braindump: 'path-selection',
+  },
+  '3': {
+    simple: 'category-grid',
+    braindump: 'advanced-capture',
+  },
+  '4': {
+    simple: 'goals-list',
+    braindump: 'advanced-frequency',
+  },
+  '5': {
+    simple: 'habit-picker',
+  },
+  '6': {
+    simple: 'habit-schedule',
+  },
+};
+
 /** Identity beats: the data tool saves AND advances; never advance_step here. */
 export const SELF_ADVANCING_SCREENS: readonly string[] = [
   'ONBOARD-STATE-CHECK',

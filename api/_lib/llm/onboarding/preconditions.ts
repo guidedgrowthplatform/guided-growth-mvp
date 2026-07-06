@@ -1,6 +1,8 @@
-// Direct-LLM onboarding advance/finalize guards, shared by advance_step + confirm_plan.
-// (Vapi's navigate_next/confirm_plan keep their own copies — that path is left untouched.)
-import { STEP_OWNERS } from './stepMaps.generated.js';
+// Onboarding advance/finalize data guards. checkAdvanceData is shared by the
+// Direct-LLM advance_step handler AND Vapi's navigate_next (see
+// api/_lib/vapi/handlers/navigateNext.ts), so a gate change here applies to
+// both voice lanes.
+import { ADVANCE_GATE_OWNERS, STEP_OWNERS } from './stepMaps.generated.js';
 
 type Gate = (
   data: Record<string, unknown>,
@@ -75,12 +77,25 @@ export function checkAdvanceData(args: {
   brainDumpRaw: string | null;
 }): string | null {
   const { sourceStep, data, path, brainDumpRaw } = args;
-  const owners = STEP_OWNERS[sourceStep];
-  if (!owners) return null;
   const advanced = path === 'braindump' || path === 'advanced';
-  const component = advanced
-    ? (owners.braindump ?? owners.simple)
-    : (owners.simple ?? owners.braindump);
+  // The stored step runs one AHEAD of the identity scale across shared persist
+  // steps (habit-select + habit-schedule both persist 5, so habit-schedule is
+  // stored as 6). Gate on the beat actually being LEFT at this stored step
+  // (ADVANCE_GATE_OWNERS, lane-aware), falling back to the identity owner where
+  // no window beat displays there. B50: the old identity-only lookup gated the
+  // habit-schedule advance (6 to 7) on state-check data, which cannot exist yet
+  // (state-check is the NEXT beat), telling the model to call record_checkin on
+  // a beat where that tool is not exposed. Cornered, it rerouted the check-in
+  // into add_habit and hit max_habits_reached ("habit limit reached").
+  const laneKey = advanced ? 'braindump' : 'simple';
+  const gateOwner = ADVANCE_GATE_OWNERS[sourceStep]?.[laneKey];
+  const owners = STEP_OWNERS[sourceStep];
+  const identityOwner = owners
+    ? advanced
+      ? (owners.braindump ?? owners.simple)
+      : (owners.simple ?? owners.braindump)
+    : undefined;
+  const component = gateOwner ?? identityOwner;
   const gate = component ? GATES[component] : undefined;
   return gate ? gate(data, path, brainDumpRaw) : null;
 }

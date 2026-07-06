@@ -81,6 +81,12 @@ function writeApiStepMaps(onboardingFlow: FlowDocument): void {
       JSON.stringify(derived.stepOwners, null, 2) +
       ';',
     '',
+    '/** The componentType being LEFT at each STORED step (one-ahead display scale), per lane. */',
+    '/** The forward advance gate prefers this over STEP_OWNERS (B50). */',
+    'export const ADVANCE_GATE_OWNERS: Record<number, Partial<Record<string, string>>> = ' +
+      JSON.stringify(derived.advanceGateOwners, null, 2) +
+      ';',
+    '',
     '/** Identity beats: the data tool saves AND advances; never advance_step here. */',
     'export const SELF_ADVANCING_SCREENS: readonly string[] = ' +
       JSON.stringify(derived.selfAdvancingScreens) +

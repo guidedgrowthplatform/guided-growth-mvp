@@ -19,14 +19,26 @@ describe('checkAdvanceData — canonical resync tail', () => {
     expect(gate(5, { habitConfigs: HABITS })).toBeNull();
   });
 
-  it('case 6 (leaving state-check) requires stateCheck or checkin — NOT habits', () => {
-    expect(gate(6, {})).toMatch(/state_check_missing/);
-    expect(gate(6, { stateCheck: { sleep: 3 } })).toBeNull();
+  it('case 6 beginner (leaving habit-schedule at stored step 6) requires habits, NOT state-check (B50)', () => {
+    // The stored step runs one ahead across the shared persist step 5, so on
+    // the beginner lane the beat being LEFT at 6 is habit-schedule. Gating it
+    // on state-check data (the NEXT beat, cannot exist yet) deadlocked the
+    // flow and told the model to call record_checkin on a beat where that tool
+    // is not exposed; it then rerouted the check-in into add_habit and hit
+    // max_habits_reached ("habit limit reached" on check-in save).
+    expect(gate(6, { habitConfigs: HABITS })).toBeNull();
+    expect(gate(6, { habitConfigs: HABITS }, { path: 'simple' })).toBeNull();
+    expect(gate(6, {}, { path: 'simple' })).toMatch(/habits_missing/);
+    // state-check data alone (no habits) must NOT unlock the advance out of
+    // habit-schedule.
+    expect(gate(6, { stateCheck: { sleep: 3 } }, { path: 'simple' })).toMatch(/habits_missing/);
+  });
+
+  it('case 6 advanced keeps the state-check identity gate (no window beat displays at 6)', () => {
+    expect(gate(6, {}, { path: 'braindump' })).toMatch(/state_check_missing/);
+    expect(gate(6, { stateCheck: { sleep: 3 } }, { path: 'braindump' })).toBeNull();
     // the card tap writes the same beat under `checkin`
-    expect(gate(6, { checkin: { mood: 4 } })).toBeNull();
-    // Habits present but no state-check must still fail (state-check is
-    // pre-fork in V3; habits do not exist yet when it advances).
-    expect(gate(6, { habitConfigs: HABITS })).toMatch(/state_check_missing/);
+    expect(gate(6, { checkin: { mood: 4 } }, { path: 'braindump' })).toBeNull();
   });
 
   it('case 7 (leaving morning-setup) requires morningCheckin', () => {

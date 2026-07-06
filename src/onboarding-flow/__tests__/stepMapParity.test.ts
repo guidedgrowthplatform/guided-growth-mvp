@@ -6,6 +6,10 @@ import {
   stepForScreenId,
 } from '@/lib/onboarding/onboardingStepBeats';
 import { checkAdvanceData } from '../../../api/_lib/llm/onboarding/preconditions';
+import {
+  ADVANCE_GATE_OWNERS,
+  STEP_OWNERS,
+} from '../../../api/_lib/llm/onboarding/stepMaps.generated';
 import { ONBOARDING_TOOL_ADDENDUM } from '../../../api/_lib/llm/onboarding/systemPromptAddendum';
 import flowJson from '../flows/onboarding-beginner-v1.generated.json';
 import type { FlowDocument, FlowNode } from '../types';
@@ -77,45 +81,63 @@ describe('step map parity with the generated flow', () => {
     }
   });
 
-  it('checkAdvanceData gates each persist step on that beat’s own data', () => {
-    // Build "all evidence" once; per beat, remove its own contribution and
-    // assert the gate trips, then restore it and assert the gate passes.
+  it('checkAdvanceData gates each stored step on the beat being LEFT there (B50)', () => {
+    // Build "all evidence" once; per gated step, remove the gate owner's own
+    // contribution and assert the gate trips, then restore it and assert the
+    // gate passes. The owner of a forward advance at a stored step is the
+    // ADVANCE_GATE_OWNERS entry (the beat being left on the one-ahead display
+    // scale), falling back to the STEP_OWNERS identity where no window beat
+    // displays there — the same resolution checkAdvanceData applies. Keying
+    // this test on each node's own persist step conflated the two scales and
+    // locked in the B50 deadlock (state-check data demanded to LEAVE
+    // habit-schedule).
     const BEGINNER_SCREENS = new Set([
       'ONBOARD-BEGINNER-01',
       'ONBOARD-BEGINNER-02',
       'ONBOARD-BEGINNER-03',
       'ONBOARD-BEGINNER-04',
     ]);
-    for (const n of persistNodes) {
-      const lane = ADVANCED_SCREENS.has(n.screenId) ? 'braindump' : 'simple';
+    const gatedSteps = new Set<number>([
+      ...Object.keys(ADVANCE_GATE_OWNERS).map(Number),
+      ...Object.keys(STEP_OWNERS).map(Number),
+    ]);
+    for (const lane of ['simple', 'braindump'] as const) {
       const all: Record<string, unknown> = {};
       for (const m of persistNodes) {
         if (lane === 'braindump' && BEGINNER_SCREENS.has(m.screenId)) continue;
         if (lane === 'simple' && ADVANCED_SCREENS.has(m.screenId)) continue;
         Object.assign(all, EVIDENCE[m.componentType] ?? {});
       }
-      const own = EVIDENCE[n.componentType] ?? {};
-      const without = { ...all };
-      for (const key of Object.keys(own)) delete without[key];
-      const argsBase = {
-        path: lane,
-        brainDumpRaw: lane === 'braindump' ? 'run daily' : null,
-      };
-      // goals/category double as the shared key for the two habit beats — a
-      // missing own-key must trip the gate…
-      const missing = checkAdvanceData({
-        sourceStep: n.persist.step,
-        data: without,
-        ...argsBase,
-        // the fork gates on the path column, not data
-        ...(n.componentType === 'path-selection' ? { path: null } : {}),
-        // advanced-capture gates on the brain dump column
-        ...(n.componentType === 'advanced-capture' ? { brainDumpRaw: null } : {}),
-      });
-      expect(missing, `${n.screenId} (step ${n.persist.step}) should gate`).not.toBeNull();
-      // …and the full fixture must pass.
-      const passing = checkAdvanceData({ sourceStep: n.persist.step, data: all, ...argsBase });
-      expect(passing, `${n.screenId} (step ${n.persist.step}) should pass`).toBeNull();
+      for (const step of [...gatedSteps].sort((a, b) => a - b)) {
+        const identity = STEP_OWNERS[step];
+        const component =
+          ADVANCE_GATE_OWNERS[step]?.[lane] ??
+          (lane === 'braindump'
+            ? (identity?.braindump ?? identity?.simple)
+            : (identity?.simple ?? identity?.braindump));
+        if (!component) continue;
+        const own = EVIDENCE[component] ?? {};
+        const without = { ...all };
+        for (const key of Object.keys(own)) delete without[key];
+        const argsBase = {
+          path: lane as string,
+          brainDumpRaw: lane === 'braindump' ? 'run daily' : null,
+        };
+        // a missing own-key must trip the gate…
+        const missing = checkAdvanceData({
+          sourceStep: step,
+          data: without,
+          ...argsBase,
+          // the fork gates on the path column, not data
+          ...(component === 'path-selection' ? { path: null } : {}),
+          // advanced-capture gates on the brain dump column
+          ...(component === 'advanced-capture' ? { brainDumpRaw: null } : {}),
+        });
+        expect(missing, `${component} (${lane}, stored step ${step}) should gate`).not.toBeNull();
+        // …and the full fixture must pass.
+        const passing = checkAdvanceData({ sourceStep: step, data: all, ...argsBase });
+        expect(passing, `${component} (${lane}, stored step ${step}) should pass`).toBeNull();
+      }
     }
   });
 
