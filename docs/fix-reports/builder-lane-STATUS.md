@@ -191,3 +191,12 @@ auto-deleted). With !440 @ 145e0767 this closes every builder-lane deliverable: 
 derive-maps + The Weekly integration (!411) and B32 plan-review handoff (!440) both on
 main. Remaining watch only: Yair's flow-content Exports (preempt; still not arrived) and
 any post-merge follow-ups/review notes. Heartbeat relaxed to ~60 min accordingly.
+
+**2026-07-06 ~10:25 — incoming-work signal (no action yet)**: gg-spec added
+docs/onboarding-render-handoff.md (6eb313e, "plan-ready") — the preview/render
+session's handoff TO the conductor/planning session for consolidating preview +
+flow builder + engine into one source of truth. Branch flow-annotated-render
+pushed (1741d095); doc marks it spec/preview only, NOT a merge candidate. Engine
+side of that consolidation would be this lane's work, but the doc explicitly
+defers architecture to the planning session — standing by for the conductor's
+plan. Main unchanged (22a7a5fc). Watch cadence tightened back to ~30 min.
