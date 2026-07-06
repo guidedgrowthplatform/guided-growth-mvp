@@ -47,13 +47,14 @@ const TYPE_TO_COMPONENT: Record<string, FlowComponentType | null> = {
   'auth-signup': 'auth',
   'mic-permission': 'mic-permission',
   'profile-beat': 'profile-input',
-  // V3: why-intro, state-check, morning-checkin-setup, reflection-card all appear
-  // before the path fork now.
+  // Post-lane setup block (B47 reorder 2026-07-06): state-check, morning,
+  // reflection and weekly-day sit AFTER the fork lanes merge, matching the
+  // canonical persist-step scale (1..5 positional window, then 6..9), so the
+  // scale is monotonic in flow order again.
   'why-intro': 'why-intro',
   'state-check': 'state-check',
   'morning-checkin-setup': 'morning-checkin-setup',
   'reflection-card': 'reflection-card',
-  // V3: The Weekly day setup, right after reflection-card, before the path fork.
   'weekly-day-setup': 'weekly-day-picker',
   'path-selection': 'path-selection',
   'category-grid': 'category-grid',
@@ -180,12 +181,12 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
     contextBlock: 'Profile beat: age + gender only. Name comes from auth (see beatContexts).',
   },
   // V3 new: state-check, the first check-in performed during onboarding.
+  // B47 reorder: state-check is the MERGE node after the fork lanes, so back
+  // from here would cross an ambiguous lane boundary. No back (into-app rule).
   'state-check': {
     nodeId: 'state-check',
     beatNumber: 2,
-    // Consolidation seed 2026-07-06: why-intro merged into state-check (the
-    // render's two framing bubbles), so back from here goes to profile.
-    backId: 'profile',
+    backId: null,
     screenId: 'ONBOARD-STATE-CHECK',
     componentProps: {},
     voice: {
@@ -203,7 +204,8 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
   'path-selection': {
     nodeId: 'path-fork',
     beatNumber: 0,
-    backId: 'weekly-day-setup',
+    // B47 reorder: the fork directly follows profile (persist step 2 after 1).
+    backId: 'profile',
     screenId: 'ONBOARD-FORK--FORM',
     componentProps: {
       bindsTo: 'path',
@@ -340,7 +342,8 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
     contextBlock:
       'For each habit in the braindump, set how often it runs. Parse spoken answers when you can. Ask only for missing pieces.',
   },
-  // V3: morning-checkin-setup and reflection-card appear BEFORE the path fork.
+  // Post-lane setup block: morning-checkin-setup and reflection-card follow
+  // state-check after the fork lanes merge (B47 reorder).
   'morning-checkin-setup': {
     nodeId: 'morning-checkin-setup',
     beatNumber: 3,
@@ -384,8 +387,8 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
     contextBlock:
       'Set up a short evening reflection: when, which days, whether they want a reminder, and the style (guided prompts, custom prompts, or freeform). Frame it as a moment for their mind, not a chore.',
   },
-  // V3 new: The Weekly day setup, right after reflection-setup, before the path
-  // fork. Single-select day (0=Sunday preselected); submit_weekly_config saves
+  // V3 new: The Weekly day setup, right after reflection-setup (post-lane setup
+  // block). Single-select day (0=Sunday preselected); submit_weekly_config saves
   // AND self-advances (GREATEST-bump to step 9), matching reflection/morning.
   'weekly-day-picker': {
     nodeId: 'weekly-day-setup',
@@ -477,11 +480,14 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
  * V3 fork: the engine forks at path-selection into:
  *   - beginner lane: category -> goals -> habit-select -> habit-schedule
  *   - advanced lane: advanced-input -> advanced-frequency
- * Both lanes merge at into-app (plan-review is dropped in v3).
+ * Both lanes merge at the first spine node after the beginner lane exit
+ * (state-check since the B47 reorder), derived from the designer order below
+ * so a future reorder moves the merge with it instead of silently forking the
+ * graph from the authored order.
  *
- * Before the fork (shared spine): auth -> mic -> profile -> why-intro ->
- *   state-check -> morning-checkin-setup -> reflection-setup -> path-fork.
- * After the merge (shared spine): into-app -> weekly-projection x5.
+ * Before the fork (shared spine): auth -> mic -> profile -> path-fork.
+ * After the merge (shared spine): state-check -> morning-checkin-setup ->
+ *   reflection-setup -> weekly-day-setup -> into-app -> weekly-projection x5.
  */
 const FORK_LANES = [
   { value: 'simple', label: 'Beginner', entryNodeId: 'category', exitNodeId: 'habit-schedule' },
@@ -492,7 +498,8 @@ const FORK_LANES = [
     exitNodeId: 'advanced-frequency',
   },
 ] as const;
-const FORK_MERGE_NODE_ID = 'into-app';
+// Fallback merge target only (a flow whose spine ends at the lane exit).
+const FORK_MERGE_FALLBACK_NODE_ID = 'into-app';
 const FORK_CONDITION_SOURCE = 'answers.path';
 // Designer component types that back the advanced lane nodes. Both are pulled
 // out of the linear spine and handled in a dedicated pass (pass 2).
@@ -585,6 +592,11 @@ function screenIdFromSheetStage(sheetStage: string | undefined): string | undefi
  * Resolve the opener for a beat. Beats flagged openerFromEngine keep the engine's
  * canonical opener verbatim. Otherwise the designer coachLine drives the opener,
  * falling back to the engine opener when the designer authored none.
+ *
+ * B48: this is only the flow DOCUMENT's opener. At runtime, a beat whose
+ * screenId has a LOCKED line in onboardingOpeners.ts renders that line instead
+ * (renderer/resolveBeatOpener.ts, name-variant aware); the composition and
+ * fallbacks here can never win over a locked opener.
  *
  * Turn-break convention: a newline inside the opener is a TURN BREAK. The
  * renderer draws one coach bubble per line (BeatView splits via openerTurns).
@@ -1056,6 +1068,14 @@ export function designerToFlowDocument(
   // Spine node IDs in order (for nextId chaining).
   const spineNodeIds = spineComponents.map((c) => specFor(c).nodeId);
 
+  // The merge node both lanes rejoin at: the first spine node AFTER the
+  // beginner lane's exit (the beginner lane rides inline in the spine order).
+  // Derived from the designer order so the merge follows a reorder (B47).
+  const beginnerExitIdx = spineNodeIds.indexOf(FORK_LANES[0].exitNodeId);
+  const forkMergeNodeId =
+    (beginnerExitIdx >= 0 ? spineNodeIds[beginnerExitIdx + 1] : undefined) ??
+    FORK_MERGE_FALLBACK_NODE_ID;
+
   // First designer beat for each engine component type. A component may be reached
   // by multiple designer types (unlikely) or multiple beats of the same type; we
   // want the first one in authoring order.
@@ -1092,7 +1112,7 @@ export function designerToFlowDocument(
         screenId,
         condition: { source: FORK_CONDITION_SOURCE, type: 'enum-match' },
         lanes: FORK_LANES.map((l) => ({ ...l })),
-        mergeNodeId: FORK_MERGE_NODE_ID,
+        mergeNodeId: forkMergeNodeId,
         context,
         componentType: component,
         componentProps,
@@ -1128,7 +1148,7 @@ export function designerToFlowDocument(
 
   // Pass 3: advanced lane nodes. Two nodes: advanced-input -> advanced-frequency.
   // advanced-input backId = path-fork (from spec).
-  // advanced-frequency nextId = into-app (FORK_MERGE_NODE_ID), backId = advanced-input.
+  // advanced-frequency nextId = the derived merge node, backId = advanced-input.
   const advCaptureDesigner = firstDesignerBeatByComponent.get('advanced-capture');
   const advCaptureSpec = specFor('advanced-capture');
   const advCaptureScreenId =
@@ -1168,7 +1188,7 @@ export function designerToFlowDocument(
     beatNumber: advFreqSpec.beatNumber,
     name: 'Habit Days (Advanced)',
     screenId: advFreqScreenId,
-    nextId: FORK_MERGE_NODE_ID,
+    nextId: forkMergeNodeId,
     backId: 'advanced-input',
     context: {
       screenId: advFreqScreenId,
@@ -1319,7 +1339,7 @@ export function designerToFlowDocument(
   nodes.push(advFreqNode);
 
   // Post-fork merge node and any post-merge spine nodes (into-app etc.).
-  const mergeIdx = spineNodeIds.indexOf(FORK_MERGE_NODE_ID);
+  const mergeIdx = spineNodeIds.indexOf(forkMergeNodeId);
   for (let i = mergeIdx; i < spineNodeIds.length; i++) {
     const n = nodeById.get(spineNodeIds[i]);
     if (n) nodes.push(n);

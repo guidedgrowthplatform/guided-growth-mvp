@@ -12,22 +12,22 @@ import {
 /**
  * The LIVE advance path at the fork (the 2026-07-02 signed-in failures).
  *
- * FAIL-A (jump-to-end): under V3's non-monotonic persist steps, the last
- * pre-fork setup save (weekly-day-setup, step 9, GREATEST-pinned) lands its
- * current_step climb AFTER the machine has already moved to the branch node.
- * The leading-edge advance then replayed the fork's server capture — which
- * holds NO path — and the old merge fallthrough carried the machine straight
- * to into-app and the weekly beats: a full beginner run "completed" with
- * path=null and the fork radios empty.
+ * FAIL-A (jump-to-end) history: under the pre-B47 flow order the last pre-fork
+ * setup save (weekly-day-setup, step 9, GREATEST-pinned) landed its climb
+ * AFTER the machine moved to the branch node, and the old merge fallthrough
+ * carried an EMPTY fork capture straight to into-app (a "completed" run with
+ * path=null). The B47 reorder puts the fork right after profile, but the
+ * two-layer fix stays load-bearing: a stale climb must never traverse an
+ * unanswered fork, on any order.
  *
- * These tests script that exact live sequence against the GENERATED flow (the
- * one production loads), asserting the two-layer fix:
+ * These tests script the live sequence against the GENERATED flow (the one
+ * production loads), asserting:
  *   1. flowMachine: an unanswered branch is a hard stop (no merge fallthrough
  *      on the default/live contract);
  *   2. orchestrator gate: captureCompletesBeat refuses the empty fork capture,
  *      and accepts it the moment the row holds a lane value — with or without
- *      a current_step climb (the Vapi server-side answer writes path but the
- *      GREATEST pin keeps current_step at 9, so no climb ever arrives).
+ *      a current_step climb (the Vapi server-side answer writes path via
+ *      submit_path_choice, whose upsert leaves current_step untouched).
  */
 const flow = flowJson as unknown as FlowDocument;
 
@@ -108,14 +108,14 @@ function runToFork(): { st: FlowMachineState; row: SimulatedRow } {
 const forkNode = () => getNode(flow, 'path-fork')!;
 
 describe('live advance at the fork — scripted run over the generated flow', () => {
-  it('reaches the fork with the row GREATEST-pinned at 9 and no path (the race precondition)', () => {
+  it('reaches the fork right after profile with no path (B47 order)', () => {
     const { st, row } = runToFork();
     expect(st.currentNodeId).toBe('path-fork');
-    expect(row.current_step).toBe(9); // weekly-day save pinned it (last pre-fork persist beat)
+    expect(row.current_step).toBe(1); // only the profile save has landed (GREATEST pin)
     expect(row.data.path).toBeUndefined();
   });
 
-  it('FAIL-A: the stale reflection climb cannot traverse the unanswered fork', () => {
+  it('FAIL-A: a stale current_step climb cannot traverse the unanswered fork', () => {
     const { st, row } = runToFork();
     // The leading-edge advance would replay the fork's server capture. The row
     // holds no path, so the orchestrator gate must refuse it outright...
@@ -143,11 +143,11 @@ describe('live advance at the fork — scripted run over the generated flow', ()
 
     it(`answered fork (server row path, NO step climb — the Vapi case) enters ${laneEntry}`, () => {
       const { st, row } = runToFork();
-      // Vapi's submit_path_choice writes the path column server-side; GREATEST
-      // keeps current_step at 9, so the climb detector never fires. The fork
-      // must still advance off the replayed evidence alone.
+      // Vapi's submit_path_choice writes the path column server-side; its
+      // upsert leaves current_step untouched, so the climb detector never
+      // fires. The fork must still advance off the replayed evidence alone.
       const answered = { ...row, data: { ...row.data, path } };
-      expect(answered.current_step).toBe(9); // unchanged: no climb
+      expect(answered.current_step).toBe(1); // unchanged: no climb
       const cap = serverCaptureForBeat(forkNode(), answered.data as OnboardingStepData);
       expect(cap.path).toBe(path);
       expect(captureCompletesBeat(forkNode(), cap)).toBe(true);

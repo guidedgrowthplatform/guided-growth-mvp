@@ -10,8 +10,10 @@ import { resumeFromServerRow, serverCaptureForBeat } from '../useFlowOrchestrato
  * server row EXACTLY as the save path writes it (data merge + GREATEST on
  * current_step), and assert a fresh machine resumes onto the beat the user was
  * on. Derived from the generated flow so a beat reorder fails here instead of
- * shipping — persist steps run 1,6,7,8,2,3,4,5,5 in V3 flow order, so the row's
- * numeric step is NOT a position and resume must be data-evidence driven.
+ * shipping. Since the B47 reorder the persist scale is monotonic in flow order
+ * (1,2,3,4,5,5,6,7,8,9 on the beginner walk), but the GREATEST pins and the
+ * ladder's one-ahead seam still make the numeric step an identity label past
+ * the lanes, so resume stays data-evidence driven.
  */
 const flow = flowJson as unknown as FlowDocument;
 
@@ -136,16 +138,17 @@ const ALLOWED_FALLBACK: Record<string, string[]> = {
   'ONBOARD-AUTH--FORM': ['ONBOARD-AUTH--FORM'],
   'MIC-PERMISSION': ['ONBOARD-AUTH--FORM'],
   'ONBOARD-01--FORM': ['ONBOARD-AUTH--FORM'], // visited before its save lands: still no evidence
-  'ONBOARD-WHY-INTRO': ['ONBOARD-WHY-INTRO'],
-  // Entering state-check leaves no trace until its save lands, so a refresh
-  // there conservatively re-shows the why-intro display beat (never skips).
-  'ONBOARD-STATE-CHECK': ['ONBOARD-WHY-INTRO', 'ONBOARD-STATE-CHECK'],
-  'ONBOARD-COMPLETE': ['ONBOARD-BEGINNER-04', 'ONBOARD-ADVANCED-FREQUENCY'],
-  'ONBOARD-WEEKLY-PROJECTION-BLANK': ['ONBOARD-BEGINNER-04', 'ONBOARD-ADVANCED-FREQUENCY'],
-  'ONBOARD-WEEKLY-PROJECTION-FULL': ['ONBOARD-BEGINNER-04', 'ONBOARD-ADVANCED-FREQUENCY'],
-  'ONBOARD-WEEKLY-PROJECTION-P78': ['ONBOARD-BEGINNER-04', 'ONBOARD-ADVANCED-FREQUENCY'],
-  'ONBOARD-WEEKLY-PROJECTION-P36': ['ONBOARD-BEGINNER-04', 'ONBOARD-ADVANCED-FREQUENCY'],
-  'ONBOARD-WEEKLY-PROJECTION-GAPS': ['ONBOARD-BEGINNER-04', 'ONBOARD-ADVANCED-FREQUENCY'],
+  // Entering state-check (the merge beat) leaves no trace until its save lands
+  // and the schedule beat before it shares its field with habit-select, so a
+  // refresh there conservatively lands one back on the lane's schedule beat.
+  'ONBOARD-STATE-CHECK': ['ONBOARD-BEGINNER-04', 'ONBOARD-ADVANCED-FREQUENCY'],
+  // into-app is the display frontier once the setup block is saved; the
+  // projection frames after it carry no evidence, so a refresh there re-shows it.
+  'ONBOARD-WEEKLY-PROJECTION-BLANK': ['ONBOARD-COMPLETE'],
+  'ONBOARD-WEEKLY-PROJECTION-FULL': ['ONBOARD-COMPLETE'],
+  'ONBOARD-WEEKLY-PROJECTION-P78': ['ONBOARD-COMPLETE'],
+  'ONBOARD-WEEKLY-PROJECTION-P36': ['ONBOARD-COMPLETE'],
+  'ONBOARD-WEEKLY-PROJECTION-GAPS': ['ONBOARD-COMPLETE'],
 };
 
 describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
@@ -207,22 +210,22 @@ describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
     expect(getNode(flow, st.currentNodeId)?.screenId).toBe('ONBOARD-AUTH--FORM');
   });
 
-  it('R2: the guard lifts the moment any beat evidence exists (profile done → state-check)', () => {
-    // The consolidation seed merged why-intro into state-check, so the first
-    // beat after profile is the state check.
+  it('R2: the guard lifts the moment any beat evidence exists (profile done → fork)', () => {
+    // B47 reorder: the fork directly follows profile, so a row proving profile
+    // completion resumes onto the unanswered fork.
     const row: SimulatedRow = {
       current_step: 1,
       data: { nickname: 'Fable', age: 30, gender: 'Male' },
     };
-    expect(resumedScreenId(row)).toBe('ONBOARD-STATE-CHECK');
+    expect(resumedScreenId(row)).toBe('ONBOARD-FORK--FORM');
   });
 
-  it('B10: advance_step(2) after profile does not catapult past the pre-fork beats', () => {
+  it('B10/B47: advance_step(2) after profile lands on the fork, never past it', () => {
     const row: SimulatedRow = {
       current_step: 2,
       data: { nickname: 'Yonas', age: 30, gender: 'Male' },
     };
-    expect(resumedScreenId(row)).toBe('ONBOARD-STATE-CHECK');
+    expect(resumedScreenId(row)).toBe('ONBOARD-FORK--FORM');
   });
 
   it('fork with no path stops AT the fork (no fall-through to the merge node)', () => {

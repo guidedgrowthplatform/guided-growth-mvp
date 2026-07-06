@@ -199,362 +199,6 @@
       "opener": "Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?"
     },
     {
-      "id": "state-check",
-      "screenId": "ONBOARD-STATE-CHECK",
-      "componentType": "state-check",
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_state_check_1",
-              "label": "onboard_state_check_1",
-              "file": "/voice/ob/onboard_state_check_1.wav",
-              "transcript": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
-              "timing": "opener"
-            },
-            {
-              "id": "onboard_state_check_2",
-              "label": "onboard_state_check_2",
-              "file": "/voice/ob/onboard_state_check_2.wav",
-              "transcript": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-              "timing": "opener"
-            },
-            {
-              "id": "state_sleep",
-              "label": "state_sleep",
-              "file": "/voice/ob/state_sleep.wav",
-              "transcript": "How's your sleep?",
-              "elementId": "sleep",
-              "timing": "element"
-            },
-            {
-              "id": "state_mood",
-              "label": "state_mood",
-              "file": "/voice/ob/state_mood.wav",
-              "transcript": "How's your mood?",
-              "elementId": "mood",
-              "timing": "element"
-            },
-            {
-              "id": "state_energy",
-              "label": "state_energy",
-              "file": "/voice/ob/state_energy.wav",
-              "transcript": "How's your energy?",
-              "elementId": "energy",
-              "timing": "element"
-            },
-            {
-              "id": "state_stress",
-              "label": "state_stress",
-              "file": "/voice/ob/state_stress.wav",
-              "transcript": "How's your stress?",
-              "elementId": "stress",
-              "timing": "element"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-state-check-line-1",
-              "text": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process. Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_state_check_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "soniox",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["record_checkin", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": false,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "state-check",
-          "backId": "profile",
-          "persistStep": 6,
-          "pathField": false,
-          "captureFields": ["checkin"],
-          "toolName": "record_checkin",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["checkin"]
-        },
-        "authoring": {}
-      },
-      "coachContext": "BEAT: First state check, the first habit.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user does a check-in right now: mood, sleep, energy, stress, on the card. This is the first habit, started right now, not because it's morning. A voice-is-open affordance is on screen, so they can answer out loud or on the card. Save what they give. After they report, one short warm line, no advice, then move on to the time.\n\nDO NOT:\n- Read the four items back as numbers.\n- Give advice on what they reported. One warm line, then move on.",
-      "opener": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you."
-    },
-    {
-      "id": "morning-checkin-setup",
-      "screenId": "ONBOARD-MORNING-SETUP",
-      "componentType": "morning-checkin-setup",
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_morning_setup_1",
-              "label": "onboard_morning_setup_1",
-              "file": "/voice/ob/onboard_morning_setup_1.wav",
-              "transcript": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
-              "timing": "opener"
-            },
-            {
-              "id": "onboard_morning_setup_2",
-              "label": "onboard_morning_setup_2",
-              "file": "/voice/ob/onboard_morning_setup_2.wav",
-              "transcript": "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well.",
-              "timing": "opener"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-morning-setup-line-1",
-              "text": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_morning_setup_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["submit_morning_checkin", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "morning-checkin-setup",
-          "backId": "state-check",
-          "persistStep": 7,
-          "pathField": false,
-          "captureFields": ["morningCheckin"],
-          "toolName": "submit_morning_checkin",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["morningCheckin"]
-        },
-        "authoring": {}
-      },
-      "coachContext": "BEAT: Check-in time.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point isn't that it's morning, it's that this is their first habit and it's simple.",
-      "opener": "When do you want this each day? I'll nudge you then."
-    },
-    {
-      "id": "reflection-setup",
-      "screenId": "ONBOARD-BEGINNER-07",
-      "componentType": "reflection-card",
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_beginner_07_1",
-              "label": "onboard_beginner_07_1",
-              "file": "/voice/ob/onboard_beginner_07_1.wav",
-              "transcript": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
-              "timing": "opener"
-            },
-            {
-              "id": "reflect_proud",
-              "label": "reflect_proud",
-              "file": "/voice/ob/reflect_proud.wav",
-              "transcript": "What am I proud of?",
-              "elementId": "proud",
-              "timing": "element"
-            },
-            {
-              "id": "reflect_forgive",
-              "label": "reflect_forgive",
-              "file": "/voice/ob/reflect_forgive.wav",
-              "transcript": "What do I forgive myself for?",
-              "elementId": "forgive",
-              "timing": "element"
-            },
-            {
-              "id": "reflect_grateful",
-              "label": "reflect_grateful",
-              "file": "/voice/ob/reflect_grateful.wav",
-              "transcript": "What am I grateful for?",
-              "elementId": "grateful",
-              "timing": "element"
-            },
-            {
-              "id": "reflect_alt",
-              "label": "reflect_alt",
-              "file": "/voice/ob/reflect_alt.wav",
-              "transcript": "Or make your own, or just talk freely.",
-              "elementId": "alt",
-              "timing": "element"
-            },
-            {
-              "id": "reflect_time",
-              "label": "reflect_time",
-              "file": "/voice/ob/reflect_time.wav",
-              "transcript": "I'd recommend doing this before bed, maybe 15 minutes before you wind down.",
-              "elementId": "when",
-              "timing": "element"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-beginner-07-line-1",
-              "text": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_beginner_07_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["submit_reflection_config", "submit_custom_prompts", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "reflection-setup",
-          "backId": "morning-checkin-setup",
-          "persistStep": 8,
-          "pathField": false,
-          "captureFields": ["reflectionConfig"],
-          "toolName": "submit_reflection_config",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["reflectionConfig"]
-        },
-        "authoring": {}
-      },
-      "coachContext": "BEAT: Evening reflection setup.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nSet it up, don't perform it now. The user picks one style and a time, reminder on by default. The three styles are on the screen: suggested template, your template, freeform. Don't read them out. Ask which feels right and let them pick. If they resist, keep it light, it's two minutes a day.\n\nDO NOT:\n- Read the three styles out loud. They're on the screen.\n- Add coaching per style.\n- Make it feel like homework.",
-      "opener": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?"
-    },
-    {
-      "id": "weekly-day-setup",
-      "screenId": "ONBOARD-WEEKLY-SETUP",
-      "componentType": "weekly-day-picker",
-      "meta": {
-        "voiceOut": {
-          "engine": "cartesia",
-          "mode": "verbatim",
-          "lines": [
-            {
-              "id": "onboard-weekly-setup-line-1",
-              "text": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "cartesia"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "soniox",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["submit_weekly_config", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": false,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": false,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "weekly-day-setup",
-          "backId": "reflection-setup",
-          "persistStep": 9,
-          "pathField": false,
-          "captureFields": ["weeklyConfig"],
-          "toolName": "submit_weekly_config",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["weeklyConfig"]
-        },
-        "authoring": {}
-      },
-      "coachContext": "BEAT: The Weekly day.\n\nSet up The Weekly, the once-a-week session where you and the user look back over the whole week and plan the next one together. Your opener carries the pitch and is spoken as written. After it, recommend the day out loud, then let them choose.\n\nRecommend the evening before their work week starts:\n- If you are speaking Hebrew, that day is מוצ״ש (Saturday night). Say מוצ״ש, the natural Israeli word for it, not the formal motzaei Shabbat.\n- Otherwise, recommend Sunday night.\nFrame it as the evening before their week gets going, then ask if that works or if another day fits them better. The card already has that day preselected to match, so they can keep it or pick another.\n\nCapture the day with submit_weekly_config, then move on.\n\nDO NOT:\n- Read the seven days out loud. The card shows them.\n- Oversell. Opener, the day, let them choose, move on.\n- Let it be skipped silently. If they truly will not pick, set the recommended day and tell them they can change it later.",
-      "opener": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you."
-    },
-    {
       "id": "path-fork",
       "screenId": "ONBOARD-FORK--FORM",
       "componentType": "path-selection",
@@ -619,7 +263,7 @@
         },
         "engine": {
           "nodeId": "path-fork",
-          "backId": "weekly-day-setup",
+          "backId": "profile",
           "persistStep": 2,
           "pathField": true,
           "captureFields": ["path"],
@@ -1095,6 +739,362 @@
       "opener": "Now the days. Tell me how often each one runs and I'll fill them in."
     },
     {
+      "id": "state-check",
+      "screenId": "ONBOARD-STATE-CHECK",
+      "componentType": "state-check",
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_state_check_1",
+              "label": "onboard_state_check_1",
+              "file": "/voice/ob/onboard_state_check_1.wav",
+              "transcript": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+              "timing": "opener"
+            },
+            {
+              "id": "onboard_state_check_2",
+              "label": "onboard_state_check_2",
+              "file": "/voice/ob/onboard_state_check_2.wav",
+              "transcript": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
+              "timing": "opener"
+            },
+            {
+              "id": "state_sleep",
+              "label": "state_sleep",
+              "file": "/voice/ob/state_sleep.wav",
+              "transcript": "How's your sleep?",
+              "elementId": "sleep",
+              "timing": "element"
+            },
+            {
+              "id": "state_mood",
+              "label": "state_mood",
+              "file": "/voice/ob/state_mood.wav",
+              "transcript": "How's your mood?",
+              "elementId": "mood",
+              "timing": "element"
+            },
+            {
+              "id": "state_energy",
+              "label": "state_energy",
+              "file": "/voice/ob/state_energy.wav",
+              "transcript": "How's your energy?",
+              "elementId": "energy",
+              "timing": "element"
+            },
+            {
+              "id": "state_stress",
+              "label": "state_stress",
+              "file": "/voice/ob/state_stress.wav",
+              "transcript": "How's your stress?",
+              "elementId": "stress",
+              "timing": "element"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-state-check-line-1",
+              "text": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process. Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_state_check_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["record_checkin", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "state-check",
+          "backId": "profile",
+          "persistStep": 6,
+          "pathField": false,
+          "captureFields": ["checkin"],
+          "toolName": "record_checkin",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["checkin"]
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: First state check, the first habit.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user does a check-in right now: mood, sleep, energy, stress, on the card. This is the first habit, started right now, not because it's morning. A voice-is-open affordance is on screen, so they can answer out loud or on the card. Save what they give. After they report, one short warm line, no advice, then move on to the time.\n\nDO NOT:\n- Read the four items back as numbers.\n- Give advice on what they reported. One warm line, then move on.",
+      "opener": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you."
+    },
+    {
+      "id": "morning-checkin-setup",
+      "screenId": "ONBOARD-MORNING-SETUP",
+      "componentType": "morning-checkin-setup",
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_morning_setup_1",
+              "label": "onboard_morning_setup_1",
+              "file": "/voice/ob/onboard_morning_setup_1.wav",
+              "transcript": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+              "timing": "opener"
+            },
+            {
+              "id": "onboard_morning_setup_2",
+              "label": "onboard_morning_setup_2",
+              "file": "/voice/ob/onboard_morning_setup_2.wav",
+              "transcript": "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-morning-setup-line-1",
+              "text": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_morning_setup_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_morning_checkin", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "morning-checkin-setup",
+          "backId": "state-check",
+          "persistStep": 7,
+          "pathField": false,
+          "captureFields": ["morningCheckin"],
+          "toolName": "submit_morning_checkin",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["morningCheckin"]
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: Check-in time.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point isn't that it's morning, it's that this is their first habit and it's simple.",
+      "opener": "When do you want this each day? I'll nudge you then."
+    },
+    {
+      "id": "reflection-setup",
+      "screenId": "ONBOARD-BEGINNER-07",
+      "componentType": "reflection-card",
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_beginner_07_1",
+              "label": "onboard_beginner_07_1",
+              "file": "/voice/ob/onboard_beginner_07_1.wav",
+              "transcript": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+              "timing": "opener"
+            },
+            {
+              "id": "reflect_proud",
+              "label": "reflect_proud",
+              "file": "/voice/ob/reflect_proud.wav",
+              "transcript": "What am I proud of?",
+              "elementId": "proud",
+              "timing": "element"
+            },
+            {
+              "id": "reflect_forgive",
+              "label": "reflect_forgive",
+              "file": "/voice/ob/reflect_forgive.wav",
+              "transcript": "What do I forgive myself for?",
+              "elementId": "forgive",
+              "timing": "element"
+            },
+            {
+              "id": "reflect_grateful",
+              "label": "reflect_grateful",
+              "file": "/voice/ob/reflect_grateful.wav",
+              "transcript": "What am I grateful for?",
+              "elementId": "grateful",
+              "timing": "element"
+            },
+            {
+              "id": "reflect_alt",
+              "label": "reflect_alt",
+              "file": "/voice/ob/reflect_alt.wav",
+              "transcript": "Or make your own, or just talk freely.",
+              "elementId": "alt",
+              "timing": "element"
+            },
+            {
+              "id": "reflect_time",
+              "label": "reflect_time",
+              "file": "/voice/ob/reflect_time.wav",
+              "transcript": "I'd recommend doing this before bed, maybe 15 minutes before you wind down.",
+              "elementId": "when",
+              "timing": "element"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-07-line-1",
+              "text": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_beginner_07_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_reflection_config", "submit_custom_prompts", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "reflection-setup",
+          "backId": "morning-checkin-setup",
+          "persistStep": 8,
+          "pathField": false,
+          "captureFields": ["reflectionConfig"],
+          "toolName": "submit_reflection_config",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["reflectionConfig"]
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: Evening reflection setup.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nSet it up, don't perform it now. The user picks one style and a time, reminder on by default. The three styles are on the screen: suggested template, your template, freeform. Don't read them out. Ask which feels right and let them pick. If they resist, keep it light, it's two minutes a day.\n\nDO NOT:\n- Read the three styles out loud. They're on the screen.\n- Add coaching per style.\n- Make it feel like homework.",
+      "opener": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?"
+    },
+    {
+      "id": "weekly-day-setup",
+      "screenId": "ONBOARD-WEEKLY-SETUP",
+      "componentType": "weekly-day-picker",
+      "meta": {
+        "voiceOut": {
+          "engine": "cartesia",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "onboard-weekly-setup-line-1",
+              "text": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "cartesia"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_weekly_config", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-day-setup",
+          "backId": "reflection-setup",
+          "persistStep": 9,
+          "pathField": false,
+          "captureFields": ["weeklyConfig"],
+          "toolName": "submit_weekly_config",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["weeklyConfig"]
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: The Weekly day.\n\nSet up The Weekly, the once-a-week session where you and the user look back over the whole week and plan the next one together. Your opener carries the pitch and is spoken as written. After it, recommend the day out loud, then let them choose.\n\nRecommend the evening before their work week starts:\n- If you are speaking Hebrew, that day is מוצ״ש (Saturday night). Say מוצ״ש, the natural Israeli word for it, not the formal motzaei Shabbat.\n- Otherwise, recommend Sunday night.\nFrame it as the evening before their week gets going, then ask if that works or if another day fits them better. The card already has that day preselected to match, so they can keep it or pick another.\n\nCapture the day with submit_weekly_config, then move on.\n\nDO NOT:\n- Read the seven days out loud. The card shows them.\n- Oversell. Opener, the day, let them choose, move on.\n- Let it be skipped silently. If they truly will not pick, set the recommended day and tell them they can change it later.",
+      "opener": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you."
+    },
+    {
       "id": "into-app",
       "screenId": "ONBOARD-COMPLETE",
       "componentType": "into-app",
@@ -1561,8 +1561,8 @@
         },
         "authoring": {}
       },
-      "coachContext": null,
-      "opener": null
+      "coachContext": "BEAT: Create your own goal.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user chose to name their own goal instead of picking from the list. Collect one short goal name in their words, save it with submit_goals, and move on. If they describe it at length, reflect back a short name and confirm in one line. One goal here, no more.\n\nDO NOT:\n- Suggest goals from the list. They came here to write their own.\n- Rewrite or polish their wording beyond a short, usable name.\n- Coach on the goal's merit. Save it and keep moving.",
+      "opener": "Tell me the goal you want to add, and I'll set it up."
     },
     {
       "id": "habit-custom",
@@ -1629,8 +1629,8 @@
         },
         "authoring": {}
       },
-      "coachContext": null,
-      "opener": null
+      "coachContext": "BEAT: Create your own habit.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user chose to name their own habit instead of picking from the list. Collect one short habit name in their words, save it with add_habit, and move on. If they describe it at length, reflect back a short name and confirm in one line. One habit here, no more.\n\nDO NOT:\n- Suggest habits from the list. They came here to write their own.\n- Rewrite or polish their wording beyond a short, usable name.\n- Coach on the habit's merit or add motivation. Save it and keep moving.",
+      "opener": "Tell me the habit you want to add, and I'll set it up."
     }
   ]
 }

@@ -166,7 +166,7 @@
       "beatNumber": 1,
       "name": "Profile",
       "screenId": "ONBOARD-01--FORM",
-      "nextId": "state-check",
+      "nextId": "path-fork",
       "backId": "mic",
       "context": {
         "screenId": "ONBOARD-01--FORM",
@@ -269,13 +269,845 @@
       }
     },
     {
+      "id": "path-fork",
+      "type": "branch",
+      "name": "Path Fork",
+      "screenId": "ONBOARD-FORK--FORM",
+      "condition": {
+        "source": "answers.path",
+        "type": "enum-match"
+      },
+      "lanes": [
+        {
+          "value": "simple",
+          "label": "Beginner",
+          "entryNodeId": "category",
+          "exitNodeId": "habit-schedule"
+        },
+        {
+          "value": "braindump",
+          "label": "Advanced",
+          "entryNodeId": "advanced-input",
+          "exitNodeId": "advanced-frequency"
+        }
+      ],
+      "mergeNodeId": "state-check",
+      "context": {
+        "screenId": "ONBOARD-FORK--FORM",
+        "screenName": "Path Choice",
+        "contextBlock": "Ask how they like to work: you can guide them step by step, or they can tell you everything on their mind and you organize it. Record their choice and continue. Do not explain the difference unless they ask."
+      },
+      "componentType": "path-selection",
+      "componentProps": {
+        "bindsTo": "path",
+        "options": [
+          {
+            "value": "simple",
+            "label": "I'm new to habit tracking",
+            "description": "I'll help you step by step"
+          },
+          {
+            "value": "braindump",
+            "label": "I already have experience",
+            "description": "Tell me your habits and I'll organize them"
+          }
+        ]
+      },
+      "voice": {
+        "openerText": "For the next part of the process, I'd like to know:",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_fork_form_1",
+              "label": "onboard_fork_form_1",
+              "file": "/voice/ob/onboard_fork_form_1.wav",
+              "transcript": "For the next part of the process, I'd like to know:",
+              "timing": "opener"
+            },
+            {
+              "id": "fork_question",
+              "label": "fork_question",
+              "file": "/voice/ob/fork_question.wav",
+              "transcript": "Do you already track habits or is this new to you?",
+              "elementId": "question",
+              "timing": "element"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-fork-form-line-1",
+              "text": "For the next part of the process, I'd like to know:",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_fork_form_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_path_choice", "ask_clarification", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "path-fork",
+          "backId": "profile",
+          "persistStep": 2,
+          "pathField": true,
+          "captureFields": ["path"],
+          "toolName": "submit_path_choice",
+          "toolAdvancesStep": false,
+          "toolPersistsFields": ["path"]
+        },
+        "authoring": {}
+      },
+      "tool": {
+        "toolName": "submit_path_choice",
+        "persistsFields": ["path"],
+        "advancesStep": false
+      },
+      "persist": {
+        "step": 2,
+        "pathField": true
+      },
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "For the next part of the process, I'd like to know:",
+          "clip": "onboard_fork_form_1"
+        },
+        {
+          "kind": "reveal",
+          "n": 1,
+          "say": "Do you already track habits or is this new to you?",
+          "clip": "fork_question"
+        },
+        {
+          "kind": "reveal",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "id": "category",
+      "type": "beat",
+      "beatNumber": 4,
+      "name": "Focus Area",
+      "screenId": "ONBOARD-BEGINNER-01",
+      "nextId": "goals",
+      "backId": "path-fork",
+      "context": {
+        "screenId": "ONBOARD-BEGINNER-01",
+        "screenName": "Focus Area",
+        "contextBlock": "The user picks one life area to focus on first. React to the one they choose, specifically. Do not pick for them."
+      },
+      "componentType": "category-grid",
+      "componentProps": {
+        "maxSelections": 1,
+        "optionSource": "categories"
+      },
+      "voice": {
+        "openerText": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_beginner_01_1",
+              "label": "onboard_beginner_01_1",
+              "file": "/voice/ob/onboard_beginner_01_1.wav",
+              "transcript": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+              "timing": "opener"
+            },
+            {
+              "id": "create_your_own",
+              "label": "create_your_own",
+              "file": "/voice/ob/create_your_own.wav",
+              "transcript": "Or you can create your own.",
+              "elementId": "createOwn",
+              "timing": "element"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-01-line-1",
+              "text": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_beginner_01_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_category", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "category",
+          "backId": "path-fork",
+          "persistStep": 3,
+          "pathField": false,
+          "captureFields": ["category"],
+          "toolName": "submit_category",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["category"],
+          "maxSelections": 1,
+          "optionSource": "categories"
+        },
+        "authoring": {}
+      },
+      "tool": {
+        "toolName": "submit_category",
+        "persistsFields": ["category"],
+        "advancesStep": true
+      },
+      "persist": {
+        "step": 3
+      },
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+          "clip": "onboard_beginner_01_1"
+        },
+        {
+          "kind": "reveal",
+          "n": 8
+        },
+        {
+          "kind": "reveal",
+          "n": 9,
+          "say": "Or you can create your own.",
+          "clip": "create_your_own"
+        }
+      ]
+    },
+    {
+      "id": "goals",
+      "type": "beat",
+      "beatNumber": 5,
+      "name": "Goals",
+      "screenId": "ONBOARD-BEGINNER-02",
+      "nextId": "habit-select",
+      "backId": "category",
+      "context": {
+        "screenId": "ONBOARD-BEGINNER-02",
+        "screenName": "Goals",
+        "contextBlock": "Narrow the focus area into one or two specific goals. Keep it to two at most so they are not overwhelmed."
+      },
+      "componentType": "goals-list",
+      "componentProps": {
+        "maxSelections": 2,
+        "optionSource": "goalsByCategory"
+      },
+      "voice": {
+        "openerText": "So within that, which goals would you like to start with? Pick one or two.",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_beginner_02_1",
+              "label": "onboard_beginner_02_1",
+              "file": "/voice/ob/onboard_beginner_02_1.wav",
+              "transcript": "So within that, which goals would you like to start with? Pick one or two.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-02-line-1",
+              "text": "So within that, which goals would you like to start with? Pick one or two.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_beginner_02_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_goals", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "goals",
+          "backId": "category",
+          "persistStep": 4,
+          "pathField": false,
+          "captureFields": ["goals"],
+          "toolName": "submit_goals",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["goals"],
+          "maxSelections": 2,
+          "optionSource": "goalsByCategory"
+        },
+        "authoring": {}
+      },
+      "tool": {
+        "toolName": "submit_goals",
+        "persistsFields": ["goals"],
+        "advancesStep": true
+      },
+      "persist": {
+        "step": 4
+      }
+    },
+    {
+      "id": "habit-select",
+      "type": "beat",
+      "beatNumber": 6,
+      "name": "Habit Selection",
+      "screenId": "ONBOARD-BEGINNER-03",
+      "nextId": "habit-schedule",
+      "backId": "goals",
+      "context": {
+        "screenId": "ONBOARD-BEGINNER-03",
+        "screenName": "Habit Selection",
+        "contextBlock": "Help them pick up to two small daily habits to start with. Small and doable beats ambitious. They can always add more later."
+      },
+      "componentType": "habit-picker",
+      "componentProps": {
+        "maxPerGoal": 2,
+        "optionSource": "habitsByGoal"
+      },
+      "voice": {
+        "openerText": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_beginner_03_1",
+              "label": "onboard_beginner_03_1",
+              "file": "/voice/ob/onboard_beginner_03_1.wav",
+              "transcript": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-03-line-1",
+              "text": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_beginner_03_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["add_habit", "remove_habit", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "habit-select",
+          "backId": "goals",
+          "persistStep": 5,
+          "pathField": false,
+          "captureFields": ["habitConfigs"],
+          "toolName": "add_habit",
+          "toolAdvancesStep": false,
+          "toolPersistsFields": ["habits"],
+          "maxSelections": 2,
+          "optionSource": "habitsByGoal"
+        },
+        "authoring": {}
+      },
+      "tool": {
+        "toolName": "add_habit",
+        "persistsFields": ["habits"],
+        "advancesStep": false
+      },
+      "persist": {
+        "step": 5
+      }
+    },
+    {
+      "id": "habit-schedule",
+      "type": "beat",
+      "beatNumber": 7,
+      "name": "Habit Schedule",
+      "screenId": "ONBOARD-BEGINNER-04",
+      "nextId": "state-check",
+      "backId": "habit-select",
+      "context": {
+        "screenId": "ONBOARD-BEGINNER-04",
+        "screenName": "Habit Schedule",
+        "contextBlock": "For each habit they chose, set when they will do it: a time, which days, and whether they want a reminder. Parse combined answers when you can. Ask only for the piece that is missing."
+      },
+      "componentType": "habit-schedule",
+      "componentProps": {
+        "showDayPicker": true,
+        "showReminderToggle": true
+      },
+      "voice": {
+        "openerText": "Please set the days that you're going to actually do these habits.",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_beginner_04_1",
+              "label": "onboard_beginner_04_1",
+              "file": "/voice/ob/onboard_beginner_04_1.wav",
+              "transcript": "Please set the days that you're going to actually do these habits.",
+              "timing": "opener"
+            },
+            {
+              "id": "onboard_beginner_04_2",
+              "label": "onboard_beginner_04_2",
+              "file": "/voice/ob/onboard_beginner_04_2.wav",
+              "transcript": "Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-04-line-1",
+              "text": "Please set the days that you're going to actually do these habits.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_beginner_04_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["add_habit", "update_habit", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": true,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "habit-schedule",
+          "backId": "habit-select",
+          "persistStep": 5,
+          "pathField": false,
+          "captureFields": ["habitConfigs"],
+          "toolName": "update_habit",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["habitConfigs"]
+        },
+        "authoring": {}
+      },
+      "tool": {
+        "toolName": "update_habit",
+        "persistsFields": ["habitConfigs"],
+        "advancesStep": true
+      },
+      "persist": {
+        "step": 5
+      },
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "Please set the days that you're going to actually do these habits.",
+          "clip": "onboard_beginner_04_1"
+        },
+        {
+          "kind": "bubble",
+          "n": 2,
+          "say": "Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.",
+          "clip": "onboard_beginner_04_2"
+        },
+        {
+          "kind": "reveal",
+          "n": 99
+        }
+      ]
+    },
+    {
+      "id": "advanced-input",
+      "type": "beat",
+      "beatNumber": 4,
+      "name": "Brain Dump (Advanced)",
+      "screenId": "ONBOARD-ADVANCED",
+      "nextId": "advanced-frequency",
+      "backId": "path-fork",
+      "context": {
+        "screenId": "ONBOARD-ADVANCED",
+        "screenName": "Brain Dump",
+        "contextBlock": "The user wants to tell you everything on their mind at once. Let them. Listen for the habits and goals inside it; do not interrupt with structure yet."
+      },
+      "componentType": "advanced-capture",
+      "componentProps": {
+        "brainDump": true,
+        "placeholder": "Tell me everything on your mind, what you want to build, drop, or change."
+      },
+      "voice": {
+        "openerText": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_advanced_1",
+              "label": "onboard_advanced_1",
+              "file": "/voice/ob/onboard_advanced_1.wav",
+              "transcript": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+              "timing": "opener"
+            },
+            {
+              "id": "close",
+              "label": "close",
+              "file": "/voice/ob/close.wav",
+              "transcript": "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
+              "timing": "close"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-advanced-line-1",
+              "text": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_advanced_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_brain_dump", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": true,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "advanced-input",
+          "backId": "path-fork",
+          "persistStep": 3,
+          "pathField": false,
+          "captureFields": ["brainDumpText", "brainDumpHabits"],
+          "toolName": "submit_brain_dump",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["brainDumpText"]
+        },
+        "authoring": {}
+      },
+      "tool": {
+        "toolName": "submit_brain_dump",
+        "persistsFields": ["brainDumpText"],
+        "advancesStep": true
+      },
+      "persist": {
+        "step": 3
+      },
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+          "clip": "onboard_advanced_1"
+        },
+        {
+          "kind": "close",
+          "n": 1,
+          "say": "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
+          "clip": "close"
+        }
+      ]
+    },
+    {
+      "id": "advanced-frequency",
+      "type": "beat",
+      "beatNumber": 5,
+      "name": "Habit Days (Advanced)",
+      "screenId": "ONBOARD-ADVANCED-FREQUENCY",
+      "nextId": "state-check",
+      "backId": "advanced-input",
+      "context": {
+        "screenId": "ONBOARD-ADVANCED-FREQUENCY",
+        "screenName": "Habit Days",
+        "contextBlock": "For each habit in the braindump, set how often it runs. Parse spoken answers when you can. Ask only for missing pieces."
+      },
+      "componentType": "advanced-frequency",
+      "componentProps": {},
+      "voice": {
+        "openerText": "Please set the days that you're going to actually do these habits.",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_beginner_04_1",
+              "label": "onboard_beginner_04_1",
+              "file": "/voice/ob/onboard_beginner_04_1.wav",
+              "transcript": "Please set the days that you're going to actually do these habits.",
+              "timing": "opener"
+            },
+            {
+              "id": "onboard_advanced_frequency_1",
+              "label": "onboard_advanced_frequency_1",
+              "file": "/voice/ob/onboard_advanced_frequency_1.wav",
+              "transcript": "Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.",
+              "timing": "opener"
+            },
+            {
+              "id": "onboard_advanced_frequency_2",
+              "label": "onboard_advanced_frequency_2",
+              "file": "/voice/ob/onboard_advanced_frequency_2.wav",
+              "transcript": "Your habits are all set, your plan is ready.",
+              "timing": "close"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-advanced-frequency-line-1",
+              "text": "Please set the days that you're going to actually do these habits.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_beginner_04_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["add_habit", "update_habit", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "advanced-frequency",
+          "backId": "advanced-input",
+          "persistStep": 4,
+          "pathField": false,
+          "captureFields": ["habitConfigs"],
+          "toolName": "update_habit",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["habitConfigs"]
+        },
+        "authoring": {}
+      },
+      "tool": {
+        "toolName": "update_habit",
+        "persistsFields": ["habitConfigs"],
+        "advancesStep": true
+      },
+      "persist": {
+        "step": 4
+      },
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "Please set the days that you're going to actually do these habits.",
+          "clip": "onboard_beginner_04_1"
+        },
+        {
+          "kind": "bubble",
+          "n": 2,
+          "say": "Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.",
+          "clip": "onboard_advanced_frequency_1"
+        },
+        {
+          "kind": "reveal",
+          "n": 99
+        },
+        {
+          "kind": "close",
+          "n": 1,
+          "say": "Your habits are all set, your plan is ready.",
+          "clip": "onboard_advanced_frequency_2"
+        }
+      ]
+    },
+    {
       "id": "state-check",
       "type": "beat",
       "beatNumber": 2,
       "name": "First State Check",
       "screenId": "ONBOARD-STATE-CHECK",
       "nextId": "morning-checkin-setup",
-      "backId": "profile",
+      "backId": null,
       "context": {
         "screenId": "ONBOARD-STATE-CHECK",
         "screenName": "First State Check",
@@ -753,7 +1585,7 @@
       "beatNumber": 3,
       "name": "The Weekly Day",
       "screenId": "ONBOARD-WEEKLY-SETUP",
-      "nextId": "path-fork",
+      "nextId": "into-app",
       "backId": "reflection-setup",
       "context": {
         "screenId": "ONBOARD-WEEKLY-SETUP",
@@ -828,838 +1660,6 @@
       "persist": {
         "step": 9
       }
-    },
-    {
-      "id": "path-fork",
-      "type": "branch",
-      "name": "Path Fork",
-      "screenId": "ONBOARD-FORK--FORM",
-      "condition": {
-        "source": "answers.path",
-        "type": "enum-match"
-      },
-      "lanes": [
-        {
-          "value": "simple",
-          "label": "Beginner",
-          "entryNodeId": "category",
-          "exitNodeId": "habit-schedule"
-        },
-        {
-          "value": "braindump",
-          "label": "Advanced",
-          "entryNodeId": "advanced-input",
-          "exitNodeId": "advanced-frequency"
-        }
-      ],
-      "mergeNodeId": "into-app",
-      "context": {
-        "screenId": "ONBOARD-FORK--FORM",
-        "screenName": "Path Choice",
-        "contextBlock": "Ask how they like to work: you can guide them step by step, or they can tell you everything on their mind and you organize it. Record their choice and continue. Do not explain the difference unless they ask."
-      },
-      "componentType": "path-selection",
-      "componentProps": {
-        "bindsTo": "path",
-        "options": [
-          {
-            "value": "simple",
-            "label": "I'm new to habit tracking",
-            "description": "I'll help you step by step"
-          },
-          {
-            "value": "braindump",
-            "label": "I already have experience",
-            "description": "Tell me your habits and I'll organize them"
-          }
-        ]
-      },
-      "voice": {
-        "openerText": "For the next part of the process, I'd like to know:",
-        "expectsInput": true,
-        "directLlmAllowed": true
-      },
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_fork_form_1",
-              "label": "onboard_fork_form_1",
-              "file": "/voice/ob/onboard_fork_form_1.wav",
-              "transcript": "For the next part of the process, I'd like to know:",
-              "timing": "opener"
-            },
-            {
-              "id": "fork_question",
-              "label": "fork_question",
-              "file": "/voice/ob/fork_question.wav",
-              "transcript": "Do you already track habits or is this new to you?",
-              "elementId": "question",
-              "timing": "element"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-fork-form-line-1",
-              "text": "For the next part of the process, I'd like to know:",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_fork_form_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["submit_path_choice", "ask_clarification", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "path-fork",
-          "backId": "weekly-day-setup",
-          "persistStep": 2,
-          "pathField": true,
-          "captureFields": ["path"],
-          "toolName": "submit_path_choice",
-          "toolAdvancesStep": false,
-          "toolPersistsFields": ["path"]
-        },
-        "authoring": {}
-      },
-      "tool": {
-        "toolName": "submit_path_choice",
-        "persistsFields": ["path"],
-        "advancesStep": false
-      },
-      "persist": {
-        "step": 2,
-        "pathField": true
-      },
-      "narration": [
-        {
-          "kind": "bubble",
-          "n": 1,
-          "say": "For the next part of the process, I'd like to know:",
-          "clip": "onboard_fork_form_1"
-        },
-        {
-          "kind": "reveal",
-          "n": 1,
-          "say": "Do you already track habits or is this new to you?",
-          "clip": "fork_question"
-        },
-        {
-          "kind": "reveal",
-          "n": 2
-        }
-      ]
-    },
-    {
-      "id": "category",
-      "type": "beat",
-      "beatNumber": 4,
-      "name": "Focus Area",
-      "screenId": "ONBOARD-BEGINNER-01",
-      "nextId": "goals",
-      "backId": "path-fork",
-      "context": {
-        "screenId": "ONBOARD-BEGINNER-01",
-        "screenName": "Focus Area",
-        "contextBlock": "The user picks one life area to focus on first. React to the one they choose, specifically. Do not pick for them."
-      },
-      "componentType": "category-grid",
-      "componentProps": {
-        "maxSelections": 1,
-        "optionSource": "categories"
-      },
-      "voice": {
-        "openerText": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-        "expectsInput": true,
-        "directLlmAllowed": true
-      },
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_beginner_01_1",
-              "label": "onboard_beginner_01_1",
-              "file": "/voice/ob/onboard_beginner_01_1.wav",
-              "transcript": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-              "timing": "opener"
-            },
-            {
-              "id": "create_your_own",
-              "label": "create_your_own",
-              "file": "/voice/ob/create_your_own.wav",
-              "transcript": "Or you can create your own.",
-              "elementId": "createOwn",
-              "timing": "element"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-beginner-01-line-1",
-              "text": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_beginner_01_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["submit_category", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "category",
-          "backId": "path-fork",
-          "persistStep": 3,
-          "pathField": false,
-          "captureFields": ["category"],
-          "toolName": "submit_category",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["category"],
-          "maxSelections": 1,
-          "optionSource": "categories"
-        },
-        "authoring": {}
-      },
-      "tool": {
-        "toolName": "submit_category",
-        "persistsFields": ["category"],
-        "advancesStep": true
-      },
-      "persist": {
-        "step": 3
-      },
-      "narration": [
-        {
-          "kind": "bubble",
-          "n": 1,
-          "say": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-          "clip": "onboard_beginner_01_1"
-        },
-        {
-          "kind": "reveal",
-          "n": 8
-        },
-        {
-          "kind": "reveal",
-          "n": 9,
-          "say": "Or you can create your own.",
-          "clip": "create_your_own"
-        }
-      ]
-    },
-    {
-      "id": "goals",
-      "type": "beat",
-      "beatNumber": 5,
-      "name": "Goals",
-      "screenId": "ONBOARD-BEGINNER-02",
-      "nextId": "habit-select",
-      "backId": "category",
-      "context": {
-        "screenId": "ONBOARD-BEGINNER-02",
-        "screenName": "Goals",
-        "contextBlock": "Narrow the focus area into one or two specific goals. Keep it to two at most so they are not overwhelmed."
-      },
-      "componentType": "goals-list",
-      "componentProps": {
-        "maxSelections": 2,
-        "optionSource": "goalsByCategory"
-      },
-      "voice": {
-        "openerText": "So within that, which goals would you like to start with? Pick one or two.",
-        "expectsInput": true,
-        "directLlmAllowed": true
-      },
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_beginner_02_1",
-              "label": "onboard_beginner_02_1",
-              "file": "/voice/ob/onboard_beginner_02_1.wav",
-              "transcript": "So within that, which goals would you like to start with? Pick one or two.",
-              "timing": "opener"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-beginner-02-line-1",
-              "text": "So within that, which goals would you like to start with? Pick one or two.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_beginner_02_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["submit_goals", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "goals",
-          "backId": "category",
-          "persistStep": 4,
-          "pathField": false,
-          "captureFields": ["goals"],
-          "toolName": "submit_goals",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["goals"],
-          "maxSelections": 2,
-          "optionSource": "goalsByCategory"
-        },
-        "authoring": {}
-      },
-      "tool": {
-        "toolName": "submit_goals",
-        "persistsFields": ["goals"],
-        "advancesStep": true
-      },
-      "persist": {
-        "step": 4
-      }
-    },
-    {
-      "id": "habit-select",
-      "type": "beat",
-      "beatNumber": 6,
-      "name": "Habit Selection",
-      "screenId": "ONBOARD-BEGINNER-03",
-      "nextId": "habit-schedule",
-      "backId": "goals",
-      "context": {
-        "screenId": "ONBOARD-BEGINNER-03",
-        "screenName": "Habit Selection",
-        "contextBlock": "Help them pick up to two small daily habits to start with. Small and doable beats ambitious. They can always add more later."
-      },
-      "componentType": "habit-picker",
-      "componentProps": {
-        "maxPerGoal": 2,
-        "optionSource": "habitsByGoal"
-      },
-      "voice": {
-        "openerText": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
-        "expectsInput": true,
-        "directLlmAllowed": true
-      },
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_beginner_03_1",
-              "label": "onboard_beginner_03_1",
-              "file": "/voice/ob/onboard_beginner_03_1.wav",
-              "transcript": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
-              "timing": "opener"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-beginner-03-line-1",
-              "text": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_beginner_03_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["add_habit", "remove_habit", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "habit-select",
-          "backId": "goals",
-          "persistStep": 5,
-          "pathField": false,
-          "captureFields": ["habitConfigs"],
-          "toolName": "add_habit",
-          "toolAdvancesStep": false,
-          "toolPersistsFields": ["habits"],
-          "maxSelections": 2,
-          "optionSource": "habitsByGoal"
-        },
-        "authoring": {}
-      },
-      "tool": {
-        "toolName": "add_habit",
-        "persistsFields": ["habits"],
-        "advancesStep": false
-      },
-      "persist": {
-        "step": 5
-      }
-    },
-    {
-      "id": "habit-schedule",
-      "type": "beat",
-      "beatNumber": 7,
-      "name": "Habit Schedule",
-      "screenId": "ONBOARD-BEGINNER-04",
-      "nextId": "into-app",
-      "backId": "habit-select",
-      "context": {
-        "screenId": "ONBOARD-BEGINNER-04",
-        "screenName": "Habit Schedule",
-        "contextBlock": "For each habit they chose, set when they will do it: a time, which days, and whether they want a reminder. Parse combined answers when you can. Ask only for the piece that is missing."
-      },
-      "componentType": "habit-schedule",
-      "componentProps": {
-        "showDayPicker": true,
-        "showReminderToggle": true
-      },
-      "voice": {
-        "openerText": "Please set the days that you're going to actually do these habits.",
-        "expectsInput": true,
-        "directLlmAllowed": true
-      },
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_beginner_04_1",
-              "label": "onboard_beginner_04_1",
-              "file": "/voice/ob/onboard_beginner_04_1.wav",
-              "transcript": "Please set the days that you're going to actually do these habits.",
-              "timing": "opener"
-            },
-            {
-              "id": "onboard_beginner_04_2",
-              "label": "onboard_beginner_04_2",
-              "file": "/voice/ob/onboard_beginner_04_2.wav",
-              "transcript": "Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.",
-              "timing": "opener"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-beginner-04-line-1",
-              "text": "Please set the days that you're going to actually do these habits.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_beginner_04_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["add_habit", "update_habit", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": true,
-          "continueVapiAfterMp3": true,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "habit-schedule",
-          "backId": "habit-select",
-          "persistStep": 5,
-          "pathField": false,
-          "captureFields": ["habitConfigs"],
-          "toolName": "update_habit",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["habitConfigs"]
-        },
-        "authoring": {}
-      },
-      "tool": {
-        "toolName": "update_habit",
-        "persistsFields": ["habitConfigs"],
-        "advancesStep": true
-      },
-      "persist": {
-        "step": 5
-      },
-      "narration": [
-        {
-          "kind": "bubble",
-          "n": 1,
-          "say": "Please set the days that you're going to actually do these habits.",
-          "clip": "onboard_beginner_04_1"
-        },
-        {
-          "kind": "bubble",
-          "n": 2,
-          "say": "Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.",
-          "clip": "onboard_beginner_04_2"
-        },
-        {
-          "kind": "reveal",
-          "n": 99
-        }
-      ]
-    },
-    {
-      "id": "advanced-input",
-      "type": "beat",
-      "beatNumber": 4,
-      "name": "Brain Dump (Advanced)",
-      "screenId": "ONBOARD-ADVANCED",
-      "nextId": "advanced-frequency",
-      "backId": "path-fork",
-      "context": {
-        "screenId": "ONBOARD-ADVANCED",
-        "screenName": "Brain Dump",
-        "contextBlock": "The user wants to tell you everything on their mind at once. Let them. Listen for the habits and goals inside it; do not interrupt with structure yet."
-      },
-      "componentType": "advanced-capture",
-      "componentProps": {
-        "brainDump": true,
-        "placeholder": "Tell me everything on your mind, what you want to build, drop, or change."
-      },
-      "voice": {
-        "openerText": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
-        "expectsInput": true,
-        "directLlmAllowed": true
-      },
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_advanced_1",
-              "label": "onboard_advanced_1",
-              "file": "/voice/ob/onboard_advanced_1.wav",
-              "transcript": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
-              "timing": "opener"
-            },
-            {
-              "id": "close",
-              "label": "close",
-              "file": "/voice/ob/close.wav",
-              "transcript": "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
-              "timing": "close"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-advanced-line-1",
-              "text": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_advanced_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["submit_brain_dump", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": true,
-          "continueVapiAfterMp3": true,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "advanced-input",
-          "backId": "path-fork",
-          "persistStep": 3,
-          "pathField": false,
-          "captureFields": ["brainDumpText", "brainDumpHabits"],
-          "toolName": "submit_brain_dump",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["brainDumpText"]
-        },
-        "authoring": {}
-      },
-      "tool": {
-        "toolName": "submit_brain_dump",
-        "persistsFields": ["brainDumpText"],
-        "advancesStep": true
-      },
-      "persist": {
-        "step": 3
-      },
-      "narration": [
-        {
-          "kind": "bubble",
-          "n": 1,
-          "say": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
-          "clip": "onboard_advanced_1"
-        },
-        {
-          "kind": "close",
-          "n": 1,
-          "say": "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
-          "clip": "close"
-        }
-      ]
-    },
-    {
-      "id": "advanced-frequency",
-      "type": "beat",
-      "beatNumber": 5,
-      "name": "Habit Days (Advanced)",
-      "screenId": "ONBOARD-ADVANCED-FREQUENCY",
-      "nextId": "into-app",
-      "backId": "advanced-input",
-      "context": {
-        "screenId": "ONBOARD-ADVANCED-FREQUENCY",
-        "screenName": "Habit Days",
-        "contextBlock": "For each habit in the braindump, set how often it runs. Parse spoken answers when you can. Ask only for missing pieces."
-      },
-      "componentType": "advanced-frequency",
-      "componentProps": {},
-      "voice": {
-        "openerText": "Please set the days that you're going to actually do these habits.",
-        "expectsInput": true,
-        "directLlmAllowed": true
-      },
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_beginner_04_1",
-              "label": "onboard_beginner_04_1",
-              "file": "/voice/ob/onboard_beginner_04_1.wav",
-              "transcript": "Please set the days that you're going to actually do these habits.",
-              "timing": "opener"
-            },
-            {
-              "id": "onboard_advanced_frequency_1",
-              "label": "onboard_advanced_frequency_1",
-              "file": "/voice/ob/onboard_advanced_frequency_1.wav",
-              "transcript": "Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.",
-              "timing": "opener"
-            },
-            {
-              "id": "onboard_advanced_frequency_2",
-              "label": "onboard_advanced_frequency_2",
-              "file": "/voice/ob/onboard_advanced_frequency_2.wav",
-              "transcript": "Your habits are all set, your plan is ready.",
-              "timing": "close"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-advanced-frequency-line-1",
-              "text": "Please set the days that you're going to actually do these habits.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_beginner_04_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "soniox",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["add_habit", "update_habit", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": false,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "advanced-frequency",
-          "backId": "advanced-input",
-          "persistStep": 4,
-          "pathField": false,
-          "captureFields": ["habitConfigs"],
-          "toolName": "update_habit",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["habitConfigs"]
-        },
-        "authoring": {}
-      },
-      "tool": {
-        "toolName": "update_habit",
-        "persistsFields": ["habitConfigs"],
-        "advancesStep": true
-      },
-      "persist": {
-        "step": 4
-      },
-      "narration": [
-        {
-          "kind": "bubble",
-          "n": 1,
-          "say": "Please set the days that you're going to actually do these habits.",
-          "clip": "onboard_beginner_04_1"
-        },
-        {
-          "kind": "bubble",
-          "n": 2,
-          "say": "Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.",
-          "clip": "onboard_advanced_frequency_1"
-        },
-        {
-          "kind": "reveal",
-          "n": 99
-        },
-        {
-          "kind": "close",
-          "n": 1,
-          "say": "Your habits are all set, your plan is ready.",
-          "clip": "onboard_advanced_frequency_2"
-        }
-      ]
     },
     {
       "id": "into-app",
