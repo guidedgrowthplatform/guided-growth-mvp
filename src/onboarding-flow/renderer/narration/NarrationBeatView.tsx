@@ -111,7 +111,12 @@ export function NarrationBeatView({
   const mp3Assets = node.meta?.voiceOut?.mp3Assets;
   const clipSrc = active?.clip ? narrationClipSrc(active.clip, mp3Assets) : null;
   const wordTotal = say ? countWords(say) : 0;
-  const audio = useBeatOpenerMp3(clipSrc, !!clipSrc, wordTotal);
+  // B40: claim this beat's audio (beatAudioOwner) for every segment. A repeat
+  // claim by this same owner is allowed (segments advancing within one beat
+  // re-claim cleanly); a stray legacy opener or sendOpener-speech activation
+  // on the same beat backs off instead of playing over the narration script.
+  const narrationOwnership = { beatId: node.screenId, owner: 'narration-driver' as const };
+  const audio = useBeatOpenerMp3(clipSrc, !!clipSrc, wordTotal, narrationOwnership);
 
   // Advance on the segment's terminal condition: audio settled (clip segments,
   // after a breath) or the text-cadence dwell (clip-less segments). Keying on

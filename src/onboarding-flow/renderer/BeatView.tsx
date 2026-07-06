@@ -13,11 +13,12 @@
  * its own state, voice capture, and save path. This view only changes how the
  * beat is presented (reveal timing + karaoke + the frozen/summary past state).
  */
-import { useCallback, useLayoutEffect } from 'react';
+import { useCallback, useEffect, useLayoutEffect } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { CHAT_VAPI_BEAT_SCREENS, LOCAL_CAPTURE_BEATS } from '@/lib/onboarding/onboardingStepBeats';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 import { applyName } from './applyName';
+import { claimBeatAudio, releaseBeatAudio } from './beatAudioOwner';
 import {
   BeatConversation,
   BeatPlayer,
@@ -109,14 +110,25 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
       : null;
   const hasOpenerMp3 = !!openerMp3Src;
   const openerWordTotal = opener ? opener.trim().split(/\s+/).filter(Boolean).length : 0;
-  const mp3Audio = useBeatOpenerMp3(openerMp3Src, active && hasOpenerMp3, openerWordTotal);
+  // B40: claim this beat's audio (beatAudioOwner) so a stray narration-driver
+  // or sendOpener-speech activation on the same beat backs off instead of
+  // playing over this legacy opener.
+  const legacyOpenerOwnership = { beatId: node.screenId, owner: 'opener-mp3' as const };
+  const mp3Audio = useBeatOpenerMp3(
+    openerMp3Src,
+    active && hasOpenerMp3,
+    openerWordTotal,
+    legacyOpenerOwnership,
+  );
   // Variable lines (engine 'cartesia', e.g. the name-greeting profile beat) get
   // live TTS: same state shape, so downstream karaoke gating is engine-agnostic.
   const isCartesiaOpener =
     node.meta?.voiceOut?.engine === 'cartesia' && !!opener && !hasNarration && !node.componentOwned;
+  const cartesiaOpenerOwnership = { beatId: node.screenId, owner: 'opener-cartesia' as const };
   const cartesiaAudio = useBeatOpenerCartesia(
     isCartesiaOpener ? opener : null,
     active && isCartesiaOpener,
+    cartesiaOpenerOwnership,
   );
   const mp3 = isCartesiaOpener ? cartesiaAudio : mp3Audio;
   const hasOpenerAudio = hasOpenerMp3 || isCartesiaOpener;
@@ -146,6 +158,19 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   const showTapToPlay = active && hasOpenerAudio && mp3.blocked;
 
   const handleReveal = useCallback(() => onReveal?.(), [onReveal]);
+
+  // B40: componentOwned beats claim their audio automatically for as long as
+  // they are the active beat, even though the component plays its own
+  // audio/orb sequence outside the useBeatOpenerMp3/Cartesia hooks above. The
+  // claim still matters: it is what makes a stray legacy-opener or
+  // narration-driver activation on the SAME beat id back off instead of
+  // playing over the component's own sequence (the componentOwned
+  // exclusivity guarantee).
+  useEffect(() => {
+    if (!active || !node.componentOwned) return;
+    claimBeatAudio(node.screenId, 'component-owned');
+    return () => releaseBeatAudio(node.screenId, 'component-owned');
+  }, [active, node.componentOwned, node.screenId]);
 
   // A4: component-owned beats (the greeting; any future one Lane B authors)
   // own their ENTIRE sequence: audio, orb, bubbles, completion. The engine

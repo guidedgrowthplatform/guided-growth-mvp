@@ -36,6 +36,7 @@ import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-ge
 import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 import { onsetsForDisplayWords, revealCountAtTime } from '@/lib/voice/openerWordTimeline';
 import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
+import { type BeatAudioOwnerKind, claimBeatAudio, releaseBeatAudio } from './beatAudioOwner';
 import {
   classifyOpenerPlayFailure,
   createActivationTracker,
@@ -126,11 +127,21 @@ export interface BeatOpenerMp3State {
  * `displayWordCount` (the opener text's word count) enables word-accurate
  * reveal for clips with precomputed captions (openerCaptions.ts). Clips
  * without captions keep the progress-fraction reveal.
+ *
+ * `ownership` (B40): when provided, the hook claims the beat's audio via
+ * beatAudioOwner before it ever creates or plays an element. If another owner
+ * already holds the claim (the narration driver and the legacy opener path
+ * both armed for the same beat), this activation backs off entirely - no
+ * element, no play(), settles immediately as done with no audio - instead of
+ * playing over whatever already owns the beat. Omit `ownership` for callers
+ * outside the beat-audio system (none today; kept optional so the existing
+ * unit tests that call this hook directly need no change).
  */
 export function useBeatOpenerMp3(
   src: string | null,
   active: boolean,
   displayWordCount = 0,
+  ownership?: { beatId: string; owner: BeatAudioOwnerKind },
 ): BeatOpenerMp3State {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -144,6 +155,11 @@ export function useBeatOpenerMp3(
   // restart audio for a render-order artifact.
   const displayWordCountRef = useRef(displayWordCount);
   displayWordCountRef.current = displayWordCount;
+
+  // Same reasoning: ownership identity (beatId/owner) tracks the caller's
+  // props, not a value this hook should re-trigger audio on.
+  const ownershipRef = useRef(ownership);
+  ownershipRef.current = ownership;
 
   // One tracker per hook instance; each effect run begins its own activation.
   // React can run the effect twice for one logical activation (strict-mode
@@ -162,6 +178,25 @@ export function useBeatOpenerMp3(
 
   useEffect(() => {
     if (!active || !src) {
+      return;
+    }
+
+    // B40: claim this beat's audio before anything else. A denied claim means
+    // another owner (the narration driver, the legacy opener path, or a
+    // future third caller) already armed this beat's audio - back off
+    // entirely: no element, no play(), settle immediately as done with no
+    // audio so the beat still advances. claimBeatAudio() itself logs the
+    // console.warn so a double-arm is loud in the logs.
+    const ownedThisActivation = ownershipRef.current
+      ? claimBeatAudio(ownershipRef.current.beatId, ownershipRef.current.owner)
+      : true;
+    if (!ownedThisActivation) {
+      setPlaying(false);
+      setProgress(1);
+      setRevealWords(null);
+      setDone(true);
+      setBlocked(false);
+      setTextFallback(false);
       return;
     }
 
@@ -250,6 +285,12 @@ export function useBeatOpenerMp3(
         /* ignore */
       }
       pooled?.release();
+      // B40: give up the beat-audio claim on settle so the NEXT beat (or a
+      // retry of this one) can claim cleanly. Safe to call unconditionally -
+      // releaseBeatAudio() is a no-op unless this owner still holds it.
+      if (ownershipRef.current) {
+        releaseBeatAudio(ownershipRef.current.beatId, ownershipRef.current.owner);
+      }
       setPlaying(false);
       // null (not a stale mid-clip count) so the progress:1 full reveal wins.
       setRevealWords(null);
@@ -369,8 +410,13 @@ export function useBeatOpenerMp3(
       clearFallbackTimer();
       unsubQaSound();
       settle();
-      // Belt and braces: release the claim even if a stale settle skipped it.
+      // Belt and braces: release both the pooled element and the B40 audio
+      // claim even if a stale settle (activation.settle() returned false)
+      // skipped them above.
       pooled?.release();
+      if (ownershipRef.current) {
+        releaseBeatAudio(ownershipRef.current.beatId, ownershipRef.current.owner);
+      }
       if (settleCurrentRef.current === settle) settleCurrentRef.current = null;
     };
   }, [active, src]);
