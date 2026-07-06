@@ -42,7 +42,13 @@ const HANDLERS: Record<OnboardingToolName, Handler> = {
 export async function dispatchOnboardingToolCall(
   name: string,
   args: unknown,
-  ctx: { anon_id: string | null | undefined; screen_id?: string | null },
+  ctx: {
+    anon_id: string | null | undefined;
+    screen_id?: string | null;
+    // Raw current-turn user message, when the caller has it. Only addHabit's
+    // data-integrity guard reads this; every other handler ignores it.
+    user_text?: string | null;
+  },
 ): Promise<ToolResult> {
   if (!ctx.anon_id) {
     return { ok: false, error: 'invalid_args', message: 'missing anon_id' };
@@ -55,7 +61,11 @@ export async function dispatchOnboardingToolCall(
   }
   const handler = HANDLERS[name];
   return handler(
-    { anon_id: ctx.anon_id, screen_id: ctx.screen_id ?? undefined },
+    {
+      anon_id: ctx.anon_id,
+      screen_id: ctx.screen_id ?? undefined,
+      user_text: ctx.user_text ?? undefined,
+    },
     args as Record<string, unknown>,
   );
 }

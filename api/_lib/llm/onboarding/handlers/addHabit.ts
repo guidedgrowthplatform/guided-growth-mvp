@@ -21,6 +21,73 @@ function isScheduleOption(v: string): boolean {
   return (SCHEDULE_OPTIONS as readonly string[]).includes(v);
 }
 
+// Data-integrity guard (B54): a new habit's name should trace to something the
+// user actually said this turn, not a nearby preset the model picked on its
+// own (rambler trail F3: "phone on the charger" saved as "No screens after 10
+// PM") and not a name invented from a passing word (rambler-advanced trail F4:
+// a clarifying question about "sleep" produced a fabricated Sleep habit).
+//
+// This is a coarse, low-false-positive check on purpose: word-level overlap,
+// not semantic matching. It only runs when the caller actually has the raw
+// turn text (ctx.user_text) and only on a brand-new habit name (isEdit
+// short-circuits it upstream) — schedule-only follow-up calls in the two-call
+// configure pattern don't restate the name, so they're never checked here.
+const STOPWORDS = new Set([
+  'a',
+  'an',
+  'the',
+  'and',
+  'or',
+  'but',
+  'to',
+  'of',
+  'in',
+  'on',
+  'at',
+  'for',
+  'with',
+  'my',
+  'me',
+  'i',
+  'is',
+  'am',
+  'are',
+  'be',
+  'do',
+  'no',
+  'not',
+  'every',
+  'each',
+  'day',
+  'days',
+  'per',
+  'week',
+  'about',
+  'just',
+  'this',
+  'that',
+  'it',
+]);
+
+function meaningfulTokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length > 2 && !STOPWORDS.has(t));
+}
+
+// True when the habit name shares no meaningful token with the user's turn —
+// i.e. it looks like a substitution or a fabrication rather than a paraphrase
+// of what they said. Names too short to tokenize meaningfully (e.g. "Gym")
+// never trip this — the check needs at least one real token to compare.
+export function looksUngrounded(name: string, userText: string): boolean {
+  const nameTokens = meaningfulTokens(name);
+  if (nameTokens.length === 0) return false;
+  const textTokens = new Set(meaningfulTokens(userText));
+  if (textTokens.size === 0) return false;
+  return !nameTokens.some((t) => textTokens.has(t));
+}
+
 export async function addHabit(
   ctx: OnboardingHandlerCtx,
   args: Record<string, unknown>,
@@ -86,6 +153,17 @@ export async function addHabit(
     const isAdvanced = existingRes.rows[0]?.path === 'braindump';
     const cap = isAdvanced ? MAX_HABITS_ADVANCED : MAX_HABITS;
     const isEdit = Object.keys(existing).some((k) => k.toLowerCase() === nameLower);
+
+    // B54 data-integrity guard: only on a brand-new habit, and only when the
+    // caller supplied the raw turn text. Ungrounded means the name shares no
+    // real word with what the user said this turn — reject so the coach is
+    // forced to either ask again or save the user's own words instead of a
+    // guessed/substituted name (see systemPromptAddendum.ts DATA INTEGRITY).
+    if (!isEdit && ctx.user_text && looksUngrounded(name, ctx.user_text)) {
+      await client.query('ROLLBACK');
+      return handlerError('habit_name_ungrounded');
+    }
+
     if (!isEdit && Object.keys(existing).length >= cap) {
       await client.query('ROLLBACK');
       // Beginner: the product cap of 2. Advanced: only the safety ceiling, which
