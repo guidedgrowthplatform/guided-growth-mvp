@@ -41,6 +41,12 @@ export interface PulseParams {
   orbAmt: number; // how much the orb DISC expands/contracts (0 = disc stays stable) 0..100
   mem: number; // outer membrane breathe amount 0..100
   memSpeed: number; // outer membrane breathe tempo (independent of the disc) 0..100
+  // Per-part voice reactivity: how hard each part grows/brightens with the voice. Set
+  // each independently to choreograph the orb (0 = that part ignores the voice). 0..100.
+  reactLight: number; // the inner light (the moving glow blobs)
+  reactDisc: number; // the disc (the whole circle scale)
+  reactAura: number; // the outer aura / membrane
+  reactCore: number; // the bright center core
 }
 
 // The current locked look (Yair's "Start"). Idle is the resting two-half orb; talk
@@ -59,8 +65,8 @@ export const DEFAULT_PARAMS: OrbStates = {
     bright: 126,
     speed: 52,
     grad: 82,
-    core: 52,
-    spread: 52,
+    core: 42,
+    spread: 60,
     pglow: 86,
     rand: 72,
     pulse: 58,
@@ -68,35 +74,56 @@ export const DEFAULT_PARAMS: OrbStates = {
     iris: 66,
     depth: 32,
   },
-  // Talking (coach + user full circle) = Timothy's "Aurora" with a touch more churn
-  // and speed (rand 70, speed 62). Lower aura than Bloom so the core light reads
-  // through, especially the gold when the user speaks.
+  // Talking (coach + user full circle) = Yair's saved "Yair Talking Jul 5" look
+  // (2026-07-05): softer glow, high randomness + particle glow, low aura so the core
+  // reads through, especially the gold when the user speaks.
   talk: {
     glass: 38,
-    blur: 10,
+    blur: 14,
     hi: 50,
     rim: 70,
     body: 42,
-    glow: 132,
-    bright: 130,
-    speed: 62,
-    grad: 84,
-    core: 48,
-    spread: 44,
-    pglow: 90,
-    rand: 70,
+    glow: 80,
+    bright: 96,
+    speed: 46,
+    grad: 74,
+    core: 45,
+    spread: 60,
+    pglow: 96,
+    rand: 100,
     pulse: 55,
-    aura: 40,
-    iris: 72,
-    depth: 30,
+    aura: 23,
+    iris: 67,
+    depth: 39,
   },
 };
 
+// Committed motion = Yair's "Balanced" preset (2026-07-05).
 export const DEFAULT_PULSE: PulseParams = {
   size: 8,
-  amt: 60,
-  speed: 50,
-  orbAmt: 100,
-  mem: 60,
-  memSpeed: 35,
+  amt: 46,
+  speed: 40,
+  orbAmt: 85,
+  mem: 58,
+  memSpeed: 32,
+  reactLight: 52,
+  reactDisc: 48,
+  reactAura: 50,
+  reactCore: 44,
+};
+
+// Beat 3 (the big coach-greeting orb) runs a CALMER motion than the docked default:
+// at full size the same reactivity reads as aggressive, so the pulse + reactivity are
+// dialed down. Passed to beat 3 only (via orbSpeaking); nothing else changes.
+export const BEAT3_PULSE: PulseParams = {
+  size: 6,
+  amt: 30,
+  speed: 32,
+  orbAmt: 50,
+  mem: 50,
+  memSpeed: 28,
+  reactLight: 30,
+  reactDisc: 22,
+  reactAura: 26,
+  reactCore: 28,
 };

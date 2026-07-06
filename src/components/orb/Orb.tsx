@@ -195,9 +195,14 @@ export function Orb({
       const d = cv.clientWidth;
       const h = cv.clientHeight;
       if (!d) return;
-      if (cv.width !== Math.round(d * dpr)) {
-        cv.width = Math.round(d * dpr);
-        cv.height = Math.round(h * dpr);
+      // Check BOTH dims: a canvas defaults to 300x150, so if the wanted width lands
+      // on exactly 300 a width-only check passes by accident and the height stays
+      // stuck at 150, drawing the light into the bottom half. Resize on either miss.
+      const wantW = Math.round(d * dpr);
+      const wantH = Math.round(h * dpr);
+      if (cv.width !== wantW || cv.height !== wantH) {
+        cv.width = wantW;
+        cv.height = wantH;
       }
       const c = cfg.current;
       const talking = c.state !== 'idle';
@@ -208,7 +213,8 @@ export function Orb({
       const P = isActive ? c.params.talk : c.params.idle;
       const offMul = on ? 1 : 0.5;
       const m = micRef.current;
-      const micF = isActive && m.on ? 0.6 + m.amp * 0.55 : 1;
+      const reactLight = (c.pulse.reactLight ?? 45) / 100;
+      const micF = 1 + (isActive && m.on ? m.amp * reactLight : 0) * 0.9;
       const em = isActive ? 1.25 * micF : 1;
       const glow = (P.glow / 100) * offMul * em;
       const bright = (P.bright / 100) * offMul;
@@ -225,12 +231,20 @@ export function Orb({
       const ocx = side === 'left' ? W + gp / 2 : -gp / 2;
       const ocy = CH / 2;
       const R = CH / 2;
+      // Inner light rebuilt to be lean-proof. The base glow and hot core sit dead
+      // center (lcx, lcy), and the churn lobes are placed at EVEN angles around the
+      // center, so their center of mass is pinned to the middle no matter what the
+      // noise does. Noise only breathes each lobe in/out + a little angular wobble.
+      // The old code offset every lobe by a free 2D noise sample, which for this
+      // seed set summed to a net downward pull. That is the lean, gone.
+      const lcx = ocx;
+      const lcy = ocy;
       const cpulse = 0.92 + 0.08 * Math.sin(time * 0.9);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, W, CH);
       ctx.globalCompositeOperation = 'lighter';
       ctx.filter = 'none';
-      const bgGrad = ctx.createRadialGradient(ocx, ocy, 0, ocx, ocy, R * 0.98);
+      const bgGrad = ctx.createRadialGradient(lcx, lcy, 0, lcx, lcy, R * 0.98);
       bgGrad.addColorStop(0, `rgba(255,255,255,${0.24 * cpulse * bright})`);
       bgGrad.addColorStop(0.26, rgba(pal[2], 0.44 * grad * bright));
       bgGrad.addColorStop(0.55, rgba(pal[1], 0.44 * grad * bright));
@@ -241,37 +255,65 @@ export function Orb({
       ctx.arc(ocx, ocy, R * 0.99, 0, 6.2832);
       ctx.fill();
       ctx.filter = `blur(${0.06 * R}px)`;
-      for (const b of blobs) {
+      const N = blobs.length;
+      const rot = time * 0.22;
+      // Even-angle lobes, then shift the whole cluster so its brightness-weighted
+      // center of mass lands EXACTLY on the light center every frame. Per-lobe radius
+      // varies for organic fill; re-centering cancels any net pull, so the light
+      // cannot lean in any direction, in any frame (kills the old rotating bias where
+      // radius was coupled to angle and the heavy side swung around over time).
+      const lob: Array<{ dx: number; dy: number; radv: number; ci: number }> = [];
+      let mx = 0;
+      let my = 0;
+      let wsum = 0;
+      for (let i = 0; i < N; i++) {
+        const b = blobs[i];
         const bt = time * (1 + (b.rspeed - 1) * rand);
-        const nx = noise(b.seed + bt * 0.4, 0) + 0.5 * noise(b.seed * 2 - bt * 0.6, 1.3);
-        const ny = noise(0, b.seed + bt * 0.4) + 0.5 * noise(1.7, b.seed * 2 + bt * 0.36);
-        const drift = R * spread * (0.85 + rand * 0.6);
-        const bx = ocx + nx * drift;
-        const by = ocy + ny * drift;
+        const n01 = 0.5 + 0.5 * noise(b.seed, bt * 0.5);
+        const wob = 0.5 * noise(b.seed * 1.7 + 5, bt * 0.4);
+        const ringBase = 0.32 + 0.5 * (((i * 37) % 9) / 9);
+        const ang = (i / N) * 6.2832 + rot + wob;
+        const orbR = R * spread * ringBase * (0.7 + 0.5 * n01);
+        const dx = Math.cos(ang) * orbR;
+        const dy = Math.sin(ang) * orbR;
         const radv =
           R *
           b.sz *
           (0.9 + 0.14 * noise(b.seed * 3, bt * 0.4)) *
           (0.5 + 0.9 * glow) *
           (0.7 + spread);
-        const col = pal[b.ci];
-        const al = (0.12 + 0.34 * pglow) * bright;
-        const g = ctx.createRadialGradient(bx, by, 0, bx, by, radv);
+        const w = radv * radv;
+        mx += dx * w;
+        my += dy * w;
+        wsum += w;
+        lob.push({ dx, dy, radv, ci: b.ci });
+      }
+      if (wsum > 0) {
+        mx /= wsum;
+        my /= wsum;
+      }
+      const al = (0.12 + 0.34 * pglow) * bright;
+      for (const o of lob) {
+        const bx = lcx + o.dx - mx;
+        const by = lcy + o.dy - my;
+        const col = pal[o.ci];
+        const g = ctx.createRadialGradient(bx, by, 0, bx, by, o.radv);
         g.addColorStop(0, rgba(col, al));
         g.addColorStop(1, rgba(col, 0));
         ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(bx, by, radv, 0, 6.2832);
+        ctx.arc(bx, by, o.radv, 0, 6.2832);
         ctx.fill();
       }
-      const cr = R * coreS;
-      const cg = ctx.createRadialGradient(ocx, ocy, 0, ocx, ocy, cr);
-      cg.addColorStop(0, `rgba(255,255,255,${cpulse * 0.55 * bright})`);
+      const coreK = m.on ? m.amp * ((c.pulse.reactCore ?? 35) / 100) : 0;
+      const cr = R * coreS * (1 + coreK * 0.7);
+      const cg = ctx.createRadialGradient(lcx, lcy, 0, lcx, lcy, cr);
+      cg.addColorStop(0, `rgba(255,255,255,${Math.min(1, cpulse * 0.55 * bright * (1 + coreK * 0.5)).toFixed(3)})`);
       cg.addColorStop(0.32, rgba(pal[3], 0.42 * bright));
       cg.addColorStop(1, rgba(pal[3], 0));
       ctx.fillStyle = cg;
       ctx.beginPath();
-      ctx.arc(ocx, ocy, cr, 0, 6.2832);
+      ctx.arc(lcx, lcy, cr, 0, 6.2832);
       ctx.fill();
       ctx.filter = 'none';
     };
@@ -282,9 +324,13 @@ export function Orb({
       if (!ctx) return;
       const d = cv.clientWidth;
       if (!d) return;
-      if (cv.width !== Math.round(d * dpr)) {
-        cv.width = Math.round(d * dpr);
-        cv.height = Math.round(d * dpr);
+      // Check BOTH dims: a canvas defaults to 300x150, so a width-only check passes
+      // by accident when the wanted size is exactly 300, leaving the height at 150 and
+      // pooling the whole light into the bottom half. Resize on either mismatch.
+      const want = Math.round(d * dpr);
+      if (cv.width !== want || cv.height !== want) {
+        cv.width = want;
+        cv.height = want;
       }
       const c = cfg.current;
       const W = cv.width;
@@ -296,7 +342,8 @@ export function Orb({
       const pal = c.state === 'coach' ? BLUE : GOLD;
       const P = c.params.talk;
       const m = micRef.current;
-      const micF = m.on ? 0.6 + m.amp * 0.55 : 1;
+      const reactLight = (c.pulse.reactLight ?? 45) / 100;
+      const micF = 1 + (m.on ? m.amp * reactLight : 0) * 0.9;
       const glow = (P.glow / 100) * 1.2 * micF;
       const bright = P.bright / 100;
       const grad = P.grad / 100;
@@ -310,12 +357,16 @@ export function Orb({
       const cx = W / 2;
       const cy = W / 2;
       const R = W / 2;
+      // Inner light rebuilt lean-proof (see drawHalf): centered base glow + core,
+      // churn lobes at even angles so their center of mass stays centered.
+      const lcx = cx;
+      const lcy = cy;
       const cpulse = 0.9 + 0.1 * Math.sin(time * 0.9);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, W, W);
       ctx.globalCompositeOperation = 'lighter';
       ctx.filter = 'none';
-      const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.98);
+      const bgGrad = ctx.createRadialGradient(lcx, lcy, 0, lcx, lcy, R * 0.98);
       bgGrad.addColorStop(0, `rgba(255,255,255,${0.24 * cpulse * bright})`);
       bgGrad.addColorStop(0.26, rgba(pal[2], 0.44 * grad * bright));
       bgGrad.addColorStop(0.55, rgba(pal[1], 0.44 * grad * bright));
@@ -326,37 +377,65 @@ export function Orb({
       ctx.arc(cx, cy, R * 0.98, 0, 6.2832);
       ctx.fill();
       ctx.filter = `blur(${0.06 * R}px)`;
-      for (const b of blobs) {
+      const N = blobs.length;
+      const rot = time * 0.22;
+      // Even-angle lobes, then shift the whole cluster so its brightness-weighted
+      // center of mass lands EXACTLY on the light center every frame. Per-lobe radius
+      // varies for organic fill; re-centering cancels any net pull, so the light
+      // cannot lean in any direction, in any frame (kills the old rotating bias where
+      // radius was coupled to angle and the heavy side swung around over time).
+      const lob: Array<{ dx: number; dy: number; radv: number; ci: number }> = [];
+      let mx = 0;
+      let my = 0;
+      let wsum = 0;
+      for (let i = 0; i < N; i++) {
+        const b = blobs[i];
         const bt = time * (1 + (b.rspeed - 1) * rand);
-        const nx = noise(b.seed + bt * 0.4, 0) + 0.5 * noise(b.seed * 2 - bt * 0.6, 1.3);
-        const ny = noise(0, b.seed + bt * 0.4) + 0.5 * noise(1.7, b.seed * 2 + bt * 0.36);
-        const drift = R * spread * (0.85 + rand * 0.6);
-        const bx = cx + nx * drift;
-        const by = cy + ny * drift;
+        const n01 = 0.5 + 0.5 * noise(b.seed, bt * 0.5);
+        const wob = 0.5 * noise(b.seed * 1.7 + 5, bt * 0.4);
+        const ringBase = 0.32 + 0.5 * (((i * 37) % 9) / 9);
+        const ang = (i / N) * 6.2832 + rot + wob;
+        const orbR = R * spread * ringBase * (0.7 + 0.5 * n01);
+        const dx = Math.cos(ang) * orbR;
+        const dy = Math.sin(ang) * orbR;
         const radv =
           R *
           b.sz *
           (0.9 + 0.14 * noise(b.seed * 3, bt * 0.4)) *
           (0.5 + 0.9 * glow) *
           (0.7 + spread);
-        const col = pal[b.ci];
-        const al = (0.12 + 0.34 * pglow) * bright;
-        const g = ctx.createRadialGradient(bx, by, 0, bx, by, radv);
+        const w = radv * radv;
+        mx += dx * w;
+        my += dy * w;
+        wsum += w;
+        lob.push({ dx, dy, radv, ci: b.ci });
+      }
+      if (wsum > 0) {
+        mx /= wsum;
+        my /= wsum;
+      }
+      const al = (0.12 + 0.34 * pglow) * bright;
+      for (const o of lob) {
+        const bx = lcx + o.dx - mx;
+        const by = lcy + o.dy - my;
+        const col = pal[o.ci];
+        const g = ctx.createRadialGradient(bx, by, 0, bx, by, o.radv);
         g.addColorStop(0, rgba(col, al));
         g.addColorStop(1, rgba(col, 0));
         ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(bx, by, radv, 0, 6.2832);
+        ctx.arc(bx, by, o.radv, 0, 6.2832);
         ctx.fill();
       }
-      const cr = R * coreS;
-      const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr);
-      cg.addColorStop(0, `rgba(255,255,255,${cpulse * 0.55 * bright})`);
+      const coreK = m.on ? m.amp * ((c.pulse.reactCore ?? 35) / 100) : 0;
+      const cr = R * coreS * (1 + coreK * 0.7);
+      const cg = ctx.createRadialGradient(lcx, lcy, 0, lcx, lcy, cr);
+      cg.addColorStop(0, `rgba(255,255,255,${Math.min(1, cpulse * 0.55 * bright * (1 + coreK * 0.5)).toFixed(3)})`);
       cg.addColorStop(0.32, rgba(pal[3], 0.42 * bright));
       cg.addColorStop(1, rgba(pal[3], 0));
       ctx.fillStyle = cg;
       ctx.beginPath();
-      ctx.arc(cx, cy, cr, 0, 6.2832);
+      ctx.arc(lcx, lcy, cr, 0, 6.2832);
       ctx.fill();
       ctx.filter = 'none';
     };
@@ -387,19 +466,22 @@ export function Orb({
       // orbAmt scales the whole DISC expansion. 0 keeps the disc perfectly stable
       // while the membrane and inner light still move on their own.
       const oa = (pz.orbAmt ?? 100) / 100;
+      // Per-part voice reactivity: each part grows with the voice by its own amount so
+      // the orb can be choreographed. avDisc drives the circle, avAura the membrane.
+      // (avLight for the inner glow and reactCore for the core live in the draw fns.)
+      const avDisc = m.on ? m.amp * ((pz.reactDisc ?? 40) / 100) : 0;
+      const avAura = m.on ? m.amp * ((pz.reactAura ?? 40) / 100) : 0;
       if (full) {
-        const micF = m.on ? 0.5 + m.amp * 0.9 : 1;
         const swing = (0.5 + 0.5 * Math.sin(t2 * prate * 2)) * pamt * 0.22;
-        const grow = 1 + (pbase + swing) * micF * oa;
+        const grow = 1 + (pbase + swing) * oa + avDisc * 0.5;
         orb.style.transform = `scale(${grow.toFixed(3)})`;
       } else {
         orb.style.transform = '';
       }
       const activeSide = c.state === 'coach' ? 'left' : c.state === 'user' ? 'right' : null;
       if (talking && c.style === 'directional' && activeSide) {
-        const micF = m.on ? 0.5 + m.amp * 0.9 : 1;
         const swing = (0.5 + 0.5 * Math.sin(t2 * prate * 2)) * pamt * 0.2;
-        const gv = 1 + (pbase * 0.85 + swing) * micF * oa;
+        const gv = 1 + (pbase * 0.85 + swing) * oa + avDisc * 0.45;
         if (leftHalfRef.current)
           leftHalfRef.current.style.transform =
             activeSide === 'left' ? `scale(${gv.toFixed(3)})` : '';
@@ -418,7 +500,7 @@ export function Orb({
         const auraP = (aset.aura ?? 0) / 100;
         const memAmt = (pz.mem ?? 60) / 100;
         const mrate = 0.5 + ((pz.memSpeed ?? 35) / 100) * 2.2;
-        const micA = m.on ? 0.7 + m.amp * 0.8 : 1;
+        const micA = 1 + avAura * 0.8;
         const memSwing = (0.5 + 0.5 * Math.sin(t2 * mrate)) * (0.05 + 0.26 * memAmt);
         shell.style.setProperty('--mem', auraP.toFixed(3));
         shell.style.setProperty('--memscale', (1 + auraP * memSwing * micA).toFixed(3));
@@ -513,7 +595,7 @@ const ORB_CSS = `
 .ot-mem2{width:80%;height:80%;opacity:.82;filter:blur(calc(var(--D) * 0.035));animation:ot-wob2 5.2s ease-in-out infinite}
 @keyframes ot-wob{0%,100%{border-radius:46% 54% 52% 48% / 52% 46% 54% 48%;rotate:0deg}50%{border-radius:54% 46% 48% 52% / 46% 54% 47% 53%;rotate:8deg}}
 @keyframes ot-wob2{0%,100%{border-radius:52% 48% 46% 54% / 48% 52% 50% 50%;rotate:0deg}50%{border-radius:47% 53% 55% 45% / 53% 47% 52% 48%;rotate:-9deg}}
-.ot-orb{position:relative;z-index:1;width:var(--D);height:var(--D);border-radius:50%;overflow:hidden;--gap:max(5px, calc(var(--D)*0.06));--innerR:calc(var(--D)*0.0494);box-shadow:0 8px 22px rgba(20,30,60,.26), 0 0 24px 2px rgba(175,195,255,.16)}
+.ot-orb{position:relative;z-index:1;width:var(--D);height:var(--D);border-radius:50%;overflow:hidden;--gap:max(5px, calc(var(--D)*0.06));--innerR:calc(var(--D)*0.0494);box-shadow:0 0 0 1px rgba(28,42,78,.14), 0 8px 22px rgba(20,30,60,.26), 0 0 24px 2px rgba(175,195,255,.16)}
 .ot-shell.ot-flat .ot-orb{box-shadow:none}
 .ot-orb.ot-full{--gap:0px;--innerR:0px}
 .ot-half{position:absolute;top:0;height:100%;width:calc(50% - var(--gap)/2);overflow:hidden;background:radial-gradient(125% 125% at 50% 34%, rgba(255,255,255, calc(0.20 + 0.16*(1 - var(--body)))), rgba(255,255,255, calc(0.04 + 0.05*(1 - var(--body)))) 52%, rgba(8,11,22, calc(0.10 + 0.52*var(--body))) 100%)}
