@@ -23,3 +23,17 @@ export function recommendedWeeklyDay(
 ): number {
   return SUNDAY_START_ZONES.has(timeZone) ? SATURDAY : SUNDAY;
 }
+
+// B49: the morning check-in setup beat's day preset, by the same Sunday-start
+// regions above. Most regions default to the Mon-Fri work week (days 1-5);
+// Sunday-start regions like Israel default to Sun-Thu (days 0-4) instead, per
+// the onboarding render spec (ONBOARD-MORNING-SETUP: "Days default = weekday
+// preset by locale, Israel Sun-Thu, else Mon-Fri").
+const MON_FRI = new Set([1, 2, 3, 4, 5]);
+const SUN_THU = new Set([0, 1, 2, 3, 4]);
+
+export function recommendedWeekdayPreset(
+  timeZone: string = Intl.DateTimeFormat().resolvedOptions().timeZone,
+): ReadonlySet<number> {
+  return SUNDAY_START_ZONES.has(timeZone) ? SUN_THU : MON_FRI;
+}
