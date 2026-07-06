@@ -40,10 +40,20 @@ vi.mock('@/hooks/useOnboarding', () => ({
   },
 }));
 
+// B52: controllable voice preference so tests can assert the greeting clip
+// respects voice-off. Defaults to 'voice' (the real DEFAULT_PREFERENCES value).
+let voiceMode = 'voice';
+vi.mock('@/hooks/useUserPreferences', () => ({
+  useUserPreferences: () => ({ preferences: { voiceMode } }),
+}));
+
 // B46: a fake <audio> element + release() so tests can assert the gate stops
 // the clip (pause()) at the onComplete/unmount boundary, not just that
 // release() was called.
-const fakeOpenerEl = { pause: vi.fn() };
+// B52: `muted` is a real settable property (not just a spy) so the test can
+// assert IntroGate's synchronous gesture-frame mute (introMuted ? el.muted =
+// true) actually lands on the element startOpenerFromGesture() hands back.
+const fakeOpenerEl = { pause: vi.fn(), muted: false };
 const fakeOpenerRelease = vi.fn();
 vi.mock('./renderer/openerGestureStart', () => ({
   startOpenerFromGesture: () => ({ el: fakeOpenerEl, release: fakeOpenerRelease }),
@@ -59,11 +69,15 @@ vi.mock('./renderer/useBeatOpenerMp3', () => ({
 }));
 
 // Stand-in for the real SplashIntro (audio/orb/timers): a probe that reports
-// it mounted and lets the test fire onComplete on demand.
+// it mounted and lets the test fire onComplete on demand. B52: also records
+// the `muted` prop it was last rendered with, so tests can assert IntroGate
+// derives it from the voice preference instead of always passing false.
 const completeGreeting = { current: (() => {}) as () => void };
+const lastSplashProps: { muted?: boolean } = {};
 vi.mock('@/components/welcome/SplashIntro', () => ({
-  SplashIntro: ({ onComplete }: { onComplete?: () => void }) => {
+  SplashIntro: ({ onComplete, muted }: { onComplete?: () => void; muted?: boolean }) => {
     completeGreeting.current = () => onComplete?.();
+    lastSplashProps.muted = muted;
     return <div data-testid="greeting">greeting-mounted</div>;
   },
 }));
@@ -76,9 +90,12 @@ const INTRO_SEEN_KEY = 'gg_onboarding_intro_seen';
 
 beforeEach(() => {
   currentStep = 0;
+  voiceMode = 'voice';
   localStorage.removeItem(INTRO_SEEN_KEY);
   fakeOpenerEl.pause.mockClear();
+  fakeOpenerEl.muted = false;
   fakeOpenerRelease.mockClear();
+  delete lastSplashProps.muted;
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -168,5 +185,30 @@ describe('IntroGate (B43)', () => {
 
     expect(fakeOpenerEl.pause).toHaveBeenCalled();
     expect(fakeOpenerRelease).toHaveBeenCalled();
+  });
+
+  it('B52: voice on (default) plays the greeting clip audibly', () => {
+    voiceMode = 'voice';
+    render();
+    clickGetStarted();
+    // Muted synchronously, in the same gesture frame, before SplashIntro
+    // even renders, not left to the QA-mute default of false-by-omission.
+    expect(fakeOpenerEl.muted).toBe(false);
+    expect(lastSplashProps.muted).toBe(false);
+  });
+
+  it('B52: voice off mutes the greeting clip, both at gesture-start and via the SplashIntro muted prop', () => {
+    voiceMode = 'screen';
+    render();
+    clickGetStarted();
+    expect(container.querySelector('[data-testid="greeting"]')).toBeTruthy();
+    // The clip startOpenerFromGesture() handed back is muted synchronously in
+    // the Get-started click handler, before the caption/orb sequence mounts,
+    // closing the window where it could be audible even for one frame.
+    expect(fakeOpenerEl.muted).toBe(true);
+    // SplashIntro itself also receives muted=true, so its own mute-sync
+    // effect (and any fallback path that doesn't adopt the gesture element)
+    // stays silent too.
+    expect(lastSplashProps.muted).toBe(true);
   });
 });
