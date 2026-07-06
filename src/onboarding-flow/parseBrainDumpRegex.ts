@@ -165,8 +165,11 @@ export function parseHabitsRegex(text: string): { name: string; days?: number[] 
   const normalized = text.replace(/[‘’]/g, "'").replace(/[“”„"]/g, '');
   // Note: we do NOT split on the em-dash. Splitting it truncates a cut-off word
   // ("don't" -> "don"); instead the whole disfluent clause is dropped below.
+  // Sentence-final periods split clauses too (F10: "Walking. Reading. Drinking
+  // more water." has no commas/"and" at all and used to collapse into one
+  // habit). `(?!\d)` keeps a decimal like "8.5 miles" from splitting mid-number.
   const clauses = normalized
-    .split(/,|\band then\b|\band\b|\balso\b|\bbut\b|;|\n|\bthen\b/i)
+    .split(/,|\.(?!\d)|\band then\b|\band\b|\balso\b|\bbut\b|;|\n|\bthen\b/i)
     .map((c) => c.trim())
     .filter(Boolean);
   const out: { name: string; days?: number[] }[] = [];
