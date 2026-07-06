@@ -426,6 +426,14 @@ export interface FlowOrchestrator {
   activeContext: string | null;
   /** Capture the active beat's answer, persist it, and advance. */
   capture: (capture: BeatCapture) => void;
+  /**
+   * Beat-scoped capture (B47): applies only while `nodeId` is still the active
+   * beat, otherwise a no-op. The renderer binds card adapters to this so a
+   * stale auto-submit (a voice-filled card whose effect fires after the
+   * coach-driven advance already moved the machine) cannot replay its capture
+   * onto the NEXT beat and silently skip it.
+   */
+  captureFor: (nodeId: string, capture: BeatCapture) => void;
   back: () => void;
   canGoBack: boolean;
   isComplete: boolean;
@@ -495,10 +503,20 @@ export function useFlowOrchestrator(
   // Advance the machine with a captured answer. `save` is true for a tap (write
   // to Supabase via saveStep); false when the coach already saved the beat
   // server-side and we are only catching the local engine up (no double-write).
+  //
+  // `forNodeId` (B47): the beat this capture was computed FOR. Two independent
+  // advance paths can race on one beat (a card adapter's voice auto-submit and
+  // the orchestrator's coach-driven effects); whichever fires second used to
+  // apply a stale capture to whatever beat stateRef held by then, advancing
+  // the NEXT beat with the PREVIOUS beat's data and silently skipping it
+  // (observed live as category -> habit-select with goals never rendering).
+  // When the machine has already moved past `forNodeId`, the capture is stale
+  // and must be dropped.
   const applyAndAdvance = useCallback(
-    (cap: BeatCapture, save: boolean) => {
+    (cap: BeatCapture, save: boolean, forNodeId?: string) => {
       const prev = stateRef.current;
       if (prev.status === 'complete') return;
+      if (forNodeId !== undefined && prev.currentNodeId !== forNodeId) return; // stale capture
       const node = getNode(flow, prev.currentNodeId);
       if (!node) return;
 
@@ -538,6 +556,10 @@ export function useFlowOrchestrator(
   );
 
   const capture = useCallback((cap: BeatCapture) => applyAndAdvance(cap, true), [applyAndAdvance]);
+  const captureFor = useCallback(
+    (nodeId: string, cap: BeatCapture) => applyAndAdvance(cap, true, nodeId),
+    [applyAndAdvance],
+  );
 
   const back = useCallback(() => {
     setState((prev) => {
@@ -670,7 +692,7 @@ export function useFlowOrchestrator(
     // the data still advances this beat.
     if (!captureCompletesBeat(node, cap)) return;
     advancedNodeRef.current = activeNodeId;
-    applyAndAdvance(cap, false);
+    applyAndAdvance(cap, false, activeNodeId);
     // Latency lane T1: commit leg of beat_transition_ms (trigger marked at the
     // tool event / Realtime receipt). No-op when nothing is pending.
     settleBeatTransition({
@@ -703,7 +725,7 @@ export function useFlowOrchestrator(
     if (!cap.path || cap.path === forkEntryPathRef.current) return;
     if (advancedNodeRef.current === activeNodeId) return; // fire once per beat
     advancedNodeRef.current = activeNodeId;
-    applyAndAdvance(cap, false);
+    applyAndAdvance(cap, false, activeNodeId);
     // Latency lane T1: commit leg of beat_transition_ms (fork evidence-arrival
     // advance). No-op when nothing is pending.
     settleBeatTransition({
@@ -740,7 +762,7 @@ export function useFlowOrchestrator(
     const cap = serverCaptureForBeat(node, data);
     if (!captureCompletesBeat(node, cap)) return;
     advancedNodeRef.current = activeNodeId;
-    applyAndAdvance(cap, false);
+    applyAndAdvance(cap, false, activeNodeId);
     // Latency lane T1: commit leg of beat_transition_ms (evidence-arrival
     // advance). No-op when nothing is pending.
     settleBeatTransition({
@@ -759,6 +781,7 @@ export function useFlowOrchestrator(
     answers: state.answers,
     activeContext,
     capture,
+    captureFor,
     back,
     canGoBack,
     isComplete: state.status === 'complete',

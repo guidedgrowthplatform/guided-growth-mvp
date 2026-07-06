@@ -135,6 +135,25 @@ describe('identity-beat evidence advance (B47)', () => {
     expect(latest!.currentNode?.id).toBe('state-check');
   });
 
+  it('captureFor drops a stale capture once the machine moved past its beat (B47 race)', async () => {
+    serverState = rowAt(3, POSITIONAL_DATA);
+    render('category');
+    await flush();
+    expect(latest!.currentNode?.id).toBe('category');
+
+    // A stale auto-submit computed for a DIFFERENT beat must be a no-op.
+    await act(async () => {
+      latest!.captureFor('profile', { data: { age: 30, gender: 'Male' } });
+    });
+    expect(latest!.currentNode?.id).toBe('category');
+
+    // The scoped capture for the ACTIVE beat still advances normally.
+    await act(async () => {
+      latest!.captureFor('category', { data: { category: 'Health & Fitness' } });
+    });
+    expect(latest!.currentNode?.id).toBe('goals');
+  });
+
   it('positional-window beats are untouched by the evidence rule (climb owns them)', async () => {
     // Category with its own answer already in the row but no step climb: the
     // evidence rule must not fire (entryServerStep is defined there), so the

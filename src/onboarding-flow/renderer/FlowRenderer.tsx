@@ -18,7 +18,8 @@ export interface FlowRendererProps {
 }
 
 export function FlowRenderer({ orchestrator }: FlowRendererProps) {
-  const { flow, state, currentNode, answers, capture, back, canGoBack, isComplete } = orchestrator;
+  const { flow, state, currentNode, answers, captureFor, back, canGoBack, isComplete } =
+    orchestrator;
   const bottomRef = useRef<HTMLDivElement>(null);
   // A4: a beat that draws its own orb (greeting, mic) carries hideOrb, and the
   // docked orb is suppressed while it is active so there is never a second orb
@@ -71,7 +72,10 @@ export function FlowRenderer({ orchestrator }: FlowRendererProps) {
                   node={node}
                   answers={answers}
                   active={active}
-                  onCapture={capture}
+                  // Beat-scoped (B47): a stale adapter auto-submit for THIS beat
+                  // must no-op once the machine has moved on, never advance the
+                  // next beat with this beat's capture.
+                  onCapture={(cap) => captureFor(id, cap)}
                   onReveal={scrollToBottom}
                 />
               </div>
