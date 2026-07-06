@@ -26,6 +26,7 @@ import {
   ttsKaraokeActive,
   useTtsPlaybackStore,
 } from '@/lib/services/tts-service';
+import { applyName } from '@/onboarding-flow/renderer/applyName';
 import { claimBeatAudio, releaseBeatAudio } from '@/onboarding-flow/renderer/beatAudioOwner';
 import { detectAffirmation } from '@gg/shared/onboarding/detectAffirmation';
 import type { OnboardingState } from '@gg/shared/types';
@@ -220,7 +221,7 @@ export function useOnboardingChat({
       const pending = openerCardRef.current;
       const nickname = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data
         ?.nickname;
-      const line = getOnboardingOpenerForState(sid, nickname) ?? '';
+      const line = applyName(getOnboardingOpenerForState(sid, nickname) ?? '', nickname);
       const card = pending && pending.screenId === sid ? pending.card : null;
       if (!line && !card) return;
       openerFallbackSidsRef.current.add(sid);
@@ -248,8 +249,13 @@ export function useOnboardingChat({
       void llmRef.current.sendOpener().then((ok) => {
         if (ok) return;
         // Busy no-op (a stream was already in flight) — the pending-opener
-        // machinery owns the re-fire; only a real failure degrades.
-        if (llmRef.current.isStreaming) return;
+        // machinery owns the re-fire; only a real failure degrades. Read the
+        // LIVE in-flight flag, not render-state isStreaming: this promise
+        // continuation is a microtask that beats React's re-render, so
+        // isStreaming is still true from the streaming render even after a
+        // real failure — the stale read skipped the fallback entirely (B44
+        // dead air).
+        if (llmRef.current.isBusy()) return;
         landOpenerFallback(sid);
       });
     },
@@ -329,8 +335,9 @@ export function useOnboardingChat({
       qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
     const revisit = getOnboardingRevisitOpener(screenId, onboardingState);
     landedCompleteRef.current = revisit?.complete === true;
+    const nickname = onboardingState?.data?.nickname;
     const opener =
-      revisit?.text ?? getOnboardingOpenerForState(screenId, onboardingState?.data?.nickname);
+      revisit?.text ?? applyName(getOnboardingOpenerForState(screenId, nickname) ?? '', nickname);
     // Chat-native page: attach this beat's inline card to its opener message so
     // it renders at the turn and freezes in scrollback when the flow advances.
     const card = chatNative ? cardForScreenId(screenId, onboardingState) : null;
@@ -427,7 +434,10 @@ export function useOnboardingChat({
     suppressTrailingRef.current = false;
     streamActiveRef.current = true;
     void llmRef.current.sendOpener().then((ok) => {
-      if (ok || llmRef.current.isStreaming) return;
+      // Same live-read rationale as fireOrDeferOpener: render-state
+      // isStreaming is stale inside this microtask and would misread a real
+      // failure as a busy no-op, silently dropping the fallback.
+      if (ok || llmRef.current.isBusy()) return;
       landOpenerFallback(sid);
     });
   }, [llm.isStreaming, landOpenerFallback]);

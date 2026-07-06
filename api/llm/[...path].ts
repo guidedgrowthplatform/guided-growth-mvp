@@ -58,7 +58,7 @@ type LLMStreamEvent =
   | { type: 'error'; code: string; message: string; debug?: { stage: string; class?: string } };
 
 const MAX_ROUNDS = 5;
-const ONBOARDING_MODEL = 'gpt-4o';
+const ONBOARDING_MODEL = process.env.ONBOARDING_LLM_MODEL || 'gpt-4o';
 const FORK_SCREEN_ID = 'ONBOARD-FORK--FORM';
 // Onboarding turns emit tool JSON (add_habit / update_habit / advance_step,
 // sometimes several per turn on the habit beats) ON TOP of the coach's text.
