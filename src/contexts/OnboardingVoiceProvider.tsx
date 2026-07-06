@@ -1841,7 +1841,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // QA convo-harness test seam (QA_SCREEN_ENABLED builds only): expose the
   // same sendUserTurn a voice transcript final feeds, so an external
   // Playwright driver can inject text turns on beats with no visible input.
-  useEffect(() => registerQaSendUserTurn(sendUserTurn), [sendUserTurn]);
+  useEffect(() => registerQaSendUserTurn('onboarding', sendUserTurn), [sendUserTurn]);
 
   const value = useMemo<OnboardingVoiceContextValue>(
     () => ({
