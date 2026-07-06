@@ -2,6 +2,30 @@
 
 Lane B of gg-spec/docs/onboarding-consolidation-plan-2026-07-06.md. One-time seed, render to flow builder/engine; after the seed the flow builder is the source of truth. Newest entry on top.
 
+## 2026-07-06 (night): CONDUCTOR HANDOFF, one MR from done
+
+STATE: !443 (converter) and !452 (assets) are MERGED on main. !453 (content seed) is the ONLY open Lane B MR: rebased onto main, retargeted to main, head 7c94f6e0, pipeline running at handoff time.
+
+What 7c94f6e0 fixed since the last red: the two missing beat contexts (ONBOARD-BEGINNER-02-CUSTOM, ONBOARD-BEGINNER-03-CUSTOM; minimal simple-capture entries, verbatim render openers, submit_goals / add_habit + advance_step, house DO NOT style). beat-context-parity 16/16 locally. Earlier fix on the same MR: BeatNode narrowing for CI tsc.
+
+MERGE GATE for !453 (all verified locally, CI re-confirms): pipeline green (verify = tsc + vitest incl. the parity tests), then mark ready and merge. It is a Draft; flip it when green.
+
+REVIEW FLAGS riding !453 (also in its description):
+1. One engine-table line: ENGINE_BEAT_SPECS state-check.backId why-intro -> profile (consequence of the why-intro drop). The why-intro spec entry, adapter, componentType, and two stale flow-order comments (designerToFlow.ts ~480/~993) remain as dead code; candidate cleanup MR, not blocking.
+2. Test fixtures updated to the seeded flow (liveAdvanceFork, resumeFromServerRow, timelineStability, designerToFlow.test, step0SchemaContract). The step0 no-invention probe now runs over the four linear flows.
+3. Close lines are narration kind close (advanced-frequency confirm converted from its trailing metadata bubble; advanced-capture given an explicit bubble+close script). The A1 driver owns playing close at capture-fire.
+4. into-app buttonLabel = Start (conductor ruling 2026-07-06).
+5. Custom-entry detours: nodeIds goal-custom / habit-custom, backIds goals / habit-select. One-per-goal cap on the detour capture is an A3/A5 follow-up (the adapter appends without a cap).
+
+AFTER MERGE (Lane B continues, not the conductor): the parity walk. Beat-by-beat side-by-side, app preview vs gg-onboarding-render.pages.dev: same copy, order, reveal sequence, clips playing, captions synced. Plan: budget-gated Sonnet fan-out, one agent per beat, findings to a scratch dir, adjudicated findings posted as an MR note / status entry. That parity pass is the acceptance test of the whole consolidation (plan section: verification gates). After it: Yair's QA-perfect pass gates the promote.
+
+ARTIFACTS AND PATHS:
+- Worktree: ~/Developer/claude-work/gg-lane-b/mvp (branch lane-b/content). Refs: gg-lane-b/ref (1741d095 extracts), gg-lane-b/ref-de67 (de67b298 extracts incl. clipCaptions.ts), gg-lane-b/out-final (seeded json, seed-report.md, logs).
+- Converter: scripts/flow-sync/seed-from-render.ts (on main). Caption ingest: scripts/flow-sync/ingest-captions.ts (on main). Both one-time tools; re-run only if the render re-records clips.
+- Seed provenance: content sha 1741d095, seed sha de67b298 (freshness cert gg-spec/docs/onboarding-render-freshness-2026-07-06.md).
+
+FOLLOW-UPS NOT MINE TO DECIDE: retiring the why-intro dead code; Sheet Beats Context rows for the two CUSTOM beats (the render session owns the Sheet catch-up; the code-side fallback entries landed in beatContexts.ts via !453); threading the six whisper-split caption entries to hand-polished word text if anyone ever renders caption words directly (today nothing does).
+
 ## 2026-07-06 (evening): GATES OPEN, THE SEED IS UP. Full Lane B stack in draft, awaiting conductor merges
 
 - !444 MERGED (plus A1 narration driver, A2/A5 adapters, A4 component-owned all landed on main). The final schema added a close narration kind and mp3Asset timing close (adopting the Lane B review notes); clip resolution goes mp3Assets id join, then absolute path, then /voice/ob/<id>.wav.
