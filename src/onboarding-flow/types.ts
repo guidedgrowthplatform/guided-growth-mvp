@@ -45,7 +45,8 @@ export interface BeatRuntimeMeta {
       transcript: string;
       opener?: string;
       elementId?: string;
-      timing?: 'opener' | 'element' | 'full-beat';
+      /** 'close' = spoken after the beat's interaction (STEP-0 close slot). */
+      timing?: 'opener' | 'element' | 'full-beat' | 'close';
     }>;
     lines?: Array<{
       id: string;
@@ -132,14 +133,20 @@ export interface PersistConfig {
  *   - kind 'bubble': a coach speech bubble; `say` types in sync with the audio.
  *   - kind 'reveal': the beat's nth card/element blooms; `say`, when present, is
  *     spoken verbal-only (never drawn as a bubble). Empty `say` = visual-only.
+ *   - kind 'close': a coach bubble spoken AFTER the beat's interaction completes
+ *     (the advanced-capture close line, the advanced-frequency confirm). Close
+ *     segments never run in the pre-interaction script; the driver plays them
+ *     when the beat's capture fires, then advances.
  * `n` is the 1-based index within the segment's kind (bubble 1..N, reveal 1..N;
  * reveal 99 = "all remaining elements at once", the render's convention).
  * `clip` is an MP3-verbatim ref: clip present = play the recorded file (plus its
- * caption file when one exists); no clip = live TTS (only the name greeting) or
- * silent. Beats without narration keep the single-opener behavior unchanged.
+ * caption entry when one exists); no clip = live TTS (only the name greeting) or
+ * silent. Clip resolution order: the beat's mp3Assets entry with a matching id,
+ * else an absolute /voice path used as-is, else /voice/ob/<clip>.wav. Beats
+ * without narration keep the single-opener behavior unchanged.
  */
 export interface NarrationSegment {
-  kind: 'bubble' | 'reveal';
+  kind: 'bubble' | 'reveal' | 'close';
   n: number;
   say?: string;
   clip?: string;

@@ -37,7 +37,8 @@ const ExportMp3AssetSchema = z.strictObject({
   transcript: z.string(),
   opener: z.string().optional(),
   elementId: z.string().optional(),
-  timing: z.enum(['opener', 'element', 'full-beat']).optional(),
+  // 'close' (STEP-0): the clip plays after the beat's interaction completes.
+  timing: z.enum(['opener', 'element', 'full-beat', 'close']).optional(),
 });
 
 const ExportPerElementSchema = z.strictObject({
@@ -49,10 +50,12 @@ const ExportPerElementSchema = z.strictObject({
   clip: z.string().optional(),
 });
 
-// STEP-0: one ordered bubble/reveal segment of a beat's narration script.
+// STEP-0: one ordered bubble/reveal/close segment of a beat's narration script.
 // Mirrors the engine's NarrationSegment; carried verbatim onto the flow node.
+// 'close' = a coach bubble spoken after the beat's interaction completes (the
+// advanced-capture close line, the advanced-frequency confirm).
 const ExportNarrationSegmentSchema = z.strictObject({
-  kind: z.enum(['bubble', 'reveal']),
+  kind: z.enum(['bubble', 'reveal', 'close']),
   n: z.number(),
   say: z.string().optional(),
   clip: z.string().optional(),
