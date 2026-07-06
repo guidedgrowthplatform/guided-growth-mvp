@@ -102,6 +102,10 @@ export function useBrainDumpCapture({
   const dumpRef = useRef('');
   const committedRef = useRef('');
   const parseAbort = useRef<AbortController | null>(null);
+  // Always holds the most recently started parseDump call so a caller that
+  // must not capture ahead of it (the tool-driven voice path) can await the
+  // one already in flight instead of only the one it happens to kick off itself.
+  const parsePromiseRef = useRef<Promise<void>>(Promise.resolve());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const habitsRef = useRef<Map<string, CardHabit>>(new Map());
   const orderRef = useRef<string[]>([]);
@@ -270,14 +274,20 @@ export function useBrainDumpCapture({
     [parseDump],
   );
 
+  // Records the in-flight AI-tier parse in parsePromiseRef so a caller that
+  // must not capture until the better split has landed (the tool-driven path
+  // below) can await it — the regex tier alone under-splits plain prose with
+  // no commas/"and" (F10).
   const handleFinalText = useCallback(
-    (t: string) => {
+    (t: string): Promise<void> => {
       committedRef.current = `${committedRef.current} ${t}`.trim();
       setCommitted(committedRef.current);
       setInterim('');
       if (debounceRef.current) clearTimeout(debounceRef.current);
       runRegex(committedRef.current);
-      void parseDump(committedRef.current, true);
+      const p = parseDump(committedRef.current, true);
+      parsePromiseRef.current = p;
+      return p;
     },
     [parseDump, runRegex],
   );
@@ -447,15 +457,36 @@ export function useBrainDumpCapture({
   // brainDumpText) must persist the on-screen cards, not just raw text — the
   // raw-text-only replay was B26. Seed from the tool arg only if the local
   // transcript never heard the speech (overlay-typed path).
+  //
+  // F10/F27: this fired `submit()` synchronously right after kicking off the
+  // AI-tier parse, so the beat advanced (and this component unmounted/froze)
+  // on whatever the instant regex tier alone produced — the regex tier splits
+  // on commas/"and"/etc but a plain multi-sentence dump ("Walking. Reading.
+  // Drinking more water.") has none of those, so it collapsed into ONE combined
+  // habit. It also meant the interactive cards could vanish behind the beat
+  // advance before ever painting a frame (no visible cards at all). Await the
+  // in-flight AI parse (bounded by parseDump's own PARSE_TIMEOUT_MS abort, so a
+  // slow/failed call can't wedge the beat) before capturing, so the better,
+  // fully-split AI result is what gets frozen into brainDumpHabits.
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
     if (result.action !== 'fill_field') return;
     const p = result.params as { fieldName?: string; value?: string };
     if (p.fieldName !== 'brainDumpText') return;
     if (submittedRef.current) return;
-    if (!committedRef.current.trim() && typeof p.value === 'string' && p.value.trim()) {
-      handleFinalText(p.value.trim());
-    }
-    submit();
+    void (async () => {
+      if (!committedRef.current.trim() && typeof p.value === 'string' && p.value.trim()) {
+        // Nothing captured locally yet (overlay-typed/tool-only path) — kick
+        // off the parse ourselves and wait on it.
+        await handleFinalText(p.value.trim());
+      } else {
+        // Text was already captured locally (voice/typed path heard it first);
+        // wait on whatever parse that path already kicked off so this doesn't
+        // race ahead of it and capture only the regex tier's result.
+        await parsePromiseRef.current;
+      }
+      if (submittedRef.current) return;
+      submit();
+    })();
   });
 
   const feed = useMemo(

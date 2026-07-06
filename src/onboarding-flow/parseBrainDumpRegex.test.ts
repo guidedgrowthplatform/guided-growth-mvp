@@ -35,6 +35,24 @@ describe('parseHabitsRegex', () => {
     expect(r).toEqual([{ name: 'go running' }, { name: 'call mom' }]);
   });
 
+  it('splits on sentence-final periods with no commas or "and" at all (F10)', () => {
+    // The exact resister-advanced repro: three habits, period-separated, no
+    // commas or connectives anywhere — used to collapse into one combined
+    // habit string because the split regex only recognized ",", "and", etc.
+    expect(parseHabitsRegex('Walking. Reading. Drinking more water.')).toEqual([
+      { name: 'Walking' },
+      { name: 'Reading' },
+      { name: 'Drinking more water' },
+    ]);
+  });
+
+  it('does not split a decimal number on its period', () => {
+    expect(parseHabitsRegex('Run 8.5 miles. Meditate daily.')).toEqual([
+      { name: 'Run 8.5 miles' },
+      { name: 'Meditate', days: [0, 1, 2, 3, 4, 5, 6] },
+    ]);
+  });
+
   it('strips intent verbs even without a leading "I"', () => {
     // "want to read" (no "I", after splitting on "and") must not keep "want to".
     expect(parseHabitsRegex('I want to run and want to read')).toEqual([
