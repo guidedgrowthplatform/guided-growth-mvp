@@ -95,6 +95,31 @@
     },
     {
       "beat": "3",
+      "name": "Mic permission (hideOrb demo)",
+      "componentType": "mic-permission",
+      "sheetStage": "MIC-PERMISSION: Mic Permission",
+      "context": "hideOrb demo: the beat draws its own mic dial, so the docked orb is suppressed while it is active (A4).",
+      "props": {
+        "coachLine": "I'd love to actually talk with you. If you let me use your mic, you can just speak."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "engine": { "nodeId": "demo-mic" }
+      },
+      "hideOrb": true,
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+          "clip": "/voice/onboard_mic_permission.mp3"
+        },
+        { "kind": "reveal", "n": 1 }
+      ]
+    },
+    {
+      "beat": "4",
       "name": "Weekly projection (narration demo)",
       "componentType": "weekly-projection",
       "sheetStage": "ONBOARD-WEEKLY-PROJECTION-P78: Weekly Projection P78",

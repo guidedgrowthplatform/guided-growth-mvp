@@ -104,7 +104,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // progress fraction (0..1) drives the karaoke reveal in sync with the real
   // audio. For hybrid beats the MP3 is the opener only, then Vapi continues.
   const openerMp3Src =
-    node.meta?.voiceOut?.engine === 'mp3' && !hasNarration
+    node.meta?.voiceOut?.engine === 'mp3' && !hasNarration && !node.componentOwned
       ? (node.meta.voiceOut.mp3Assets?.[0]?.file ?? null)
       : null;
   const hasOpenerMp3 = !!openerMp3Src;
@@ -112,7 +112,8 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   const mp3Audio = useBeatOpenerMp3(openerMp3Src, active && hasOpenerMp3, openerWordTotal);
   // Variable lines (engine 'cartesia', e.g. the name-greeting profile beat) get
   // live TTS: same state shape, so downstream karaoke gating is engine-agnostic.
-  const isCartesiaOpener = node.meta?.voiceOut?.engine === 'cartesia' && !!opener && !hasNarration;
+  const isCartesiaOpener =
+    node.meta?.voiceOut?.engine === 'cartesia' && !!opener && !hasNarration && !node.componentOwned;
   const cartesiaAudio = useBeatOpenerCartesia(
     isCartesiaOpener ? opener : null,
     active && isCartesiaOpener,
@@ -145,6 +146,14 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   const showTapToPlay = active && hasOpenerAudio && mp3.blocked;
 
   const handleReveal = useCallback(() => onReveal?.(), [onReveal]);
+
+  // A4: component-owned beats (the greeting; any future one Lane B authors)
+  // own their ENTIRE sequence: audio, orb, bubbles, completion. The engine
+  // renders the adapter alone (all driver audio above is gated off for them)
+  // and waits on the adapter's capture (the completion signal, Yair-ruled).
+  if (active && Adapter && node.componentOwned) {
+    return <Adapter node={node} answers={answers} onCapture={onCapture} />;
+  }
 
   // A1: active narration-scripted beat. The driver sequences the bubble/reveal
   // segments, plays each segment's clip, and gates the card's element blooms

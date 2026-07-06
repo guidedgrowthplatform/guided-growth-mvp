@@ -20,6 +20,10 @@ export interface FlowRendererProps {
 export function FlowRenderer({ orchestrator }: FlowRendererProps) {
   const { flow, state, currentNode, answers, capture, back, canGoBack, isComplete } = orchestrator;
   const bottomRef = useRef<HTMLDivElement>(null);
+  // A4: a beat that draws its own orb (greeting, mic) carries hideOrb, and the
+  // docked orb is suppressed while it is active so there is never a second orb
+  // (the render's "two orbs" bug, fixed there the same way).
+  const hideOrb = !isComplete && currentNode?.hideOrb === true;
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -93,7 +97,7 @@ export function FlowRenderer({ orchestrator }: FlowRendererProps) {
         </div>
       </div>
 
-      <FlowVoiceControls />
+      {!hideOrb && <FlowVoiceControls />}
     </div>
   );
 }

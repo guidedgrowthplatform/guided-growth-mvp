@@ -119,7 +119,7 @@
       "beatNumber": 1,
       "name": "Create your own goal (custom-entry demo)",
       "screenId": "ONBOARD-BEGINNER-02-CUSTOM",
-      "nextId": "demo-weekly-p78",
+      "nextId": "demo-mic",
       "backId": "demo-state-check",
       "context": {
         "screenId": "ONBOARD-BEGINNER-02-CUSTOM",
@@ -211,13 +211,111 @@
       ]
     },
     {
-      "id": "demo-weekly-p78",
+      "id": "demo-mic",
       "type": "beat",
       "beatNumber": 2,
+      "name": "Mic permission (hideOrb demo)",
+      "screenId": "MIC-PERMISSION",
+      "nextId": "demo-weekly-p78",
+      "backId": "demo-goal-custom",
+      "context": {
+        "screenId": "MIC-PERMISSION",
+        "screenName": "Mic permission (hideOrb demo)",
+        "contextBlock": "hideOrb demo: the beat draws its own mic dial, so the docked orb is suppressed while it is active (A4)."
+      },
+      "componentType": "mic-permission",
+      "componentProps": {},
+      "voice": {
+        "openerText": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+        "expectsInput": false,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "mic-permission-opener",
+              "label": "Mic permission (hideOrb demo) opener",
+              "file": "/voice/onboard_mic_permission.mp3",
+              "transcript": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+              "opener": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "mic-permission-line-1",
+              "text": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "mic-permission-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "none",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": false,
+          "micAsking": true,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "demo-mic",
+          "backId": "demo-goal-custom",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null,
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+          "clip": "/voice/onboard_mic_permission.mp3"
+        },
+        {
+          "kind": "reveal",
+          "n": 1
+        }
+      ],
+      "hideOrb": true
+    },
+    {
+      "id": "demo-weekly-p78",
+      "type": "beat",
+      "beatNumber": 3,
       "name": "Weekly projection (narration demo)",
       "screenId": "ONBOARD-WEEKLY-PROJECTION-P78",
       "nextId": null,
-      "backId": "demo-goal-custom",
+      "backId": "demo-mic",
       "context": {
         "screenId": "ONBOARD-WEEKLY-PROJECTION-P78",
         "screenName": "Weekly projection (narration demo)",
@@ -276,7 +374,7 @@
         },
         "engine": {
           "nodeId": "demo-weekly-p78",
-          "backId": "demo-goal-custom",
+          "backId": "demo-mic",
           "persistStep": null,
           "pathField": false,
           "captureFields": [],
