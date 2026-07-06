@@ -45,8 +45,8 @@ import { resolve } from 'node:path';
 // Step-0 schema alignment knobs. Re-check against the landed schema MR.
 // ---------------------------------------------------------------------------
 const FIELD_PLACEMENT = {
-  // 'meta' puts narration alongside perElement/mp3Assets; 'beat' puts it top-level.
-  narration: 'meta' as 'meta' | 'beat',
+  // Beat top level per the landed Step-0 contract (MR !444 Lane B notes).
+  narration: 'beat' as 'meta' | 'beat',
   // The render carries hideOrb at beat level; keep that unless the schema says meta.
   hideOrb: 'beat' as 'meta' | 'beat',
   componentOwned: 'beat' as 'meta' | 'beat',
@@ -380,9 +380,16 @@ function main(): void {
         expectedResponse: m.expectedResponse,
         ...(m.variable != null ? { variable: m.variable } : {}),
         ...(m.elements?.length ? {
-          perElement: m.elements.map((e) => ({
-            elementId: e.elementId, line: e.line, order: e.order, showsAsBubble: e.showsAsBubble,
-          })),
+          // perElement carries the clip id as authoring context (!444 accepts it);
+          // clipless elements resolve by exact line text, same as mp3Assets.
+          perElement: m.elements.map((e) => {
+            const resolved = e.clip
+              ?? voiceClips.get(e.line.trim())?.split('/').pop()?.replace(/\.(wav|mp3)$/, '');
+            return {
+              elementId: e.elementId, line: e.line, order: e.order, showsAsBubble: e.showsAsBubble,
+              ...(resolved ? { clip: resolved } : {}),
+            };
+          }),
         } : {}),
       } : {}),
       ...(narration && FIELD_PLACEMENT.narration === 'meta' ? { narration } : {}),
