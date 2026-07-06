@@ -249,8 +249,13 @@ export function useOnboardingChat({
       void llmRef.current.sendOpener().then((ok) => {
         if (ok) return;
         // Busy no-op (a stream was already in flight) — the pending-opener
-        // machinery owns the re-fire; only a real failure degrades.
-        if (llmRef.current.isStreaming) return;
+        // machinery owns the re-fire; only a real failure degrades. Read the
+        // LIVE in-flight flag, not render-state isStreaming: this promise
+        // continuation is a microtask that beats React's re-render, so
+        // isStreaming is still true from the streaming render even after a
+        // real failure — the stale read skipped the fallback entirely (B44
+        // dead air).
+        if (llmRef.current.isBusy()) return;
         landOpenerFallback(sid);
       });
     },
@@ -429,7 +434,10 @@ export function useOnboardingChat({
     suppressTrailingRef.current = false;
     streamActiveRef.current = true;
     void llmRef.current.sendOpener().then((ok) => {
-      if (ok || llmRef.current.isStreaming) return;
+      // Same live-read rationale as fireOrDeferOpener: render-state
+      // isStreaming is stale inside this microtask and would misread a real
+      // failure as a busy no-op, silently dropping the fallback.
+      if (ok || llmRef.current.isBusy()) return;
       landOpenerFallback(sid);
     });
   }, [llm.isStreaming, landOpenerFallback]);

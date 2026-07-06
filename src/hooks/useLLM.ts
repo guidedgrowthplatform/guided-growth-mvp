@@ -49,6 +49,14 @@ export interface UseLLMReturn {
   toolFailures: LLMToolFailure[];
   status: LLMStatus;
   isStreaming: boolean;
+  // Live (non-render) in-flight check. `isStreaming` is render-state and can
+  // be one render stale inside a promise continuation (a microtask beats
+  // React's re-render), so callers that must distinguish "sendOpener no-oped
+  // because another stream is running" from "the stream ran and failed" read
+  // this instead: on a real failure the in-flight flag is already cleared
+  // before the promise resolves, while a busy no-op leaves the other
+  // stream's flag up.
+  isBusy: () => boolean;
   error: Error | null;
   reset: () => void;
   cancel: () => void;
@@ -452,6 +460,11 @@ export function useLLM(
     await runStream({ mode: 'chat', text: lu.content, surfaceErrors: true, reuseTurnId: lu.id });
   }, [runStream]);
 
+  // Live in-flight read (see UseLLMReturn.isBusy). runStream clears the flag
+  // in its finally before resolving, so a resolved-false send with isBusy()
+  // false is a real failure, never a busy no-op.
+  const isBusy = useCallback(() => inFlightRef.current, []);
+
   useEffect(() => {
     return () => {
       if (abortRef.current) {
@@ -488,6 +501,7 @@ export function useLLM(
     toolFailures,
     status,
     isStreaming: status === 'streaming',
+    isBusy,
     error,
     reset,
     cancel,
