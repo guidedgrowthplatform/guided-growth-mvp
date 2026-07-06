@@ -51,6 +51,17 @@ export interface DerivedStepMaps {
   selfAdvancingScreens: string[];
   /** The advance_step ladder for the beginner path's positional window. */
   advanceLadder: AdvanceLadderRung[];
+  /**
+   * Which componentType is being LEFT at each STORED server step (the ladder's
+   * one-ahead display scale), per lane. STEP_OWNERS keys the identity scale,
+   * which diverges from the stored step exactly where two consecutive beats
+   * share a persist step: habit-select and habit-schedule both persist 5, so
+   * the stored step is already 6 while the user is still ON habit-schedule.
+   * The advance gate must check the beat actually being left, not the identity
+   * that happens to carry that number (B50: gating 6 to 7 on state-check data
+   * deadlocked habit-schedule and rerouted the coach into add_habit).
+   */
+  advanceGateOwners: StepOwners;
   stepOwners: StepOwners;
   stepScreens: StepScreens;
   /** Highest identity step (the scale's end; legacy ids map past it by hand). */
@@ -171,6 +182,30 @@ export function deriveStepMaps(flow: FlowDocument): DerivedStepMaps {
     });
   }
 
+  // Advance-gate owners: walk EVERY lane's path with the same one-ahead display
+  // arithmetic as the ladder, and record which componentType sits at each stored
+  // step. checkAdvanceData prefers this over STEP_OWNERS so the forward gate
+  // checks the beat being left (habit-schedule at stored 6 on the beginner
+  // lane), falling back to the identity scale where no window beat displays
+  // there (B50).
+  const advanceGateOwners: StepOwners = {};
+  for (const path of paths) {
+    let prevGateDisplay = Number.NEGATIVE_INFINITY;
+    for (const n of path.nodes) {
+      if (!hasPersist(n) || !inWindow(n)) continue;
+      const display = Math.max(n.persist.step, prevGateDisplay + 1);
+      prevGateDisplay = display;
+      const owningLanes = laneOf(n.id) ? [laneOf(n.id) as string] : laneValues;
+      for (const lane of owningLanes) {
+        advanceGateOwners[display] = advanceGateOwners[display] ?? {};
+        // First owner in walk order wins within a lane.
+        if (advanceGateOwners[display][lane] == null) {
+          advanceGateOwners[display][lane] = n.componentType;
+        }
+      }
+    }
+  }
+
   return {
     screenToStep,
     stepToScreenLabel,
@@ -178,6 +213,7 @@ export function deriveStepMaps(flow: FlowDocument): DerivedStepMaps {
     toolScreen,
     selfAdvancingScreens,
     advanceLadder,
+    advanceGateOwners,
     stepOwners,
     stepScreens,
     maxStep,

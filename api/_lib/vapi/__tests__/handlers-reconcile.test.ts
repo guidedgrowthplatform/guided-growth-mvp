@@ -489,15 +489,18 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     expect(res).toMatchObject({ error: expect.stringContaining('habits_missing') });
   });
 
-  it('allows step 6 → 7 (leaving state-check) when the state check is saved', async () => {
-    // V3 tail: case 6 gates on stateCheck/checkin (state-check is pre-fork).
+  it('allows step 6 → 7 (leaving habit-schedule, stored one ahead) once habits are configured (B50)', async () => {
+    // The stored step runs one AHEAD across the shared persist step 5, so on
+    // the beginner lane current_step 6 means the user is ON habit-schedule.
+    // Gating this advance on state-check data (the NEXT beat) deadlocked the
+    // flow and rerouted the coach into add_habit ("habit limit reached").
     pool.query
       .mockResolvedValueOnce({
         rowCount: 1,
         rows: [
           {
             current_step: 6,
-            data: { stateCheck: { sleep: 3, mood: 4 } },
+            data: { habitConfigs: { Walking: { days: [1], time: '07:00', reminder: false } } },
             path: 'simple',
             brain_dump_raw: null,
           },
@@ -506,6 +509,40 @@ describe('vapi navigateNext — skip + precondition guards', () => {
       .mockResolvedValueOnce({ rowCount: 1, rows: [] });
     const res = await navigateNext({ anon_id: ANON, target_step: 7 });
     expect(res).toEqual({ result: 'ok' });
+  });
+
+  it('rejects step 6 → 7 on the beginner lane when no habits are configured (B50)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 6,
+          data: { stateCheck: { sleep: 3, mood: 4 } },
+          path: 'simple',
+          brain_dump_raw: null,
+        },
+      ],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toMatchObject({ error: expect.stringContaining('habits_missing') });
+  });
+
+  it('keeps the state-check identity gate on 6 → 7 for the advanced lane', async () => {
+    // navigateNext re-reads up to 5 times before rejecting (same-turn async
+    // saves), so every read must return the same advanced-lane row.
+    pool.query.mockResolvedValue({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 6,
+          data: { habitConfigs: { Running: { days: [1], time: '07:00', reminder: false } } },
+          path: 'braindump',
+          brain_dump_raw: 'run daily',
+        },
+      ],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toMatchObject({ error: expect.stringContaining('state_check_missing') });
   });
 
   it('rejects step 8 → 9 when reflection not saved (V3 reflection gate)', async () => {

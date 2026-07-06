@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  ADVANCE_GATE_OWNERS,
   ADVANCE_LADDER,
   MAX_STEP,
   SELF_ADVANCING_SCREENS,
@@ -69,11 +70,26 @@ describe('deriveStepMaps cutover equivalence (the retired hand tables)', () => {
     expect(derived.toolScreen.update_habit).toBeUndefined();
     expect(derived.toolScreen.submit_profile).toBe('ONBOARD-01--FORM');
   });
+
+  it('advanceGateOwners keys the STORED step to the beat being left (B50)', () => {
+    expect(derived.advanceGateOwners).toEqual({
+      1: { simple: 'profile-input', braindump: 'profile-input' },
+      2: { simple: 'path-selection', braindump: 'path-selection' },
+      3: { simple: 'category-grid', braindump: 'advanced-capture' },
+      4: { simple: 'goals-list', braindump: 'advanced-frequency' },
+      5: { simple: 'habit-picker' },
+      // The one-ahead seam: habit-schedule shares persist 5 with habit-select,
+      // so its stored step is 6. The advance out of it gates on habit data,
+      // never on state-check data (the next beat).
+      6: { simple: 'habit-schedule' },
+    });
+  });
 });
 
 describe('the committed api module is in sync with the flow', () => {
   it('stepMaps.generated.ts matches a fresh derivation (run npm run flow:sync if this fails)', () => {
     expect(STEP_OWNERS).toEqual(JSON.parse(JSON.stringify(derived.stepOwners)));
+    expect(ADVANCE_GATE_OWNERS).toEqual(JSON.parse(JSON.stringify(derived.advanceGateOwners)));
     expect(SELF_ADVANCING_SCREENS).toEqual(derived.selfAdvancingScreens);
     expect(MAX_STEP).toBe(derived.maxStep);
     expect(ADVANCE_LADDER).toBe(
