@@ -61,6 +61,7 @@ interface BridgeProps {
   appendMessage?: (m: VoiceMessage) => void;
   onAdvance?: () => void;
   startThread?: UseOnboardingChatArgs['startThread'];
+  chatNative?: boolean;
 }
 function Bridge({
   screenId = 'ONBOARD-FORK--FORM',
@@ -68,6 +69,7 @@ function Bridge({
   appendMessage = vi.fn(),
   onAdvance = vi.fn(),
   startThread = noopStartThread,
+  chatNative,
 }: BridgeProps) {
   const v = useOnboardingChat({
     screenId,
@@ -79,6 +81,7 @@ function Bridge({
     emitAssistant: vi.fn(),
     onVoiceAction: vi.fn(),
     onAdvance,
+    chatNative,
   });
   useEffect(() => {
     hookRef = v;
@@ -780,5 +783,109 @@ describe('LLM failure resilience: silent auto-retry then friendly bubble (B11)',
       String(c[0]).includes('/api/llm'),
     ).length;
     expect(callsAfterSecond).toBe(4); // another original + retry pair
+  });
+});
+
+describe('opener fallback (B44): name substitution + liveness', () => {
+  beforeEach(() => {
+    (getOrCreateOnboardingChatSessionId as ReturnType<typeof vi.fn>).mockReturnValue(STABLE_ID);
+  });
+
+  afterEach(() => {
+    qc.setQueryData(queryKeys.onboarding.state, null);
+  });
+
+  it('a failed opener stream degrades to the authored line with the name substituted (never the literal {name})', async () => {
+    qc.setQueryData(queryKeys.onboarding.state, {
+      current_step: 1,
+      data: { nickname: 'Yonas' },
+      path: null,
+    } as never);
+    const appendMessage = vi.fn();
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(
+          mockSSE([{ type: 'error', code: 'openai_error', message: 'upstream unavailable' }]),
+        ),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="ONBOARD-01--FORM" appendMessage={appendMessage} chatNative />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    const fallback = appendMessage.mock.calls
+      .map((c) => c[0] as VoiceMessage)
+      .find((m) => String(m.id).startsWith('opener-fallback-'));
+    expect(fallback).toBeDefined();
+    expect(fallback!.text).toContain('Yonas');
+    expect(fallback!.text).not.toContain('{name}');
+  });
+
+  it('the next user turn after an opener fallback still dispatches to /api/llm (not a dead beat)', async () => {
+    qc.setQueryData(queryKeys.onboarding.state, {
+      current_step: 1,
+      data: { nickname: 'Yonas' },
+      path: null,
+    } as never);
+    const appendMessage = vi.fn();
+    const fetchMock = vi
+      .fn()
+      // Opener stream fails once...
+      .mockImplementationOnce(() =>
+        Promise.resolve(
+          mockSSE([{ type: 'error', code: 'openai_error', message: 'upstream unavailable' }]),
+        ),
+      )
+      // ...then the next (user) turn succeeds normally.
+      .mockImplementation(() =>
+        Promise.resolve(
+          mockSSE([
+            { type: 'delta', content: 'got it' },
+            { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
+          ]),
+        ),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="ONBOARD-01--FORM" appendMessage={appendMessage} chatNative />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    // Opener fallback landed (dead-air degrade), confirming the failure path fired.
+    expect(
+      appendMessage.mock.calls
+        .map((c) => c[0] as VoiceMessage)
+        .some((m) => String(m.id).startsWith('opener-fallback-')),
+    ).toBe(true);
+
+    await act(async () => {
+      hookRef!.sendUserTurn('Yonas');
+    });
+    await flush();
+    await flush();
+
+    const llmCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes('/api/llm'));
+    // The opener call + the live user-turn call both hit /api/llm — the beat
+    // is not dead after the opener degraded.
+    expect(llmCalls.length).toBeGreaterThanOrEqual(2);
+    expect(
+      appendMessage.mock.calls
+        .map((c) => c[0] as VoiceMessage)
+        .some((m) => m.role === 'ai' && m.text === 'got it'),
+    ).toBe(true);
   });
 });

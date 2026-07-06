@@ -1479,9 +1479,16 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
 
   const emitVoiceInInterim = useCallback(
     (text: string) => {
-      // Barge-in on the first partial — cut the coach's audio/reply immediately
-      // so it doesn't talk over the user (full-duplex, mirrors useCoachChat).
-      bargeInterrupt();
+      // B41: Soniox sends a stream message on every tick, including empty
+      // committed+interim keepalives while the mic is live and nobody is
+      // actually talking. bargeInterrupt() used to fire unconditionally here,
+      // so those empty ticks cancelled the in-flight opener/reply stream on a
+      // near-every-turn basis (a systemic "signal is aborted without reason"
+      // on /api/llm, not a real barge-in). Gate on real content, same as the
+      // final-turn path below and as useCoachChat's handleSonioxInterim
+      // (which never interrupts on interim at all) - only actual speech
+      // should cut the coach off.
+      if (text.trim()) bargeInterrupt();
       notifyTranscriptListeners({ role: 'user', kind: 'partial', text });
       // User still talking after a buffered final → defer the flush so we don't
       // cut the turn mid-thought.

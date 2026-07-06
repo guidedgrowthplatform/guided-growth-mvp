@@ -26,6 +26,8 @@ import {
   ttsKaraokeActive,
   useTtsPlaybackStore,
 } from '@/lib/services/tts-service';
+import { applyName } from '@/onboarding-flow/renderer/applyName';
+import { claimBeatAudio, releaseBeatAudio } from '@/onboarding-flow/renderer/beatAudioOwner';
 import { detectAffirmation } from '@gg/shared/onboarding/detectAffirmation';
 import type { OnboardingState } from '@gg/shared/types';
 import type { CoachingStyle } from '@gg/shared/types/llm';
@@ -183,12 +185,23 @@ export function useOnboardingChat({
   const prevStreamingRef = useRef(false);
   const turnFinalizedRef = useRef(true);
   const turnSeqRef = useRef(0);
+  // B40: whether THIS hook currently holds the beat-audio claim for a
+  // sendOpener-driven speech turn (streamed or one-shot). Tracked locally so
+  // release is only ever called by the owner that actually claimed.
+  const ownsSpeechClaimRef = useRef(false);
+  const releaseSpeechClaim = useCallback(() => {
+    if (!ownsSpeechClaimRef.current) return;
+    ownsSpeechClaimRef.current = false;
+    const sid = screenIdRef.current;
+    if (sid) releaseBeatAudio(sid, 'send-opener-speech');
+  }, []);
   const resetSpeechTurn = useCallback(() => {
     streamTurnActiveRef.current = false;
     streamedSomethingRef.current = false;
     lastSpokenOffsetRef.current = 0;
     turnFinalizedRef.current = true;
-  }, []);
+    releaseSpeechClaim();
+  }, [releaseSpeechClaim]);
 
   const startStream = useCallback((text: string) => {
     suppressTrailingRef.current = false;
@@ -208,7 +221,7 @@ export function useOnboardingChat({
       const pending = openerCardRef.current;
       const nickname = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data
         ?.nickname;
-      const line = getOnboardingOpenerForState(sid, nickname) ?? '';
+      const line = applyName(getOnboardingOpenerForState(sid, nickname) ?? '', nickname);
       const card = pending && pending.screenId === sid ? pending.card : null;
       if (!line && !card) return;
       openerFallbackSidsRef.current.add(sid);
@@ -236,8 +249,13 @@ export function useOnboardingChat({
       void llmRef.current.sendOpener().then((ok) => {
         if (ok) return;
         // Busy no-op (a stream was already in flight) — the pending-opener
-        // machinery owns the re-fire; only a real failure degrades.
-        if (llmRef.current.isStreaming) return;
+        // machinery owns the re-fire; only a real failure degrades. Read the
+        // LIVE in-flight flag, not render-state isStreaming: this promise
+        // continuation is a microtask that beats React's re-render, so
+        // isStreaming is still true from the streaming render even after a
+        // real failure — the stale read skipped the fallback entirely (B44
+        // dead air).
+        if (llmRef.current.isBusy()) return;
         landOpenerFallback(sid);
       });
     },
@@ -317,8 +335,9 @@ export function useOnboardingChat({
       qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
     const revisit = getOnboardingRevisitOpener(screenId, onboardingState);
     landedCompleteRef.current = revisit?.complete === true;
+    const nickname = onboardingState?.data?.nickname;
     const opener =
-      revisit?.text ?? getOnboardingOpenerForState(screenId, onboardingState?.data?.nickname);
+      revisit?.text ?? applyName(getOnboardingOpenerForState(screenId, nickname) ?? '', nickname);
     // Chat-native page: attach this beat's inline card to its opener message so
     // it renders at the turn and freezes in scrollback when the flow advances.
     const card = chatNative ? cardForScreenId(screenId, onboardingState) : null;
@@ -415,7 +434,10 @@ export function useOnboardingChat({
     suppressTrailingRef.current = false;
     streamActiveRef.current = true;
     void llmRef.current.sendOpener().then((ok) => {
-      if (ok || llmRef.current.isStreaming) return;
+      // Same live-read rationale as fireOrDeferOpener: render-state
+      // isStreaming is stale inside this microtask and would misread a real
+      // failure as a busy no-op, silently dropping the fallback.
+      if (ok || llmRef.current.isBusy()) return;
       landOpenerFallback(sid);
     });
   }, [llm.isStreaming, landOpenerFallback]);
@@ -436,6 +458,15 @@ export function useOnboardingChat({
     const { chunks, nextOffset } = nextSentenceChunks(llm.response, lastSpokenOffsetRef.current);
     if (chunks.length === 0) return;
     if (!streamTurnActiveRef.current) {
+      // B40: claim this beat's audio before the streamed reply starts talking.
+      // Denied (a legacy opener or the narration driver already armed for this
+      // beat) -> back off entirely, no beginSpeechTurn/pushSpeechChunk. This
+      // only gates a REPLY turn, never a beat's own opener, so it cannot dead
+      // end the beat: the opener already claimed and will settle normally.
+      const sid = screenIdRef.current;
+      const owns = sid ? claimBeatAudio(sid, 'send-opener-speech') : true;
+      ownsSpeechClaimRef.current = owns;
+      if (!owns) return;
       turnSeqRef.current += 1;
       beginSpeechTurn({ onReveal: (t) => emitAssistant(t, 'partial') });
       streamTurnActiveRef.current = true;
@@ -543,10 +574,28 @@ export function useOnboardingChat({
       } else {
         land();
         emitAssistant(content, 'final');
-        if (speakRepliesRef.current) void speak(content);
+        // B40: claim before the one-shot reply speaks; denied -> stay silent
+        // text (another owner already has this beat's audio) instead of
+        // playing over it. Release when the clip actually finishes.
+        if (speakRepliesRef.current) {
+          const sid = screenIdRef.current;
+          const owns = sid ? claimBeatAudio(sid, 'send-opener-speech') : true;
+          if (owns) {
+            ownsSpeechClaimRef.current = true;
+            void speak(content).finally(releaseSpeechClaim);
+          }
+        }
       }
     }
-  }, [toolActive, llm.messages, appendMessage, emitAssistant, resetSpeechTurn, chatNative]);
+  }, [
+    toolActive,
+    llm.messages,
+    appendMessage,
+    emitAssistant,
+    resetSpeechTurn,
+    chatNative,
+    releaseSpeechClaim,
+  ]);
 
   // Stream ended with no final message (abort/tool-only) — drain the open speech
   // turn so it doesn't hang. Guarded so it never fires after the mirror effect
@@ -653,7 +702,15 @@ export function useOnboardingChat({
         const now = Date.now();
         appendMessage({ id: `user-${now}`, role: 'user', text });
         appendMessage({ id: `ai-${now}`, role: 'ai', text: 'Great — moving on.' });
-        if (speakRepliesRef.current) void speak('Great — moving on.');
+        // B40: same claim/release contract as the other one-shot speak() above.
+        if (speakRepliesRef.current) {
+          const sid = screenIdRef.current;
+          const owns = sid ? claimBeatAudio(sid, 'send-opener-speech') : true;
+          if (owns) {
+            ownsSpeechClaimRef.current = true;
+            void speak('Great — moving on.').finally(releaseSpeechClaim);
+          }
+        }
         // Already-complete revisit: no current_step transition for useAgentNavigation,
         // so advance the page directly (synchronous, this screen only — no timer race).
         onAdvanceRef.current?.();
@@ -692,7 +749,15 @@ export function useOnboardingChat({
       }
       startStream(text);
     },
-    [isOnboardingScreen, appendMessage, startStream, resetSpeechTurn, chatNative, onVoiceAction],
+    [
+      isOnboardingScreen,
+      appendMessage,
+      startStream,
+      resetSpeechTurn,
+      chatNative,
+      onVoiceAction,
+      releaseSpeechClaim,
+    ],
   );
 
   return { sendUserTurn, chatBusy: llm.isStreaming, interrupt, regenerate };

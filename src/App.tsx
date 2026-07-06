@@ -16,6 +16,7 @@ import {
 import { getFreshToken } from '@/lib/auth/tokenStore';
 import { queryClient } from '@/lib/query';
 import { reacquireIfActive, suspendWakeLock } from '@/lib/services/keepAwake';
+import { fireWarmup } from '@/lib/services/warmup';
 import { QAFab } from '@/onboarding-flow/QAFab';
 import { QASoundToggle } from '@/onboarding-flow/QASoundToggle';
 import { QAVapiToggle } from '@/onboarding-flow/QAVapiToggle';
@@ -84,6 +85,13 @@ function PushRegistrar() {
 export default function App() {
   useEffect(() => {
     useAuthStore.getState().initialize();
+  }, []);
+
+  // Fire a cheap no-auth warmup hit at app open so the LLM function + pg pool
+  // (cold start ~2.5-3.1s, pool connect ~2.8s) are already warm before the
+  // user's first real opener fires post-login/home-render.
+  useEffect(() => {
+    fireWarmup();
   }, []);
 
   // GLOB-03: gesture or visibilitychange reactivates system-grayed mic.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateFlow } from '../flowMachine';
+import type { BeatNode } from '../types';
 import { onboardingBeginnerV1 } from '../flows/__fixtures__/onboarding-beginner-v1';
 import generatedJson from '../flows/onboarding-beginner-v1.generated.json';
 import { loadPublishedFlow, versionTag } from '../useFlow';
@@ -66,10 +67,17 @@ describe('designerToFlow no-op swap correctness', () => {
     expect(lines[2]).toMatch(/gender/i);
   });
 
-  it('v3 flow has why-intro, state-check, advanced-frequency, and 5 weekly-projection nodes', () => {
+  it('seeded flow drops why-intro (merged into state-check) and keeps the spine + projections', () => {
     const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
-    expect(flow.nodes.find((n) => n.id === 'why-intro')).toBeDefined();
-    expect(flow.nodes.find((n) => n.id === 'state-check')).toBeDefined();
+    // Consolidation seed 2026-07-06: the render merged the why-intro framing
+    // into state-check's two opening bubbles; the node no longer exists and
+    // state-check backs onto profile.
+    expect(flow.nodes.find((n) => n.id === 'why-intro')).toBeUndefined();
+    const stateCheck = flow.nodes.find((n) => n.id === 'state-check') as BeatNode | undefined;
+    expect(stateCheck).toBeDefined();
+    expect(stateCheck?.backId).toBe('profile');
+    expect(flow.nodes.find((n) => n.id === 'goal-custom')).toBeDefined();
+    expect(flow.nodes.find((n) => n.id === 'habit-custom')).toBeDefined();
     expect(flow.nodes.find((n) => n.id === 'advanced-frequency')).toBeDefined();
     const projections = flow.nodes.filter((n) => n.componentType === 'weekly-projection');
     expect(projections).toHaveLength(5);

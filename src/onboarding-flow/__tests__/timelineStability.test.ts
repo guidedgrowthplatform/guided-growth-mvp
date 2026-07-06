@@ -29,7 +29,7 @@ const BEGINNER_RUN: Array<{ node: string; cap: BeatCapture }> = [
   { node: 'auth', cap: { data: {} } },
   { node: 'mic', cap: { data: {} } },
   { node: 'profile', cap: { data: { age: 25, gender: 'Male' } } },
-  { node: 'why-intro', cap: { data: {} } },
+  // why-intro left the flow with the consolidation seed (merged into state-check).
   { node: 'state-check', cap: { data: { checkin: { mood: 4 } } as BeatCapture['data'] } },
   {
     node: 'morning-checkin-setup',
@@ -170,8 +170,8 @@ describe('captureCompletesBeat (B21: a step climb alone must not skip a data bea
     expect(captureCompletesBeat(node('path-fork'), cap)).toBe(false);
   });
 
-  it('lets persist-less beats advance freely (why-intro, into-app, projections)', () => {
-    for (const id of ['why-intro', 'into-app', 'weekly-projection-blank']) {
+  it('lets persist-less beats advance freely (into-app, projections)', () => {
+    for (const id of ['into-app', 'weekly-projection-blank']) {
       const cap = serverCaptureForBeat(node(id), {});
       expect(captureCompletesBeat(node(id), cap)).toBe(true);
     }

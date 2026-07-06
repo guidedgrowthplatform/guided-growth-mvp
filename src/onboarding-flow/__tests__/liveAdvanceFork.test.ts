@@ -201,7 +201,7 @@ describe('captureCompletesBeat — the live-advance data gate (parity with !400)
   });
 
   it('display beats advance freely (nothing to replay)', () => {
-    expect(captureCompletesBeat(node('why-intro'), { data: {} })).toBe(true);
+    // why-intro left the flow with the consolidation seed (merged into state-check).
     expect(captureCompletesBeat(node('into-app'), { data: {} })).toBe(true);
     expect(captureCompletesBeat(node('weekly-projection-blank'), { data: {} })).toBe(true);
   });

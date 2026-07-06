@@ -58,7 +58,7 @@ type LLMStreamEvent =
   | { type: 'error'; code: string; message: string; debug?: { stage: string; class?: string } };
 
 const MAX_ROUNDS = 5;
-const ONBOARDING_MODEL = 'gpt-4o';
+const ONBOARDING_MODEL = process.env.ONBOARDING_LLM_MODEL || 'gpt-4o';
 const FORK_SCREEN_ID = 'ONBOARD-FORK--FORM';
 // Onboarding turns emit tool JSON (add_habit / update_habit / advance_step,
 // sometimes several per turn on the habit beats) ON TOP of the coach's text.
@@ -88,6 +88,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
+
+  // Warmup fast path: fired by the client at app-open to pre-warm this function
+  // + the pg pool before the user's first real LLM call. No auth, no rate
+  // limit, no OpenAI touch — just boots the function and pings the DB pool.
+  // Kept ahead of ALL other checks (including the route-404 gate) so it never
+  // risks getting entangled with auth/rate-limit/parsing changes below.
+  if (route === 'warmup' && req.method === 'GET') {
+    const dbStart = performance.now();
+    let db_ms: number;
+    try {
+      await pool.query('SELECT 1');
+      db_ms = Math.round(performance.now() - dbStart);
+    } catch {
+      // A failing warmup must never alarm the client — the function boot
+      // itself already happened, which is most of the value.
+      db_ms = -1;
+    }
+    return res.status(200).json({ warm: true, db_ms });
+  }
+
   if (route !== '' && route !== 'parse-brain-dump' && route !== 'checkin-tool') {
     return res.status(404).json({ error: 'Not found' });
   }
