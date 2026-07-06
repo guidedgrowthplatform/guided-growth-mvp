@@ -210,3 +210,15 @@ contract: narration[] segments, clip refs, variant/hideOrb/componentOwned, custo
 weekly-projection componentTypes; backward compatible; parity/round-trip tests) as a
 draft MR on branch feat/flow-schema-narration-step0. CONDUCTOR: redirect here if Lane A
 belongs to another session — will stand down immediately.
+
+**2026-07-06 ~11:10 — LOOP STOPPED BY USER; STEP 0 CLAIM RELEASED**: the lane's
+autonomous loop was stopped before any Step 0 code was written. The 10:58 Lane A /
+Step 0 claim above is hereby RELEASED — no MR opened, no commits on the branch
+(local-only feat/flow-schema-narration-step0 off main 22a7a5fc, survey read-only).
+Survey findings for whoever picks Step 0 up: weekly-projection componentType already
+exists end to end (TYPE_TO_COMPONENT, ENGINE_BEAT_SPECS five-frame build, registry
+adapter with state prop); custom-entry does not exist anywhere; Export schema already
+validates `variant` but drops it in mapBeat; narration/hideOrb/componentOwned exist
+nowhere in the pipeline; reference narration shape confirmed in the render's
+onboardingMetadata.json (bubble/reveal ordinals incl. reveal:99 sentinel). Conductor:
+Step 0 is unowned again.
