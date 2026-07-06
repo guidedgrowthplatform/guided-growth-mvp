@@ -79,6 +79,7 @@ import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
 import { clampFlushDelayMs, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
 import { isVapiCapableBeat, isIdleCaptureBeat } from '@/onboarding-flow/beatEngineMeta';
 import { applyName } from '@/onboarding-flow/renderer/applyName';
+import { registerQaSendUserTurn } from '@/onboarding-flow/qaConvoHarness';
 import { ONBOARDING_BEAT_MP3S } from '@/onboarding-flow/renderer/useBeatOpenerMp3';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
@@ -1836,6 +1837,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     setProviderError(null);
     await updatePreferences({ voiceMode: 'voice', micEnabled: true });
   }, [clearRetryTimer, clearRemoteEndCooldownTimer, updatePreferences]);
+
+  // QA convo-harness test seam (QA_SCREEN_ENABLED builds only): expose the
+  // same sendUserTurn a voice transcript final feeds, so an external
+  // Playwright driver can inject text turns on beats with no visible input.
+  useEffect(() => registerQaSendUserTurn(sendUserTurn), [sendUserTurn]);
 
   const value = useMemo<OnboardingVoiceContextValue>(
     () => ({
