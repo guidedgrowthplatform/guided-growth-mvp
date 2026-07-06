@@ -182,16 +182,22 @@ export function AppRoutes() {
           }
         />
 
-        {/* Public status dashboard (no auth required) */}
-        <Route path="/status" element={<StatusPage />} />
+        {/* Status dashboard (QA/dev builds only): no auth required, so gated behind
+            QA_SCREEN_ENABLED the same as the other QA-only routes below, keeping it
+            unreachable in production builds. */}
+        {QA_SCREEN_ENABLED && <Route path="/status" element={<StatusPage />} />}
 
         {/* Dev-only flow designer: preview the chat-native flow with real components */}
         {import.meta.env.DEV && <Route path="/flow-designer" element={<FlowDesignerPage />} />}
 
         <Route path="/splash" element={<SplashScreenPage />} />
 
-        {/* Auth-free QA render of the unified chat-native onboarding engine */}
-        <Route path="/onboarding-flow-preview" element={<FlowOnboardingPreview />} />
+        {/* Auth-free QA render of the unified chat-native onboarding engine (QA/dev
+            builds only): gated behind QA_SCREEN_ENABLED, same as the other QA-only
+            routes below, keeping it unreachable in production builds. */}
+        {QA_SCREEN_ENABLED && (
+          <Route path="/onboarding-flow-preview" element={<FlowOnboardingPreview />} />
+        )}
 
         {/* QA control launcher (QA/dev builds only): pick a test user, log in / reset / re-onboard.
             No AppGate: must render for ANYONE (logged in mid-onboarding, done, or out),
