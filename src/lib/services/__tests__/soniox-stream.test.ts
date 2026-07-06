@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const voiceConfigMock = vi.hoisted(() => ({ SONIOX_V5: false }));
+vi.mock('@/config/voiceConfig', () => voiceConfigMock);
+
 import {
   BoundedPcmBuffer,
   createPrimedKeyGetter,
@@ -8,6 +12,7 @@ import {
   shouldOpenSocket,
   updateVad,
   type SonioxCoreDeps,
+  type SonioxFinalMeta,
   type SonioxSocket,
   type SonioxState,
 } from '@/lib/services/soniox-stream';
@@ -74,7 +79,7 @@ function makeHarness(overrides?: Partial<SonioxCoreDeps>) {
   const sockets: FakeSocket[] = [];
   const timers: ScheduledTimer[] = [];
   const interim = vi.fn<(text: string) => void>();
-  const final = vi.fn<(text: string) => void>();
+  const final = vi.fn<(text: string, meta?: SonioxFinalMeta) => void>();
   const stateChanges: SonioxState[] = [];
   const error = vi.fn<(msg: string) => void>();
   let keyCount = 0;
@@ -132,6 +137,7 @@ function makeHarness(overrides?: Partial<SonioxCoreDeps>) {
 describe('createSonioxSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    voiceConfigMock.SONIOX_V5 = false;
   });
 
   it('1. start() mints key, opens socket, sends config frame, connecting -> listening', async () => {
@@ -177,7 +183,8 @@ describe('createSonioxSession', () => {
     h.sockets[0].emitMessage({ tokens: [{ text: '<end>', is_final: true }] });
 
     expect(h.final).toHaveBeenCalledTimes(1);
-    expect(h.final).toHaveBeenCalledWith('turn one');
+    // A real end token is a true semantic boundary — meta.semanticEnd is true.
+    expect(h.final).toHaveBeenCalledWith('turn one', { semanticEnd: true });
     expect(h.session.getState()).toBe('listening');
 
     // Buffers cleared: a fresh interim starts empty.
@@ -197,8 +204,8 @@ describe('createSonioxSession', () => {
     h.sockets[0].emitMessage({ tokens: [{ text: '<end>', is_final: true }] });
 
     expect(h.final).toHaveBeenCalledTimes(2);
-    expect(h.final).toHaveBeenNthCalledWith(1, 'first utterance');
-    expect(h.final).toHaveBeenNthCalledWith(2, 'second utterance');
+    expect(h.final).toHaveBeenNthCalledWith(1, 'first utterance', { semanticEnd: true });
+    expect(h.final).toHaveBeenNthCalledWith(2, 'second utterance', { semanticEnd: true });
     expect(h.sockets[0].closed).toBe(false);
   });
 
@@ -242,7 +249,7 @@ describe('createSonioxSession', () => {
     expect(h.sockets[0].jsonSent().some((f) => f.type === 'finalize')).toBe(true);
 
     h.sockets[0].emitMessage({ tokens: [{ text: '<end>', is_final: true }] });
-    expect(h.final).toHaveBeenCalledWith('goodbye');
+    expect(h.final).toHaveBeenCalledWith('goodbye', { semanticEnd: true });
     expect(h.sockets[0].closed).toBe(true);
   });
 
@@ -332,7 +339,7 @@ describe('createSonioxSession', () => {
 
     h.sockets[0].emitMessage({ tokens: [{ text: '<fin>', is_final: true }] });
     expect(h.final).toHaveBeenCalledTimes(1);
-    expect(h.final).toHaveBeenCalledWith('all done');
+    expect(h.final).toHaveBeenCalledWith('all done', { semanticEnd: true });
     expect(h.sockets[0].closed).toBe(true);
   });
 
@@ -349,7 +356,8 @@ describe('createSonioxSession', () => {
       .filter((t) => !t.cleared)
       .pop()
       ?.fn();
-    expect(h.final).toHaveBeenCalledWith('pending words');
+    // FINALIZE_TIMEOUT_MS forced this flush — not a real semantic boundary.
+    expect(h.final).toHaveBeenCalledWith('pending words', { semanticEnd: false });
     expect(h.sockets[0].closed).toBe(true);
   });
 
@@ -395,7 +403,8 @@ describe('createSonioxSession', () => {
     h.sockets[0].emitMessage({ tokens: [{ text: 'half a sentence', is_final: true }] });
     h.sockets[0].emitClose(1006); // no budget -> give up
 
-    expect(h.final).toHaveBeenCalledWith('half a sentence');
+    // Unexpected drop, not a Soniox end token — not a semantic boundary.
+    expect(h.final).toHaveBeenCalledWith('half a sentence', { semanticEnd: false });
     expect(h.error).toHaveBeenCalledWith('voice connection lost');
     expect(h.session.getState()).toBe('error');
   });
@@ -438,7 +447,7 @@ describe('createSonioxSession', () => {
     expect(h.keyCount()).toBe(1);
     expect(h.sockets).toHaveLength(1);
     // Trailing text preserved, parked via onError + error state.
-    expect(h.final).toHaveBeenCalledWith('half said');
+    expect(h.final).toHaveBeenCalledWith('half said', { semanticEnd: false });
     expect(h.error).toHaveBeenCalledWith('voice connection lost');
     expect(h.session.getState()).toBe('error');
   });
@@ -473,6 +482,35 @@ describe('createSonioxSession', () => {
       h.sockets[i + 1].emitOpen();
       // Healthy open resets the consecutive budget; lifetime count still climbs the delay.
     }
+  });
+
+  it('17. SONIOX_V5 off (default): v4 model, no new endpoint fields (byte-identical today)', async () => {
+    voiceConfigMock.SONIOX_V5 = false;
+    const h = makeHarness();
+    h.session.start();
+    await h.flush();
+    h.sockets[0].emitOpen();
+
+    const frame = h.sockets[0].jsonSent()[0];
+    expect(frame.model).toBe('stt-rt-v4');
+    expect(frame.endpoint_sensitivity).toBeUndefined();
+    expect(frame.endpoint_latency_adjustment_level).toBeUndefined();
+    expect(frame.max_endpoint_delay_ms).toBeUndefined();
+  });
+
+  it('18. SONIOX_V5 on: v5 model + Soniox voice-agent preset fields included', async () => {
+    voiceConfigMock.SONIOX_V5 = true;
+    const h = makeHarness();
+    h.session.start();
+    await h.flush();
+    h.sockets[0].emitOpen();
+
+    const frame = h.sockets[0].jsonSent()[0];
+    expect(frame.model).toBe('stt-rt-v5');
+    expect(frame.endpoint_sensitivity).toBe(0.3);
+    expect(frame.endpoint_latency_adjustment_level).toBe(2);
+    expect(frame.max_endpoint_delay_ms).toBe(1500);
+    expect(frame.enable_endpoint_detection).toBe(true);
   });
 });
 

@@ -1,4 +1,5 @@
 // Soniox realtime STT streaming client. Pure testable core + thin browser layer.
+import { SONIOX_V5 } from '@/config/voiceConfig';
 import { takeTempKey } from '@/lib/services/soniox-temp-key-cache';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 
@@ -27,12 +28,18 @@ export interface SonioxConfig {
   contextTerms: string[];
 }
 
+export interface SonioxFinalMeta {
+  // true when the flush was caused by an end token / finished:true (a real
+  // Soniox turn boundary); false for FINALIZE_TIMEOUT_MS or teardown.
+  semanticEnd: boolean;
+}
+
 export interface SonioxCoreDeps {
   url: string;
   openSocket: (url: string) => SonioxSocket;
   getTempKey: () => Promise<string>;
   onInterim: (text: string) => void;
-  onFinal: (text: string) => void;
+  onFinal: (text: string, meta?: SonioxFinalMeta) => void;
   onStateChange: (s: SonioxState) => void;
   onError: (msg: string) => void;
   now: () => number;
@@ -156,11 +163,11 @@ export function createSonioxSession(deps: SonioxCoreDeps): SonioxSession {
     }
   }
 
-  function flushFinal(): void {
+  function flushFinal(semanticEnd = false): void {
     const text = committed.trim();
     committed = '';
     interim = '';
-    if (text && !disposed) deps.onFinal(text);
+    if (text && !disposed) deps.onFinal(text, { semanticEnd });
   }
 
   function handleMessage(raw: string): void {
@@ -190,7 +197,9 @@ export function createSonioxSession(deps: SonioxCoreDeps): SonioxSession {
     const terminal = sawEnd || parsed.finished === true;
 
     if (terminal) {
-      flushFinal();
+      // A real end token / finished:true — true Soniox-native semantic
+      // boundary, not FINALIZE_TIMEOUT_MS or teardown.
+      flushFinal(true);
       if (pendingFinalize) {
         clearFinalize();
         closeSocket();
@@ -267,12 +276,22 @@ export function createSonioxSession(deps: SonioxCoreDeps): SonioxSession {
           sock.send(
             JSON.stringify({
               api_key: tempKey,
-              model: config.model,
+              // v5 keeps v4's field names; bump the model + add Soniox's own
+              // voice-agent preset fields only when SONIOX_V5 is on (independent
+              // flag from SEMANTIC_TURN_END — ship the model bump alone first).
+              model: SONIOX_V5 ? 'stt-rt-v5' : config.model,
               audio_format: 'pcm_s16le',
               sample_rate: config.sampleRate,
               num_channels: 1,
               language_hints: config.languageHints,
               enable_endpoint_detection: true,
+              ...(SONIOX_V5
+                ? {
+                    endpoint_sensitivity: 0.3,
+                    endpoint_latency_adjustment_level: 2,
+                    max_endpoint_delay_ms: 1500,
+                  }
+                : {}),
               context: { terms: config.contextTerms },
             }),
           );
@@ -378,7 +397,7 @@ export interface ConnectMetrics {
 
 export interface StartBrowserSttOpts {
   onInterim: (text: string) => void;
-  onFinal: (text: string) => void;
+  onFinal: (text: string, meta?: SonioxFinalMeta) => void;
   onStateChange: (s: SonioxState) => void;
   onError: (msg: string) => void;
   onConnected?: (m: ConnectMetrics) => void;

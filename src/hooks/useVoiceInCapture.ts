@@ -4,6 +4,7 @@ import { VOICE_IN_ENABLED } from '@/lib/config/voice';
 import {
   startSonioxBrowserSession,
   type BrowserSttHandle,
+  type SonioxFinalMeta,
   type SonioxState,
 } from '@/lib/services/soniox-stream';
 
@@ -41,7 +42,7 @@ export function shouldStartVoiceIn(active: boolean, vapiStatus: VapiStatus): boo
 interface Options {
   active: boolean;
   vapiStatus: VapiStatus;
-  onTranscript: (text: string) => void;
+  onTranscript: (text: string, meta?: SonioxFinalMeta) => void;
   onInterim?: (text: string) => void;
   responding?: boolean;
   onError?: (msg: string) => void;
@@ -118,12 +119,12 @@ export function useVoiceInCapture({
       onInterim: (t) => {
         if (!disposed) onInterimRef.current?.(t);
       },
-      onFinal: (t) => {
+      onFinal: (t, meta) => {
         // forward post-teardown — stop()'s finalize must still deliver the turn
         const trimmed = t.trim();
         if (trimmed) {
           heardAnyFinalRef.current = true;
-          onTranscriptRef.current(trimmed);
+          onTranscriptRef.current(trimmed, meta);
         }
       },
       onStateChange: (s: SonioxState) => {
