@@ -180,6 +180,23 @@ DO NOT:
     opener: "Within that, what's the piece you want to start with?",
   },
 
+  // Consolidation seed 2026-07-06: the create-your-own goal detour beat.
+  'ONBOARD-BEGINNER-02-CUSTOM': {
+    context: `BEAT: Create your own goal.
+
+SPEAK MODE: VERBATIM_OPENER
+
+The user chose to name their own goal instead of picking from the list. Collect one short goal name in their words, save it with submit_goals, and move on. If they describe it at length, reflect back a short name and confirm in one line. One goal here, no more.
+
+DO NOT:
+- Suggest goals from the list. They came here to write their own.
+- Rewrite or polish their wording beyond a short, usable name.
+- Coach on the goal's merit. Save it and keep moving.`,
+    // submit_goals saves the custom label; advance_step is the nav.
+    allowedTools: ['submit_goals', 'advance_step'],
+    opener: "Tell me the goal you want to add, and I'll set it up.",
+  },
+
   'ONBOARD-BEGINNER-03': {
     context: `BEAT: Habit selection.
 
@@ -198,6 +215,23 @@ DO NOT:
     allowedTools: ['add_habit', 'remove_habit', 'advance_step'],
     opener:
       "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+  },
+
+  // Consolidation seed 2026-07-06: the create-your-own habit detour beat.
+  'ONBOARD-BEGINNER-03-CUSTOM': {
+    context: `BEAT: Create your own habit.
+
+SPEAK MODE: VERBATIM_OPENER
+
+The user chose to name their own habit instead of picking from the list. Collect one short habit name in their words, save it with add_habit, and move on. If they describe it at length, reflect back a short name and confirm in one line. One habit here, no more.
+
+DO NOT:
+- Suggest habits from the list. They came here to write their own.
+- Rewrite or polish their wording beyond a short, usable name.
+- Coach on the habit's merit or add motivation. Save it and keep moving.`,
+    // add_habit saves the custom habit; advance_step is the nav.
+    allowedTools: ['add_habit', 'advance_step'],
+    opener: "Tell me the habit you want to add, and I'll set it up.",
   },
 
   'ONBOARD-BEGINNER-04': {
