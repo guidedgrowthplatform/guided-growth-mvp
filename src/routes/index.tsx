@@ -93,6 +93,12 @@ const FlowPreviewRoute = lazyWithRetry(() =>
   import('@/onboarding-flow/FlowPreviewRoute').then((m) => ({ default: m.FlowPreviewRoute })),
 );
 
+// The Weekly as a LIVE Vapi voice session (gated inside QA_SCREEN_ENABLED below):
+// real week data + the dedicated weekly assistant, driven by weekly_* tool calls.
+const WeeklySessionPage = lazyWithRetry(() =>
+  import('@/pages/WeeklySessionPage').then((m) => ({ default: m.WeeklySessionPage })),
+);
+
 // QA control launcher: gated to QA/dev builds only. Off in production by default,
 // so real users never see it. The QA build flips VITE_QA_SCREEN_ENABLED=true to
 // expose /onboarding/qa. Same code, two builds, one flag.
@@ -210,6 +216,11 @@ export function AppRoutes() {
             id or slug, no login. home-tour still stalls per beat until its engine
             adapter lands (L1-8). */}
         {QA_SCREEN_ENABLED && <Route path="/flow-preview/:flowId" element={<FlowPreviewRoute />} />}
+
+        {/* The Weekly live Vapi session (QA/dev builds only): signed-in tester,
+            real week data, dedicated weekly assistant. Bypasses the day +
+            reflection trigger rule on purpose (QA). */}
+        {QA_SCREEN_ENABLED && <Route path="/weekly-session" element={<WeeklySessionPage />} />}
 
         {/* Privacy policy -- accessible from any state (onboarding, settings, anon) */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

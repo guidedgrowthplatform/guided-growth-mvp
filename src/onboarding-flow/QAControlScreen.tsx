@@ -57,7 +57,8 @@ type FlowId =
   | 'profile-start'
   | 'home-tour'
   | 'morning-checkin'
-  | 'evening-checkin';
+  | 'evening-checkin'
+  | 'weekly-checkin';
 
 interface FlowDef {
   id: FlowId;
@@ -142,6 +143,15 @@ const FLOWS: FlowDef[] = [
     label: 'Evening check-in',
     desc: '5-beat evening flow',
     navigate: (nav) => nav('/flow-preview/evening-checkin', { replace: true }),
+    fullyRunnable: true,
+    kind: 'preview',
+  },
+  {
+    id: 'weekly-checkin',
+    icon: 'ic:round-calendar-view-week',
+    label: 'The Weekly',
+    desc: 'Live Vapi weekly session, real week data',
+    navigate: (nav) => nav('/weekly-session', { replace: true }),
     fullyRunnable: true,
     kind: 'preview',
   },
