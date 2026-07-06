@@ -2,6 +2,15 @@
 
 Lane A of gg-spec/docs/onboarding-consolidation-plan-2026-07-06. Owner territory: schema, engine renderer, narration driver, new components. Updates append at the top.
 
+## 2026-07-06 (later) CONDUCTOR INPUTS HANDLED: !444 green, close segment landed, Lane B reconciled
+
+- !444 verify GREEN (pipeline 1096, f3cda36f). Red cause: icon bundle missing the custom-entry adapter icons; regenerated.
+- Schema amendments on !444: narration kind 'close' (post-interaction coach line; the advanced-capture closeCoachLine + advanced-frequency confirm) and mp3Assets timing 'close'. Round-trip locked in the contract test.
+- Driver (!447): close segments hold the card's capture, play as bubbles below the card, forward on settle; 12s stall safety; verified live with a DOM observer (close at +5ms, advance at +9s when the real clip ended); close lines persist in scrollback replay.
+- Lane B reconciliation (note on !443): narration stays beat top level (their FIELD_PLACEMENT flips); close slot now exists for their two flagged lines; clip resolution = mp3Assets id, then absolute path, then /voice/ob/<id>.wav (driver matches); captions paste in unchanged (clip-name keys accepted). Their remaining flags (into-app label, profile demo props vs no-age-default) are content rulings for the conductor/Yair, not schema.
+- Freshness-doc compliance: driver built on LIVE main components (useBeatOpenerMp3/BeatPlayer/adapters); only A2 grid math ported.
+- Stack merged forward and pushed: step0 f3cda36f -> a1 627ce00b -> a2-a5 f53e3341 -> a4 6dee9cc3. 287 tests green at the tip; !447/!448/!449 pipelines running at those shas.
+
 ## 2026-07-06 LANE A COMPLETE: A2/A3/A5 (!448) + A4 (!449) up; full stack drafted
 
 - Merge order: !444 (STEP 0) -> !447 (A1) -> !448 (A2+A3+A5) -> !449 (A4). All drafts, conductor merges.
