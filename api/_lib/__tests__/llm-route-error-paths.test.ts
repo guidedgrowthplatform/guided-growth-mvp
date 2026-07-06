@@ -149,6 +149,50 @@ beforeEach(() => {
   });
 });
 
+describe('LLM route — warmup fast path', () => {
+  it('GET /warmup runs SELECT 1 on the pool and returns 200 with no auth required', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ '?column?': 1 }] });
+
+    const res = mockRes();
+    await handler(
+      {
+        method: 'GET',
+        query: { '...path': 'warmup' },
+        body: {},
+        headers: {},
+        on: vi.fn(),
+      } as unknown as VercelRequest,
+      res,
+    );
+
+    expect(auth.requireUser).not.toHaveBeenCalled();
+    expect((res as unknown as { _status: number })._status).toBe(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ warm: true, db_ms: expect.any(Number) }),
+    );
+    expect(pool.query).toHaveBeenCalledWith('SELECT 1');
+  });
+
+  it('GET /warmup still returns 200 with db_ms: -1 when the DB query fails', async () => {
+    pool.query.mockRejectedValueOnce(new Error('db down'));
+
+    const res = mockRes();
+    await handler(
+      {
+        method: 'GET',
+        query: { '...path': 'warmup' },
+        body: {},
+        headers: {},
+        on: vi.fn(),
+      } as unknown as VercelRequest,
+      res,
+    );
+
+    expect((res as unknown as { _status: number })._status).toBe(200);
+    expect(res.json).toHaveBeenCalledWith({ warm: true, db_ms: -1 });
+  });
+});
+
 describe('LLM route — error-path tool persistence', () => {
   it('L518 — persists tool row when stream throws mid-iteration', async () => {
     pool.query.mockResolvedValueOnce({

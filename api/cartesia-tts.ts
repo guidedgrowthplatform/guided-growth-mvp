@@ -9,6 +9,14 @@ const DEFAULT_VOICE_ID = '104635f9-8991-403c-9988-bc5b70b39939';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
+
+  // Warmup fast path: this route is POST-only, so a GET is an unambiguous
+  // signal that it's the client's fire-and-forget warmer, not a real TTS
+  // request. No auth, no Cartesia key touch — just boots the function.
+  if (req.method === 'GET') {
+    return res.status(200).json({ warm: true });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

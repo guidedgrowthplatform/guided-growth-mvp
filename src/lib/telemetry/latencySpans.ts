@@ -16,7 +16,8 @@ export type LatencySpanName =
   | 'beat_transition_ms'
   | 'cartesia_first_audio_ms'
   | 'mp3_first_audio_ms'
-  | 'vapi_first_audio_ms';
+  | 'vapi_first_audio_ms'
+  | 'warmup_roundtrip_ms';
 
 export function emitLatencySpan(
   span: LatencySpanName,
