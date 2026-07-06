@@ -70,12 +70,20 @@ const POSITIONAL_DATA = {
   habitConfigs: { Walking: { days: [1, 2, 3], time: '08:00', reminder: true } },
 };
 
+// B55: the identity-beat evidence advance now also requires a fresh
+// `updated_at` (proof the row was actually written to while the beat was
+// active, not just that the field is non-null — see hasFreshServerWrite in
+// useFlowOrchestrator.ts). Each call bumps the clock, mirroring how a real
+// save always advances the row's updated_at.
+let rowClockMs = Date.parse('2026-07-07T00:00:00.000Z');
 function rowAt(step: number, data: Record<string, unknown>): OnboardingState {
+  rowClockMs += 1000;
   return {
     current_step: step,
     status: 'in_progress',
     path: 'simple',
     data,
+    updated_at: new Date(rowClockMs).toISOString(),
   } as unknown as OnboardingState;
 }
 
