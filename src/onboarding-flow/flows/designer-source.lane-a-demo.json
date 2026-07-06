@@ -1,0 +1,80 @@
+{
+  "flowId": "lane-a-demo-v1",
+  "name": "Lane A Capability Demo",
+  "version": 1,
+  "publishedAt": "2026-07-06T00:00:00Z",
+  "source": "Lane A capability demo (onboarding-consolidation plan): STEP-0 schema + A1 narration driver on /flow-preview/lane-a-demo. QA preview only; droppable once Lane B content lands. Clips reference existing public/voice assets until /voice/ob lands.",
+  "beats": [
+    {
+      "beat": "1",
+      "name": "State check (narration demo)",
+      "componentType": "state-check",
+      "sheetStage": "ONBOARD-STATE-CHECK: First State Check",
+      "context": "Narration demo: two framing bubbles, then the four check-in rows bloom one at a time as each question is asked.",
+      "props": {},
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "engine": { "nodeId": "demo-state-check" }
+      },
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+          "clip": "/voice/onboard_why_intro.mp3"
+        },
+        {
+          "kind": "bubble",
+          "n": 2,
+          "say": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+          "clip": "/voice/onboard_state_check.mp3"
+        },
+        { "kind": "reveal", "n": 1, "say": "How's your sleep?" },
+        { "kind": "reveal", "n": 2, "say": "How's your mood?" },
+        { "kind": "reveal", "n": 3, "say": "How's your energy?" },
+        { "kind": "reveal", "n": 4, "say": "How's your stress?" }
+      ]
+    },
+    {
+      "beat": "2",
+      "name": "Create your own goal (custom-entry demo)",
+      "componentType": "custom-entry",
+      "sheetStage": "ONBOARD-BEGINNER-02-CUSTOM: Create Goal",
+      "context": "Custom-entry demo: a titled input plus an add button, kind goal.",
+      "props": {
+        "kind": "goal",
+        "coachLine": "Tell me the goal you want to add, and I'll set it up.",
+        "title": "Your goal",
+        "placeholder": "For example, sleep more consistently",
+        "addLabel": "Add goal"
+      },
+      "meta": {
+        "voiceEngine": "None",
+        "engine": { "nodeId": "demo-goal-custom", "voiceExpectsInput": true }
+      }
+    },
+    {
+      "beat": "3",
+      "name": "Weekly projection (narration demo)",
+      "componentType": "weekly-projection",
+      "sheetStage": "ONBOARD-WEEKLY-PROJECTION-P78: Weekly Projection P78",
+      "context": "Weekly projection demo: the most-likely frame with a clip-backed narration bubble, then the grid reveals.",
+      "props": { "state": "p78" },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "engine": { "nodeId": "demo-weekly-p78" }
+      },
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.",
+          "clip": "/voice/onboard_weekly_p78.mp3"
+        },
+        { "kind": "reveal", "n": 1 }
+      ]
+    }
+  ]
+}

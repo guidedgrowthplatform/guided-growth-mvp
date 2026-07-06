@@ -27,6 +27,7 @@ import {
   type BeatStep,
 } from './BeatPlayer';
 import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistry';
+import { NarrationBeatView } from './narration/NarrationBeatView';
 import { openerRevealPin } from './openerReveal';
 import { openerTurns } from './openerTurns';
 import { useBeatOpenerCartesia } from './useBeatOpenerCartesia';
@@ -64,7 +65,22 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // identity only changes when the beat (and thus the card) changes — which is
   // exactly when a state reset is correct. Safe despite the static-components rule.
   const Adapter = getAdapter(node.componentType);
+  // A1: beats with a narration[] script run through the narration driver, which
+  // owns bubbles, per-segment audio, and element reveals. The legacy single
+  // MP3/Cartesia opener hooks below are disabled for them (double audio
+  // otherwise). Component-owned beats (greeting, mic) skip the driver: the
+  // component plays its own audio/orb sequence (A4).
+  const hasNarration = (node.narration?.length ?? 0) > 0 && !node.componentOwned;
   const opener = node.voice.openerText ? applyName(node.voice.openerText, answers.nickname) : null;
+  // Past narration beats replay their scripted bubble lines (newline = turn
+  // break, the openerTurns convention) instead of the single authored opener.
+  const narrationOpener = hasNarration
+    ? (node.narration ?? [])
+        .filter((s) => s.kind === 'bubble' && s.say)
+        .map((s) => applyName(s.say!, answers.nickname))
+        .join('\n') || null
+    : null;
+  const pastOpener = narrationOpener ?? opener;
   const summary = !active ? summarizeBeat(node, answers) : null;
   // Does this beat have persisted/live conversation turns in the store? Drives
   // whether a PAST beat replays its real dialogue (so it never disappears) or
@@ -87,7 +103,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // progress fraction (0..1) drives the karaoke reveal in sync with the real
   // audio. For hybrid beats the MP3 is the opener only, then Vapi continues.
   const openerMp3Src =
-    node.meta?.voiceOut?.engine === 'mp3'
+    node.meta?.voiceOut?.engine === 'mp3' && !hasNarration
       ? (node.meta.voiceOut.mp3Assets?.[0]?.file ?? null)
       : null;
   const hasOpenerMp3 = !!openerMp3Src;
@@ -95,7 +111,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   const mp3Audio = useBeatOpenerMp3(openerMp3Src, active && hasOpenerMp3, openerWordTotal);
   // Variable lines (engine 'cartesia', e.g. the name-greeting profile beat) get
   // live TTS: same state shape, so downstream karaoke gating is engine-agnostic.
-  const isCartesiaOpener = node.meta?.voiceOut?.engine === 'cartesia' && !!opener;
+  const isCartesiaOpener = node.meta?.voiceOut?.engine === 'cartesia' && !!opener && !hasNarration;
   const cartesiaAudio = useBeatOpenerCartesia(
     isCartesiaOpener ? opener : null,
     active && isCartesiaOpener,
@@ -128,6 +144,21 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   const showTapToPlay = active && hasOpenerAudio && mp3.blocked;
 
   const handleReveal = useCallback(() => onReveal?.(), [onReveal]);
+
+  // A1: active narration-scripted beat. The driver sequences the bubble/reveal
+  // segments, plays each segment's clip, and gates the card's element blooms
+  // via NarrationRevealContext. Dialogue continues below once the script ends.
+  if (active && Adapter && hasNarration) {
+    return (
+      <NarrationBeatView
+        node={node}
+        answers={answers}
+        card={<Adapter node={node} answers={answers} onCapture={onCapture} />}
+        onCapture={onCapture}
+        onReveal={handleReveal}
+      />
+    );
+  }
 
   // Active Vapi beat with an MP3 opener: play the opener MP3 at mount, then show
   // the BeatConversation (Vapi continues). For hybrid beats the MP3 is the opener
@@ -273,7 +304,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
         screenId={node.screenId}
         active={false}
         card={frozenCard}
-        fallbackOpener={opener}
+        fallbackOpener={pastOpener}
       />
     );
   }
@@ -283,7 +314,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   if (Adapter && FROZEN_CARD_TYPES.has(node.componentType)) {
     return (
       <div className="flex flex-col gap-3">
-        {openerTurns(opener).map((line, i) => (
+        {openerTurns(pastOpener).map((line, i) => (
           <div key={i} className={COACH_BUBBLE_CLASS}>
             {line}
           </div>
@@ -297,7 +328,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // user's captured answer as a short reply bubble — no frozen form.
   return (
     <div className="flex flex-col">
-      <PastBeatBubbles coach={opener} reply={summary} />
+      <PastBeatBubbles coach={pastOpener} reply={summary} />
     </div>
   );
 }
