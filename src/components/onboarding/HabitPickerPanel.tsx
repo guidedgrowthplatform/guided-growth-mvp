@@ -115,7 +115,7 @@ export function HabitPickerPanel({
                 }`}
               >
                 <span className="text-[16px] font-bold leading-[24px] text-content">
-                  Create your own habit!
+                  Create your own habit
                 </span>
                 <div className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-warning">
                   <Icon icon="mdi:plus" width={18} height={18} className="text-white" />

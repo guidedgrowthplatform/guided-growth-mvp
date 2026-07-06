@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
-import { DualButton } from '@/components/ui/DualButton';
+import { Orb } from '@/components/orb/Orb';
+import { orbIdle } from '@/components/orb/orbView';
 import { ORB_REST_SCALE, ORB_REST_TOP } from '@/components/welcome/SplashIntro';
-import { orbRingStep } from '@/components/flow-designer/beats/_beatStyle';
 
 const ORB_SIZE = 150;
 // Orb rises all the way to the top so the centred iOS/Android permission
@@ -44,6 +43,8 @@ export function MicPermission({
 }: MicPermissionProps) {
   const [expanded, setExpanded] = useState(false);
   const [granted, setGranted] = useState(false);
+  // Separate from granted so the mic can turn yellow at the top first, then descend.
+  const [settling, setSettling] = useState(false);
   const prefersReducedMotion =
     typeof window !== 'undefined'
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -57,12 +58,22 @@ export function MicPermission({
     };
     const run = () => {
       push(() => {
-        setExpanded(true);
+        setExpanded(true); // grow up + ask (grey mic)
         if (loop) {
+          // Demo the happy path so the dock shows the real outcome, not a retract to
+          // grey: after the ask, "allow" (mic turns gold at the top), settle down into
+          // the dock with the mic ON and gold, hold, then reset and loop.
+          const t1 = EXPAND_MS + HOLD_MS; // allow
+          const t2 = t1 + 560; // start descending, gold
+          const t3 = t2 + SETTLE_MS + 600; // reset for the next loop
+          push(() => setGranted(true), t1);
+          push(() => setSettling(true), t2);
           push(() => {
             setExpanded(false);
-            push(run, RETRACT_HOLD_MS);
-          }, EXPAND_MS + HOLD_MS);
+            setGranted(false);
+            setSettling(false);
+          }, t3);
+          push(run, t3 + RETRACT_HOLD_MS);
         }
       }, 280);
     };
@@ -72,12 +83,17 @@ export function MicPermission({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPlay, loop]);
 
-  // Grant: mic half turns blue and the orb slides down into its dock, then we
-  // signal the flow to advance.
+  // Grant: mic half turns gold (mic on) and the orb slides down into its dock, then
+  // we signal the flow to advance.
   const handleAllow = () => {
     if (granted) return;
+    // 1) mic turns yellow immediately, still up at the top. 2) after a short hold it
+    // descends into the dock, yellow. 3) then the flow advances.
     setGranted(true);
-    timers.current.push(setTimeout(() => onAllow?.(), prefersReducedMotion ? 120 : SETTLE_MS));
+    const hold = prefersReducedMotion ? 100 : 480;
+    const settle = prefersReducedMotion ? 120 : SETTLE_MS;
+    timers.current.push(setTimeout(() => setSettling(true), hold));
+    timers.current.push(setTimeout(() => onAllow?.(), hold + settle));
   };
 
   const asking = expanded && !granted;
@@ -98,27 +114,15 @@ export function MicPermission({
         style={{
           position: 'absolute',
           left: '50%',
-          top: granted ? ORB_REST_TOP : asking ? ASK_TOP : ORB_REST_TOP,
-          transform: `translate(-50%, -50%) scale(${granted ? ORB_REST_SCALE : asking ? 1 : ORB_REST_SCALE})`,
+          top: settling ? ORB_REST_TOP : asking || granted ? ASK_TOP : ORB_REST_TOP,
+          transform: `translate(-50%, -50%) scale(${settling ? ORB_REST_SCALE : asking || granted ? 1 : ORB_REST_SCALE})`,
           transition: orbTransition,
           willChange: 'top, transform',
           cursor: asking ? 'pointer' : 'default',
           pointerEvents: asking ? 'auto' : 'none',
         }}
       >
-        <DualButton
-          size={ORB_SIZE}
-          leftActive
-          rightActive={granted}
-          activeRings={asking ? 'right' : null}
-          ringCount={3}
-          ringStep={orbRingStep(ORB_SIZE)}
-          intensity={0.5}
-          leftIcon={<IconChatVoice size={38} />}
-          rightIcon={granted ? <IconMic size={38} /> : <IconMicMuted size={38} />}
-          leftAriaLabel="Coach voice"
-          rightAriaLabel="Microphone"
-        />
+        <Orb {...orbIdle(ORB_SIZE, true, granted)} onToggleRight={asking ? handleAllow : undefined} />
       </div>
 
       {/* Prompt + Allow button, directly under the orb. Fades in once the orb

@@ -92,10 +92,14 @@ function HabitScheduleBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
+        "Please set the days that you're going to actually do these habits. I recommend focusing on weekdays to start.",
     },
-    { id: 'cards', speaker: 'coach', render: cards },
   ];
+  // Optional second coach bubble: the "not every habit every day" reassurance.
+  if (props?.coachLine2) {
+    steps.push({ id: 'ask2', speaker: 'coach', say: props.coachLine2 });
+  }
+  steps.push({ id: 'cards', speaker: 'coach', render: cards });
 
   return <BeatPlayer steps={steps} />;
 }

@@ -1,12 +1,17 @@
-import { Check, Flame, Minus, X } from 'lucide-react';
-import { StreakFlame } from './StreakFlame';
+import { Check, Minus, X } from 'lucide-react';
+import { WeeklyHabitsHeader } from './WeeklyHabitsHeader';
+import { WeeklyHabitRow, type HabitWeekCell } from './WeeklyHabitRow';
 
-// Four cell states:
-//   done   -> green check (reported, done)
-//   missed -> red X       (reported, not done)
-//   off    -> gray dash   (not scheduled that day; fine, not a problem)
-//   gap    -> blank       (scheduled but never reported; breaks the streak)
-export type HabitWeekCell = 'done' | 'missed' | 'gap' | 'off';
+// The weekly habit summary card, composed from three pieces:
+//   WeeklyHabitsHeader  the title, the percent, the day labels
+//   WeeklyHabitRow      one per habit (flame, name, week strip), reusable
+//   the legend          what each cell state means
+// They render together but stay separate, so a caller (or the onboarding
+// projection reveal) can bloom the header and each row on its own.
+//
+// The props API is unchanged from the old grid version, so existing callers
+// keep working. `todayLabel` is new and optional (defaults below).
+export type { HabitWeekCell };
 
 interface WeeklyHabitsSummaryProps {
   overallPercent: number;
@@ -18,38 +23,49 @@ interface WeeklyHabitsSummaryProps {
     streak: number;
   }[];
   dayLabels?: string[];
+  todayLabel?: string;
+  // When false, no trailing today column (the onboarding projection: the grid is
+  // the projected week starting on the start day). Defaults true.
+  showToday?: boolean;
 }
 
-const DEFAULT_DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+// Sunday first, matching the approved projection mock. The real week start is
+// locale driven (Sunday in Israel, Monday elsewhere); a caller passes its own
+// labels and today's letter for real data.
+const DEFAULT_DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DEFAULT_TODAY_LABEL = 'S';
 
-function StatusCell({ status }: { status: HabitWeekCell }) {
-  if (status === 'done') {
-    return (
-      <div className="flex aspect-square items-center justify-center rounded-sm bg-success">
-        <Check size={15} className="text-white" />
-      </div>
-    );
-  }
-
-  if (status === 'missed') {
-    return (
-      <div className="flex aspect-square items-center justify-center rounded-sm border-2 border-danger bg-surface">
-        <X size={13} className="text-danger" />
-      </div>
-    );
-  }
-
-  if (status === 'off') {
-    // Not scheduled that day. A gray dash. Totally fine, not a problem.
-    return (
-      <div className="flex aspect-square items-center justify-center rounded-sm bg-border-light">
-        <Minus size={13} className="text-content-tertiary" />
-      </div>
-    );
-  }
-
-  // gap: scheduled but never reported. Just empty. Breaks the streak.
-  return <div className="aspect-square" />;
+function Legend() {
+  const box = 'flex h-[18px] w-[18px] items-center justify-center rounded';
+  const item = (swatch: React.ReactNode, label: string) => (
+    <div className="flex items-center gap-2 text-xs text-content-secondary">
+      {swatch}
+      <span>{label}</span>
+    </div>
+  );
+  return (
+    <div className="mt-4 flex flex-col gap-1.5 border-t border-border-light pt-3">
+      {item(
+        <span className={`${box} bg-success`}>
+          <Check size={12} strokeWidth={3} className="text-white" />
+        </span>,
+        'Done',
+      )}
+      {item(
+        <span className={`${box} border-[1.5px] border-danger bg-surface`}>
+          <X size={10} strokeWidth={3} className="text-danger" />
+        </span>,
+        'Missed',
+      )}
+      {item(
+        <span className={`${box} bg-border-light`}>
+          <Minus size={10} strokeWidth={3} className="text-content-tertiary" />
+        </span>,
+        'Not scheduled',
+      )}
+      {item(<span className={`${box} border border-dashed border-border`} />, 'Not done yet')}
+    </div>
+  );
 }
 
 export function WeeklyHabitsSummary({
@@ -58,46 +74,38 @@ export function WeeklyHabitsSummary({
   overallScheduled,
   rows,
   dayLabels = DEFAULT_DAY_LABELS,
+  todayLabel = DEFAULT_TODAY_LABEL,
+  showToday = true,
 }: WeeklyHabitsSummaryProps) {
+  // Every row and the header share this column count so their grids line up.
+  const columns = rows[0]?.cells.length ?? DEFAULT_DAY_LABELS.length;
+
   return (
     <section className="rounded-2xl border border-border-light bg-surface-secondary p-5 shadow-sm">
-      <h2 className="text-lg font-bold text-content">This week</h2>
+      <WeeklyHabitsHeader
+        overallPercent={overallPercent}
+        overallDone={overallDone}
+        overallScheduled={overallScheduled}
+        dayLabels={dayLabels}
+        todayLabel={todayLabel}
+        columns={columns}
+        showToday={showToday}
+      />
 
-      <div className="mt-3 flex items-end gap-2">
-        <span className="text-4xl font-bold leading-none text-content">{overallPercent}%</span>
-        <span className="pb-1 text-sm font-medium text-content-tertiary">
-          of scheduled habits done &middot; {overallDone} of {overallScheduled}
-        </span>
-      </div>
-
-      <div className="mt-5 grid grid-cols-[34px_minmax(0,1fr)_repeat(7,24px)] gap-x-2 gap-y-3">
-        <div className="flex items-center justify-end">
-          <Flame size={11} className="text-content-tertiary" />
-        </div>
-        <div />
-        {dayLabels.slice(0, 7).map((label, index) => (
-          <div
-            key={`${label}-${index}`}
-            className="text-center text-[10px] font-bold text-content-tertiary"
-          >
-            {label}
-          </div>
-        ))}
-
+      <div>
         {rows.map((row) => (
-          <div key={row.name} className="contents">
-            <div className="flex items-center justify-end">
-              <StreakFlame streak={row.streak} />
-            </div>
-            <div className="flex min-h-6 items-center truncate text-sm font-medium text-content">
-              {row.name}
-            </div>
-            {row.cells.slice(0, 7).map((cell, index) => (
-              <StatusCell key={`${row.name}-${index}`} status={cell} />
-            ))}
-          </div>
+          <WeeklyHabitRow
+            key={row.name}
+            name={row.name}
+            cells={row.cells}
+            streak={row.streak}
+            columns={columns}
+            showToday={showToday}
+          />
         ))}
       </div>
+
+      <Legend />
     </section>
   );
 }

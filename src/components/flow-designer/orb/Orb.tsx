@@ -137,6 +137,12 @@ interface OrbProps {
   overlayIcons?: { left: ReactNode; right: ReactNode };
   /** Drop the drop-shadow (flat in the bar). */
   flat?: boolean;
+  /**
+   * Settle then freeze: run the animation for a short burst so the look develops,
+   * then stop the rAF loop. Used by the annotated view, which stacks many orbs at
+   * once and must not run many perpetual animation loops.
+   */
+  paused?: boolean;
 }
 
 export function Orb({
@@ -153,6 +159,7 @@ export function Orb({
   idleIcons,
   overlayIcons,
   flat,
+  paused,
 }: OrbProps) {
   const orbRef = useRef<HTMLDivElement>(null);
   const leftHalfRef = useRef<HTMLDivElement>(null);
@@ -180,6 +187,7 @@ export function Orb({
     let tR = 0;
     let tF = 0;
     let irisAng = 0;
+    let frames = 0;
 
     const setVar = (name: string, v: string) => orb.style.setProperty(name, v);
 
@@ -429,11 +437,15 @@ export function Orb({
       drawHalf(leftCv.current, 'left', dt);
       drawHalf(rightCv.current, 'right', dt);
       drawFull(fullCv.current, dt);
+      frames += 1;
+      // Settle-then-freeze: once paused and the look has developed, stop the loop
+      // so a stacked wall of orbs does not run dozens of perpetual rAF loops.
+      if (paused && frames > 48) return;
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [micRef]);
+  }, [micRef, paused]);
 
   const showLeftIcon = overlayIcons
     ? overlayIcons.left

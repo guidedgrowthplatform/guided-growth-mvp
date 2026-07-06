@@ -1,27 +1,33 @@
 /**
  * weeklyProjection, flow-builder beat for the weekly habit grid projection.
  *
- * Faithful port of the skimmer component (ggmvp-skimmer
- * src/onboarding-flow/WeeklyProjection.tsx): same coach rituals, same sample
- * habits, same modes (blank, full, p78, p36, gaps), same percentages, same gap
- * logic, same narration lines. The flow builder splits the skimmer's
- * auto-cycling stages into five separate beats (one per state) via props.state.
+ * Five separate frames (one per props.state): blank, full, p78, p36, gaps.
  *
- * Props (both editable in the sidebar):
- *   state     - which projection frame (blank | full | p78 | p36 | gaps)
- *   coachLine - the narration shown above the grid (skimmer line by default)
+ * Behavior locked with Yair 2026-07-05:
+ *   - The week STARTS on the user's start day (today), not always Sunday. The
+ *     day letters and the projected cells rotate to begin on the start weekday,
+ *     and there is no separate trailing "today" cell (showToday={false}).
+ *   - Streaks are real accumulated numbers (79, 84, 26, ...), not this-week
+ *     counts. A clean week keeps the base streak; a broken week resets to the
+ *     trailing run (0 if the last scheduled day was missed).
+ *   - full (beat 19): every streak holds, big numbers.
+ *   - p78 (beat 20): mostly green, a few misses, ONE streak breaks to zero, the
+ *     rest hold.
+ *   - p36 (beat 21): one streak survives, the rest take a hit.
+ *   - gaps (beat 22): Wednesday and Thursday are empty top to bottom (never
+ *     reported); every other day is reported and done.
+ *   - Journaling is daily, no days off.
  *
  * RULES followed here:
  *   - No em dashes anywhere (commas and periods used instead)
  *   - Coach narration never says tap, scroll, click, or press
  *   - Real WeeklyHabitsSummary component reused via the @/components alias
- *   - Streak counts derived directly from the cell arrays so they always match
  */
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { WeeklyHabitsSummary, type HabitWeekCell } from '@/components/habit-detail/WeeklyHabitsSummary';
 import { FONT, PRIMARY, INK, CARD, SPACE } from './_beatStyle';
 
-// The five projection states, matching the skimmer modes exactly.
+// The five projection states.
 export type ProjectionState = 'blank' | 'full' | 'p78' | 'p36' | 'gaps';
 
 interface ScheduledHabit {
@@ -29,40 +35,37 @@ interface ScheduledHabit {
   days: number[]; // JS weekday numbers, 0=Sun..6=Sat
 }
 
-// Three rituals every user gets, all daily. Same as the skimmer COACH_HABITS.
+// Three rituals every user gets. Shown as weekdays on, weekends off (grays), per
+// Yair: the check-ins and reflection run on weekdays, the weekend is a rest.
 const COACH_HABITS: ScheduledHabit[] = [
-  { name: 'Morning state check-in', days: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'Evening habit report', days: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'Daily reflection', days: [0, 1, 2, 3, 4, 5, 6] },
+  { name: 'Morning state check-in', days: [1, 2, 3, 4, 5] },
+  { name: 'Evening habit report', days: [1, 2, 3, 4, 5] },
+  { name: 'Daily reflection', days: [1, 2, 3, 4, 5] },
 ];
 
-// Sample captured habits, matching the skimmer demo so the rendered week is
-// identical. Real flows pass the habits the user just captured.
+// Sample captured habits. Journaling is daily now (no days off, per Yair).
 const SAMPLE_USER_HABITS: ScheduledHabit[] = [
   { name: 'Meditate', days: [0, 1, 2, 3, 4, 5, 6] },
   { name: 'Workout', days: [1, 3, 5] },
   { name: 'Read 10 pages', days: [0, 1, 2, 3, 4, 5, 6] },
   { name: 'No phone in bed', days: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'Journal', days: [1, 2, 3, 4, 5] },
+  { name: 'Journal', days: [0, 1, 2, 3, 4, 5, 6] },
 ];
 
-// WeeklyHabitsSummary renders Mon-first (M T W T F S S). DAY_ORDER maps column
-// index 0..6 to JS weekday: Mon=1, ..., Sat=6, Sun=0.
-const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+// Accumulated streak per habit index (3 coach rituals, then the 5 captured
+// habits). Real, varied numbers so a good week reads as real momentum.
+const BASE_STREAK = [84, 79, 62, 47, 26, 33, 58, 19];
 
-// Heroes stay fully green so at least one streak survives (indices into the
-// combined list: 0,1,2 are the coach rituals).
-const HEROES: Partial<Record<ProjectionState, number[]>> = {
-  p78: [0, 1],
-  p36: [0],
-};
+// Weekday index (0=Sun..6=Sat) to its single-letter label.
+const LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const WED = 3;
+const THU = 4;
 
-const TARGET_PCT: Partial<Record<ProjectionState, number>> = {
-  p78: 78,
-  p36: 36,
-};
-
-const SALT: Record<ProjectionState, number> = { blank: 1, full: 2, p78: 20, p36: 34, gaps: 50 };
+// The week window starts on the user's start day (today). Returns the 7 weekday
+// numbers in display order, beginning at `start`.
+function dayOrderFrom(start: number): number[] {
+  return Array.from({ length: 7 }, (_, i) => (start + i) % 7);
+}
 
 interface Row {
   name: string;
@@ -70,8 +73,8 @@ interface Row {
   streak: number;
 }
 
-// Tiny deterministic PRNG ported from the skimmer so projected weeks are stable
-// across re-renders but look organic per habit/day pair.
+// Tiny deterministic PRNG so projected weeks are stable across re-renders but
+// look organic per habit/day pair.
 function rand(seed: number): number {
   let t = (seed + 0x6d2b79f5) | 0;
   t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -79,10 +82,11 @@ function rand(seed: number): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-// Trailing streak: consecutive 'done' cells from the end, skipping 'off'.
+// Trailing streak within the shown week: consecutive 'done' from the end,
+// skipping 'off'. Stops at the first 'missed' or 'gap'.
 function trailingStreak(cells: HabitWeekCell[]): number {
   let s = 0;
-  for (let ci = 6; ci >= 0; ci--) {
+  for (let ci = cells.length - 1; ci >= 0; ci--) {
     const c = cells[ci];
     if (c === 'off') continue;
     if (c === 'done') s += 1;
@@ -91,81 +95,132 @@ function trailingStreak(cells: HabitWeekCell[]): number {
   return s;
 }
 
-// Build row data for a given projection state, matching the skimmer exactly.
-function buildRows(habits: ScheduledHabit[], state: ProjectionState): Row[] {
-  const scheduled = habits.map((h) => {
-    const days = h.days && h.days.length ? h.days : [0, 1, 2, 3, 4, 5, 6];
-    const set = new Set(days);
-    return DAY_ORDER.map((weekday) => set.has(weekday));
+function buildRows(habits: ScheduledHabit[], state: ProjectionState, dayOrder: number[]): Row[] {
+  // Which display columns are scheduled for each habit.
+  const sched = habits.map((h) => {
+    const set = new Set(h.days && h.days.length ? h.days : [0, 1, 2, 3, 4, 5, 6]);
+    return dayOrder.map((wd) => set.has(wd));
   });
 
-  // blank / full / gaps: decided per cell.
-  if (state === 'blank' || state === 'full' || state === 'gaps') {
-    return habits.map((h, hi) => {
-      const cells: HabitWeekCell[] = DAY_ORDER.map((_, ci) => {
-        if (!scheduled[hi][ci]) return 'off';
-        if (state === 'blank') return 'gap';
-        if (state === 'full') return 'done';
-        const r = rand(hi * 131 + ci * 17 + SALT.gaps);
-        if (r < 0.26) return 'gap';
-        if (r < 0.62) return 'missed';
-        return 'done';
-      });
-      return { name: h.name, cells, streak: trailingStreak(cells) };
-    });
+  // Only the best case shows the big accumulated streaks. The realistic frames
+  // (p78, p36, gaps) show the small this-week run, which resets on a miss.
+  const finalize = (cellsByHabit: HabitWeekCell[][], useBase: boolean): Row[] =>
+    habits.map((h, hi) => ({
+      name: h.name,
+      cells: cellsByHabit[hi],
+      streak: useBase ? (BASE_STREAK[hi] ?? 21) : trailingStreak(cellsByHabit[hi]),
+    }));
+
+  // BLANK: the whole week is empty, starting today.
+  if (state === 'blank') {
+    return finalize(
+      habits.map((_, hi) => dayOrder.map((_wd, ci) => (sched[hi][ci] ? 'gap' : 'off'))),
+      false,
+    );
   }
 
-  // p78 / p36: hit the named percent exactly. Heroes stay fully green (the
-  // surviving streak); the remaining done days scatter across the other habits.
-  const heroes = HEROES[state] ?? [];
-  const targetPct = TARGET_PCT[state] ?? 0;
-  let totalScheduled = 0;
+  // FULL: every scheduled day done. Big accumulated streaks.
+  if (state === 'full') {
+    return finalize(
+      habits.map((_, hi) => dayOrder.map((_wd, ci) => (sched[hi][ci] ? 'done' : 'off'))),
+      true,
+    );
+  }
+
+  // GAPS: three days never reported (Tuesday, Wednesday, Thursday empty top to
+  // bottom). The other days are a mix of done and a lot of misses (the X's), so
+  // the week reads as "you reported some, then disappeared for three days".
+  if (state === 'gaps') {
+    const EMPTY = new Set([2, 3, 4]); // Tue, Wed, Thu
+    return finalize(
+      habits.map((_, hi) =>
+        dayOrder.map((wd, ci) => {
+          if (EMPTY.has(wd)) return 'gap';
+          if (!sched[hi][ci]) return 'off';
+          // Of the days they did report, about half are done and a lot are X's.
+          return rand(hi * 131 + ci * 17 + 71) < 0.6 ? 'done' : 'missed';
+        }),
+      ),
+      false,
+    );
+  }
+
+  // P78 / P36: pool the "done" cells to hit the target percent; everything else
+  // scheduled is a miss (an X). p36 keeps the morning check-in as a survivor.
+  // p36 targets a touch under 36 here because the morning check-in (hero) and the
+  // daily reflection (kept as a small streak below) add guaranteed done days.
+  const targetPct = state === 'p78' ? 78 : 31;
+  const heroes = state === 'p78' ? [] : [0];
+  const salt = state === 'p78' ? 20 : 34;
+
+  let totalSched = 0;
   let heroDone = 0;
   const pool: { hi: number; ci: number; pri: number }[] = [];
-  habits.forEach((_, hi) => {
-    scheduled[hi].forEach((sched, ci) => {
-      if (!sched) return;
-      totalScheduled += 1;
+  habits.forEach((_, hi) =>
+    sched[hi].forEach((s, ci) => {
+      if (!s) return;
+      totalSched += 1;
       if (heroes.includes(hi)) heroDone += 1;
-      else pool.push({ hi, ci, pri: rand(hi * 131 + ci * 17 + SALT[state]) });
-    });
-  });
-  const targetDone = Math.round((targetPct / 100) * totalScheduled);
+      else pool.push({ hi, ci, pri: rand(hi * 131 + ci * 17 + salt) });
+    }),
+  );
+  const targetDone = Math.round((targetPct / 100) * totalSched);
   const fromPool = Math.max(0, Math.min(targetDone - heroDone, pool.length));
   pool.sort((a, b) => a.pri - b.pri);
-  const doneCells = new Set(pool.slice(0, fromPool).map((c) => `${c.hi}:${c.ci}`));
+  const doneSet = new Set(pool.slice(0, fromPool).map((c) => `${c.hi}:${c.ci}`));
 
-  return habits.map((h, hi) => {
-    const cells: HabitWeekCell[] = DAY_ORDER.map((_, ci) => {
-      if (!scheduled[hi][ci]) return 'off';
-      if (heroes.includes(hi)) return 'done';
-      return doneCells.has(`${hi}:${ci}`) ? 'done' : 'missed';
-    });
-    return { name: h.name, cells, streak: trailingStreak(cells) };
-  });
+  const cells = habits.map((_, hi) =>
+    dayOrder.map((_wd, ci) => {
+      if (!sched[hi][ci]) return 'off' as HabitWeekCell;
+      if (heroes.includes(hi)) return 'done' as HabitWeekCell;
+      return (doneSet.has(`${hi}:${ci}`) ? 'done' : 'missed') as HabitWeekCell;
+    }),
+  );
+
+  // p78: exactly one streak breaks to zero. Meditate's last scheduled day is a
+  // miss, so its trailing streak is 0 while most others still hold a few days.
+  if (state === 'p78') {
+    const mi = 3;
+    const schedCols = dayOrder.map((_wd, ci) => ci).filter((ci) => sched[mi][ci]);
+    const last = schedCols[schedCols.length - 1];
+    if (last != null) cells[mi][last] = 'missed';
+  }
+
+  // p36: two of the three rituals keep a streak. Morning check-in is the full
+  // survivor; the daily reflection holds its last couple of days so it still
+  // ends on a small streak while everything else takes a hit.
+  if (state === 'p36') {
+    const ri = 2; // Daily reflection
+    const schedCols = dayOrder.map((_wd, ci) => ci).filter((ci) => sched[ri][ci]);
+    for (const ci of schedCols.slice(-2)) cells[ri][ci] = 'done';
+  }
+
+  return finalize(cells, false);
 }
 
 function overallStats(rows: Row[]): { done: number; scheduled: number; percent: number } {
+  // The percent is done out of the days that were actually REPORTED (done or
+  // missed). Never-reported days (gap) are the separate "you disappeared" story,
+  // so they do not drag the done-rate down.
   let done = 0;
-  let scheduled = 0;
+  let reported = 0;
   for (const row of rows) {
     for (const c of row.cells) {
-      if (c === 'off') continue;
-      scheduled += 1;
+      if (c === 'off' || c === 'gap') continue;
+      reported += 1;
       if (c === 'done') done += 1;
     }
   }
-  return { done, scheduled, percent: scheduled ? Math.round((done / scheduled) * 100) : 0 };
+  return { done, scheduled: reported, percent: reported ? Math.round((done / reported) * 100) : 0 };
 }
 
-// Default narration per state: the skimmer's exact lines. Real copy can override
-// via props.coachLine.
+// Default narration per state. Real copy can override via props.coachLine.
 const DEFAULT_COACH_LINES: Record<ProjectionState, string> = {
   blank: 'This is your week. Blank, starting today.',
-  full: 'Best case, every day green. Every streak going strong. That would be amazing.',
-  p78: "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
-  p36: "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
-  gaps: 'The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.',
+  full: 'Best case, every day green. 100% success. That would be amazing.',
+  p78: 'Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.',
+  p36: "Some weeks can look like this. And even that's okay, because you're in the process and you're consistent inside the process.",
+  gaps: 'The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going.',
 };
 
 // A short accent label per state so the designer can tell the frames apart.
@@ -180,7 +235,12 @@ const STATE_LABEL: Record<ProjectionState, string> = {
 // Renders one static projection frame: the coach narration above the grid.
 function WeeklyProjectionCard({ state, coachLine }: { state: ProjectionState; coachLine: string }) {
   const allHabits = [...COACH_HABITS, ...SAMPLE_USER_HABITS];
-  const rows = buildRows(allHabits, state);
+  // The week starts on the user's start day (today). In the real app this is the
+  // stored start date; here it is the current weekday so the preview reads right.
+  const start = new Date().getDay();
+  const dayOrder = dayOrderFrom(start);
+  const dayLabels = dayOrder.map((wd) => LABELS[wd]);
+  const rows = buildRows(allHabits, state, dayOrder);
   const stats = overallStats(rows);
 
   return (
@@ -215,6 +275,8 @@ function WeeklyProjectionCard({ state, coachLine }: { state: ProjectionState; co
         overallDone={stats.done}
         overallScheduled={stats.scheduled}
         rows={rows}
+        dayLabels={dayLabels}
+        showToday={false}
       />
     </div>
   );

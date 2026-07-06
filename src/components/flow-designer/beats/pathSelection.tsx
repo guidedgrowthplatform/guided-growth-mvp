@@ -33,7 +33,7 @@ function ChoiceCard({
         padding: `${SPACE.lg}px 18px`,
         borderRadius: 20,
         cursor: 'pointer',
-        background: selected ? 'rgba(19,91,235,0.06)' : '#fff',
+        background: '#fff',
         border: selected ? `2px solid ${PRIMARY}` : `2px solid rgba(15,23,42,0.06)`,
         boxShadow: selected
           ? '0 10px 26px -12px rgba(19,91,235,0.40)'
@@ -50,11 +50,14 @@ function ChoiceCard({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: selected ? PRIMARY : 'rgba(19,91,235,0.10)',
-          transition: 'background 160ms ease-out',
+          // Both tiles read the same: a white chip with the blue icon, whether or
+          // not the card is selected. Selection is shown by the card border + tint.
+          background: '#fff',
+          border: '1px solid rgba(15,23,42,0.08)',
+          boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
         }}
       >
-        <Icon icon={icon} width={26} height={26} style={{ color: selected ? '#fff' : PRIMARY }} />
+        <Icon icon={icon} width={26} height={26} style={{ color: PRIMARY }} />
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ fontFamily: FONT, fontSize: 17, fontWeight: 700, color: INK, lineHeight: 1.2 }}>
@@ -107,7 +110,7 @@ function PathSelectionBeat(props?: Record<string, string>) {
     {
       id: 'ask',
       speaker: 'coach',
-      say: props?.coachLine ?? 'Have you tracked habits before, or is this new for you?',
+      say: props?.coachLine ?? "For the next part of the process, I'd like to know:",
     },
     {
       id: 'exp',

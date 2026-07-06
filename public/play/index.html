@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Onboarding preview (voice + reveal)</title>
+<style>
+  :root{ --blue:#135BEB; --green:#22C55E; --amber:#F59E0B; --danger:#EF4444; --page:#E9EDF3; --t1:#1A1D29; --t2:#64748B; --t3:#94A3B8; --border:#E2E8F0; --borderlt:#EEF2F7; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;background:var(--page);color:var(--t1);padding:24px 16px 60px;}
+  .head{max-width:520px;margin:0 auto 14px;text-align:center;}
+  .head h1{font-size:21px;margin:0 0 4px;}
+  .head p{font-size:12.5px;color:var(--t2);margin:0;line-height:1.5;}
+  .ctrls{max-width:520px;margin:0 auto 14px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;}
+  .btn{border:none;border-radius:999px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn.p{background:var(--blue);color:#fff;} .btn.g{background:#E7ECF4;color:var(--t1);}
+  .mute{font-size:12.5px;color:var(--t2);display:inline-flex;align-items:center;gap:6px;cursor:pointer;}
+  .pos{font-size:12px;color:var(--t3);}
+  .phone{width:380px;margin:0 auto;background:#F5F7FB;border:11px solid #1A1D29;border-radius:44px;padding:18px 14px;min-height:620px;display:flex;flex-direction:column;}
+  .coachwrap{min-height:76px;margin-bottom:10px;}
+  .coach{max-width:88%;background:#fff;border-radius:16px;border-top-left-radius:5px;padding:11px 14px;font-size:13.5px;font-weight:500;line-height:1.45;box-shadow:0 4px 16px -4px rgba(15,23,42,.12);}
+  .stage{flex:1;display:flex;flex-direction:column;}
+  .el{opacity:0;transform:translateY(10px);transition:opacity .42s ease, transform .42s ease;}
+  .el.show{opacity:1;transform:none;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px;}
+  .card.blue{border:2px solid var(--blue);} .card.amber{border-color:rgba(245,158,11,.3);} .card.evening{border-color:rgba(100,74,185,.28);}
+  .chead{display:flex;align-items:flex-start;gap:8px;}
+  .chead .ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto;}
+  .chead .tt{font-size:15px;font-weight:800;flex:1;min-width:0;} .chead .ss{font-size:12px;color:var(--t2);}
+  .rl{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--t3);margin-bottom:6px;}
+  .emrow{display:flex;justify-content:space-between;}
+  .emc{display:flex;flex-direction:column;align-items:center;gap:3px;width:19%;}
+  .em{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid var(--border);}
+  .emw{font-size:10.5px;font-weight:600;color:var(--t2);}
+  .tiles{display:flex;flex-wrap:wrap;gap:8px;}
+  .tile{width:calc(50% - 4px);background:#fff;border:1px solid var(--border);border-radius:13px;padding:9px 10px;display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;}
+  .tile .dot{width:24px;height:24px;border-radius:7px;flex:0 0 auto;}
+  .pills{display:flex;justify-content:space-between;}
+  .dp{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--blue);background:#fff;}
+  .dp.on{background:var(--blue);color:#fff;}
+  .chips{display:flex;gap:7px;} .chip{flex:1;border:1.5px solid var(--border);border-radius:12px;padding:9px 6px;text-align:center;font-size:12px;font-weight:600;background:#fff;} .chip.on{border-color:var(--blue);background:rgba(19,91,235,.07);color:var(--blue);}
+  .row{background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;color:#334155;}
+  .toggle{width:40px;height:24px;border-radius:12px;background:var(--amber);position:relative;} .toggle .k{position:absolute;top:3px;left:19px;width:18px;height:18px;border-radius:50%;background:#fff;}
+  .time{font-size:15px;font-weight:800;color:var(--blue);}
+  .age{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;text-align:center;} .age .n{font-size:30px;font-weight:800;color:var(--blue);} .age .s{font-size:11px;color:var(--t3);}
+  .bbc{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(19,91,235,.1);border:1px solid rgba(19,91,235,.3);color:var(--blue);}
+  .hctrl{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:auto;}
+  .pen{color:var(--blue);} .trash{color:var(--danger);}
+  .pathcard{background:#fff;border:1.5px solid var(--border);border-radius:16px;padding:14px;display:flex;align-items:center;gap:11px;} .pathcard .pi{width:40px;height:40px;border-radius:12px;background:rgba(19,91,235,.08);display:flex;align-items:center;justify-content:center;font-size:20px;} .pathcard .pt{font-size:14px;font-weight:700;} .pathcard .ps{font-size:12px;color:var(--t2);}
+</style>
+</head>
+<body>
+<div class="head">
+  <h1>Onboarding preview</h1>
+  <p>Not the builder, not the engine. This plays the beats: the component appears, and each element blooms as its line is spoken. Voice here is the browser reading the lines, a stand-in for the recorded MP3.</p>
+  <p style="margin-top:6px"><a href="/" style="color:var(--blue);font-weight:700;text-decoration:none;font-size:12.5px">Annotated render (engine / screen / words)</a></p>
+</div>
+<div class="ctrls">
+  <button class="btn p" id="play">Play from start</button>
+  <button class="btn g" id="next">Skip beat</button>
+  <button class="btn g" id="restart">Restart</button>
+  <label class="mute"><input type="checkbox" id="mute"> Mute voice</label>
+  <span class="pos" id="pos"></span>
+</div>
+<div class="phone"><div class="coachwrap"><div class="coach" id="coach" style="opacity:0">.</div></div><div class="stage" id="stage"></div></div>
+
+<script>
+(function(){
+  var BLUE='#135BEB';
+  var SLEEP=['Bad','Poor','OK','Good','Great'], MOODW=['Bad','Poor','OK','Good','Great'], ENERGY=['Drained','Low','OK','High','Full'], STRESS=['Extreme','High','OK','Low','None'];
+  var COLS=['#EF4444','#F59E0B','#EAB308','#84CC16','#22C55E'];
+  function emojiRow(label, words, emoji){
+    var cells=words.map(function(w,i){return '<div class="emc"><div class="em" style="border-color:'+COLS[i]+'">'+emoji[i]+'</div><div class="emw">'+w+'</div></div>';}).join('');
+    return '<div class="rl">'+label+'</div><div class="emrow">'+cells+'</div>';
+  }
+  var faces=['\u{1F614}','\u{1F641}','\u{1F610}','\u{1F642}','\u{1F929}'];
+  var moods=['\u{1F62B}','\u{1F615}','\u{1F610}','\u{1F60A}','\u{1F600}'];
+  var enr=['\u{1FAAB}','\u{1F50B}','\u{1F50B}','⚡','\u{1F31F}'];
+  var strs=['\u{1F92F}','\u{1F630}','\u{1F610}','\u{1F60C}','\u{1F9D8}'];
+  function tile(l,c){ return '<div class="tile"><div class="dot" style="background:'+c+'"></div>'+l+'</div>'; }
+  function pills(on){ var d=['M','T','W','T','F','S','S']; return '<div class="pills">'+d.map(function(x,i){return '<div class="dp'+(on.indexOf(i)>-1?' on':'')+'">'+x+'</div>';}).join('')+'</div>'; }
+  function timeRow(l){ return '<div class="row"><span>⏰ '+l+'</span><span class="time">8:00 AM</span></div>'; }
+  function remRow(){ return '<div class="row"><span>\u{1F514} Remind me</span><div class="toggle"><div class="k"></div></div></div>'; }
+  function ageEl(){ return '<div class="age"><div class="n">35</div><div class="s">scroll to set your age</div></div>'; }
+  function genderEl(){ return '<div class="chips"><div class="chip on">Male</div><div class="chip">Female</div><div class="chip">Other</div></div>'; }
+  function modeChips(){ return '<div class="rl">Reflection style</div><div class="chips"><div class="chip on">Suggested</div><div class="chip">Your template</div><div class="chip">Freeform</div></div>'; }
+  function promptsEl(){ return '<div class="rl">Prompts</div><div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span style="font-weight:500">What went well today?</span><span style="font-weight:500">What drained you?</span><span style="font-weight:500">One thing for tomorrow?</span></div>'; }
+  var PEN='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#135BEB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  var TRASH='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+  function schedCard(name){ return '<div class="card blue"><div class="chead"><span class="tt">'+name+'</span><div class="hctrl"><span class="bbc">Build</span>'+PEN+TRASH+'</div></div>'+pills([0,1,2,3,4])+'</div>'; }
+  function pathCard(ic,t,s){ return '<div class="pathcard"><div class="pi">'+ic+'</div><div><div class="pt">'+t+'</div><div class="ps">'+s+'</div></div></div>'; }
+
+  // Each beat: opener (spoken framing), kind, and elements. Section-card elements
+  // carry a spoken line and bloom as it plays. Grid tiles stagger with no line.
+  var BEATS=[
+    { n:'Profile', opener:'Good to meet you. Two quick things so I can tailor this.', kind:'card', els:[
+      {line:'How old are you?', html:ageEl()}, {line:"What's your gender?", html:genderEl()} ]},
+    { n:'State check', opener:"Let's do your first check-in.", kind:'card', els:[
+      {line:'How did you sleep?', html:emojiRow('Sleep',SLEEP,faces)},
+      {line:"How's your mood?", html:emojiRow('Mood',MOODW,moods)},
+      {line:"How's your energy?", html:emojiRow('Energy',ENERGY,enr)},
+      {line:'And your stress?', html:emojiRow('Stress',STRESS,strs)} ]},
+    { n:'Morning setup', opener:'When do you want this each day?', kind:'card', head:'<div class="chead"><span class="ic" style="background:rgba(245,158,11,.14)">☀️</span><div><div class="tt">Morning check-in</div><div class="ss">Quick morning check-in</div></div></div>', els:[
+      {line:'Which days?', html:pills([0,1,2,3,4])}, {line:'What time?', html:timeRow('Check-in time')}, {line:'Want a nudge?', html:remRow()} ]},
+    { n:'Category', opener:'What do you most want to work on? Pick the one that pulls you.', kind:'grid', els:[
+      tile('Sleep better','#8B5CF6'),tile('Move more','#06B6D4'),tile('Eat better','#22C55E'),tile('Feel energized','#F59E0B'),tile('Reduce stress','#EC4899'),tile('Improve focus','#3B82F6'),tile('Break bad habits','#EF4444'),tile('Get organized','#14B8A6') ]},
+    { n:'Goals', opener:"What's the piece you want to start with?", kind:'grid', els:[
+      tile('Fall asleep earlier','#8B5CF6'),tile('Wake up rested','#8B5CF6'),tile('Consistent bedtime','#8B5CF6'),tile('Less screen at night','#8B5CF6'),tile('Wind-down routine','#8B5CF6') ]},
+    { n:'Habit picker', opener:'Pick the habits that feel doable.', kind:'grid', els:[
+      tile('No screens after 10','#3B82F6'),tile('Read 10 pages','#3B82F6'),tile('Lights out by 11','#3B82F6'),tile('Morning walk','#3B82F6'),tile('Journal 2 min','#3B82F6') ]},
+    { n:'Habit schedule', opener:'Which days for each one?', kind:'stack', els:[
+      {line:'Morning walk', html:schedCard('Morning walk')}, {line:'Read 10 pages', html:schedCard('Read 10 pages')}, {line:'No screens after 10', html:schedCard('No screens after 10')} ]},
+    { n:'Reflection', opener:'One more. An evening reflection to close the day.', kind:'card', head:'<div class="chead"><span class="ic" style="background:rgba(100,74,185,.14)">\u{1F319}</span><div><div class="tt">Evening reflection</div><div class="ss">Wind down and close your day</div></div></div>', els:[
+      {line:'Three questions to close the day.', html:promptsEl()}, {line:'Or freeform, just talk.', html:modeChips()}, {line:'Which days?', html:pills([0,1,2,3,4])}, {line:'What time?', html:timeRow('When')}, {line:'Want a reminder?', html:remRow()} ]},
+    { n:'Fork', opener:'Have you tracked habits before, or is this new?', kind:'stack', els:[
+      {line:'New to this.', html:pathCard('\u{1F331}','New to this','Start fresh')}, {line:'I already track habits.', html:pathCard('\u{1F4CB}','I already track habits','Bring what you have')} ]},
+    { n:'Advanced frequency', opener:'Now the days. Tell me how often each one runs.', kind:'stack', els:[
+      {line:'No sugar', html:schedCard('No sugar')}, {line:'Gym', html:schedCard('Gym')}, {line:'Meditate', html:schedCard('Meditate')} ]}
+  ];
+
+  var stage=document.getElementById('stage'), coach=document.getElementById('coach'), pos=document.getElementById('pos');
+  var muteBox=document.getElementById('mute');
+  var runId=0;
+  function wait(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function speak(text){
+    return new Promise(function(res){
+      if(muteBox.checked || !window.speechSynthesis){ setTimeout(res, Math.max(700, text.length*42)); return; }
+      try{ speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(text); u.rate=1.02; u.onend=res; u.onerror=res; speechSynthesis.speak(u); setTimeout(res, text.length*95+1500); }
+      catch(e){ setTimeout(res, text.length*42); }
+    });
+  }
+  function showCoach(t){ coach.textContent=t; coach.style.opacity='1'; }
+
+  function renderBeat(b){
+    var els=[];
+    if(b.kind==='grid'){
+      stage.innerHTML='<div class="tiles" id="els"></div>';
+      var wrap=document.getElementById('els');
+      b.els.forEach(function(h){ var d=document.createElement('div'); d.className='el'; d.innerHTML=h; wrap.appendChild(d); els.push(d); });
+    } else if(b.kind==='stack'){
+      stage.innerHTML='<div style="display:flex;flex-direction:column;gap:12px" id="els"></div>';
+      var w2=document.getElementById('els');
+      b.els.forEach(function(e){ var d=document.createElement('div'); d.className='el'; d.innerHTML=e.html; w2.appendChild(d); els.push(d); });
+    } else {
+      var cls = b.n==='Morning setup' ? 'card amber' : b.n==='Reflection' ? 'card evening' : 'card';
+      stage.innerHTML='<div class="'+cls+'">'+(b.head||'')+'<div style="display:flex;flex-direction:column;gap:12px" id="els"></div></div>';
+      var w3=document.getElementById('els');
+      b.els.forEach(function(e){ var d=document.createElement('div'); d.className='el'; d.innerHTML=e.html; w3.appendChild(d); els.push(d); });
+    }
+    return els;
+  }
+
+  async function playBeat(b, els){
+    showCoach(b.opener);
+    if(b.kind==='grid'){
+      var sp=speak(b.opener);
+      for(var i=0;i<els.length;i++){ els[i].classList.add('show'); await wait(230); }
+      await sp;
+    } else {
+      await speak(b.opener);
+      for(var j=0;j<els.length;j++){
+        els[j].classList.add('show');
+        var e=b.els[j];
+        if(e.line){ await speak(e.line); } else { await wait(300); }
+        await wait(160);
+      }
+    }
+    await wait(900);
+  }
+
+  var idx=0, playing=false;
+  async function runFrom(start){
+    var myRun=++runId; playing=true;
+    for(idx=start; idx<BEATS.length; idx++){
+      if(myRun!==runId) return;
+      pos.textContent=(idx+1)+' / '+BEATS.length+'  ·  '+BEATS[idx].n;
+      var els=renderBeat(BEATS[idx]);
+      await playBeat(BEATS[idx], els);
+      if(myRun!==runId) return;
+    }
+    playing=false; showCoach('That’s the flow. Restart to watch again.');
+  }
+  document.getElementById('play').addEventListener('click', function(){ runFrom(0); });
+  document.getElementById('restart').addEventListener('click', function(){ runId++; if(window.speechSynthesis) speechSynthesis.cancel(); runFrom(0); });
+  document.getElementById('next').addEventListener('click', function(){ if(window.speechSynthesis) speechSynthesis.cancel(); runId++; runFrom(Math.min(idx+1, BEATS.length-1)); });
+  // Render the first beat static so the phone is not empty before Play.
+  pos.textContent='1 / '+BEATS.length+'  ·  '+BEATS[0].n;
+  renderBeat(BEATS[0]).forEach(function(e){ e.classList.add('show'); });
+  showCoach(BEATS[0].opener);
+})();
+</script>
+</body>
+</html>

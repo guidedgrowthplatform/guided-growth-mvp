@@ -1,7 +1,8 @@
-import { Clock } from 'lucide-react';
+import { Clock, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { formatTime12 } from '@/components/ui/TimePicker';
+import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY, SECTION_LABEL, SPACE } from './_beatStyle';
@@ -16,8 +17,9 @@ const SAMPLE_HABITS = ['Morning walk', 'No screens after 10 PM'];
 const EVERY_DAY: Set<number> = new Set([0, 1, 2, 3, 4, 5, 6]);
 const noop = () => undefined;
 
-// One plan row in the same card shape as HabitScheduleCard: name on the left, a
-// time chip on the right, and the read-only day circles below.
+// The daily rituals (morning check-in, evening check-in, evening reflection): the
+// name, a time chip, an edit pencil, and the read-only day circles. No Build/Break
+// and no delete (these are the fixed spine, not user habits).
 function PlanCard({ name, days, time }: { name: string; days: Set<number>; time?: string }) {
   return (
     <div className="w-full overflow-clip rounded-[20px] border-2 border-primary bg-surface p-[2px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)]">
@@ -26,12 +28,21 @@ function PlanCard({ name, days, time }: { name: string; days: Set<number>; time?
           <span className="min-w-0 flex-1 text-[15px] font-bold leading-[20px] text-content">
             {name}
           </span>
-          {time && (
-            <span className="flex shrink-0 items-center gap-[4px] rounded-full border border-primary/30 bg-primary/10 px-[8px] py-[3px] text-[11px] font-semibold text-primary">
-              <Clock className="size-[12px]" />
-              {time}
-            </span>
-          )}
+          <div className="flex shrink-0 items-center gap-[4px]">
+            {time && (
+              <span className="flex shrink-0 items-center gap-[4px] rounded-full border border-primary/30 bg-primary/10 px-[8px] py-[3px] text-[11px] font-semibold text-primary">
+                <Clock className="size-[12px]" />
+                {time}
+              </span>
+            )}
+            <button
+              type="button"
+              aria-label={`Edit ${name}`}
+              className="flex size-[26px] shrink-0 items-center justify-center rounded-lg text-primary"
+            >
+              <Pencil className="size-[17px]" />
+            </button>
+          </div>
         </div>
       </div>
       <div className="h-px w-full bg-border-light" />
@@ -40,6 +51,12 @@ function PlanCard({ name, days, time }: { name: string; days: Set<number>; time?
       </div>
     </div>
   );
+}
+
+// Avoidance-style names ("no screens", "quit", "less", "cut") read as Break; the
+// rest as Build. A preview heuristic; the real polarity comes from capture.
+function inferPolarity(name: string): HabitPolarity {
+  return /\b(no|not|stop|quit|less|avoid|cut|reduce|off|after)\b/i.test(name) ? 'break' : 'build';
 }
 
 function FullPlanBeat(props?: Record<string, string>) {
@@ -58,10 +75,6 @@ function FullPlanBeat(props?: Record<string, string>) {
     const cfg = habitConfigs[name];
     return cfg && cfg.days && cfg.days.length ? new Set(cfg.days) : EVERY_DAY;
   }
-  function habitTime(name: string): string | undefined {
-    const cfg = habitConfigs[name];
-    return cfg?.time ? formatTime12(cfg.time) : undefined;
-  }
 
   const plan = (
     <div className="flex w-full max-w-[360px] flex-col" style={{ gap: SPACE.sm }}>
@@ -70,7 +83,16 @@ function FullPlanBeat(props?: Record<string, string>) {
       </span>
       <PlanCard name="Morning check-in" days={EVERY_DAY} time={morningTime} />
       {habitNames.map((h) => (
-        <PlanCard key={h} name={h} days={habitDays(h)} time={habitTime(h)} />
+        <HabitScheduleCard
+          key={h}
+          habitName={h}
+          polarity={inferPolarity(h)}
+          selectedDays={habitDays(h)}
+          onChangePolarity={noop}
+          onToggleDay={noop}
+          onEdit={noop}
+          onDelete={noop}
+        />
       ))}
       <PlanCard name="Evening check-in" days={EVERY_DAY} time={eveningTime} />
       <PlanCard name="Evening reflection" days={EVERY_DAY} time={eveningTime} />

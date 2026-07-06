@@ -148,9 +148,14 @@ export function AgeScrollPicker({ value, onChange }: AgeScrollPickerProps) {
         className="overflow-hidden transition-all duration-300 ease-in-out"
         style={{ maxHeight: open ? `${ITEM_HEIGHT * VISIBLE_ITEMS + 8}px` : '0px' }}
       >
-        <div className="pb-2">
-          <ScrollColumn selected={value} onChange={onChange} onSelect={handleSelect} />
-        </div>
+        {/* Only mount the wheel while open. Mounting it collapsed fires a spurious
+            scroll onChange that would auto-pick an age; keeping it unmounted until
+            the user opens it lets an unselected picker stay on its prompt. */}
+        {open && (
+          <div className="pb-2">
+            <ScrollColumn selected={value} onChange={onChange} onSelect={handleSelect} />
+          </div>
+        )}
       </div>
     </div>
   );

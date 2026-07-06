@@ -177,7 +177,10 @@ function LiveScan() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.lg }}>
-      <ListeningHeader listening={listening} current={current} />
+      {/* Listening header only while habits are still coming in. Once they are all
+          captured it disappears; the closing coach bubble ("Those are all in...")
+          carries the done state, so there is no redundant "All captured" banner. */}
+      {listening && <ListeningHeader listening={listening} current={current} />}
       <CardList entries={shown} onFlip={flip} onRemove={remove} animate />
       <style>{`@keyframes ggScanPulse{0%,100%{opacity:.3}50%{opacity:1}}@keyframes ggCardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}`}</style>
     </div>
@@ -325,7 +328,7 @@ function AdvancedCaptureBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        'Read me the habits you already track. Less is more to start, you can always build on it.',
+        "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
     },
     {
       // Capture surface: cards form live (mic) or from typed lines (mic-off),

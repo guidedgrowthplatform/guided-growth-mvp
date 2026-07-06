@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconChatVoice, IconMicMuted } from '@/components/icons';
-import { DualButton } from '@/components/ui/DualButton';
+import { Orb, type OrbMic } from '@/components/orb/Orb';
+import { orbIdle, orbSpeaking as orbSpeakingProps } from '@/components/orb/orbView';
+import { BEAT3_PULSE } from '@/components/orb/orbConfig';
 import { CoachIntroBubble } from '@/components/welcome/CoachIntroBubble';
 import { SPLASH_CAPTIONS } from '@/components/welcome/splashCaptions';
-import { VoiceCone } from '@/components/welcome/VoiceCone';
 
 // Phase durations (ms)
 const PHASE_SPLASH_HOLD = 1200;
@@ -18,13 +18,6 @@ const MAX_SPEAK_MS = 16000;
 const REDUCED_HOLD_MS = 280;
 
 const ORB_SIZE = 150;
-// How hard the orb itself swells with the voice (Siri-style breathing).
-const ORB_PULSE = 0.12;
-// DualButton's center gap, and the right edge / center of the left (voice) half
-// as % of the dial, so the voice group anchors at the seam and the icon sits
-// centered in it.
-const ORB_GAP = Math.max(5, Math.round(ORB_SIZE * 0.06));
-const VOICE_ICON_PCT = ((ORB_SIZE / 2 - ORB_GAP / 2) / 2 / ORB_SIZE) * 100;
 
 // Speaking pose: orb sits high (upper third) so the coach bubble reads below it.
 const SPEAK_TOP_RATIO = 0.34;
@@ -66,10 +59,6 @@ function ensureStyles() {
       from { opacity: 0; }
       to   { opacity: 1; }
     }
-    @keyframes splash-orb-ring {
-      0%, 100% { transform: scale(1); opacity: 0.22; }
-      50%      { transform: scale(1.045); opacity: 0.42; }
-    }
   `;
   document.head.appendChild(style);
 }
@@ -101,6 +90,7 @@ export function SplashIntro({
   const speakingRef = useRef(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const orbAmp = useRef<OrbMic>({ on: false, amp: 0 });
   const envRef = useRef<number[] | null>(null);
   const envBucketMsRef = useRef(50);
   const rafRef = useRef<number | null>(null);
@@ -333,7 +323,7 @@ export function SplashIntro({
     phase === 'orb' || phase === 'orb-settle' || phase === 'ready' || phase === 'done';
   const orbSpeaking = phase === 'orb';
   const orbSettled = phase === 'orb-settle' || phase === 'ready' || phase === 'done';
-  const orbPulse = orbSpeaking ? 1 + intensity * ORB_PULSE : 1;
+  orbAmp.current = { on: orbSpeaking, amp: intensity };
 
   return (
     <div
@@ -426,30 +416,27 @@ export function SplashIntro({
           travels down + shrinks to its resting pose at the bottom. */}
       {showOrb && (
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          <VoiceCone
-            active={orbSpeaking}
-            intensity={intensity}
-            orbRadius={ORB_SIZE / 2}
-            originYRatio={SPEAK_TOP_RATIO}
-          />
-
           <div
             style={{
               position: 'absolute',
               left: '50%',
               top: orbSettled ? ORB_REST_TOP : SPEAK_TOP,
               transform: `translate(-50%, -50%) scale(${orbSettled ? ORB_REST_SCALE : 1})`,
+              // At the end the orb goes down and fades out, so the next screen
+              // (create account) carries no orb.
+              opacity: phase === 'ready' || phase === 'done' ? 0 : 1,
               transition: prefersReducedMotion
                 ? 'none'
-                : `top ${PHASE_ORB_SETTLE}ms cubic-bezier(0.32,0.02,0.18,1), transform ${PHASE_ORB_SETTLE}ms cubic-bezier(0.32,0.02,0.18,1)`,
+                : `top ${PHASE_ORB_SETTLE}ms cubic-bezier(0.32,0.02,0.18,1), transform ${PHASE_ORB_SETTLE}ms cubic-bezier(0.32,0.02,0.18,1), opacity 420ms ease-out`,
               animation: prefersReducedMotion ? 'none' : 'splash-intro-orb-in 450ms ease-out both',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              willChange: 'top, transform',
+              willChange: 'top, transform, opacity',
             }}
           >
-            {/* Orb group: only the left (voice) half breathes with the speech. */}
+            {/* Orb group: canonical Orb, full blue circle while the coach speaks
+                (pulsing to the audio via orbAmp), two-half idle otherwise. */}
             <div
               style={{
                 position: 'relative',
@@ -478,89 +465,11 @@ export function SplashIntro({
                 }}
               />
 
-              {/* Tiny breathing ring around the orb, just to feel alive. */}
-              <div
-                aria-hidden
-                style={{
-                  position: 'absolute',
-                  width: ORB_SIZE + 18,
-                  height: ORB_SIZE + 18,
-                  borderRadius: '50%',
-                  border: '1.5px solid rgba(19,91,236,0.32)',
-                  opacity: orbSpeaking ? 1 : 0,
-                  animation:
-                    orbSpeaking && !prefersReducedMotion
-                      ? 'splash-orb-ring 3s ease-in-out infinite'
-                      : 'none',
-                  transition: `opacity ${PHASE_ORB_SETTLE}ms ease-out`,
-                  pointerEvents: 'none',
-                }}
-              />
-
-              {/* Left (voice) half breathing out from the seam BEHIND the dial,
-                  so only the growth rim shows (the look you liked). */}
-              <div
-                aria-hidden
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  width: ORB_SIZE,
-                  height: ORB_SIZE,
-                  marginLeft: -ORB_SIZE / 2,
-                  marginTop: -ORB_SIZE / 2,
-                  background: '#135BEC',
-                  clipPath: `inset(0 50% 0 0 round ${ORB_SIZE / 2}px 0 0 ${ORB_SIZE / 2}px)`,
-                  transformOrigin: '50% 50%',
-                  transform: `scale(${orbPulse})`,
-                  transition: 'transform 90ms ease-out',
-                  willChange: 'transform',
-                  pointerEvents: 'none',
-                }}
-              />
-
-              <DualButton
-                size={ORB_SIZE}
-                leftActive
-                rightActive={false}
-                leftIcon={null}
-                rightIcon={<IconMicMuted size={36} />}
-                leftAriaLabel="Coach voice"
-                rightAriaLabel="Microphone off"
-              />
-
-              {/* Voice icon in a full-dial container scaled on the SAME center as
-                  the half, so it tracks the half exactly with no drift. */}
-              <div
-                aria-hidden
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  width: ORB_SIZE,
-                  height: ORB_SIZE,
-                  marginLeft: -ORB_SIZE / 2,
-                  marginTop: -ORB_SIZE / 2,
-                  transformOrigin: '50% 50%',
-                  transform: `scale(${orbPulse})`,
-                  transition: 'transform 90ms ease-out',
-                  willChange: 'transform',
-                  pointerEvents: 'none',
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${VOICE_ICON_PCT}%`,
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    color: '#fff',
-                    display: 'flex',
-                  }}
-                >
-                  <IconChatVoice size={38} />
-                </div>
-              </div>
+              {orbSpeaking ? (
+                <Orb {...orbSpeakingProps(ORB_SIZE, 'coach', { mic: orbAmp, pulse: BEAT3_PULSE })} />
+              ) : (
+                <Orb {...orbIdle(ORB_SIZE, true, true)} />
+              )}
             </div>
           </div>
         </div>

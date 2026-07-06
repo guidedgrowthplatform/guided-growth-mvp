@@ -83,12 +83,23 @@ function MicHint({ label }: { label: string }) {
 // The tile appears after the eight preset cards. Selecting a custom category
 // writes it into flow state exactly as a preset would, so downstream beats
 // (e.g. the goals beat) read it without any special-casing.
+// The women's variant swaps each tile for its female counterpart under
+// /images/onboarding/female/. The female art is .webp (from the app's real
+// assets), so we swap both the folder and the extension by base name.
+function catImage(image: string, variant: 'default' | 'female'): string {
+  if (variant !== 'female') return image;
+  const name = image.match(/\/([^/]+)\.[a-z0-9]+$/i)?.[1] ?? '';
+  return `/images/onboarding/female/${name}.webp`;
+}
+
 function CategoryGridPicker({
   sel,
   pick,
+  variant = 'default',
 }: {
   sel: string | null;
   pick: (label: string) => void;
+  variant?: 'default' | 'female';
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [showInput, setShowInput] = useState(false);
@@ -118,15 +129,19 @@ function CategoryGridPicker({
   const customIsSelected =
     !!sel && !CATS.some((c) => c.label === sel);
 
-  const reveal = useElementReveal(CATS.length);
+  // One extra reveal step past the eight tiles: the "Create your own" tile blooms
+  // last, paired with the verbal "Or you can create your own" line in Play.
+  const reveal = useElementReveal(CATS.length + 1);
+  const showCreateOwn = reveal > CATS.length;
 
   return (
     <div className="flex flex-col gap-3">
+      {/* The men's/women's split is metadata (the variant), not shown in-app. */}
       <div className="grid grid-cols-2 gap-3">
         {CATS.map((c, i) => (
           <Bloom key={c.label} show={i < reveal}>
             <CategoryCard
-              image={c.image}
+              image={catImage(c.image, variant)}
               label={c.label}
               selected={sel === c.label}
               onSelect={() => pick(c.label)}
@@ -135,7 +150,10 @@ function CategoryGridPicker({
         ))}
       </div>
 
-      {/* "Create your own" entry point, styled to match HabitPickerPanel. */}
+      {/* "Create your own" entry point, styled to match HabitPickerPanel. Blooms
+          after the eight preset tiles, carrying the verbal "or you can create
+          your own" line. */}
+      <Bloom show={showCreateOwn}>
       {showInput ? (
         <div className="flex items-center gap-2 rounded-[24px] border border-primary bg-surface px-[16px] py-[10px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)]">
           <input
@@ -172,6 +190,7 @@ function CategoryGridPicker({
           </div>
         </button>
       )}
+      </Bloom>
     </div>
   );
 }
@@ -192,18 +211,14 @@ function CategoryGrid(props?: Record<string, string>) {
       // (beat 11a): no tap/click language, just an open invitation.
       say:
         props?.coachLine ??
-        'What part of your life do you most want to work on right now? Pick the one that pulls you.',
+        "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
     },
     {
       id: 'mic',
       speaker: 'coach',
-      // The mic hint renders as a render-only step so it fades in right after the
-      // coach line. The say string here becomes a second coach bubble that pairs
-      // with the visual: it carries the voice-open invitation. Real copy in
-      // beatContexts.ts. No tap/click/press language.
-      say:
-        props?.micHint ??
-        "I'm here. Share what's on your mind, or choose one of the areas below.",
+      // Render-only: just the "voice is open" pill, no second coach bubble. The
+      // opener already frames the ask, so the pill alone carries the voice-open
+      // invitation without a redundant bubble. No tap/click/press language.
       render: (
         <MicHint
           label={
@@ -215,7 +230,13 @@ function CategoryGrid(props?: Record<string, string>) {
     {
       id: 'show',
       speaker: 'coach',
-      render: <CategoryGridPicker sel={sel} pick={pick} />,
+      render: (
+        <CategoryGridPicker
+          sel={sel}
+          pick={pick}
+          variant={props?.variant === 'female' ? 'female' : 'default'}
+        />
+      ),
     },
   ];
 

@@ -89,7 +89,7 @@ function MorningCard({
               lineHeight: 1.3,
             }}
           >
-            Quick mood check every morning
+            Quick state check every morning
           </div>
         </div>
       </div>
@@ -190,26 +190,6 @@ function MorningCard({
         </button>
       </div>
 
-      {/* Subtle footer hint when reminder is on */}
-      {remind && (
-        <div
-          style={{
-            margin: '0 20px 14px',
-            padding: '9px 12px',
-            borderRadius: 10,
-            background: AMBER_LIGHT,
-            border: `1px solid rgba(245,158,11,0.18)`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-          }}
-        >
-          <Icon icon="ph:sparkle-bold" width={14} height={14} style={{ color: AMBER, flexShrink: 0 }} />
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'rgb(120,100,60)', lineHeight: 1.35 }}>
-            I'll nudge you each morning to check in
-          </span>
-        </div>
-      )}
       </Bloom>
     </div>
   );
@@ -236,23 +216,27 @@ function MorningCheckinSetupBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        "When do you want this each day? I'll nudge you then.",
-    },
-    {
-      id: 'card',
-      speaker: 'coach',
-      render: (
-        <MorningCard
-          days={days}
-          onToggleDay={toggleDay}
-          time={time}
-          onTimeChange={setTime}
-          remind={remind}
-          onToggleRemind={setRemind}
-        />
-      ),
+        "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
     },
   ];
+  // Optional second coach bubble (the days recommendation).
+  if (props?.coachLine2) {
+    steps.push({ id: 'ask2', speaker: 'coach', say: props.coachLine2 });
+  }
+  steps.push({
+    id: 'card',
+    speaker: 'coach',
+    render: (
+      <MorningCard
+        days={days}
+        onToggleDay={toggleDay}
+        time={time}
+        onTimeChange={setTime}
+        remind={remind}
+        onToggleRemind={setRemind}
+      />
+    ),
+  });
 
   return <BeatPlayer steps={steps} />;
 }

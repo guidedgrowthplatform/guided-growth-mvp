@@ -10,6 +10,18 @@ export const useIsPlaying = () => useContext(PlayingCtx);
 export const AnimationsCtx = createContext(true);
 export const useAnimations = () => useContext(AnimationsCtx);
 
+// Externally-driven reveal for Play mode. When a number is provided via context,
+// useElementReveal returns it, so the player drives the per-element bloom off the
+// spoken line instead of the self-driving timer. Null (default) means self-drive.
+export const RevealCtx = createContext<number | null>(null);
+// Same idea for BeatPlayer's step reveal (profile, why-intro): the player sets how
+// many steps are shown, synced to the voice. Null (default) means BeatPlayer self-drives.
+export const StepRevealCtx = createContext<number | null>(null);
+// Play mode feeds the number of words the browser voice has spoken so far, so a
+// coach bubble types in step with the audio instead of on a fixed timer. Null
+// (default) means the bubble self-times its karaoke.
+export const SpokenWordsCtx = createContext<number | null>(null);
+
 // The shared kit every beat is built from. Import these in a beat file, never
 // copy them. A beat is an ordered list of STEPS played in sequence.
 //
@@ -40,10 +52,14 @@ export interface BeatDef {
 // Types the line in word by word while `active`. Once the player moves on, the
 // line shows whole.
 export function Karaoke({ text, active }: { text: string; active: boolean }) {
+  const spoken = useContext(SpokenWordsCtx);
   const parts = text.split(/(\s+)/);
   const total = parts.filter((p) => /\S/.test(p)).length;
   const [n, setN] = useState(active ? 0 : total);
   useEffect(() => {
+    // Voice-driven (Play mode): the word count from the browser voice drives the
+    // reveal, so the text lands in step with the audio. No timer.
+    if (spoken != null) return;
     if (!active) {
       setN(total);
       return;
@@ -54,11 +70,15 @@ export function Karaoke({ text, active }: { text: string; active: boolean }) {
       i += 1;
       setN(i);
       if (i >= total) window.clearInterval(id);
-    }, 110);
+    }, 280);
     return () => window.clearInterval(id);
-  }, [text, active, total]);
+  }, [text, active, total, spoken]);
+  // Only the actively-speaking bubble follows the voice; a bubble that already
+  // finished (not active) shows whole, so an earlier bubble does not get truncated
+  // when a later one is being spoken.
+  const shownCount = !active ? total : spoken != null ? Math.min(spoken, total) : n;
   const words = parts.filter((p) => /\S/.test(p));
-  const shown = words.slice(0, n);
+  const shown = words.slice(0, shownCount);
   const head = shown.slice(0, -1).join(' ');
   const last = shown.length ? shown[shown.length - 1] : null;
   return (
@@ -66,7 +86,7 @@ export function Karaoke({ text, active }: { text: string; active: boolean }) {
       {head}
       {head && last != null ? ' ' : ''}
       {last != null ? (
-        <span key={n} style={{ animation: 'ggWordIn 220ms ease-out' }}>
+        <span key={shownCount} style={{ animation: 'ggWordIn 220ms ease-out' }}>
           {last}
         </span>
       ) : null}
@@ -83,9 +103,12 @@ export function Karaoke({ text, active }: { text: string; active: boolean }) {
 export function useElementReveal(count: number, override?: number): number {
   const playing = useIsPlaying();
   const anims = useAnimations();
+  const ctx = useContext(RevealCtx);
+  // An explicit override wins, then the Play-mode context, else self-drive.
+  const eff = override != null ? override : ctx != null ? ctx : undefined;
   const [n, setN] = useState(anims ? 0 : count);
   useEffect(() => {
-    if (override != null) return;
+    if (eff != null) return;
     if (!anims) {
       setN(count);
       return;
@@ -108,8 +131,8 @@ export function useElementReveal(count: number, override?: number): number {
     };
     timer = window.setTimeout(tick, 500);
     return () => window.clearTimeout(timer);
-  }, [count, anims, playing, override]);
-  return override ?? n;
+  }, [count, anims, playing, eff]);
+  return eff != null ? eff : n;
 }
 
 // Fades and lifts one element into place while reserving its space, so nothing
@@ -138,6 +161,7 @@ export function Bloom({ show, children }: { show: boolean; children: ReactNode }
 export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
   const playing = useIsPlaying();
   const anims = useAnimations();
+  const stepOverride = useContext(StepRevealCtx);
   const sig = steps.map((s) => `${s.speaker}:${s.say ?? ''}`).join('|');
   const [revealed, setRevealed] = useState(0);
   useEffect(() => {
@@ -145,6 +169,7 @@ export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
     setRevealed(anims ? 0 : steps.length);
   }, [sig, anims, steps.length]);
   useEffect(() => {
+    if (stepOverride != null) return; // Play mode drives the step count off the voice.
     if (!anims) return;
     if (revealed >= steps.length) {
       // In Play, hold the fully revealed beat so the user can act on it. On the
@@ -158,11 +183,12 @@ export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
       revealed === 0 ? 180 : justShown?.say ? 650 + justShown.say.split(/\s+/).length * 110 : 480;
     const t = window.setTimeout(() => setRevealed((r) => r + 1), dwell);
     return () => window.clearTimeout(t);
-  }, [revealed, steps.length, playing, anims]);
+  }, [revealed, steps.length, playing, anims, stepOverride]);
+  const shownCount = stepOverride != null ? stepOverride : revealed;
   return (
     <div className="flex flex-col gap-7">
       {steps.map((s, i) => {
-        const shown = i < revealed;
+        const shown = i < shownCount;
         // A render step (cards, picker) reserves its space from the start and just
         // fades in, so nothing jumps when it appears. A spoken line mounts only
         // when reached, so it still types in from empty (the words, unchanged).
@@ -184,13 +210,13 @@ export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
           >
             {s.speaker === 'coach' && s.say && (
               <div className="max-w-[85%] self-start rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-[14px] font-medium leading-[1.45] text-content shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.12)]">
-                <Karaoke text={s.say} active={anims && i === revealed - 1} />
+                <Karaoke text={s.say} active={anims && i === shownCount - 1} />
               </div>
             )}
             {s.render}
             {s.speaker === 'user' && s.say && (
               <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-[rgba(19,91,236,0.9)] px-4 py-2.5 text-[14px] font-medium text-white shadow-card">
-                <Karaoke text={s.say} active={anims && i === revealed - 1} />
+                <Karaoke text={s.say} active={anims && i === shownCount - 1} />
               </div>
             )}
           </div>

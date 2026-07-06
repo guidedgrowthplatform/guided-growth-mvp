@@ -64,7 +64,9 @@ function GoalsListBeat(props?: Record<string, string>) {
     {
       id: 'ask',
       speaker: 'coach',
-      say: props?.coachLine ?? "Within that, what's the piece you want to start with?",
+      say:
+        props?.coachLine ??
+        'So within that, which goals would you like to start with? Pick one or two.',
     },
     {
       id: 'show',
@@ -72,7 +74,7 @@ function GoalsListBeat(props?: Record<string, string>) {
       render: (
         <div className="flex flex-col" style={{ gap: SPACE.md }}>
           <p style={{ ...SECTION_LABEL, marginBottom: SPACE.xs }}>
-            Subcategory
+            Goals
           </p>
           {subcategories.map((sub, i) => {
             const on = selected.includes(sub);
@@ -96,7 +98,7 @@ function GoalsListBeat(props?: Record<string, string>) {
                 value={customValue}
                 onChange={(e) => setCustomValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmitCustom()}
-                placeholder="Type your subcategory..."
+                placeholder="Type your goal..."
                 className="flex-1 text-[16px] font-bold leading-[24px] text-content outline-none placeholder:font-normal placeholder:text-content-secondary/50"
               />
               <button
@@ -117,7 +119,7 @@ function GoalsListBeat(props?: Record<string, string>) {
               }`}
             >
               <span className="text-[16px] font-bold leading-[24px] text-content">
-                Create your own
+                Create your own goal
               </span>
               <div className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-warning">
                 <Icon icon="mdi:plus" width={18} height={18} className="text-white" />

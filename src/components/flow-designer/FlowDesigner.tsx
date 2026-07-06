@@ -1,9 +1,19 @@
 import { Icon } from '@iconify/react';
-import { createElement, useState, type ReactNode } from 'react';
-import { AnimationsCtx, PlayingCtx, type BeatDef } from './beatKit';
+import { createElement, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  AnimationsCtx,
+  PlayingCtx,
+  RevealCtx,
+  SpokenWordsCtx,
+  StepRevealCtx,
+  type BeatDef,
+} from './beatKit';
 import { BEAT_DEFS } from './beats';
 import { COACH_BG } from './beats/_beatStyle';
+import { kindOf, raf, runBeatNarration, sample, stopSpeech } from './beatNarration';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
+import { Orb } from '@/components/orb/Orb';
+import { orbSpeaking } from '@/components/orb/orbView';
 import onboardingMetadataRaw from './onboardingMetadata.json';
 
 /**
@@ -66,10 +76,14 @@ interface BeatMeta {
   openerShowsAsBubble?: boolean;
   expectedResponse: string;
   clipReuse?: string;
+  clipNote?: string;
+  // Optional segmented narration: one flowing read where some segments reveal a
+  // card row as they are spoken (the meshed clips), so nothing is said twice.
+  narration?: { say: string; reveal?: number; clip?: string; bubble?: number; audioSrc?: string }[];
   elements: BeatElementMeta[];
 }
 const ONBOARDING_METADATA = onboardingMetadataRaw as { beats: BeatMeta[] };
-const METADATA_BY_SCREEN_ID: Record<string, BeatMeta> = Object.fromEntries(
+export const METADATA_BY_SCREEN_ID: Record<string, BeatMeta> = Object.fromEntries(
   ONBOARDING_METADATA.beats.map((b) => [b.screenId, b]),
 );
 
@@ -165,12 +179,23 @@ function CoachBubbleFallback({ text }: { text?: string }) {
   );
 }
 
-function IsolatedBeat({
+// Mounts one real beat component inside its own scoped providers. In the stacked
+// annotated view it renders settled (animated=false). The Play view reuses the
+// exact same mount with animated=true and drives the reveal off the spoken line
+// via stepReveal (BeatPlayer steps) and elementReveal (per-element bloom). Both
+// default to null so the stacked view is unchanged.
+export function IsolatedBeat({
   type,
   props,
+  animated = false,
+  stepReveal = null,
+  elementReveal = null,
 }: {
   type: string;
   props?: Record<string, string>;
+  animated?: boolean;
+  stepReveal?: number | null;
+  elementReveal?: number | null;
 }) {
   const flowState = useIsolatedFlowState();
 
@@ -191,12 +216,16 @@ function IsolatedBeat({
   }
   return (
     <PlayingCtx.Provider value={true}>
-      <AnimationsCtx.Provider value={false}>
-        <FlowStateCtx.Provider value={flowState}>
-          <div className="overflow-hidden [transform:translateZ(0)]">
-            {createElement(entry.Comp, applyName(props))}
-          </div>
-        </FlowStateCtx.Provider>
+      <AnimationsCtx.Provider value={animated}>
+        <StepRevealCtx.Provider value={stepReveal}>
+          <RevealCtx.Provider value={elementReveal}>
+            <FlowStateCtx.Provider value={flowState}>
+              <div className="overflow-hidden [transform:translateZ(0)]">
+                {createElement(entry.Comp, applyName(props))}
+              </div>
+            </FlowStateCtx.Provider>
+          </RevealCtx.Provider>
+        </StepRevealCtx.Provider>
       </AnimationsCtx.Provider>
     </PlayingCtx.Provider>
   );
@@ -534,13 +563,16 @@ interface FlowBeat {
   mode: VoiceMode;
   screenId?: string;
   path?: BeatPath;
+  // Hide the docked orb on this beat. The orb fades out before the account step
+  // and fades back in at mic permission, so the account beat shows no orb.
+  hideOrb?: boolean;
 }
 
 // The render starts at the very beginning: splash, get started, the coach
 // greeting, sign-up, and mic permission, then straight into profile and the
 // rest of the onboarding chain, through the beginner and advanced lanes and
 // the five weekly-projection frames.
-const BEATS: FlowBeat[] = [
+export const BEATS: FlowBeat[] = [
   // 0a. Splash. Brand alone, no coach voice.
   {
     id: 'splash',
@@ -565,6 +597,7 @@ const BEATS: FlowBeat[] = [
     mode: 'Verbatim',
     screenId: 'COACH-GREETING',
     path: 'both',
+    hideOrb: true,
   },
   // 0d. Sign up. Name capture, no coach voice.
   {
@@ -574,6 +607,7 @@ const BEATS: FlowBeat[] = [
     mode: null,
     screenId: 'ONBOARD-AUTH--FORM',
     path: 'both',
+    hideOrb: true,
   },
   // 0e. Mic permission. MP3 verbatim.
   {
@@ -589,6 +623,7 @@ const BEATS: FlowBeat[] = [
     mode: 'Verbatim',
     screenId: 'MIC-PERMISSION',
     path: 'both',
+    hideOrb: true,
   },
   // 1. Profile. Age + gender, greet by name. Cartesia VERBATIM: the opener is a
   // scripted line, but it carries the {name} token so it is read live, not an MP3.
@@ -599,34 +634,23 @@ const BEATS: FlowBeat[] = [
       greeting: 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
       askAge: 'How old are you?',
       askGender: "What's your gender?",
-      age: '35',
-      gender: 'Male',
     },
     engine: 'Cartesia',
     mode: 'Verbatim',
     screenId: 'ONBOARD-01--FORM',
     path: 'both',
   },
-  // 7. Why intro. MP3 verbatim.
-  {
-    id: 'why-intro',
-    type: 'why-intro',
-    props: {
-      coachLine:
-        "We start with the morning check-in. So much of the day runs on autopilot, so this is your moment to stop and notice how you actually are. It's the first habit, everything else builds on it. And pretty quickly, the pieces start to connect. Your sleep, your mood, your energy, your stress, and how they pull on each other. You'll start to see your own patterns. And once you can see the pattern, the answer's usually right there in it. All of that, just by talking to me.",
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-WHY-INTRO',
-    path: 'both',
-  },
-  // 8a. First state check, the first habit. MP3 verbatim opener.
+  // 7 + 8 merged. The framing narration introduces the four check-in cards as it
+  // names them (said once, synced to the reveal), then the SAME cards become the
+  // check-in. No separate why-intro beat, no second set of cards, no double-say.
   {
     id: 'state-check',
     type: 'state-check',
     props: {
       coachLine:
-        "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+        "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+      coachLine2:
+        "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -638,7 +662,10 @@ const BEATS: FlowBeat[] = [
     id: 'checkin',
     type: 'morning-checkin-setup',
     props: {
-      coachLine: "When do you want this each day? I'll nudge you then.",
+      coachLine:
+        "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+      coachLine2:
+        "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well.",
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -651,7 +678,7 @@ const BEATS: FlowBeat[] = [
     type: 'reflection-card',
     props: {
       coachLine:
-        'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
+        'One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.',
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -663,7 +690,7 @@ const BEATS: FlowBeat[] = [
     id: 'fork',
     type: 'path-selection',
     props: {
-      coachLine: 'Quick one. Have you tracked habits before, or is this new for you? Both are totally fine.',
+      coachLine: "For the next part of the process, I'd like to know:",
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -676,7 +703,24 @@ const BEATS: FlowBeat[] = [
     type: 'category-grid',
     props: {
       coachLine:
-        'What part of your life do you most want to work on right now? Pick the one that pulls you.',
+        "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
+    screenId: 'ONBOARD-BEGINNER-01',
+    path: 'beginner',
+  },
+  // 11b. Women's variant of the category tiles, shown when the user picked Female.
+  // Same categories and copy, female illustrations. The images are placeholders
+  // until real female art is dropped into public/images/onboarding/female/ (same
+  // filenames as the default tiles).
+  {
+    id: 'category-women',
+    type: 'category-grid',
+    props: {
+      variant: 'female',
+      coachLine:
+        "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -687,10 +731,24 @@ const BEATS: FlowBeat[] = [
   {
     id: 'goals',
     type: 'goals-list',
-    props: { coachLine: "Within that, what's the piece you want to start with?" },
+    props: { coachLine: 'So within that, which goals would you like to start with? Pick one or two.' },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-02',
+    path: 'beginner',
+  },
+  // 12b. Create your own goal. Reached from "Create your own goal" in the goals
+  // beat: a simple name-your-goal screen, then back into the flow.
+  {
+    id: 'goal-custom',
+    type: 'custom-entry',
+    props: {
+      kind: 'goal',
+      coachLine: "Tell me the goal you want to add, and I'll set it up.",
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
+    screenId: 'ONBOARD-BEGINNER-02-CUSTOM',
     path: 'beginner',
   },
   // 13. Beginner, habits. MP3 verbatim opener, options silent.
@@ -699,11 +757,25 @@ const BEATS: FlowBeat[] = [
     type: 'habit-picker',
     props: {
       coachLine:
-        "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+        "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
     },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-03',
+    path: 'beginner',
+  },
+  // 13b. Create your own habit. Reached from "Create your own habit" in the habit
+  // beat: a simple name-your-habit screen, then back into the flow.
+  {
+    id: 'habit-custom',
+    type: 'custom-entry',
+    props: {
+      kind: 'habit',
+      coachLine: "Tell me the habit you want to add, and I'll set it up.",
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
+    screenId: 'ONBOARD-BEGINNER-03-CUSTOM',
     path: 'beginner',
   },
   // 14. Beginner, per-habit schedule. MP3 scheduler with per-element control lines
@@ -712,7 +784,10 @@ const BEATS: FlowBeat[] = [
     id: 'schedule',
     type: 'habit-schedule',
     props: {
-      coachLine: 'How often, and roughly when, for each one? Add a reminder only if you want a nudge.',
+      coachLine:
+        "Please set the days that you're going to actually do these habits.",
+      coachLine2:
+        'Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.',
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -726,7 +801,7 @@ const BEATS: FlowBeat[] = [
     type: 'advanced-capture',
     props: {
       coachLine:
-        'Read me the habits you already track. Less is more to start, you can always build on it.',
+        'Read me the list of the habits that you already track. In the next step we\'ll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.',
       closeCoachLine:
         "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
     },
@@ -740,7 +815,9 @@ const BEATS: FlowBeat[] = [
     id: 'advanced-frequency',
     type: 'advanced-frequency',
     props: {
-      coachLine: "Now the days. Tell me how often each one runs and I'll fill them in.",
+      coachLine: "Please set the days that you're going to actually do these habits.",
+      coachLine2:
+        'Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.',
       confirmCoachLine: 'Your habits are all set, your plan is ready.',
     },
     engine: 'MP3',
@@ -781,7 +858,7 @@ const BEATS: FlowBeat[] = [
     type: 'weekly-projection',
     props: {
       state: 'full',
-      coachLine: 'Best case, every day green. Every streak going strong. That would be amazing.',
+      coachLine: 'Best case, every day green. 100% success. That would be amazing.',
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -794,7 +871,7 @@ const BEATS: FlowBeat[] = [
     props: {
       state: 'p78',
       coachLine:
-        "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+        'Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.',
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -807,7 +884,7 @@ const BEATS: FlowBeat[] = [
     props: {
       state: 'p36',
       coachLine:
-        "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+        "Some weeks can look like this. And even that's okay, because you're in the process and you're consistent inside the process.",
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -820,7 +897,7 @@ const BEATS: FlowBeat[] = [
     props: {
       state: 'gaps',
       coachLine:
-        'The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.',
+        'The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going.',
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -1027,165 +1104,305 @@ function TabSwitcher({
   );
 }
 
-// Shared phone frame renderer. Accepts the beats array and a phone header label.
-// `showWords` renders a third right-hand column (the words panel) per beat row;
-// only the Onboarding tab has metadata to show there.
-function FlowPhoneFrame({ beats, showWords = false }: { beats: FlowBeat[]; showWords?: boolean }) {
-  const frameWidth = showWords ? TOTAL_W + WORDS_GAP + WORDS_COL_W : TOTAL_W;
+// A single self-contained phone: the iOS-style status bar, the Coach header, then
+// the coach-blue interior holding the beat with the orb docked at the bottom, the
+// same chrome the Play view uses. Each annotated beat renders in its own phone so
+// the stacked view reads like real app screens, orb and all. The orb is `paused`
+// so a wall of them settles into its look then freezes, instead of running many
+// perpetual animation loops.
+function PhoneCard({
+  engine,
+  playing = false,
+  onTogglePlay,
+  showOrb = true,
+  children,
+}: {
+  engine?: string;
+  playing?: boolean;
+  onTogglePlay?: () => void;
+  showOrb?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <div style={{ width: frameWidth, maxWidth: '100%', margin: '0 auto' }}>
-      {/* Status bar (offset to sit above the phone column) */}
-      <div style={{ display: 'flex' }}>
-        <div style={{ flex: `0 0 ${TAG_COL_W}px` }} />
+    <div
+      style={{
+        width: '100%',
+        boxSizing: 'border-box',
+        border: '12px solid #0b0d14',
+        borderRadius: 52,
+        overflow: 'hidden',
+        background: '#fff',
+        boxShadow: '0 24px 50px -22px rgba(15,23,42,0.38)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* Status bar with a dynamic-island notch */}
+      <div
+        style={{
+          position: 'relative',
+          height: 44,
+          flexShrink: 0,
+          background: '#E8EEFC',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 22px',
+        }}
+      >
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>9:41</span>
         <div
           style={{
-            flex: `0 0 ${PHONE_W}px`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            borderTop: '1px solid #e2e8f0',
-            borderLeft: '1px solid #e2e8f0',
-            borderRight: '1px solid #e2e8f0',
-            borderTopLeftRadius: 32,
-            borderTopRightRadius: 32,
-            background: '#E8EEFC',
-            padding: '16px 20px',
+            position: 'absolute',
+            left: '50%',
+            top: 8,
+            transform: 'translateX(-50%)',
+            width: 96,
+            height: 24,
+            borderRadius: 999,
+            background: '#0b0d14',
           }}
-        >
-          <Icon icon="ic:round-auto-awesome" style={{ width: 20, height: 20, color: '#6366f1' }} />
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Coach</span>
+        />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#0f172a' }}>
+          <Icon icon="mdi:signal-cellular-3" width={13} height={13} />
+          <Icon icon="mdi:wifi" width={13} height={13} />
+          <Icon icon="mdi:battery" width={15} height={15} />
+        </span>
+      </div>
+      {/* Coach header, with the engine chip for this beat */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '11px 18px',
+          flexShrink: 0,
+          background: '#E8EEFC',
+          borderBottom: '1px solid rgba(15,23,42,0.06)',
+        }}
+      >
+        <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Coach</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {onTogglePlay && (
+            <button
+              type="button"
+              onClick={onTogglePlay}
+              title={playing ? 'Stop' : 'Play this beat'}
+              aria-label={playing ? 'Stop this beat' : 'Play this beat'}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 999,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: playing ? '#ef4444' : '#135BEB',
+                flexShrink: 0,
+              }}
+            >
+              <Icon
+                icon={playing ? 'mdi:stop' : 'mdi:play'}
+                width={16}
+                height={16}
+                style={{ color: '#fff' }}
+              />
+            </button>
+          )}
+          {engine && (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#6366f1',
+                background: 'rgba(99,102,241,0.1)',
+                padding: '3px 9px',
+                borderRadius: 999,
+              }}
+            >
+              {engine}
+            </span>
+          )}
         </div>
-        {showWords && (
-          <div
-            style={{
-              flex: `0 0 ${WORDS_COL_W}px`,
-              marginLeft: WORDS_GAP,
-              fontSize: 11,
-              fontWeight: 700,
-              color: '#94a3b8',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              display: 'flex',
-              alignItems: 'center',
-              paddingLeft: 2,
-            }}
-          >
-            Words
+      </div>
+      {/* Coach-blue interior: the beat at the top, the orb docked at the bottom on
+          the same gradient (no white bar). The min height makes every phone at
+          least a full real-phone screen; tall beats grow past it (longer than a
+          phone) so nothing is ever clipped or shrunk below a phone. */}
+      <div style={{ background: COACH_BG, display: 'flex', flexDirection: 'column', minHeight: 700 }}>
+        <div style={{ flex: 1, padding: '18px 14px 8px', display: 'flex', flexDirection: 'column' }}>
+          {children}
+        </div>
+        {showOrb && (
+          <div style={{ flexShrink: 0, padding: '8px 0 20px', display: 'flex', justifyContent: 'center' }}>
+            {/* The orb animates live while this beat is playing, and settles to a
+                frozen bloom otherwise so a stack of them stays cheap. Hidden on
+                beats where the orb has faded out (the account step). */}
+            <Orb {...orbSpeaking(72, 'coach', { frozen: !playing })} />
           </div>
         )}
       </div>
+    </div>
+  );
+}
 
-      {/* Per-beat rows. tag (left), beat (center), and words (right, when
+// One annotated beat that can be played in place: press play and it runs this
+// beat's narration (browser voice standing in for the recorded MP3 / Cartesia
+// clip) with the real reveal + karaoke sync, right inside its phone. Not playing,
+// it renders settled (every element shown), exactly the static annotated view.
+// Only one beat plays at a time, coordinated by the parent through `active`.
+function PlayableBeat({
+  beat,
+  active,
+  onRequestPlay,
+  onDone,
+}: {
+  beat: FlowBeat;
+  active: boolean;
+  onRequestPlay: (id: string | null) => void;
+  onDone: () => void;
+}) {
+  const [stepReveal, setStepReveal] = useState<number | null>(null);
+  const [elementReveal, setElementReveal] = useState<number | null>(null);
+  const [syncWords, setSyncWords] = useState<number | null>(null);
+  const [nonce, setNonce] = useState(0);
+  const runRef = useRef(0);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  useEffect(() => {
+    if (!active) return;
+    const run = ++runRef.current;
+    let cancelled = false;
+    setNonce((n) => n + 1);
+    const m = beat.screenId ? METADATA_BY_SCREEN_ID[beat.screenId] : undefined;
+    const opener = sample(m?.opener ?? beat.props?.coachLine ?? beat.props?.greeting ?? '');
+    const lines = m?.elements
+      ? [...m.elements].sort((a, c) => a.order - c.order).map((e) => sample(e.line))
+      : [];
+    (async () => {
+      // Let the fresh remount settle to an empty state, then run the script.
+      await raf();
+      await runBeatNarration({
+        narration: m?.narration,
+        kind: kindOf(beat.type),
+        opener,
+        lines,
+        muted: false,
+        setStepReveal,
+        setElementReveal,
+        setSyncWords,
+        shouldStop: () => cancelled || run !== runRef.current,
+      });
+      if (!cancelled && run === runRef.current) onDoneRef.current();
+    })();
+    return () => {
+      // Cancelled (another beat pressed, tab switch, unmount): stop the voice and
+      // drop back to the settled state.
+      cancelled = true;
+      runRef.current += 1;
+      stopSpeech();
+      setStepReveal(null);
+      setElementReveal(null);
+      setSyncWords(null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  return (
+    <PhoneCard
+      engine={beat.engine}
+      playing={active}
+      onTogglePlay={() => onRequestPlay(active ? null : beat.id)}
+      showOrb={!beat.hideOrb}
+    >
+      <SpokenWordsCtx.Provider value={active ? syncWords : null}>
+        <IsolatedBeat
+          key={nonce}
+          type={beat.type}
+          props={beat.props}
+          animated={active}
+          stepReveal={active ? stepReveal : null}
+          elementReveal={active ? elementReveal : null}
+        />
+      </SpokenWordsCtx.Provider>
+    </PhoneCard>
+  );
+}
+
+// Shared phone frame renderer. Each beat renders in its OWN phone card, with the
+// voice tag in the left margin and (on the Onboarding tab) the words card in the
+// right. `showWords` renders that third right-hand column and the per-beat divider.
+function FlowPhoneFrame({
+  beats,
+  showWords = false,
+  playingId,
+  onRequestPlay,
+}: {
+  beats: FlowBeat[];
+  showWords?: boolean;
+  playingId: string | null;
+  onRequestPlay: (id: string | null) => void;
+}) {
+  const frameWidth = showWords ? TOTAL_W + WORDS_GAP + WORDS_COL_W : TOTAL_W;
+  return (
+    <div style={{ width: frameWidth, maxWidth: '100%', margin: '0 auto' }}>
+      {/* Per-beat rows. tag (left), the phone (center), and words (right, when
           showWords) are top-aligned in one row. A path banner (BEGINNER /
-          ADVANCED / BOTH PATHS) sits above the row when the beat carries a
-          path (only the Onboarding tab has a path split). */}
+          ADVANCED) sits above the row when the beat starts a path branch. */}
       {beats.map((b, i) => {
         const branched = b.path === 'beginner' || b.path === 'advanced';
         const isStart = branched && b.path !== beats[i - 1]?.path;
         const isEnd = branched && b.path !== beats[i + 1]?.path;
         return (
-        <div key={b.id} data-beat-id={b.id}>
-          {showWords && <BeatDivider n={i + 1} />}
-          {showWords && isStart && <PathBanner path={b.path} edge="start" />}
-          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-            {/* Tag column: fixed width, right-aligned so the tag sits flush to
-                the phone's left edge, top-aligned to the beat's opener. */}
-            <div
-              style={{
-                flex: `0 0 ${TAG_COL_W}px`,
-                display: 'flex',
-                justifyContent: 'flex-end',
-                paddingRight: TAG_GAP,
-                paddingTop: 24,
-              }}
-            >
-              <VoiceTag engine={b.engine} mode={b.mode} />
-            </div>
-            {/* Beat column: the phone interior, side borders + bg per row so the
-                rows read as one continuous phone. */}
-            <div
-              style={{
-                flex: `0 0 ${PHONE_W}px`,
-                borderLeft: '1px solid #e2e8f0',
-                borderRight: '1px solid #e2e8f0',
-                background: COACH_BG,
-                padding: '24px 20px',
-              }}
-            >
-              <IsolatedBeat type={b.type} props={b.props} />
-            </div>
-            {/* Words column: the right-hand authoring card, top-aligned with the
-                beat's opener. Only rendered on tabs with metadata (Onboarding). */}
-            {showWords && (
+          <div key={b.id} data-beat-id={b.id} style={{ marginBottom: 34 }}>
+            {showWords && <BeatDivider n={i + 1} />}
+            {showWords && isStart && <PathBanner path={b.path} edge="start" />}
+            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+              {/* Tag column: right-aligned so the tag sits flush to the phone's
+                  left edge, dropped to roughly the first coach bubble. */}
               <div
                 style={{
-                  flex: `0 0 ${WORDS_COL_W}px`,
-                  marginLeft: WORDS_GAP,
-                  paddingTop: 24,
+                  flex: `0 0 ${TAG_COL_W}px`,
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  paddingRight: TAG_GAP,
+                  paddingTop: 96,
                 }}
               >
-                <WordsPanel screenId={b.screenId} />
+                <VoiceTag engine={b.engine} mode={b.mode} />
               </div>
-            )}
+              {/* Phone column: a self-contained phone with the orb, playable in place. */}
+              <div style={{ flex: `0 0 ${PHONE_W}px` }}>
+                <PlayableBeat
+                  beat={b}
+                  active={playingId === b.id}
+                  onRequestPlay={onRequestPlay}
+                  onDone={() => onRequestPlay(null)}
+                />
+              </div>
+              {/* Words column: the right-hand authoring card, top-aligned to the
+                  phone. Only rendered on tabs with metadata (Onboarding). */}
+              {showWords && (
+                <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP, paddingTop: 8 }}>
+                  <WordsPanel screenId={b.screenId} />
+                </div>
+              )}
+            </div>
+            {showWords && isEnd && <PathBanner path={b.path} edge="end" />}
           </div>
-          {showWords && isEnd && <PathBanner path={b.path} edge="end" />}
-        </div>
         );
       })}
-
-      {/* Bottom input bar (offset to sit below the phone column) */}
-      <div style={{ display: 'flex' }}>
-        <div style={{ flex: `0 0 ${TAG_COL_W}px` }} />
-        <div
-          style={{
-            flex: `0 0 ${PHONE_W}px`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            borderBottom: '1px solid #e2e8f0',
-            borderLeft: '1px solid #e2e8f0',
-            borderRight: '1px solid #e2e8f0',
-            borderBottomLeftRadius: 32,
-            borderBottomRightRadius: 32,
-            background: '#C9D8F7',
-            padding: '12px 16px',
-          }}
-        >
-          <div
-            style={{
-              flex: 1,
-              borderRadius: 99,
-              background: '#f1f5f9',
-              padding: '8px 16px',
-              fontSize: 14,
-              color: '#94a3b8',
-            }}
-          >
-            Type or talk...
-          </div>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 99,
-              background: '#6366f1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <Icon icon="ic:round-mic" style={{ width: 20, height: 20, color: '#fff' }} />
-          </div>
-        </div>
-        {showWords && <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP }} />}
-      </div>
     </div>
   );
 }
 
 export function FlowDesigner() {
   const [activeTab, setActiveTab] = useState<TabId>('onboarding');
+  // The beat currently playing in place (its play button pressed), or null. Only
+  // one beat plays at a time; setting this to another id stops the previous one.
+  const [playingId, setPlayingId] = useState<string | null>(null);
   const tab = TABS.find((t) => t.id === activeTab) ?? TABS[0];
 
   return (
@@ -1212,12 +1429,23 @@ export function FlowDesigner() {
 
       {/* Tab switcher + Legend */}
       <div style={{ maxWidth: 720, margin: '0 auto 8px' }}>
-        <TabSwitcher active={activeTab} onChange={setActiveTab} />
+        <TabSwitcher
+          active={activeTab}
+          onChange={(t) => {
+            setPlayingId(null);
+            setActiveTab(t);
+          }}
+        />
         <VoiceLegend />
       </div>
 
       {/* Main layout */}
-      <FlowPhoneFrame beats={tab.beats} showWords={tab.id === 'onboarding'} />
+      <FlowPhoneFrame
+        beats={tab.beats}
+        showWords={tab.id === 'onboarding'}
+        playingId={playingId}
+        onRequestPlay={setPlayingId}
+      />
     </div>
   );
 }

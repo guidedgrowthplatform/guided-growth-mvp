@@ -19,10 +19,10 @@ export function EmojiOptionButton({
     <button
       onClick={onClick}
       aria-pressed={isSelected}
-      className="flex flex-col items-center gap-1"
+      className="flex shrink-0 flex-col items-center gap-1"
     >
       <div
-        className="flex h-12 w-12 items-center justify-center rounded-full border shadow-[0px_2px_4px_0px_rgba(0,0,0,0.04)] transition-colors"
+        className="flex h-12 w-12 shrink-0 aspect-square items-center justify-center rounded-full border shadow-[0px_2px_4px_0px_rgba(0,0,0,0.04)] transition-colors"
         style={{
           borderColor: color,
           backgroundColor: isSelected ? color : 'rgb(var(--color-surface))',

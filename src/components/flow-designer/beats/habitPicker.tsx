@@ -51,7 +51,7 @@ function HabitPickerBeat(props?: Record<string, string>) {
       // Framing: the check-ins are already habits. One or two more is plenty. One is fine.
       say:
         props?.coachLine ??
-        "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+        "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
     },
     {
       id: 'show',

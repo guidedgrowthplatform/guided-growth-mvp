@@ -91,15 +91,19 @@ function AdvancedFrequencyBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        "Now the days. Tell me how often each one runs and I'll fill them in.",
-    },
-    { id: 'cards', speaker: 'coach', render: cards },
-    {
-      id: 'confirm',
-      speaker: 'coach',
-      say: props?.confirmCoachLine ?? 'Your habits are all set, your plan is ready.',
+        "Please set the days that you're going to actually do these habits.",
     },
   ];
+  // Optional second coach bubble: the "not every habit every day" reassurance.
+  if (props?.coachLine2) {
+    steps.push({ id: 'ask2', speaker: 'coach', say: props.coachLine2 });
+  }
+  steps.push({ id: 'cards', speaker: 'coach', render: cards });
+  steps.push({
+    id: 'confirm',
+    speaker: 'coach',
+    say: props?.confirmCoachLine ?? 'Your habits are all set, your plan is ready.',
+  });
 
   return <BeatPlayer steps={steps} />;
 }

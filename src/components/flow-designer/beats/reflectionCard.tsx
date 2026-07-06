@@ -20,6 +20,58 @@ type ReflectionStyle = 'suggested template' | 'your template' | 'freeform';
 
 const DEFAULT_PROMPTS = ["I'm proud of...", "I forgive...", "I'm grateful for..."];
 
+// The suggested-template questions, shown as their own components (not a label) when
+// the suggested template is chosen.
+const SUGGESTED_PROMPTS = [
+  'What am I proud of?',
+  'What do I forgive myself for?',
+  'What am I grateful for?',
+];
+
+// The three suggested prompts, each its own numbered card. Each blooms in turn as
+// its clip plays (proud, then forgive, then grateful): prompt i shows at reveal > i.
+function SuggestedPrompts({ reveal }: { reveal: number }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {SUGGESTED_PROMPTS.map((p, i) => (
+        <Bloom key={i} show={reveal > i}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '13px 15px',
+              borderRadius: 14,
+              background: EVENING_BG,
+              border: `1.5px solid ${EVENING_BORDER}`,
+            }}
+          >
+            <div
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 8,
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: EVENING_ICON_BG,
+                fontFamily: FONT,
+                fontSize: 12,
+                fontWeight: 800,
+                color: EVENING_ICON_COLOR,
+              }}
+            >
+              {i + 1}
+            </div>
+            <span style={{ fontFamily: FONT, fontSize: 14.5, fontWeight: 600, color: INK }}>{p}</span>
+          </div>
+        </Bloom>
+      ))}
+    </div>
+  );
+}
+
 // Style choice pill, compact horizontal tabs that feel like a segmented control.
 function StylePicker({
   value,
@@ -29,9 +81,9 @@ function StylePicker({
   onChange: (v: ReflectionStyle) => void;
 }) {
   const options: { id: ReflectionStyle; label: string; icon: string }[] = [
-    { id: 'suggested template', label: 'Suggested template', icon: 'mdi:comment-question-outline' },
-    { id: 'your template', label: 'Your template', icon: 'mdi:pencil-outline' },
-    { id: 'freeform', label: 'Freeform', icon: 'mdi:microphone-outline' },
+    { id: 'suggested template', label: 'Suggested', icon: 'mdi:comment-question-outline' },
+    { id: 'your template', label: 'Make your own', icon: 'mdi:pencil-outline' },
+    { id: 'freeform', label: 'Just talk freely', icon: 'mdi:microphone-outline' },
   ];
 
   return (
@@ -221,7 +273,10 @@ function EveningSetupCard({
   onReminderChange: (v: boolean) => void;
 }) {
   const [timeOpen, setTimeOpen] = useState(false);
-  const reveal = useElementReveal(5);
+  // Reveal order: the three suggested questions bloom one by one (1, 2, 3), then
+  // the "make your own / just talk freely" switcher (4), then the schedule blooms
+  // in as the coach introduces it: days (5), time (6), reminder (7).
+  const reveal = useElementReveal(7);
 
   return (
     <>
@@ -277,43 +332,29 @@ function EveningSetupCard({
         {/* Divider */}
         <div style={{ height: 1, background: 'rgba(15,23,42,0.06)', marginLeft: -20, marginRight: -20 }} />
 
-        {/* Style */}
-        <Bloom show={reveal > 0}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <span
-              style={{
-                fontFamily: FONT,
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.6px',
-                textTransform: 'uppercase',
-                color: SUBTLE,
-              }}
-            >
-              Reflection style
-            </span>
-            <StylePicker value={style} onChange={onStyleChange} />
-            <StyleDescription style={style} />
-          </div>
-        </Bloom>
+        {/* The reflection itself. The default is the three suggested questions,
+            each blooming as its clip plays. "Make your own" swaps in editable
+            prompts; "Just talk freely" swaps in a freeform box. */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {style === 'suggested template' && <SuggestedPrompts reveal={reveal} />}
 
-        {/* Freeform fallback textarea, visible only when style is "freeform".
-            Lets mic-off users type their reflection instead of speaking. */}
-        <Bloom show={reveal > 1}>
+          {style === 'your template' && (
+            <Bloom show={reveal > 0}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {prompts.map((p, i) => (
+                  <PromptInput
+                    key={i}
+                    placeholder={DEFAULT_PROMPTS[i] ?? 'Add a prompt...'}
+                    value={p}
+                    onChange={(v) => onPromptChange(i, v)}
+                  />
+                ))}
+              </div>
+            </Bloom>
+          )}
+
           {style === 'freeform' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span
-                style={{
-                  fontFamily: FONT,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  letterSpacing: '0.6px',
-                  textTransform: 'uppercase',
-                  color: SUBTLE,
-                }}
-              >
-                Or type your thoughts
-              </span>
+            <Bloom show={reveal > 0}>
               <textarea
                 rows={5}
                 placeholder="Whatever comes up tonight..."
@@ -333,43 +374,35 @@ function EveningSetupCard({
                   boxSizing: 'border-box',
                 }}
               />
-            </div>
+            </Bloom>
           )}
-        </Bloom>
+        </div>
 
-        {/* Prompt editor, visible only when style is "your template" */}
-        <Bloom show={reveal > 1}>
-          {style === 'your template' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <span
-                style={{
-                  fontFamily: FONT,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  letterSpacing: '0.6px',
-                  textTransform: 'uppercase',
-                  color: SUBTLE,
-                }}
-              >
-                Your prompts
-              </span>
-              {prompts.map((p, i) => (
-                <PromptInput
-                  key={i}
-                  placeholder={DEFAULT_PROMPTS[i] ?? 'Add a prompt...'}
-                  value={p}
-                  onChange={(v) => onPromptChange(i, v)}
-                />
-              ))}
-            </div>
-          )}
+        {/* Or make your own, or just talk freely: the switcher sits under the
+            questions, so the suggested three lead and the alternatives follow. */}
+        <Bloom show={reveal > 3}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span
+              style={{
+                fontFamily: FONT,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.6px',
+                textTransform: 'uppercase',
+                color: SUBTLE,
+              }}
+            >
+              Or make it your own
+            </span>
+            <StylePicker value={style} onChange={onStyleChange} />
+          </div>
         </Bloom>
 
         {/* Divider */}
         <div style={{ height: 1, background: 'rgba(15,23,42,0.06)', marginLeft: -20, marginRight: -20 }} />
 
         {/* Days */}
-        <Bloom show={reveal > 2}>
+        <Bloom show={reveal > 4}>
           <div style={{ padding: '4px 0' }}>
             <DayPicker selectedDays={days} onToggleDay={onToggleDay} />
           </div>
@@ -379,7 +412,7 @@ function EveningSetupCard({
         <div style={{ height: 1, background: 'rgba(15,23,42,0.06)', marginLeft: -20, marginRight: -20 }} />
 
         {/* Time */}
-        <Bloom show={reveal > 3}>
+        <Bloom show={reveal > 5}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <span
               style={{
@@ -417,7 +450,7 @@ function EveningSetupCard({
         </Bloom>
 
         {/* Remind me toggle. Reminder is ON by default per spec. */}
-        <Bloom show={reveal > 4}>
+        <Bloom show={reveal > 6}>
           <div
             style={{
               display: 'flex',
@@ -479,31 +512,33 @@ function ReflectionCardBeat(props?: Record<string, string>) {
     {
       id: 'ask',
       speaker: 'coach',
-      // Placeholder. Real copy comes from beatContexts.ts.
-      // Rule: no tap/scroll/click/press/swipe language. Coach continues by voice.
       say:
         props?.coachLine ??
-        'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
-    },
-    {
-      id: 'setup',
-      speaker: 'coach',
-      render: (
-        <EveningSetupCard
-          style={style}
-          onStyleChange={setStyle}
-          prompts={prompts}
-          onPromptChange={handlePromptChange}
-          days={days}
-          onToggleDay={toggleDay}
-          time={time}
-          onTimeChange={setTime}
-          reminder={reminder}
-          onReminderChange={setReminder}
-        />
-      ),
+        'One more. An evening reflection, a couple of minutes to close out your day. Use these three questions, make it your own, or just talk freely.',
     },
   ];
+  // Optional second coach bubble (the time recommendation, before bed).
+  if (props?.coachLine2) {
+    steps.push({ id: 'ask2', speaker: 'coach', say: props.coachLine2 });
+  }
+  steps.push({
+    id: 'setup',
+    speaker: 'coach',
+    render: (
+      <EveningSetupCard
+        style={style}
+        onStyleChange={setStyle}
+        prompts={prompts}
+        onPromptChange={handlePromptChange}
+        days={days}
+        onToggleDay={toggleDay}
+        time={time}
+        onTimeChange={setTime}
+        reminder={reminder}
+        onReminderChange={setReminder}
+      />
+    ),
+  });
 
   return <BeatPlayer steps={steps} />;
 }
