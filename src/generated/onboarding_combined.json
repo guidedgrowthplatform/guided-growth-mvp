@@ -544,7 +544,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": ["add_habit", "update_habit", "advance_step"]
+          "allowedTools": ["update_habit", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {

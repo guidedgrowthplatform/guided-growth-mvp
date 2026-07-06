@@ -299,6 +299,21 @@ describe('getOnboardingTools / isOnboardingScreen', () => {
     ]);
   });
 
+  // B50: the habit-schedule beats do not add habits (that is ONBOARD-BEGINNER-03),
+  // they only set schedule on habits already picked. add_habit being reachable
+  // here let check-in-metric descriptions get misread as a new habit and trip
+  // the beginner-path habit cap ("habit limit reached").
+  it('B50: habit-schedule beats (04/05) expose only update_habit + advance_step, never add_habit', () => {
+    expect(names(getOnboardingTools('ONBOARD-BEGINNER-04'))).toEqual([
+      'advance_step',
+      'update_habit',
+    ]);
+    expect(names(getOnboardingTools('ONBOARD-BEGINNER-05'))).toEqual([
+      'advance_step',
+      'update_habit',
+    ]);
+  });
+
   it('exposes no tools on the silent auth beat', () => {
     expect(getOnboardingTools('ONBOARD-AUTH--FORM')).toEqual([]);
   });

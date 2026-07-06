@@ -243,17 +243,27 @@ For each habit they chose, set how often and roughly when. The day circles and t
 
 DO NOT:
 - Turn a per-habit reminder on unless they ask.
-- Re-ask a piece they already gave.`,
-    // update_habit sets days/time on a picked habit; add_habit only for a new one named mid-beat; advance_step is the nav.
-    allowedTools: ['add_habit', 'update_habit', 'advance_step'],
+- Re-ask a piece they already gave.
+- Treat check-in content (mood, sleep, energy, stress, or anything about what the check-in should ask each day) as a new habit. That is a later beat's job, not this one. If the user brings it up here, give one short line acknowledging it, then keep collecting the schedule for the habits already picked.`,
+    // update_habit sets days/time on an already-picked habit only. add_habit is
+    // deliberately NOT allowed here (B50): this beat's job is scheduling
+    // existing picks, not creating new ones, and add_habit being reachable let
+    // check-in-metric descriptions ("ask me about my mood/stress/energy") get
+    // misread as a new habit named "daily check-in" and trip max_habits_reached.
+    // A genuinely new habit belongs back on ONBOARD-BEGINNER-03.
+    allowedTools: ['update_habit', 'advance_step'],
     opener: 'How often, and roughly when, for each one? Add a reminder only if you want a nudge.',
   },
 
   'ONBOARD-BEGINNER-05': {
     context: `BEAT: Configure second habit.
 
-If a second habit exists, collect its missing time, frequency, and reminder preference. Reuse a clear schedule pattern from the first habit only if the user asks for the same setup. Ask for one missing detail at a time. If there is no second habit, this beat is complete.`,
-    allowedTools: ['add_habit', 'update_habit', 'advance_step'],
+If a second habit exists, collect its missing time, frequency, and reminder preference. Reuse a clear schedule pattern from the first habit only if the user asks for the same setup. Ask for one missing detail at a time. If there is no second habit, this beat is complete.
+
+DO NOT:
+- Treat check-in content (mood, sleep, energy, stress, or anything about what the check-in should ask each day) as a new habit. That belongs to a later beat, not this one.`,
+    // update_habit only, same reasoning as ONBOARD-BEGINNER-04 (B50).
+    allowedTools: ['update_habit', 'advance_step'],
   },
 
   // Plan-review beat (beginner). The user confirms their habits, then continues to
@@ -365,7 +375,10 @@ Show the final plan summary in plain language: habits, reflection setup, and sch
 
 SPEAK MODE: VERBATIM_OPENER
 
-The user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point isn't that it's morning, it's that this is their first habit and it's simple.`,
+The user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point isn't that it's morning, it's that this is their first habit and it's simple.
+
+DO NOT:
+- Treat what the check-in should ask (mood, stress, energy, or anything else the user describes wanting tracked) as a new habit to create. The check-in's content is fixed, not user-configurable here. If the user describes it, give one short acknowledging line, then ask for the time, which is the only thing this beat saves.`,
     // submit_morning_checkin saves AND self-advances (addendum); advance_step kept as nav fallback.
     allowedTools: ['submit_morning_checkin', 'advance_step'],
     opener: "When do you want this each day? I'll nudge you then.",
@@ -438,7 +451,8 @@ The user does a check-in right now: mood, sleep, energy, stress, on the card. Th
 
 DO NOT:
 - Read the four items back as numbers.
-- Give advice on what they reported. One warm line, then move on.`,
+- Give advice on what they reported. One warm line, then move on.
+- Treat this as a new habit to create. The check-in itself is fixed (mood, sleep, energy, stress); record_checkin is the only save tool here.`,
     allowedTools: ['record_checkin', 'advance_step'],
     opener:
       "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
