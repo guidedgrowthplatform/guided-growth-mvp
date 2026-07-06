@@ -2,6 +2,12 @@
 
 Lane A of gg-spec/docs/onboarding-consolidation-plan-2026-07-06. Owner territory: schema, engine renderer, narration driver, new components. Updates append at the top.
 
+## 2026-07-06 (later) YAIR RULINGS relayed to !443
+
+- Into-app button label: "Approve and start" (handoff prose wins over the BEATS value).
+- Profile beat demo props: STRIP from the seed (nothing preseeds the age picker; no-age-default protected by construction).
+- Content-side rulings for the converter; no schema change. Lane A has NOTHING open.
+
 ## 2026-07-06 (later) CONDUCTOR INPUTS HANDLED: !444 green, close segment landed, Lane B reconciled
 
 - !444 verify GREEN (pipeline 1096, f3cda36f). Red cause: icon bundle missing the custom-entry adapter icons; regenerated.
