@@ -235,6 +235,47 @@ export function captureCompletesBeat(node: FlowNode | undefined, cap: BeatCaptur
 }
 
 /**
+ * B55 guard for the evidence-arrival advances (fork + identity-beat). Evidence
+ * flipping false -> true is not proof a save happened WHILE the current beat
+ * was active — `serverData` is a union of every field the row has ever held
+ * (mergeRealtimeRow unions `data`), so a beat whose field already sat in the
+ * row from an earlier/queued write, a realtime echo, or carried-over account
+ * state can satisfy `beatCompletionEvidence` the instant the machine arrives
+ * there, with zero user action in between (the round1 RESISTER cascade:
+ * path-fork -> category -> goals -> habit-select -> habit-schedule ->
+ * morning-checkin-setup -> reflection-setup, all auto-defaulted while the
+ * tester only passively polled).
+ *
+ * `updated_at` is bumped by the API on every real write to the row (see
+ * useOnboardingRealtimeSync's isStaleRealtimeRow), so requiring it to be
+ * strictly newer than the value captured when this beat became active proves
+ * the row was WRITTEN TO on this beat's watch — the only signal available to
+ * the client that something happened here, not before. Compared by parsed
+ * epoch (Date.parse), not lexically, for the same reason isStaleRealtimeRow
+ * does: Realtime and the API PUT return different timestamp string shapes.
+ *
+ * A beat entered with NO server row yet (entryUpdatedAt undefined — the
+ * common brand-new-account case: nothing has synced from Realtime before
+ * this beat mounted) has nothing to be stale relative to, so the row's mere
+ * existence now is itself the proof a write occurred — this must return true
+ * once any row is present, or the very first save of a session could never
+ * advance anything (a real regression, not a safety win). A row that still
+ * does not exist (currentUpdatedAt undefined/null) can never pass — no write
+ * has happened at all yet.
+ */
+export function hasFreshServerWrite(
+  entryUpdatedAt: string | undefined,
+  currentUpdatedAt: string | undefined | null,
+): boolean {
+  if (!currentUpdatedAt) return false;
+  if (!entryUpdatedAt) return true; // no baseline row existed yet: any row now is fresh
+  const entry = Date.parse(entryUpdatedAt);
+  const current = Date.parse(currentUpdatedAt);
+  if (Number.isNaN(entry) || Number.isNaN(current)) return false;
+  return current > entry;
+}
+
+/**
  * Completion evidence: did the server row prove this persist-bearing beat was
  * completed? `undefined` = the beat carries no evidence signal of its own
  * (display beats, the head auth/mic gates). habit-schedule/advanced-frequency
@@ -655,6 +696,28 @@ export function useFlowOrchestrator(
   // setup beat must not be yanked straight forward by its own stale answer.
   const identityEntryEvidenceRef = useRef<boolean | undefined>(undefined);
 
+  // B55 guard: `updated_at` observed when THIS beat became active. Both
+  // evidence-arrival effects below require a row that is STRICTLY newer than
+  // this baseline before they may advance, on top of the evidence flip.
+  //
+  // Why: evidence flipping false -> true is not proof a save happened FOR
+  // THIS BEAT while it was active — `serverData` is a union of every field
+  // ever written to the row (mergeRealtimeRow unions `data`), so a beat whose
+  // field already sat in the row from a stale/queued write, a realtime echo,
+  // or simply having been carried over from an earlier account state can
+  // satisfy `beatCompletionEvidence` the instant the machine arrives there,
+  // with no user action in between. That is exactly the live cascade (round1
+  // RESISTER trail, turns 05-09): path-fork -> category -> goals ->
+  // habit-select -> habit-schedule -> morning-checkin-setup -> reflection-
+  // setup all auto-completed with default values while the tester only
+  // passively polled, zero capture()/captureFor() calls in between.
+  // `updated_at` is bumped by the API on every real write (see
+  // useOnboardingRealtimeSync's staleness comment), so requiring it to climb
+  // past the entry baseline means the row must have been WRITTEN TO while
+  // this specific beat was the active one — the only signal available to the
+  // client that something happened on THIS beat's watch, not before.
+  const entryUpdatedAtRef = useRef<string | undefined>(undefined);
+
   // Reset the per-beat baseline + fired-flag whenever the active beat changes, so
   // each beat judges advancement against the step seen on entry (not a prior
   // beat's) and a re-entered beat can advance again.
@@ -663,6 +726,8 @@ export function useFlowOrchestrator(
     advancedNodeRef.current = null;
     forkEntryPathRef.current = undefined;
     identityEntryEvidenceRef.current = undefined;
+    entryUpdatedAtRef.current = serverState?.updated_at;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeNodeId]);
   useEffect(() => {
     if (!activeNodeId || state.status === 'complete') return;
@@ -723,6 +788,11 @@ export function useFlowOrchestrator(
       if (cap.path) return; // entered with an existing answer: back-nav, hold
     }
     if (!cap.path || cap.path === forkEntryPathRef.current) return;
+    // B55 guard: the path value differs from the entry baseline, but that
+    // alone is not proof of a genuine save WHILE this beat was active — see
+    // entryUpdatedAtRef above. Require the row to have actually been written
+    // to since this beat became the frontier.
+    if (!hasFreshServerWrite(entryUpdatedAtRef.current, serverState?.updated_at)) return;
     if (advancedNodeRef.current === activeNodeId) return; // fire once per beat
     advancedNodeRef.current = activeNodeId;
     applyAndAdvance(cap, false, activeNodeId);
@@ -733,7 +803,15 @@ export function useFlowOrchestrator(
       to_step: serverStep,
       node: activeNodeId,
     });
-  }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
+  }, [
+    activeNodeId,
+    serverStep,
+    serverData,
+    state.status,
+    flow,
+    applyAndAdvance,
+    serverState?.updated_at,
+  ]);
 
   // Identity-beat advance (evidence arrival, no climb required). The post-lane
   // setup beats (state-check 6, morning 7, reflection 8, weekly-day 9) sit
@@ -758,6 +836,10 @@ export function useFlowOrchestrator(
       if (evidence) return; // entered with existing evidence: back-nav, hold
     }
     if (!evidence || identityEntryEvidenceRef.current) return;
+    // B55 guard: same freshness requirement as the fork's evidence-arrival
+    // advance above — the evidence flip alone does not prove a save happened
+    // while THIS beat was active (see entryUpdatedAtRef).
+    if (!hasFreshServerWrite(entryUpdatedAtRef.current, serverState?.updated_at)) return;
     if (advancedNodeRef.current === activeNodeId) return; // fire once per beat
     const cap = serverCaptureForBeat(node, data);
     if (!captureCompletesBeat(node, cap)) return;
@@ -770,7 +852,15 @@ export function useFlowOrchestrator(
       to_step: serverStep,
       node: activeNodeId,
     });
-  }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
+  }, [
+    activeNodeId,
+    serverStep,
+    serverData,
+    state.status,
+    flow,
+    applyAndAdvance,
+    serverState?.updated_at,
+  ]);
 
   const canGoBack = machineCanGoBack(state, flow);
 
