@@ -151,10 +151,10 @@ interface MetaBeat {
   narration?: MetaNarrationSeg[];
   elements?: MetaElement[];
 }
-interface NarrationSeg { kind: 'bubble' | 'reveal'; n: number; say?: string; clip?: string }
+interface NarrationSeg { kind: 'bubble' | 'reveal' | 'close'; n: number; say?: string; clip?: string }
 interface Mp3Asset {
   id: string; label: string; file: string; transcript: string;
-  elementId?: string; timing: 'opener' | 'element' | 'full-beat';
+  elementId?: string; timing: 'opener' | 'element' | 'full-beat' | 'close';
 }
 
 // ---------------------------------------------------------------------------
@@ -246,12 +246,26 @@ function main(): void {
     return { id, file };
   }
 
-  /** Normalize the metadata narration into the Step-0 shape, resolving clips. */
-  function buildNarration(m: MetaBeat, where: string): NarrationSeg[] | undefined {
+  /** Normalize the metadata narration into the Step-0 shape, resolving clips.
+   * Post-interaction lines (the confirm bubble the metadata places AFTER a
+   * reveal, and props close/confirm lines) become kind 'close' per the merged
+   * schema: the driver plays them when the beat's capture fires, never in the
+   * pre-interaction script. */
+  function buildNarration(m: MetaBeat, rb: RenderBeat, where: string): NarrationSeg[] | undefined {
     if (!m.narration?.length) return undefined;
+    const closeLines = new Set(
+      [(rb.props as Dict | undefined)?.closeCoachLine, (rb.props as Dict | undefined)?.confirmCoachLine]
+        .filter((v): v is string => typeof v === 'string')
+        .map((s) => s.trim()),
+    );
+    let sawReveal = false;
+    let closeN = 0;
     return m.narration.map((seg, i) => {
-      const kind: 'bubble' | 'reveal' = seg.bubble != null ? 'bubble' : 'reveal';
-      const n = (seg.bubble ?? seg.reveal)!;
+      if (seg.reveal != null) sawReveal = true;
+      const isClose =
+        seg.bubble != null && seg.say != null && sawReveal && closeLines.has(seg.say.trim());
+      const kind: NarrationSeg['kind'] = isClose ? 'close' : seg.bubble != null ? 'bubble' : 'reveal';
+      const n = isClose ? ++closeN : (seg.bubble ?? seg.reveal)!;
       const out: NarrationSeg = { kind, n };
       if (seg.say) out.say = seg.say;
       let clipId = seg.clip;
@@ -290,7 +304,7 @@ function main(): void {
         push({
           id: seg.clip, label: seg.clip, file, transcript: seg.say,
           ...(el ? { elementId: el.elementId } : {}),
-          timing: seg.kind === 'bubble' ? 'opener' : 'element',
+          timing: seg.kind === 'bubble' ? 'opener' : seg.kind === 'close' ? 'close' : 'element',
         });
       }
     } else if (rb.engine === 'MP3' && m?.opener) {
@@ -324,7 +338,8 @@ function main(): void {
         const id = file.split('/').pop()!.replace(/\.(wav|mp3)$/, '');
         if (!clipsManifest.has(file)) { problems.push('CLIP FILE MISSING at ' + where + '.props.' + key + ': ' + file); continue; }
         clipIdToFile.set(id, file);
-        push({ id, label: id, file, transcript: line.trim(), timing: 'opener' });
+        const timing = key === 'closeCoachLine' || key === 'confirmCoachLine' ? 'close' : 'opener';
+        push({ id, label: id, file, transcript: line.trim(), timing });
       }
     }
     return assets;
@@ -348,7 +363,20 @@ function main(): void {
       if (typeof props[k] === 'string') lintSpoken(where + '.props.' + k, props[k] as string);
     }
 
-    const narration = m ? buildNarration(m, where) : undefined;
+    let narration = m ? buildNarration(m, rb, where) : undefined;
+    // A beat with a close line but no metadata narration (advanced-capture) gets
+    // an explicit two-segment script: the opener bubble, then the close. Without
+    // this the close line would have no slot in the driver's schedule.
+    const closeLine = (rb.props as Dict | undefined)?.closeCoachLine;
+    if (!narration && typeof closeLine === 'string' && rb.engine === 'MP3' && m?.opener) {
+      const openerClip = clipFor(where + '.opener', m.opener);
+      const closeClip = clipFor(where + '.close', closeLine.trim());
+      narration = [
+        { kind: 'bubble', n: 1, say: m.opener, ...(openerClip ? { clip: openerClip.id } : {}) },
+        { kind: 'close', n: 1, say: closeLine.trim(), ...(closeClip ? { clip: closeClip.id } : {}) },
+      ];
+      lintSpoken(where + '.close', closeLine);
+    }
     const mp3Assets = buildMp3Assets(rb, m, narration, where);
 
     // A/B cross-check (the known gotcha): bubble copy in BEATS props must match the
