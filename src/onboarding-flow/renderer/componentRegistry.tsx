@@ -57,8 +57,17 @@ import {
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
 import type { BeatCapture, FlowAnswers, FlowComponentType, FlowNode } from '../types';
+import { nextHabitSelection } from './habitSelectionRules';
 import { useNarrationElementCount } from './narration/NarrationRevealContext';
 import { HomeTourAdapter } from './tour/HomeTourAdapter';
+import {
+  buildProjectionRows,
+  dayLabelsFrom,
+  dayOrderFrom,
+  projectionHabits,
+  projectionStats,
+  type ProjectionState,
+} from './weeklyProjectionData';
 
 export interface BeatAdapterProps {
   node: FlowNode;
@@ -861,13 +870,21 @@ function HabitsAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
     () => new Set(Object.keys(answers.habitConfigs ?? {})),
   );
 
+  // A5, the goals->habits branch rule: two goals = one habit per goal (replace
+  // semantics inside a goal), one goal = up to MAX_HABITS_ONBOARDING. The pure
+  // rule lives in habitSelectionRules.ts.
+  const onePerGoal = goals.length >= 2;
   const toggle = (habit: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(habit)) next.delete(habit);
-      else if (next.size < MAX_HABITS_ONBOARDING) next.add(habit);
-      return next;
-    });
+    setSelected((prev) =>
+      nextHabitSelection({
+        prev,
+        habit,
+        goals,
+        habitsByGoal,
+        expandedGoal,
+        maxTotal: MAX_HABITS_ONBOARDING,
+      }),
+    );
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
     if (readOnly) return;
@@ -879,7 +896,8 @@ function HabitsAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
     if (result.action === 'select_option' || result.action === 'add_habit') {
       const p = result.params as { name?: string; value?: string };
       const name = (p.name ?? p.value)?.trim();
-      if (name && !selected.has(name) && selected.size < MAX_HABITS_ONBOARDING) toggle(name);
+      // The rule (per-goal replace / total cap) is enforced inside toggle.
+      if (name && !selected.has(name)) toggle(name);
     }
   });
 
@@ -901,7 +919,9 @@ function HabitsAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
             expanded={expandedGoal === goal}
             onToggleExpanded={() => setExpandedGoal((prev) => (prev === goal ? '' : goal))}
             selectedHabits={selected}
-            maxReached={selected.size >= MAX_HABITS_ONBOARDING}
+            // Two-goal mode never dead-blocks a tap: picking inside a full goal
+            // replaces that goal's pick (A5). Single-goal keeps the total cap.
+            maxReached={onePerGoal ? false : selected.size >= MAX_HABITS_ONBOARDING}
             onToggleHabit={toggle}
           />
         ))}
@@ -1707,48 +1727,26 @@ function AdvancedFrequencyAdapter({ answers, onCapture, readOnly }: BeatAdapterP
 
 /* -------------------------------------------------- weekly-projection (v3 new) */
 
-// Weekly projection beat: shows a static projection grid for the given state prop.
-// Auto-advances after a short delay so the coach MP3 can play and the user can
-// absorb the frame before moving on. Uses simple colored cells (no external
-// WeeklyHabitsSummary dep here) to keep the adapter self-contained and avoid
-// import chain issues with the flow-builder component.
-type ProjectionState = 'blank' | 'full' | 'p78' | 'p36' | 'gaps';
-
-const PROJECTION_HABIT_NAMES = [
-  'Morning check-in',
-  'Evening report',
-  'Daily reflection',
-  'Your habit',
-];
-
-// Returns a filled-fraction per row for each state.
-function rowFillForState(state: ProjectionState, rowIdx: number): ('done' | 'missed' | 'empty')[] {
-  const days = 7;
-  const isHero = rowIdx < 2; // first two rows stay fully green
-  return Array.from({ length: days }, (_, d) => {
-    if (state === 'blank') return 'empty';
-    if (state === 'full') return 'done';
-    if (state === 'p78') return isHero || (rowIdx + d) % 5 !== 0 ? 'done' : 'missed';
-    if (state === 'p36') return isHero ? 'done' : d % 3 === 0 ? 'done' : 'missed';
-    // gaps: mixed empty and missed
-    return d === 0 || d === 3 ? 'empty' : (rowIdx + d) % 3 === 0 ? 'done' : 'missed';
-  });
-}
-
-const STATE_CELL_COLOR: Record<'done' | 'missed' | 'empty', string> = {
-  done: 'bg-green-500',
-  missed: 'bg-red-400',
-  empty: 'bg-surface-secondary',
-};
-
-function WeeklyProjectionAdapter({ node, onCapture }: BeatAdapterProps) {
+// Weekly projection beat (A2): the REAL WeeklyHabitsSummary grid fed by the
+// ported projection math (weeklyProjectionData.ts, from the render's
+// beats/weeklyProjection.tsx; behavior locked with Yair 2026-07-05). The week
+// starts on the user's start day (today), the three rituals are weekday-only,
+// and the rows include the user's real captured habits when the flow has them.
+// The user advances with "Next" once the frame has had a moment on screen.
+function WeeklyProjectionAdapter({ node, answers, onCapture }: BeatAdapterProps) {
   const props = node.componentProps as { state?: string };
   const state = (props.state ?? 'blank') as ProjectionState;
-  const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-  // Auto-advance after the opener MP3 has enough time to finish. The MP3 hook in
-  // BeatView drives the karaoke, so we just need a generous timeout. The user can
-  // also tap "Next" to skip ahead.
+  // The start day is captured once per mount: the frame must not reshuffle if
+  // midnight passes while it is on screen.
+  const [startDay] = useState(() => new Date().getDay());
+  const dayOrder = dayOrderFrom(startDay);
+  const habits = projectionHabits(answers.habitConfigs);
+  const rows = buildProjectionRows(habits, state, dayOrder);
+  const stats = projectionStats(rows);
+
+  // Give the coach line a moment before the Next affordance appears. The user
+  // can move on any time after; the narration keeps playing over the grid.
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 3500);
@@ -1757,26 +1755,13 @@ function WeeklyProjectionAdapter({ node, onCapture }: BeatAdapterProps) {
 
   return (
     <CardShell>
-      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
-        <div className="mb-1 flex gap-1 pl-[120px]">
-          {DAY_LABELS.map((d, i) => (
-            <span key={i} className="w-7 text-center text-[11px] font-medium text-content-tertiary">
-              {d}
-            </span>
-          ))}
-        </div>
-        {PROJECTION_HABIT_NAMES.map((name, rowIdx) => {
-          const cells = rowFillForState(state, rowIdx);
-          return (
-            <div key={name} className="flex items-center gap-1">
-              <span className="w-[112px] truncate text-[12px] text-content-secondary">{name}</span>
-              {cells.map((cell, d) => (
-                <div key={d} className={`h-6 w-7 rounded ${STATE_CELL_COLOR[cell]}`} />
-              ))}
-            </div>
-          );
-        })}
-      </div>
+      <WeeklyHabitsSummary
+        overallPercent={stats.percent}
+        overallDone={stats.done}
+        overallScheduled={stats.reported}
+        rows={rows}
+        dayLabels={dayLabelsFrom(startDay)}
+      />
       {ready && <Cta label="Next" onClick={() => onCapture({ data: {} })} />}
     </CardShell>
   );
@@ -1799,6 +1784,13 @@ function CustomEntryAdapter({ node, answers, onCapture, readOnly }: BeatAdapterP
   };
   const kind = props.kind === 'habit' ? 'habit' : 'goal';
   const [name, setName] = useState('');
+  // Past-beat receipt (A3): the frozen card shows what this beat added (the
+  // most recent captured goal / habit), not an empty input.
+  const capturedValue =
+    kind === 'goal'
+      ? (answers.goals?.[answers.goals.length - 1] ?? '')
+      : (Object.keys(answers.habitConfigs ?? {}).at(-1) ?? '');
+  const shownValue = readOnly && !name ? capturedValue : name;
 
   const submit = () => {
     const trimmed = name.trim();
@@ -1827,7 +1819,7 @@ function CustomEntryAdapter({ node, answers, onCapture, readOnly }: BeatAdapterP
             props.placeholder ??
             (kind === 'goal' ? 'For example, sleep more consistently' : 'For example, evening walk')
           }
-          value={name}
+          value={shownValue}
           onChange={setName}
           disabled={readOnly}
           onEnter={submit}
