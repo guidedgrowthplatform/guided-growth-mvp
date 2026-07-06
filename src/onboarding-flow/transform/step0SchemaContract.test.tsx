@@ -326,7 +326,7 @@ describe('STEP-0: renderer mounts the new kinds from generated nodes', () => {
     act(() => {
       root.render(<Adapter node={node} answers={{}} onCapture={() => {}} />);
     });
-    // The projection grid renders its rows (4 named rows x 7 day cells).
-    expect(container.textContent).toContain('Morning check-in');
+    // The real projection grid renders its ritual rows (A2).
+    expect(container.textContent).toContain('Morning state check-in');
   });
 });
