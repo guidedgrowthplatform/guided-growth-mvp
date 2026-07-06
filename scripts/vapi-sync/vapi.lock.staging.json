@@ -1,0 +1,116 @@
+{
+  "tools": {
+    "submit_profile": {
+      "id": "7b1d0132-c29f-469f-aa24-36ac9b2ad00a",
+      "hash": "8206e373df0653df",
+      "updatedAt": "2026-07-06T10:44:57.803Z"
+    },
+    "submit_path_choice": {
+      "id": "1f495fd6-aad5-4bfe-98d2-aaf84d223cb7",
+      "hash": "31d3aa82b88aca1d",
+      "updatedAt": "2026-07-06T10:44:58.644Z"
+    },
+    "submit_category": {
+      "id": "bfb261e3-c901-4fb4-82c9-2991c8113d6f",
+      "hash": "528bd4801c107328",
+      "updatedAt": "2026-07-06T10:44:59.374Z"
+    },
+    "submit_goals": {
+      "id": "6069756e-da51-4a76-9cda-717099beb337",
+      "hash": "6bc6b41fb9b41982",
+      "updatedAt": "2026-07-06T10:45:00.259Z"
+    },
+    "add_habit": {
+      "id": "20f4b556-4c55-46a0-a7c9-22b18c78e538",
+      "hash": "5d41ae00730c73c7",
+      "updatedAt": "2026-07-06T10:45:00.993Z"
+    },
+    "remove_habit": {
+      "id": "f9dd0e98-f9bb-420e-9574-729205f9297d",
+      "hash": "b6dfe9d93e94e52e",
+      "updatedAt": "2026-07-06T10:45:01.711Z"
+    },
+    "update_habit": {
+      "id": "7ba13145-488a-4c5c-b2ce-7b030574aee7",
+      "hash": "d99d375120a7754f",
+      "updatedAt": "2026-07-06T10:45:02.347Z"
+    },
+    "submit_reflection_config": {
+      "id": "7ed0bc70-6c0e-470d-935a-75bf0da9f35d",
+      "hash": "d25382a6e6c9baf2",
+      "updatedAt": "2026-07-06T10:45:03.140Z"
+    },
+    "submit_weekly_config": {
+      "id": "911248a7-6d0c-4fcb-b4fa-fdb6263ffda6",
+      "hash": "67b0323a8aa859d3",
+      "updatedAt": "2026-07-06T10:45:03.470Z"
+    },
+    "submit_morning_checkin": {
+      "id": "3f0da8a9-13ec-458f-8624-415bd56cedfc",
+      "hash": "15c09e7e9040b393",
+      "updatedAt": "2026-07-06T10:45:03.861Z"
+    },
+    "record_checkin": {
+      "id": "579090e5-704d-450b-b25d-a9527942dc71",
+      "hash": "24f2783092d9b213",
+      "updatedAt": "2026-07-06T10:45:04.168Z"
+    },
+    "submit_custom_prompts": {
+      "id": "ae242118-82ab-4a98-83f7-35bc4e7f0c06",
+      "hash": "5fa7f616daf07f45",
+      "updatedAt": "2026-07-06T10:45:05.047Z"
+    },
+    "submit_brain_dump": {
+      "id": "c7694dd9-27ff-4b53-9609-e3fd3e3b8dab",
+      "hash": "9fe0c7482bf27907",
+      "updatedAt": "2026-07-06T10:45:05.791Z"
+    },
+    "navigate_next": {
+      "id": "b81d7ff0-4d4d-4fbe-b679-6ae015989c1f",
+      "hash": "19c461a06313dc26",
+      "updatedAt": "2026-07-06T10:45:06.433Z"
+    },
+    "confirm_plan": {
+      "id": "b50afc43-1fd3-4d46-a727-fb20a609ef1b",
+      "hash": "346cd748859d1d10",
+      "updatedAt": "2026-07-06T10:45:07.293Z"
+    }
+  },
+  "assistant": {
+    "id": "7af9d90a-f4db-4da6-b03e-de67e11a2233",
+    "hash": "3d94dafe3fdc23eb",
+    "updatedAt": "2026-07-06T10:45:08.166Z"
+  },
+  "weeklyTools": {
+    "weekly_update_habit": {
+      "id": "1b105564-820f-441e-8ff7-fc2bab10edf4",
+      "hash": "c5cd7d4fc6d78794",
+      "updatedAt": "2026-07-06T10:45:08.776Z"
+    },
+    "weekly_archive_habit": {
+      "id": "d618f911-214c-48e2-834a-889b83aed9f5",
+      "hash": "e02ecfc97baebbde",
+      "updatedAt": "2026-07-06T10:45:19.135Z"
+    },
+    "weekly_add_habit": {
+      "id": "ad94650b-c172-4460-a1f6-bf8dcef96720",
+      "hash": "87380ca4697678c3",
+      "updatedAt": "2026-07-06T10:45:19.904Z"
+    },
+    "weekly_complete": {
+      "id": "cb292868-5d2a-4df3-97b5-7a9c13e52187",
+      "hash": "ed34966177e001a6",
+      "updatedAt": "2026-07-06T10:45:20.230Z"
+    },
+    "weekly_advance": {
+      "id": "cc97ecf3-4544-451d-8b9d-84dbc6a9c5e4",
+      "hash": "542da8e33792cf70",
+      "updatedAt": "2026-07-06T10:45:20.756Z"
+    }
+  },
+  "weeklyAssistant": {
+    "id": "6642a671-fbde-499d-a992-5dd587444d1d",
+    "hash": "2a7c051c6800d4c8",
+    "updatedAt": "2026-07-06T10:45:21.714Z"
+  }
+}
