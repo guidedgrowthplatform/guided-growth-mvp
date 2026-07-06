@@ -37,6 +37,7 @@ describe('flow registry (useFlow)', () => {
         'evening-checkin-v1',
         'home-tour-v1',
         'weekly-checkin-v1',
+        'lane-a-demo-v1',
       ]),
     );
   });

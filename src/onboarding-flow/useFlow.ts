@@ -29,6 +29,7 @@ import { useMemo } from 'react';
 import { validateFlow } from './flowMachine';
 import eveningGeneratedJson from './flows/evening-checkin-v1.generated.json';
 import homeTourGeneratedJson from './flows/home-tour-v1.generated.json';
+import laneADemoGeneratedJson from './flows/lane-a-demo-v1.generated.json';
 import morningGeneratedJson from './flows/morning-checkin-v1.generated.json';
 import generatedJson from './flows/onboarding-beginner-v1.generated.json';
 import weeklyGeneratedJson from './flows/weekly-checkin-v1.generated.json';
@@ -124,6 +125,8 @@ const MORNING_CHECKIN_FLOW = acceptGeneratedFlow(morningGeneratedJson, 'morning-
 const EVENING_CHECKIN_FLOW = acceptGeneratedFlow(eveningGeneratedJson, 'evening-checkin');
 const HOME_TOUR_FLOW = acceptGeneratedFlow(homeTourGeneratedJson, 'home-tour');
 const WEEKLY_CHECKIN_FLOW = acceptGeneratedFlow(weeklyGeneratedJson, 'weekly-checkin');
+// Lane A capability demo (QA preview only; droppable once Lane B content lands).
+const LANE_A_DEMO_FLOW = acceptGeneratedFlow(laneADemoGeneratedJson, 'lane-a-demo');
 
 // The flow registry (L1-5). Each flow resolves three ways: flowId, versionTag
 // (the pin format flowId@vN), and the version-less slug (the /flow-preview/:flowId
@@ -138,6 +141,7 @@ if (MORNING_CHECKIN_FLOW) registerFlow(MORNING_CHECKIN_FLOW);
 if (EVENING_CHECKIN_FLOW) registerFlow(EVENING_CHECKIN_FLOW);
 if (HOME_TOUR_FLOW) registerFlow(HOME_TOUR_FLOW);
 if (WEEKLY_CHECKIN_FLOW) registerFlow(WEEKLY_CHECKIN_FLOW);
+if (LANE_A_DEMO_FLOW) registerFlow(LANE_A_DEMO_FLOW);
 registerFlow(LATEST_FLOW);
 
 /** The stable pin identifier for a flow document, e.g. "onboarding-beginner-v1@v1". */

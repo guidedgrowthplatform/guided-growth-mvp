@@ -57,6 +57,7 @@ import {
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
 import type { BeatCapture, FlowAnswers, FlowComponentType, FlowNode } from '../types';
+import { useNarrationElementCount } from './narration/NarrationRevealContext';
 import { HomeTourAdapter } from './tour/HomeTourAdapter';
 
 export interface BeatAdapterProps {
@@ -1447,6 +1448,9 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
   const props = node.componentProps as { dimensions?: CheckInDimension[] };
   const want = props.dimensions;
   const dims = want ? checkInDimensions.filter((d) => want.includes(d.key)) : checkInDimensions;
+  // A1: on a narration-driven beat the rows bloom one at a time as the coach
+  // asks each question (reveal segments); outside narration all rows show.
+  const visibleDims = dims.slice(0, useNarrationElementCount(dims.length));
   const [values, setValues] = useState<Partial<Record<CheckInDimension, number>>>({});
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
@@ -1468,8 +1472,8 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
   return (
     <CardShell>
       <div className="flex w-full flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
-        {dims.map((dim) => (
-          <div key={dim.key} className="flex flex-col gap-1.5">
+        {visibleDims.map((dim) => (
+          <div key={dim.key} className="flex animate-fade-in flex-col gap-1.5">
             <span className="text-[13px] font-medium text-content-subtle">{dim.label}</span>
             <div className="flex w-full justify-between">
               {dim.options.map((o) => (
@@ -1486,7 +1490,9 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
           </div>
         ))}
       </div>
-      <Cta label="Continue" disabled={!anyFilled} onClick={submit} />
+      {visibleDims.length === dims.length && (
+        <Cta label="Continue" disabled={!anyFilled} onClick={submit} />
+      )}
     </CardShell>
   );
 }

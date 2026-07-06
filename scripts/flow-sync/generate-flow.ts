@@ -40,6 +40,8 @@ const LINEAR_EXPORTS = [
   { source: 'designer-source.evening-checkin.json', out: 'evening-checkin-v1.generated.json' },
   { source: 'designer-source.home-tour.json', out: 'home-tour-v1.generated.json' },
   { source: 'designer-source.weekly-checkin.json', out: 'weekly-checkin-v1.generated.json' },
+  // Lane A capability demo (QA preview only; droppable once Lane B content lands).
+  { source: 'designer-source.lane-a-demo.json', out: 'lane-a-demo-v1.generated.json' },
 ];
 
 function gateAndWrite(flow: FlowDocument, outPath: string): void {
