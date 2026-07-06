@@ -31,6 +31,7 @@ import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistr
 import { NarrationBeatView } from './narration/NarrationBeatView';
 import { openerRevealPin } from './openerReveal';
 import { openerTurns } from './openerTurns';
+import { resolveBeatOpenerText } from './resolveBeatOpener';
 import { useBeatOpenerCartesia } from './useBeatOpenerCartesia';
 import { useBeatOpenerMp3 } from './useBeatOpenerMp3';
 
@@ -72,7 +73,10 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // otherwise). Component-owned beats (greeting, mic) skip the driver: the
   // component plays its own audio/orb sequence (A4).
   const hasNarration = (node.narration?.length ?? 0) > 0 && !node.componentOwned;
-  const opener = node.voice.openerText ? applyName(node.voice.openerText, answers.nickname) : null;
+  // B48: locked openers (onboardingOpeners.ts) win over the flow document's
+  // authored/fallback opener, name-variant aware; {name} never renders raw.
+  const openerBase = resolveBeatOpenerText(node, answers.nickname);
+  const opener = openerBase ? applyName(openerBase, answers.nickname) : null;
   // Past narration beats replay their SPOKEN bubble lines (bubbles + closes,
   // newline = turn break, the openerTurns convention) instead of the single
   // authored opener. Reveal says stay out: they were verbal-only, never drawn.

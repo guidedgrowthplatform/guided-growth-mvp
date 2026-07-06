@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { validateFlow } from '../flowMachine';
-import type { BeatNode } from '../types';
 import { onboardingBeginnerV1 } from '../flows/__fixtures__/onboarding-beginner-v1';
 import generatedJson from '../flows/onboarding-beginner-v1.generated.json';
+import type { BeatNode } from '../types';
 import { loadPublishedFlow, versionTag } from '../useFlow';
 import { DESIGNER_ONBOARDING_FLOW_FROM_JSON } from './designerSourceJson';
 import { designerToFlowDocument } from './designerToFlow';
@@ -35,17 +35,40 @@ describe('designerToFlow no-op swap correctness', () => {
     expect(flow.entryNodeId).toBe('auth');
   });
 
-  it('builds the fork as a BranchNode with both lanes merging at into-app (v3)', () => {
+  it('builds the fork as a BranchNode with both lanes merging at state-check (B47 order)', () => {
     const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     const fork = flow.nodes.find((n) => n.id === 'path-fork');
     expect(fork?.type).toBe('branch');
     if (fork?.type === 'branch') {
       expect(fork.lanes.map((l) => l.value)).toEqual(['simple', 'braindump']);
-      // V3: both lanes merge at into-app (plan-review dropped).
-      expect(fork.mergeNodeId).toBe('into-app');
-      // Advanced lane now has two nodes: capture then frequency.
+      // B47 reorder: the lanes merge at the post-lane setup block, whose first
+      // beat is state-check (derived from the designer order, not hardcoded).
+      expect(fork.mergeNodeId).toBe('state-check');
+      // Advanced lane has two nodes: capture then frequency.
       const advLane = fork.lanes.find((l) => l.value === 'braindump');
       expect(advLane?.exitNodeId).toBe('advanced-frequency');
+    }
+  });
+
+  it('B47: the fork directly follows profile; the setup block follows the lanes', () => {
+    const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
+    const profile = flow.nodes.find((n) => n.id === 'profile') as BeatNode | undefined;
+    expect(profile?.nextId).toBe('path-fork');
+    const schedule = flow.nodes.find((n) => n.id === 'habit-schedule') as BeatNode | undefined;
+    expect(schedule?.nextId).toBe('state-check');
+    const advFreq = flow.nodes.find((n) => n.id === 'advanced-frequency') as BeatNode | undefined;
+    expect(advFreq?.nextId).toBe('state-check');
+    // Setup block chains to into-app, so the persist scale is monotonic in
+    // flow order (1,2,3,4,5,5,6,7,8,9 on the beginner walk).
+    const chain: Record<string, string> = {
+      'state-check': 'morning-checkin-setup',
+      'morning-checkin-setup': 'reflection-setup',
+      'reflection-setup': 'weekly-day-setup',
+      'weekly-day-setup': 'into-app',
+    };
+    for (const [id, next] of Object.entries(chain)) {
+      const node = flow.nodes.find((n) => n.id === id) as BeatNode | undefined;
+      expect(node?.nextId, `${id}.nextId`).toBe(next);
     }
   });
 
@@ -70,12 +93,13 @@ describe('designerToFlow no-op swap correctness', () => {
   it('seeded flow drops why-intro (merged into state-check) and keeps the spine + projections', () => {
     const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     // Consolidation seed 2026-07-06: the render merged the why-intro framing
-    // into state-check's two opening bubbles; the node no longer exists and
-    // state-check backs onto profile.
+    // into state-check's two opening bubbles; the node no longer exists.
+    // B47 reorder: state-check is the merge node after the lanes, so it has no
+    // back (crossing the merge would be ambiguous between lanes).
     expect(flow.nodes.find((n) => n.id === 'why-intro')).toBeUndefined();
     const stateCheck = flow.nodes.find((n) => n.id === 'state-check') as BeatNode | undefined;
     expect(stateCheck).toBeDefined();
-    expect(stateCheck?.backId).toBe('profile');
+    expect(stateCheck?.backId).toBeNull();
     expect(flow.nodes.find((n) => n.id === 'goal-custom')).toBeDefined();
     expect(flow.nodes.find((n) => n.id === 'habit-custom')).toBeDefined();
     expect(flow.nodes.find((n) => n.id === 'advanced-frequency')).toBeDefined();

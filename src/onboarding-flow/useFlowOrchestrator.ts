@@ -16,11 +16,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { DERIVED_STEP_MAPS } from './derivedStepMaps';
-// V3: all pre-fork beats (why-intro, state-check, morning-checkin-setup,
-// reflection-card, weekly-day-setup) have persist steps 6-9 but appear BEFORE
-// the fork in flow order. No ENGINE_PERSISTLESS_STEP entries are needed in
-// v3: into-app has persistsFields=[] so its tool is cosmetic, and the
-// weekly-projection nodes are pure display with no step.
+// B47 reorder (2026-07-06): flow order matches the persist-step scale again.
+// Positional window first (profile 1, fork 2, lanes 3..5), then the post-lane
+// setup block (state-check 6, morning 7, reflection 8, weekly-day 9), so the
+// scale is monotonic in flow order (1,2,3,4,5,5,6,7,8,9 on the beginner walk).
+// No ENGINE_PERSISTLESS_STEP entries are needed: into-app has
+// persistsFields=[] so its tool is cosmetic, and the weekly-projection nodes
+// are pure display with no step.
 const ENGINE_PERSISTLESS_STEP: Record<string, number> = {};
 // Server-scale `current_step` each beat ENTERS at, derived from the generated
 // flow's positional window (L1-3): the fork + its lanes + pre-fork beats below
@@ -28,10 +30,12 @@ const ENGINE_PERSISTLESS_STEP: Record<string, number> = {};
 // consecutive 5s (habit-select + habit-schedule) make the stored server step run
 // one AHEAD of the engine step from habit-schedule on.
 //
-// Persist steps stay non-monotonic vs flow order (1,6,7,8,9,2,3,4,5,5) and the
-// tap save path pins current_step with GREATEST — so past state-check the
-// numeric step is an identity label, not a position. Resume is therefore
-// data-evidence driven (resumeFromServerRow); this table survives only as the
+// Past the lanes the numeric step is an identity label, not a position: the
+// setup beats' tools GREATEST-bump current_step only to their OWN step (6..9),
+// which the ladder's one-ahead seam has already met or passed by the time they
+// are active, so the numeric scale cannot reliably climb there. Their live
+// advance is evidence-driven (see the identity-beat advance below), resume is
+// evidence-driven too (resumeFromServerRow); this table survives only as the
 // numeric stop for the steps-2..5 back-nav window, where advance_step
 // bare-sets restore meaning.
 const ENTRY_SERVER_STEP: Record<string, number> = DERIVED_STEP_MAPS.entryServerStep;
@@ -233,9 +237,11 @@ export function captureCompletesBeat(node: FlowNode | undefined, cap: BeatCaptur
 /**
  * Completion evidence: did the server row prove this persist-bearing beat was
  * completed? `undefined` = the beat carries no evidence signal of its own
- * (display beats, the head auth/mic gates, and habit-schedule/advanced-frequency,
- * which share their field with the beat before them and so can never be proven
- * separately — resume conservatively stops there once the shared field exists).
+ * (display beats, the head auth/mic gates). habit-schedule/advanced-frequency
+ * return a constant `false`: they share their field with the beat before them
+ * and can never be proven separately — the resume walk passes them only when a
+ * LATER beat holds evidence (the user demonstrably moved past), and otherwise
+ * they are the conservative frontier once the shared field exists.
  */
 export function beatCompletionEvidence(
   node: FlowNode,
@@ -269,12 +275,23 @@ export function beatCompletionEvidence(
       return d.brainDumpText != null || d.brainDumpRaw != null;
     case 'habit-schedule':
     case 'advanced-frequency':
-      // Shares habitConfigs with the beat before it — unprovable, never passed.
+      // Shares habitConfigs with the beat before it — unprovable on its own.
+      // The resume walk passes it on downstream evidence (see resumeFromServerRow).
       return false;
     default:
       return undefined;
   }
 }
+
+/**
+ * Beats whose completion can never be proven from the server row because they
+ * share their persisted field with the beat before them. The resume walk
+ * treats them like display beats: pass while some LATER beat holds evidence,
+ * otherwise they are the conservative frontier. Without this, the B47 reorder
+ * (setup block AFTER the lanes) would strand every refresh at habit-schedule
+ * even when state-check/morning/reflection data proves the user moved past it.
+ */
+const SHARED_FIELD_UNPROVABLE = new Set<string>(['habit-schedule', 'advanced-frequency']);
 
 /** Any persist-bearing beat reachable from `node` (both fork lanes) with evidence? */
 function anyDownstreamEvidence(
@@ -311,15 +328,21 @@ function anyDownstreamEvidence(
  * Evidence-first: walk the flow in order, replaying each beat's server capture
  * (answers populate, the fork resolves), and stop at the first persist-bearing
  * beat whose completion evidence is missing from the server row. The numeric
- * current_step CANNOT drive this walk on its own: persist steps run 1,6,7,8,
- * 2,3,4,5,5 in V3 flow order and the tap path pins current_step with GREATEST,
- * so every post-reflection row reads 8 forever (the old numeric-only walk found
- * no stop target and pushed the user to the end of the flow — B9).
+ * current_step CANNOT drive this walk on its own: the save paths pin
+ * current_step with GREATEST and the ladder's one-ahead seam runs the stored
+ * step ahead of the setup beats' own steps (6..9), so the number is an identity
+ * label past the lanes, not a position (the old numeric-only walk found no
+ * stop target and pushed the user to the end of the flow — B9).
  *
- * The numeric scale keeps ONE job: for serverStep 2..5 (an advance_step bare-set
- * or a voice back-nav, the only writers of those values under V3) the walk also
- * stops at the first beat whose ENTRY step reaches serverStep, so an intentional
- * back-nav survives a refresh even when all data exists.
+ * The numeric scale keeps ONE job: for serverStep 2..5 the walk also stops at
+ * the first beat whose ENTRY step reaches serverStep, so an intentional
+ * back-nav (advance_step bare-set) survives a refresh even when all data
+ * exists. Since the B47 reorder 2..5 are ALSO the normal forward tap-path pins
+ * (GREATEST lands at the just-completed step), so the stop additionally
+ * requires evidence BEYOND the candidate beat: a row parked at a 2..5 step
+ * while later beats hold data can only mean a deliberate rewind, while the
+ * same step with nothing saved past the candidate is ordinary forward motion
+ * and resumes at the evidence frontier.
  *
  * Head gates (auth, mic) always pass — on resume the user is authed and
  * mic-granted. Display beats pass only while some later beat has evidence;
@@ -366,10 +389,22 @@ export function resumeFromServerRow(
     const isHeadGate = node.componentType === 'auth' || node.componentType === 'mic-permission';
     if (!isHeadGate) {
       if (node.persist) {
-        if (beatCompletionEvidence(node, data) !== true) break; // frontier: resume here
+        const passThrough =
+          beatCompletionEvidence(node, data) === true ||
+          // Shared-field beats can't self-prove; pass on downstream evidence
+          // (see SHARED_FIELD_UNPROVABLE), otherwise they are the frontier.
+          (SHARED_FIELD_UNPROVABLE.has(node.componentType) &&
+            anyDownstreamEvidence(flow, node, data));
+        if (!passThrough) break; // frontier: resume here
         const eStep = entryServerStep(node);
-        if (serverStep >= 2 && serverStep <= 5 && eStep !== undefined && eStep >= serverStep) {
-          break; // numeric back-nav intent
+        if (
+          serverStep >= 2 &&
+          serverStep <= 5 &&
+          eStep !== undefined &&
+          eStep >= serverStep &&
+          anyDownstreamEvidence(flow, node, data)
+        ) {
+          break; // numeric back-nav intent (a rewound row: data exists past here)
         }
       } else if (!anyDownstreamEvidence(flow, node, data)) {
         break; // display beat at the frontier
@@ -592,6 +627,12 @@ export function useFlowOrchestrator(
   // not be yanked straight forward by its own stale answer.
   const forkEntryPathRef = useRef<OnboardingPath | null | undefined>(undefined);
 
+  // Entry baseline for the identity-beat evidence advance below: whether the
+  // server row already held this beat's completion evidence when it became
+  // active (undefined = not yet observed). A back-nav to an already-answered
+  // setup beat must not be yanked straight forward by its own stale answer.
+  const identityEntryEvidenceRef = useRef<boolean | undefined>(undefined);
+
   // Reset the per-beat baseline + fired-flag whenever the active beat changes, so
   // each beat judges advancement against the step seen on entry (not a prior
   // beat's) and a re-entered beat can advance again.
@@ -599,6 +640,7 @@ export function useFlowOrchestrator(
     baselineStepRef.current = null;
     advancedNodeRef.current = null;
     forkEntryPathRef.current = undefined;
+    identityEntryEvidenceRef.current = undefined;
   }, [activeNodeId]);
   useEffect(() => {
     if (!activeNodeId || state.status === 'complete') return;
@@ -663,6 +705,43 @@ export function useFlowOrchestrator(
     advancedNodeRef.current = activeNodeId;
     applyAndAdvance(cap, false);
     // Latency lane T1: commit leg of beat_transition_ms (fork evidence-arrival
+    // advance). No-op when nothing is pending.
+    settleBeatTransition({
+      flow_tag: optionsRef.current?.flowTag ?? null,
+      to_step: serverStep,
+      node: activeNodeId,
+    });
+  }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
+
+  // Identity-beat advance (evidence arrival, no climb required). The post-lane
+  // setup beats (state-check 6, morning 7, reflection 8, weekly-day 9) sit
+  // OUTSIDE the positional window: their tools GREATEST-bump current_step only
+  // to their OWN step, and the advance ladder's one-ahead seam (habit-schedule
+  // bare-sets 7) has already met or passed those values by the time each beat
+  // is active. So the leading-edge climb above can never fire for them off a
+  // real server write (B47). Mirror the fork's evidence-arrival rule instead:
+  // advance the moment the server row proves THIS beat completed
+  // (beatCompletionEvidence flips false -> true), holding when the beat was
+  // entered with its evidence already present (back-nav / replay).
+  useEffect(() => {
+    if (!activeNodeId || state.status === 'complete') return;
+    if (typeof serverStep !== 'number') return; // no server row (preview / not loaded)
+    const node = getNode(flow, activeNodeId);
+    if (!node || node.type === 'branch' || !node.persist) return;
+    if (entryServerStep(node) !== undefined) return; // positional window: climb owns it
+    const data = (serverData ?? {}) as OnboardingStepData;
+    const evidence = beatCompletionEvidence(node, data) === true;
+    if (identityEntryEvidenceRef.current === undefined) {
+      identityEntryEvidenceRef.current = evidence;
+      if (evidence) return; // entered with existing evidence: back-nav, hold
+    }
+    if (!evidence || identityEntryEvidenceRef.current) return;
+    if (advancedNodeRef.current === activeNodeId) return; // fire once per beat
+    const cap = serverCaptureForBeat(node, data);
+    if (!captureCompletesBeat(node, cap)) return;
+    advancedNodeRef.current = activeNodeId;
+    applyAndAdvance(cap, false);
+    // Latency lane T1: commit leg of beat_transition_ms (evidence-arrival
     // advance). No-op when nothing is pending.
     settleBeatTransition({
       flow_tag: optionsRef.current?.flowTag ?? null,
