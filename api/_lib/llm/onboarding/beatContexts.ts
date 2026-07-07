@@ -129,6 +129,8 @@ You already know the user's name from sign-in. Greet them by name, warmly, and c
       'Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?',
   },
 
+  // NOTE(B54): this hand-authored context is currently shadowed at runtime by beatContexts.generated.json
+  // for this beat; it becomes live on the next Sheet sync. The durable fix layer is systemPromptAddendum.ts.
   'ONBOARD-FORK--FORM': {
     context: `BEAT: Experience fork.
 
@@ -198,6 +200,8 @@ DO NOT:
     opener: "Tell me the goal you want to add, and I'll set it up.",
   },
 
+  // NOTE(B54): this hand-authored context is currently shadowed at runtime by beatContexts.generated.json
+  // for this beat; it becomes live on the next Sheet sync. The durable fix layer is systemPromptAddendum.ts.
   'ONBOARD-BEGINNER-03': {
     context: `BEAT: Habit selection.
 
@@ -307,6 +311,8 @@ DO NOT:
     opener: `Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you.`,
   },
 
+  // NOTE(B54): this hand-authored context is currently shadowed at runtime by beatContexts.generated.json
+  // for this beat; it becomes live on the next Sheet sync. The durable fix layer is systemPromptAddendum.ts.
   'ONBOARD-ADVANCED': {
     context: `BEAT: Advanced capture.
 
@@ -363,6 +369,8 @@ Show the final plan summary in plain language: habits, reflection setup, and sch
   },
 
   // Check-in time setup, right after the first live check-in (v3 order).
+  // NOTE(B54): this hand-authored context is currently shadowed at runtime by beatContexts.generated.json
+  // for this beat; it becomes live on the next Sheet sync. The durable fix layer is systemPromptAddendum.ts.
   'ONBOARD-MORNING-SETUP': {
     context: `BEAT: Check-in time.
 
