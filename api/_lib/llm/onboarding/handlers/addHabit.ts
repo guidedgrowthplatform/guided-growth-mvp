@@ -103,6 +103,39 @@ export function looksUngroundedInWindow(name: string, userTextWindow: string[]):
   return texts.every((text) => looksUngrounded(name, text));
 }
 
+// W2-H: affirmed-coach-proposal deadlock. At habit-select the coach often
+// proposes a concretely-named PRESET habit ("how about 'No screens after 10
+// PM'?") and the user's whole reply is a bare "yes" / "yes please add it".
+// No user turn in the window ever contains the habit name (the user never
+// said it, the coach did), so looksUngroundedInWindow rejects every attempt
+// and the coach re-asks forever (MR !484 evidence note 3908). A bare
+// affirmation of a concretely-named proposal is real consent under DATA
+// INTEGRITY law 1 (the user did answer; nothing is invented), so this pattern
+// is deliberately conservative: it only matches short, unambiguous "yes"-shaped
+// replies, never a sentence that also carries its own content (that content
+// should ground the name on its own merits via the normal checks above).
+const BARE_AFFIRMATION_RE =
+  /^(yes|yeah|yep|yup|sure|ok(?:ay)?|sounds good|that (?:one|works)|do it|add it)([,.!]?\s*please)?[.!]?$/i;
+const AFFIRMATION_WITH_ADD_RE =
+  /^((yes|yeah|yep|yup|sure|ok(?:ay)?)[,.]?\s+(please\s+)?|go ahead(?:\s+and)?\s+)(add|do)(?:\s+(?:it|that one|the first one|the second one))?[.!]?$/i;
+
+export function isBareAffirmation(text: string): boolean {
+  const t = text.trim();
+  if (t.length === 0) return false;
+  return BARE_AFFIRMATION_RE.test(t) || AFFIRMATION_WITH_ADD_RE.test(t);
+}
+
+// True when the name grounds in at least one entry of the coach's own recent
+// turns. Same lexical overlap primitive as looksUngrounded, just checked
+// against what the COACH said rather than what the user said — this is only
+// ever safe to consult when the current user turn is itself a bare
+// affirmation (isBareAffirmation), which the caller in addHabit() enforces.
+export function groundsInAssistantWindow(name: string, assistantTextWindow: string[]): boolean {
+  const texts = assistantTextWindow.filter((t) => t.trim().length > 0);
+  if (texts.length === 0) return false;
+  return texts.some((text) => !looksUngrounded(name, text));
+}
+
 export async function addHabit(
   ctx: OnboardingHandlerCtx,
   args: Record<string, unknown>,
@@ -185,7 +218,25 @@ export async function addHabit(
       ctx.user_text_window && ctx.user_text_window.length > 0
         ? looksUngroundedInWindow(name, ctx.user_text_window)
         : Boolean(ctx.user_text) && looksUngrounded(name, ctx.user_text as string);
-    if (!isEdit && ungrounded) {
+
+    // W2-H: affirmed-coach-proposal escape hatch. Only consulted when the
+    // user-window check above rejected AND the current turn is a bare
+    // affirmation ("yes", "yes please add it", ...) — never for a refusal, a
+    // clarifying question, or any turn that carries its own content (that
+    // content must ground the name on its own via the checks above). Accepts
+    // when the coach's own recent turn(s) actually named this habit, i.e. the
+    // user is affirming something concrete the coach just proposed, not
+    // rubber-stamping a fabrication. See shared.ts's OnboardingHandlerCtx doc
+    // and MR !484 evidence note 3908 for the deadlock this resolves.
+    const currentTurnText = ctx.user_text_window?.[0] ?? ctx.user_text;
+    const affirmedCoachProposal =
+      ungrounded &&
+      Boolean(currentTurnText) &&
+      isBareAffirmation(currentTurnText as string) &&
+      Boolean(ctx.assistant_text_window) &&
+      groundsInAssistantWindow(name, ctx.assistant_text_window as string[]);
+
+    if (!isEdit && ungrounded && !affirmedCoachProposal) {
       await client.query('ROLLBACK');
       return handlerError('habit_name_ungrounded');
     }
