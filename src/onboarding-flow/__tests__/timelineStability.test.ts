@@ -29,8 +29,25 @@ const BEGINNER_RUN: Array<{ node: string; cap: BeatCapture }> = [
   { node: 'auth', cap: { data: {} } },
   { node: 'mic', cap: { data: {} } },
   { node: 'profile', cap: { data: { age: 25, gender: 'Male' } } },
-  // B47 reorder: the fork directly follows profile; the setup block
-  // (state-check, morning, reflection, weekly-day) runs after the lanes merge.
+  // Rhythm-first reorder: the setup block (state-check, morning, reflection)
+  // runs BEFORE the fork; the lanes then merge straight into the plan review.
+  { node: 'state-check', cap: { data: { checkin: { mood: 4 } } as BeatCapture['data'] } },
+  {
+    node: 'morning-checkin-setup',
+    cap: {
+      data: {
+        morningCheckin: { time: '08:00', days: [1, 2, 3], reminder: true, schedule: 'Weekday' },
+      },
+    },
+  },
+  {
+    node: 'reflection-setup',
+    cap: {
+      data: {
+        reflectionConfig: { time: '21:45', days: [1, 2, 3], reminder: true, schedule: 'Weekday' },
+      },
+    },
+  },
   { node: 'path-fork', cap: { data: {}, path: 'simple' } },
   { node: 'category', cap: { data: { category: 'Sleep better' } } },
   { node: 'goals', cap: { data: { goals: ['Fall asleep earlier'] } } },
@@ -63,27 +80,6 @@ const BEGINNER_RUN: Array<{ node: string; cap: BeatCapture }> = [
         },
       },
     },
-  },
-  { node: 'state-check', cap: { data: { checkin: { mood: 4 } } as BeatCapture['data'] } },
-  {
-    node: 'morning-checkin-setup',
-    cap: {
-      data: {
-        morningCheckin: { time: '08:00', days: [1, 2, 3], reminder: true, schedule: 'Weekday' },
-      },
-    },
-  },
-  {
-    node: 'reflection-setup',
-    cap: {
-      data: {
-        reflectionConfig: { time: '21:45', days: [1, 2, 3], reminder: true, schedule: 'Weekday' },
-      },
-    },
-  },
-  {
-    node: 'weekly-day-setup',
-    cap: { data: { weeklyConfig: { day: 0 } } as BeatCapture['data'] },
   },
   { node: 'into-app', cap: { data: {} } },
   { node: 'weekly-projection-blank', cap: { data: {} } },

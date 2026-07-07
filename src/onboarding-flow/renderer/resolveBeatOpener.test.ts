@@ -25,13 +25,13 @@ const node = (id: string) => {
 describe('resolveBeatOpenerText (B48)', () => {
   it('profile with a known name renders the locked known-name line, not the seed/fallback', () => {
     const raw = resolveBeatOpenerText(node('profile'), 'Fable');
-    expect(raw).toBe(
-      'Awesome {name}, two quick things so I can tailor this to you. How old are you, and how do you identify?',
-    );
+    expect(raw).toBe('Good to meet you, {name}. Two quick things so I can tailor this to you.');
     const rendered = applyName(raw!, 'Fable');
-    expect(rendered).toContain('Awesome Fable,');
+    expect(rendered).toContain('Good to meet you, Fable.');
     expect(rendered).not.toContain('{name}');
-    expect(rendered).not.toContain('Good to meet you');
+    // The stale "how old are you, and how do you identify?" locked line is gone
+    // (synced to the render's profile opener per the reconcile).
+    expect(rendered).not.toContain('how do you identify');
   });
 
   it('profile without a name renders the locked ask-name variant', () => {

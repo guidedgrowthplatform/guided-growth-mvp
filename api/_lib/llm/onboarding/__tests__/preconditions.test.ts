@@ -5,7 +5,7 @@ import { checkAdvanceData } from '../preconditions.js';
 // generated flow locked by src/onboarding-flow/__tests__/stepMapParity.test.ts):
 // 1 age+gender · 2 path · 3 category/braindump · 4 goals (advanced: habits) ·
 // 5 habits (both habit beats) · 6 state-check · 7 morningCheckin ·
-// 8 reflectionConfig · 9 weeklyConfig · ≥10 pass (no V3 beat).
+// 8 reflectionConfig · ≥9 pass (WEEKLY-SETUP cut, no V3 beat).
 const HABITS = { foo: { days: [1], time: '09:00', reminder: true } };
 const base = { path: null as string | null, brainDumpRaw: null as string | null };
 
@@ -69,8 +69,11 @@ describe('checkAdvanceData — canonical resync tail', () => {
     expect(gate(8, { reflectionConfig: { time: '21:00', days: [1], reminder: true } })).toBeNull();
   });
 
-  it('case 9 (leaving weekly-day-setup) requires weeklyConfig', () => {
-    expect(gate(9, {})).toMatch(/weekly_config_missing/);
+  it('case 9 passes through (WEEKLY-SETUP cut, no beat maps to step 9)', () => {
+    // ONBOARD-WEEKLY-SETUP was cut from onboarding (Yair ruling 2026-07-07), so
+    // no STEP_OWNERS entry exists at 9 and the gate is a no-op. The weekly
+    // config gate stays defined in GATES only for the later re-add.
+    expect(gate(9, {})).toBeNull();
     expect(gate(9, { weeklyConfig: { day: 0 } })).toBeNull();
   });
 

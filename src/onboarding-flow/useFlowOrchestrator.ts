@@ -16,10 +16,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { DERIVED_STEP_MAPS } from './derivedStepMaps';
-// B47 reorder (2026-07-06): flow order matches the persist-step scale again.
-// Positional window first (profile 1, fork 2, lanes 3..5), then the post-lane
-// setup block (state-check 6, morning 7, reflection 8, weekly-day 9), so the
-// scale is monotonic in flow order (1,2,3,4,5,5,6,7,8,9 on the beginner walk).
+// Rhythm-first reorder (render reconcile, 2026-07-07): the setup block
+// (state-check 6, morning 7, reflection 8) runs BEFORE the fork (2) + lanes
+// (3..5), so the persist scale is NON-monotonic in flow order (1,6,7,8,2,3,4,5).
+// The scale stays load-bearing because deriveStepMaps classifies beats by step
+// value vs the fork step, not by position: state-check/morning/reflection are
+// identity beats (step >= fork step) regardless of where they sit in the walk.
 // No ENGINE_PERSISTLESS_STEP entries are needed: into-app has
 // persistsFields=[] so its tool is cosmetic, and the weekly-projection nodes
 // are pure display with no step.
@@ -30,14 +32,13 @@ const ENGINE_PERSISTLESS_STEP: Record<string, number> = {};
 // consecutive 5s (habit-select + habit-schedule) make the stored server step run
 // one AHEAD of the engine step from habit-schedule on.
 //
-// Past the lanes the numeric step is an identity label, not a position: the
-// setup beats' tools GREATEST-bump current_step only to their OWN step (6..9),
-// which the ladder's one-ahead seam has already met or passed by the time they
-// are active, so the numeric scale cannot reliably climb there. Their live
-// advance is evidence-driven (see the identity-beat advance below), resume is
-// evidence-driven too (resumeFromServerRow); this table survives only as the
-// numeric stop for the steps-2..5 back-nav window, where advance_step
-// bare-sets restore meaning.
+// For the pre-fork setup beats the numeric step is an identity label, not a
+// position: their tools GREATEST-bump current_step only to their OWN step (6..8),
+// which lands AT the beat's step, never past it, so the leading-edge climb (which
+// needs serverStep > thisStep) can never fire there. Their live advance is
+// evidence-driven (see the identity-beat advance below), resume is evidence-driven
+// too (resumeFromServerRow); this table survives only as the numeric stop for the
+// steps-2..5 back-nav window, where advance_step bare-sets restore meaning.
 const ENTRY_SERVER_STEP: Record<string, number> = DERIVED_STEP_MAPS.entryServerStep;
 
 /** The server `current_step` a beat is active at — the resume scale (NOT beatStep). */
@@ -919,13 +920,12 @@ export function useFlowOrchestrator(
     serverState?.updated_at,
   ]);
 
-  // Identity-beat advance (evidence arrival, no climb required). The post-lane
-  // setup beats (state-check 6, morning 7, reflection 8, weekly-day 9) sit
-  // OUTSIDE the positional window: their tools GREATEST-bump current_step only
-  // to their OWN step, and the advance ladder's one-ahead seam (habit-schedule
-  // bare-sets 7) has already met or passed those values by the time each beat
-  // is active. So the leading-edge climb above can never fire for them off a
-  // real server write (B47). Mirror the fork's evidence-arrival rule instead:
+  // Identity-beat advance (evidence arrival, no climb required). The rhythm-first
+  // setup beats (state-check 6, morning 7, reflection 8) sit OUTSIDE the
+  // positional window: their tools GREATEST-bump current_step only to their OWN
+  // step, which lands AT that step (6/7/8), never past it, so the leading-edge
+  // climb above (which needs serverStep > thisStep) can never fire for them off a
+  // real server write. Mirror the fork's evidence-arrival rule instead:
   // advance the moment the server row proves THIS beat completed
   // (beatCompletionEvidence flips false -> true), holding when the beat was
   // entered with its evidence already present (back-nav / replay).

@@ -21,8 +21,14 @@ describe('onboarding beat machinery (flow-derived)', () => {
     expect(buildBeatMachinery('ONBOARD-BEGINNER-04')).toContain('navigate_next(target_step=6)');
   });
 
-  it('plan-review advances to morning-setup per the flow builder (target 7)', () => {
-    expect(buildBeatMachinery('ONBOARD-BEGINNER-06')).toContain('navigate_next(target_step=7)');
+  it('the rhythm-first setup block chains profile → state-check → morning → reflection → fork', () => {
+    // Rhythm-first order: the setup block runs before the fork, so each beat's
+    // navigate_next targets the next beat's step (reflection lands on the fork,
+    // step 2). Derived from the flow, so a reorder fails here.
+    expect(buildBeatMachinery('ONBOARD-01--FORM')).toContain('navigate_next(target_step=6)');
+    expect(buildBeatMachinery('ONBOARD-STATE-CHECK')).toContain('navigate_next(target_step=7)');
+    expect(buildBeatMachinery('ONBOARD-MORNING-SETUP')).toContain('navigate_next(target_step=8)');
+    expect(buildBeatMachinery('ONBOARD-BEGINNER-07')).toContain('navigate_next(target_step=2)');
   });
 
   it('the terminal beat allows only confirm_plan and forbids navigate_next', () => {

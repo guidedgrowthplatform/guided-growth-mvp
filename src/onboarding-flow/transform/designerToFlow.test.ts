@@ -35,36 +35,37 @@ describe('designerToFlow no-op swap correctness', () => {
     expect(flow.entryNodeId).toBe('auth');
   });
 
-  it('builds the fork as a BranchNode with both lanes merging at state-check (B47 order)', () => {
+  it('builds the fork as a BranchNode with both lanes merging at into-app (rhythm-first order)', () => {
     const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     const fork = flow.nodes.find((n) => n.id === 'path-fork');
     expect(fork?.type).toBe('branch');
     if (fork?.type === 'branch') {
       expect(fork.lanes.map((l) => l.value)).toEqual(['simple', 'braindump']);
-      // B47 reorder: the lanes merge at the post-lane setup block, whose first
-      // beat is state-check (derived from the designer order, not hardcoded).
-      expect(fork.mergeNodeId).toBe('state-check');
+      // Rhythm-first reorder: the setup block runs BEFORE the fork, so the lanes
+      // merge at the plan review (into-app), derived from the designer order.
+      expect(fork.mergeNodeId).toBe('into-app');
       // Advanced lane has two nodes: capture then frequency.
       const advLane = fork.lanes.find((l) => l.value === 'braindump');
       expect(advLane?.exitNodeId).toBe('advanced-frequency');
     }
   });
 
-  it('B47: the fork directly follows profile; the setup block follows the lanes', () => {
+  it('rhythm-first: the setup block follows profile, then the fork, then the lanes merge at into-app', () => {
     const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
+    // Profile leads into the setup block (state-check), which ends at the fork.
     const profile = flow.nodes.find((n) => n.id === 'profile') as BeatNode | undefined;
-    expect(profile?.nextId).toBe('path-fork');
+    expect(profile?.nextId).toBe('state-check');
+    // Both lanes now exit to the plan review (into-app), not the setup block.
     const schedule = flow.nodes.find((n) => n.id === 'habit-schedule') as BeatNode | undefined;
-    expect(schedule?.nextId).toBe('state-check');
+    expect(schedule?.nextId).toBe('into-app');
     const advFreq = flow.nodes.find((n) => n.id === 'advanced-frequency') as BeatNode | undefined;
-    expect(advFreq?.nextId).toBe('state-check');
-    // Setup block chains to into-app, so the persist scale is monotonic in
-    // flow order (1,2,3,4,5,5,6,7,8,9 on the beginner walk).
+    expect(advFreq?.nextId).toBe('into-app');
+    // The setup block chains state-check -> morning -> reflection -> fork, so the
+    // persist scale is non-monotonic in flow order (1,6,7,8,2,3,4,5).
     const chain: Record<string, string> = {
       'state-check': 'morning-checkin-setup',
       'morning-checkin-setup': 'reflection-setup',
-      'reflection-setup': 'weekly-day-setup',
-      'weekly-day-setup': 'into-app',
+      'reflection-setup': 'path-fork',
     };
     for (const [id, next] of Object.entries(chain)) {
       const node = flow.nodes.find((n) => n.id === id) as BeatNode | undefined;

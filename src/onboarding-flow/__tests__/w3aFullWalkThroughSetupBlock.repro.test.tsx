@@ -239,7 +239,7 @@ describe('W3-A: single-mount walk through the setup block, mirroring a real cont
     }
   });
 
-  it('non-regression: a GENUINE voice save (morningCheckin appears WITH a real transcript event) still advances the whole chain to into-app', async () => {
+  it('non-regression: GENUINE voice saves (morningCheckin/reflection appear WITH real transcript events) advance the whole setup block to the fork', async () => {
     serverState = null;
     rerender();
     await flush();
@@ -288,30 +288,15 @@ describe('W3-A: single-mount walk through the setup block, mirroring a real cont
     );
     rerender();
     await flush();
-    expect(latest!.currentNode?.id).toBe('weekly-day-setup');
-
-    // weekly-day-setup is NOT in VAPI_UNGUARDED_SETUP_SCREENS (soniox engine,
-    // and its Direct-LLM/Vapi handler parity is a separate concern) -- a
-    // fresh write with real evidence advances it same as before this fix.
-    serverState = rowAt(
-      9,
-      {
-        ...BASE,
-        stateCheck: { mood: 2 },
-        morningCheckin: { time: '21:00', days: [0, 1, 2, 3, 4, 5, 6], reminder: true },
-        reflectionConfig: {
-          time: '21:45',
-          days: [0, 1, 2, 3, 4, 5, 6],
-          reminder: true,
-          schedule: 'Every day',
-        },
-        weeklyConfig: { day: 0 },
-      },
-      'simple',
-      '2026-07-07T00:07:00.000Z',
-    );
-    rerender();
-    await flush();
-    expect(latest!.currentNode?.id).toBe('into-app');
+    // Rhythm-first: reflection is the last setup beat, so it advances to the
+    // fork (weekly-day-setup is cut). The row already carries path='simple'
+    // (a positional-window answer from before the setup block), so the fork
+    // then HOLDS on its pre-existing answer and the machine settles at the fork.
+    expect(latest!.currentNode?.id).toBe('path-fork');
+    for (let i = 0; i < 3; i++) {
+      rerender();
+      await flush();
+      expect(latest!.currentNode?.id).toBe('path-fork');
+    }
   });
 });
