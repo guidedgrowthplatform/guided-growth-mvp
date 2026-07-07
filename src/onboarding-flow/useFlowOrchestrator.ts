@@ -696,9 +696,10 @@ export function useFlowOrchestrator(
   // setup beat must not be yanked straight forward by its own stale answer.
   const identityEntryEvidenceRef = useRef<boolean | undefined>(undefined);
 
-  // B55 guard: `updated_at` observed when THIS beat became active. Both
-  // evidence-arrival effects below require a row that is STRICTLY newer than
-  // this baseline before they may advance, on top of the evidence flip.
+  // B55/W2-A guard: `updated_at` observed when THIS beat became active. All
+  // three advance effects below (leading-edge climb, fork evidence-arrival,
+  // identity-beat evidence-arrival) require a row that is STRICTLY newer than
+  // this baseline before they may advance, on top of their own flip check.
   //
   // Why: evidence flipping false -> true is not proof a save happened FOR
   // THIS BEAT while it was active — `serverData` is a union of every field
@@ -746,6 +747,25 @@ export function useFlowOrchestrator(
     // Advance only on a genuine climb past this beat's step (the coach saved it).
     if (serverStep <= baselineStepRef.current) return;
     if (serverStep <= thisStep) return;
+    // W2-A guard: mirror the fork/identity-beat freshness requirement (B55) on
+    // the leading-edge climb too. A `current_step` climb is not proof a write
+    // happened WHILE this beat was active — the row can climb from ANY write
+    // (a queued/stale row delivered late by Realtime, a resume-adjacent bump,
+    // an unrelated beat's save arriving out of order) and `serverData` is a
+    // union of every field the row has ever held, so the instant the climb is
+    // observed, `serverCaptureForBeat` can replay whatever is already sitting
+    // in that union as if the user had just supplied it. Without this guard,
+    // one such climb satisfies captureCompletesBeat and advances this beat;
+    // the newly-active NEXT beat then finds ITS field already unioned in too,
+    // so the same unguarded climb (still ahead of the new baseline) advances
+    // it again next render — a self-sustaining chain through every beat that
+    // has any accumulated data (the live cascade: path-fork -> category ->
+    // goals -> habit-select -> habit-schedule -> state-check ->
+    // morning-checkin-setup -> reflection-setup -> weekly-day-setup, observed
+    // with a single passive poller and zero sendTurn/capture calls). Requiring
+    // `updated_at` to have climbed past the entry baseline proves the row was
+    // actually written to while THIS beat was being watched.
+    if (!hasFreshServerWrite(entryUpdatedAtRef.current, serverState?.updated_at)) return;
     const cap = serverCaptureForBeat(node, (serverData ?? {}) as OnboardingStepData);
     // Data gate (parity with !400's B21 gate): a bare step climb must not push a
     // beat forward with a capture the server row cannot replay yet. At the branch
@@ -765,7 +785,15 @@ export function useFlowOrchestrator(
       to_step: serverStep,
       node: activeNodeId,
     });
-  }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
+  }, [
+    activeNodeId,
+    serverStep,
+    serverData,
+    state.status,
+    flow,
+    applyAndAdvance,
+    serverState?.updated_at,
+  ]);
 
   // Answered-fork advance (evidence arrival, no climb required). The fork can be
   // answered with NO current_step movement at all: Vapi's submit_path_choice runs
