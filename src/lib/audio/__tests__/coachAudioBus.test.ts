@@ -149,4 +149,71 @@ describe('coachAudioBus', () => {
     }).not.toThrow();
     spy.mockRestore();
   });
+
+  it('B40: pauses the outgoing element when a new element claims the bus (cross-beat overlap guard)', () => {
+    // Simulates: profile-beat Cartesia blob (first) still playing when the
+    // fork-beat WAV opener (second) calls registerCoachAudioElement. The bus
+    // must pause first before handing the bus to second, so the decoded blob
+    // cannot continue draining from its in-memory buffer.
+    const pauseFirst = vi.fn();
+    const first = {
+      paused: false,
+      ended: false,
+      currentTime: 1,
+      pause: pauseFirst,
+    } as unknown as HTMLAudioElement;
+
+    const pauseSecond = vi.fn();
+    const second = {
+      paused: false,
+      ended: false,
+      currentTime: 0,
+      pause: pauseSecond,
+    } as unknown as HTMLAudioElement;
+
+    registerCoachAudioElement(first);
+    expect(currentCoachAudioElement()).toBe(first);
+
+    // New element arrives while first is still registered (not yet unregistered).
+    registerCoachAudioElement(second);
+
+    expect(pauseFirst).toHaveBeenCalledOnce();
+    expect(pauseSecond).not.toHaveBeenCalled();
+    expect(currentCoachAudioElement()).toBe(second);
+  });
+
+  it('B40: same-beat sequential segments — registering the SAME element is a no-op (no spurious pause)', () => {
+    // ONBOARD-BEGINNER-04 part-2 Cartesia TTS re-registers the same element
+    // after onPlaying fires: must not pause it mid-stream.
+    const pauseSpy = vi.fn();
+    const el = {
+      paused: false,
+      ended: false,
+      currentTime: 1,
+      pause: pauseSpy,
+    } as unknown as HTMLAudioElement;
+
+    registerCoachAudioElement(el);
+    // Re-register the same element (same-beat sequential re-arm).
+    registerCoachAudioElement(el);
+
+    expect(pauseSpy).not.toHaveBeenCalled();
+    expect(currentCoachAudioElement()).toBe(el);
+  });
+
+  it('B40: no pause when currentEl is null before first registration', () => {
+    // Fresh bus: no previous element to pause.
+    const pauseSpy = vi.fn();
+    const el = {
+      paused: false,
+      ended: false,
+      currentTime: 1,
+      pause: pauseSpy,
+    } as unknown as HTMLAudioElement;
+
+    registerCoachAudioElement(el);
+
+    expect(pauseSpy).not.toHaveBeenCalled();
+    expect(currentCoachAudioElement()).toBe(el);
+  });
 });

@@ -152,6 +152,18 @@ function connectElement(el: HTMLAudioElement): MediaElementAudioSourceNode | nul
  * Register the element that is about to (or already does) play coach audio.
  * Safe to call every time a path starts a new clip on a pooled/reused
  * element — reconnecting is a no-op when it's already the current element.
+ *
+ * Single-playback guarantee: if another element is currently registered
+ * (still playing from a prior beat or a prior segment that was not yet
+ * unregistered), pause it before handing the bus to the new element. This
+ * catches any cross-beat overlap regardless of which audio path caused it —
+ * stopping the SSE fetch alone (stopTTS) is not sufficient when the decoded
+ * blob is already fully buffered and its element keeps draining in memory.
+ *
+ * Same-beat sequential segments (e.g. ONBOARD-BEGINNER-04 part-1 WAV then
+ * part-2 Cartesia TTS) are NOT harmed: the part-1 element's settle() calls
+ * audio.pause() + unregisterCoachAudioElement BEFORE part-2 registers, so
+ * by the time part-2 arrives, currentEl is already null and no pause fires.
  */
 export function registerCoachAudioElement(el: HTMLAudioElement): void {
   if (typeof window === 'undefined') return;
@@ -161,6 +173,15 @@ export function registerCoachAudioElement(el: HTMLAudioElement): void {
   if (currentEl === el) {
     startLoop();
     return;
+  }
+  // Pause the outgoing element so a still-buffered blob from a prior beat
+  // cannot overlap with the incoming element's playback.
+  if (currentEl !== null) {
+    try {
+      currentEl.pause();
+    } catch {
+      // Element may already be detached; non-fatal.
+    }
   }
   currentEl = el;
   connectElement(el);
