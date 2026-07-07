@@ -59,10 +59,15 @@ import { parseHabitsRegex } from '../parseBrainDumpRegex';
 import type { BeatCapture, FlowAnswers, FlowComponentType, FlowNode } from '../types';
 import { nextHabitSelection } from './habitSelectionRules';
 import { useNarrationElementCount } from './narration/NarrationRevealContext';
+import { usePatchAnswers } from './PlanEditContext';
 import { PlanReview } from './PlanReview';
 import {
   habitCapForPath,
+  habitConfigsWithAdded,
+  habitConfigsWithPatch,
+  habitConfigsWithRemoved,
   morningRitual,
+  type PlanHabit,
   planHabitsFromAnswers,
   reflectionRitual,
   weeklyDay,
@@ -1425,10 +1430,15 @@ function WeeklyDayPickerAdapter({ answers, onCapture, readOnly }: BeatAdapterPro
 // add_habit/remove_habit/update_habit/confirm_plan). Confirming captures {} to
 // advance into the weekly-projection frames, after which the flow completes.
 //
-// Read-only for now (step 1: render the real plan). The edit affordances +
-// patchAnswers wiring land next.
+// Edits go through patchAnswers (from PlanEditContext): a tap merges the new
+// habitConfigs into the accumulated answers AND saves it via saveStep (the same
+// path a card tap uses; the shallow JSONB merge replaces the whole map). A coach
+// voice edit already wrote server side, so its listener syncs answers only
+// (persist:false). Keeping answers current is what stops the terminal complete()
+// write from clobbering the edited plan with a stale one.
 function IntoAppAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
   const props = node.componentProps as { ctaLabel?: string };
+  const patchAnswers = usePatchAnswers();
   // Voice leg of the tap CTA (B32): the addendum has the coach call confirm_plan
   // on "let's go", but the tool is validate-only server-side — without this
   // listener the machine never leaves into-app and the finale dead-ends.
@@ -1438,13 +1448,62 @@ function IntoAppAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps
     advancedRef.current = true;
     onCapture({ data: {} });
   };
+
+  const applyHabits = (nextConfigs: FlowAnswers['habitConfigs'], persist: boolean) =>
+    patchAnswers?.({ habitConfigs: nextConfigs }, { persist });
+
+  const onRemoveHabit = (name: string) => applyHabits(habitConfigsWithRemoved(answers, name), true);
+  const onChangeHabit = (name: string, patch: Partial<PlanHabit>) =>
+    applyHabits(habitConfigsWithPatch(answers, name, patch), true);
+  const onAddHabit = (name: string) => applyHabits(habitConfigsWithAdded(answers, name), true);
+
+  // Voice edits at review: the coach's tool already persisted server side, so
+  // mirror the change into local answers (persist:false) the same way the other
+  // beats reflect voice tool calls. add_habit reconciles any coach-supplied
+  // schedule fields on top of the default-config add.
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
-    if (readOnly || advancedRef.current) return;
-    if (result.action !== 'confirm_plan' || !result.success) return;
-    confirm();
+    if (readOnly) return;
+    if (result.action === 'confirm_plan') {
+      if (!advancedRef.current && result.success) confirm();
+      return;
+    }
+    if (!patchAnswers) return;
+    if (result.action === 'remove_habit') {
+      const p = result.params as { name?: string };
+      if (typeof p.name === 'string' && p.name.trim())
+        applyHabits(habitConfigsWithRemoved(answers, p.name), false);
+      return;
+    }
+    if (result.action === 'update_habit') {
+      const p = result.params as { name?: string; patch?: Record<string, unknown> };
+      if (typeof p.name !== 'string' || !p.patch) return;
+      applyHabits(habitConfigsWithPatch(answers, p.name, voicePatchToHabit(p.patch)), false);
+      return;
+    }
+    if (result.action === 'add_habit') {
+      const p = result.params as {
+        name?: string;
+        days?: unknown;
+        time?: unknown;
+        reminder?: unknown;
+        schedule?: unknown;
+      };
+      const name = typeof p.name === 'string' ? p.name.trim() : '';
+      if (!name) return;
+      const added = habitConfigsWithAdded(answers, name);
+      const patch = voicePatchToHabit(p);
+      const next =
+        Object.keys(patch).length > 0
+          ? habitConfigsWithPatch({ habitConfigs: added } as FlowAnswers, name, patch)
+          : added;
+      applyHabits(next, false);
+    }
   });
+
   // Terminal beat: never a past-beat receipt (FROZEN_BY_TYPE false).
   if (readOnly) return null;
+
+  const editable = !!patchAnswers;
   return (
     <PlanReview
       habits={planHabitsFromAnswers(answers)}
@@ -1454,8 +1513,28 @@ function IntoAppAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps
       habitCap={habitCapForPath(answers.path)}
       ctaLabel={props.ctaLabel ?? "Let's go"}
       onConfirm={confirm}
+      onRemoveHabit={editable ? onRemoveHabit : undefined}
+      onChangeHabit={editable ? onChangeHabit : undefined}
+      onAddHabit={editable ? onAddHabit : undefined}
     />
   );
+}
+
+// Map a coach voice tool's habit fields (days / schedule / time / reminder) to a
+// PlanHabit patch. days win; a bare schedule preset expands to its day set.
+function voicePatchToHabit(raw: Record<string, unknown>): Partial<PlanHabit> {
+  const patch: Partial<PlanHabit> = {};
+  if (Array.isArray(raw.days)) {
+    const days = (raw.days as unknown[]).filter(
+      (d): d is number => typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6,
+    );
+    if (days.length > 0) patch.days = days;
+  } else if (typeof raw.schedule === 'string' && raw.schedule in SCHEDULE_DAYS) {
+    patch.days = [...SCHEDULE_DAYS[raw.schedule as ScheduleOption]];
+  }
+  if (typeof raw.time === 'string' && /^\d{1,2}:\d{2}$/.test(raw.time)) patch.time = raw.time;
+  if (typeof raw.reminder === 'boolean') patch.reminder = raw.reminder;
+  return patch;
 }
 
 /* ------------------------------------------------------------- plan review */

@@ -533,6 +533,13 @@ export interface FlowOrchestrator {
    * onto the NEXT beat and silently skip it.
    */
   captureFor: (nodeId: string, capture: BeatCapture) => void;
+  /**
+   * Merge a patch into the accumulated answers WITHOUT advancing the machine
+   * (the plan-review edits at ONBOARD-COMPLETE). `persist` defaults true and
+   * saves through the same saveStep path a card tap uses; persist:false is the
+   * local-only sync for a coach voice edit the server already wrote.
+   */
+  patchAnswers: (patch: Partial<FlowAnswers>, opts?: { persist?: boolean }) => void;
   back: () => void;
   canGoBack: boolean;
   isComplete: boolean;
@@ -658,6 +665,29 @@ export function useFlowOrchestrator(
   const captureFor = useCallback(
     (nodeId: string, cap: BeatCapture) => applyAndAdvance(cap, true, nodeId),
     [applyAndAdvance],
+  );
+
+  // Plan-review edits (ONBOARD-COMPLETE): merge into the accumulated answers
+  // without advancing, so deriveFinalData(answers) stays correct at completion
+  // (the final write re-materializes user_habits from the merged plan and must
+  // not be clobbered by a stale one). Persists through the same saveStep path a
+  // card tap uses unless persist:false (a coach voice edit already wrote server
+  // side). No advance side effects at into-app: it carries no beatStep, so none
+  // of the leading-edge / fork / identity effects act on the Realtime echo.
+  const patchAnswers = useCallback(
+    (patch: Partial<FlowAnswers>, opts?: { persist?: boolean }) => {
+      const prev = stateRef.current;
+      if (prev.status === 'complete') return;
+      const next: FlowMachineState = { ...prev, answers: { ...prev.answers, ...patch } };
+      stateRef.current = next;
+      setState(next);
+      if (opts?.persist !== false) {
+        // GREATEST keeps current_step, so the current server step never rewinds
+        // the resume scale; the terminal plan beat has no step of its own.
+        persistence.saveStep(serverState?.current_step ?? 0, patch);
+      }
+    },
+    [persistence, serverState?.current_step],
   );
 
   const back = useCallback(() => {
@@ -994,6 +1024,7 @@ export function useFlowOrchestrator(
     activeContext,
     capture,
     captureFor,
+    patchAnswers,
     back,
     canGoBack,
     isComplete: state.status === 'complete',
