@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import { streamLLM } from '@/api/llm';
-import { isOnboardingScreen, logDebugEvent } from '@/lib/debug/onboardingDebug';
+import {
+  isOnboardingScreen,
+  logDebugEvent,
+  toolResultErrorCode,
+} from '@/lib/debug/onboardingDebug';
 import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 import { fixedStreamAppend, fixSentenceJoinSpacing } from '@/lib/text/sentenceJoinSpacing';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
@@ -267,7 +271,7 @@ export function useLLM(
                 source: 'llm',
                 label: t?.name ?? 'tool_result',
                 ok: e.ok,
-                code: e.ok ? null : 'tool_failed',
+                code: e.ok ? null : toolResultErrorCode(e.result),
                 detail: { result: e.result },
               });
             }

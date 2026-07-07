@@ -722,6 +722,68 @@ describe('useLLM', () => {
     });
   });
 
+  it('onb·llm debug console: a failed tool_result surfaces its real error code, not a generic tool_failed label', async () => {
+    const groupSpy = vi.spyOn(console, 'groupCollapsed').mockImplementation(() => {});
+    vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'tool_call', id: 'w1', name: 'add_habit', args: { name: 'meditate' } },
+        {
+          type: 'tool_result',
+          id: 'w1',
+          ok: false,
+          result: { error: 'unknown_tool', message: 'Unknown tool: add_habit' },
+        },
+        { type: 'delta', content: 'ok' },
+        { type: 'done', latency_ms: 10, total_tokens: 5, tool_rounds: 1 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount('ONBOARD-01--FORM');
+    await act(async () => {
+      await hookRef!.sendMessage('add meditate');
+    });
+    await flush();
+
+    // The failed tool_result line carries the ❌ marker; the neutral tool_call
+    // line for the same label carries ▸, so match on the failure marker.
+    const toolResultCall = groupSpy.mock.calls.find(
+      ([label]) => String(label).includes('add_habit') && String(label).includes('❌'),
+    );
+    expect(toolResultCall?.[0]).toContain('unknown_tool');
+    expect(toolResultCall?.[0]).not.toContain('tool_failed');
+  });
+
+  it('onb·llm debug console: a code-less tool_result failure still falls back to tool_failed', async () => {
+    const groupSpy = vi.spyOn(console, 'groupCollapsed').mockImplementation(() => {});
+    vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'tool_call', id: 'w1', name: 'add_habit', args: { name: 'meditate' } },
+        { type: 'tool_result', id: 'w1', ok: false, result: {} },
+        { type: 'delta', content: 'ok' },
+        { type: 'done', latency_ms: 10, total_tokens: 5, tool_rounds: 1 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount('ONBOARD-01--FORM');
+    await act(async () => {
+      await hookRef!.sendMessage('add meditate');
+    });
+    await flush();
+
+    const toolResultCall = groupSpy.mock.calls.find(
+      ([label]) => String(label).includes('add_habit') && String(label).includes('❌'),
+    );
+    expect(toolResultCall?.[0]).toContain('tool_failed');
+  });
+
   it('tool_failed: cleared at the next runStream start', async () => {
     const failing = mockSSE([
       { type: 'tool_call', id: 'w1', name: 'create_habit', args: {} },
