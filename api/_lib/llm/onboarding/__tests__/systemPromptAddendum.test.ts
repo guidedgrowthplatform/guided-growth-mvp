@@ -77,7 +77,7 @@ describe('ONBOARDING_TOOL_ADDENDUM', () => {
   });
 
   it('adds the B59 mirror rule: no false-failure narration alongside the no-false-success rule', () => {
-    expect(ONBOARDING_TOOL_ADDENDUM).toContain('DATA INTEGRITY (five rules, no exceptions)');
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('DATA INTEGRITY (six rules, no exceptions)');
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/MIRROR THE TOOL RESULT, IN BOTH DIRECTIONS/);
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/never a false success and never a false failure/i);
   });
@@ -85,6 +85,24 @@ describe('ONBOARDING_TOOL_ADDENDUM', () => {
   it('updates the habit_name_ungrounded guidance so user content outranks a coach proposal (B59)', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(
       /their own words outrank a suggestion of yours even when their reply back to you was a plain "yes"/,
+    );
+  });
+
+  it('adds the B60 rule: an explicit user correction outranks the coach\'s own prior reading', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('DATA INTEGRITY (six rules, no exceptions)');
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(
+      /THE USER'S CORRECTION OF THEIR OWN WORDS ALWAYS WINS, IMMEDIATELY/,
+    );
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(
+      /"it sounds like you meant Y, let's stick with that" is exactly the failure this rule bans/,
+    );
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/remove_habit on the wrong name and add_habit/);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/ask ONE short clarifying question instead of guessing/);
+  });
+
+  it('updates the habit_name_ungrounded guidance so a live correction outranks an older turn (B60)', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(
+      /an older turn never outranks their live correction/,
     );
   });
 });

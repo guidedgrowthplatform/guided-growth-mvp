@@ -67,6 +67,11 @@ const STOPWORDS = new Set([
   'this',
   'that',
   'it',
+  // B60: "more" alone doesn't identify a topic — without this, "walk more"
+  // and "work more" (or any other "X more" pair) share only this token and
+  // would falsely ground against each other. See isExplicitCorrection below
+  // for the bug this closes.
+  'more',
 ]);
 
 function meaningfulTokens(s: string): string[] {
@@ -155,6 +160,22 @@ function hasOwnUserContent(userTextWindow: string[]): boolean {
   );
 }
 
+// B60: correction-language detector. Deliberately narrow — a word-boundary
+// match on "i said" / "i meant" — to keep the false-positive rate low, the
+// same design choice BARE_AFFIRMATION_RE makes above. Coach-integrity bug
+// (2026-07-07 tester report): STT misheard "work more" as "walk more", the
+// coach built the next question on the wrong reading, and the user
+// corrected it plainly ("I said work more, but."). The coach argued for its
+// own prior reading instead of accepting the correction. See the
+// currentTurnIsCorrection gate in addHabit() below for the mechanical half
+// of the fix; systemPromptAddendum.ts DATA INTEGRITY rule 6 is the other
+// half (governs the coach's actual reply text, which no unit test reaches).
+const EXPLICIT_CORRECTION_RE = /\b(i said|i meant)\b/i;
+
+export function isExplicitCorrection(text: string): boolean {
+  return EXPLICIT_CORRECTION_RE.test(text);
+}
+
 export async function addHabit(
   ctx: OnboardingHandlerCtx,
   args: Record<string, unknown>,
@@ -239,7 +260,27 @@ export async function addHabit(
         : ctx.user_text
           ? [ctx.user_text]
           : [];
-    const ungrounded = looksUngroundedInWindow(name, userTextWindow);
+    const currentTurnText = userTextWindow[0];
+
+    // B60: explicit user correction precedence. looksUngroundedInWindow
+    // grounds a name against ANY entry in the window (an OR across turns),
+    // which is right for the W2-E confirm-turn shape but wrong here: when
+    // the current turn explicitly corrects a prior misreading ("I said work
+    // more, but."), an earlier window entry can be the very thing being
+    // corrected away from (the coach's own mis-transcribed "walk more"
+    // turn), and letting it still vouch for the old name defeats the
+    // correction. When the current turn is an explicit correction that
+    // carries real content of its own, it alone grounds the name — the
+    // stale entry does not get a vote. A correction turn with no real
+    // content beyond the correction phrase itself (hasOwnUserContent false)
+    // falls through to the ordinary whole-window check below.
+    const currentTurnIsCorrection =
+      Boolean(currentTurnText) &&
+      isExplicitCorrection(currentTurnText as string) &&
+      hasOwnUserContent([currentTurnText as string]);
+    const ungrounded = currentTurnIsCorrection
+      ? looksUngrounded(name, currentTurnText as string)
+      : looksUngroundedInWindow(name, userTextWindow);
 
     // W2-H: affirmed-coach-proposal escape hatch. Only consulted when the
     // user-window check above rejected AND the current turn is a bare
@@ -257,7 +298,6 @@ export async function addHabit(
     // window ALSO carries real content the user stated themselves, that
     // content wins: the coach must save the user's own words, not substitute
     // its suggestion, so hasOwnUserContent gates the escape hatch closed.
-    const currentTurnText = userTextWindow[0];
     const affirmedCoachProposal =
       ungrounded &&
       Boolean(currentTurnText) &&

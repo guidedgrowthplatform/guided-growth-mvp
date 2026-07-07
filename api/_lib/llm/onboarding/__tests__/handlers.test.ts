@@ -1109,6 +1109,77 @@ describe('add_habit', () => {
       });
     });
 
+    // ─── B60: explicit user correction outranks a stale window entry ───
+    describe('explicit user correction precedence (B60)', () => {
+      it('rejects the coach re-asserting its mis-heard name once the user explicitly corrects it', async () => {
+        // Coach-integrity bug (2026-07-07 tester report): STT misheard "work
+        // more" as "walk more", the coach built its next question on the
+        // wrong reading, and the user corrected it plainly ("I said work
+        // more, but."). Before B60, the earlier (wrong) "walk more" turn is
+        // still sitting in the user_text_window, and "walk more" / "work
+        // more" share the token "more", so the OR-across-window check in
+        // looksUngroundedInWindow still grounds the coach's stale "Walk
+        // more" name — the correction is silently overridden. This is the
+        // exact bug shape: verifies the wrong name is now rejected instead
+        // of saved.
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'I said work more, but.',
+            user_text_window: ['I said work more, but.', 'walk more'],
+            assistant_text_window: [
+              "It sounds like you meant to say 'walk more.' Let's stick with that.",
+            ],
+          },
+          { ...validHabit, name: 'Walk more' },
+        );
+        expect(r).toEqual({
+          ok: false,
+          error: 'handler_error',
+          message: 'habit_name_ungrounded',
+        });
+      });
+
+      it('accepts the user\'s corrected name in the same turn as the correction', async () => {
+        // The other half of the same repro: once the coach retries with the
+        // user's actual corrected words, the save must go through.
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'I said work more, but.',
+            user_text_window: ['I said work more, but.', 'walk more'],
+            assistant_text_window: [
+              "It sounds like you meant to say 'walk more.' Let's stick with that.",
+            ],
+          },
+          { ...validHabit, name: 'Work more' },
+        );
+        expect(r.ok).toBe(true);
+      });
+
+      it('does not apply correction precedence to an ordinary (non-correction) turn', async () => {
+        // Regression guard for the STOPWORDS "more" addition: a normal
+        // multi-turn confirm shape unrelated to any correction must still
+        // ground via the whole window exactly as before B60.
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'yes please add it',
+            user_text_window: ['yes please add it', 'I want to sleep more'],
+            assistant_text_window: [],
+          },
+          { ...validHabit, name: 'Sleep more' },
+        );
+        expect(r.ok).toBe(true);
+      });
+    });
+
     it('does not guard an edit to an already-added habit (schedule-only follow-up call)', async () => {
       // Two-call configure pattern: the schedule call reasonably won't
       // restate the habit's name, so the guard must not fire on an edit.
