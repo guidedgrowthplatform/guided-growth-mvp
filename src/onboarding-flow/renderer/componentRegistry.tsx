@@ -1240,12 +1240,27 @@ const WEEKLY_DAY_OPTIONS: { day: number; short: string; full: string }[] = [
 ];
 
 function WeeklyDayPickerAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
-  const [day, setDay] = useState<number>(() => {
-    const saved = (answers as Record<string, unknown>).weeklyConfig as { day?: number } | undefined;
-    return typeof saved?.day === 'number' ? saved.day : recommendedWeeklyDay();
-  });
+  const saved = (answers as Record<string, unknown>).weeklyConfig as { day?: number } | undefined;
+  const [day, setDay] = useState<number>(() =>
+    typeof saved?.day === 'number' ? saved.day : recommendedWeeklyDay(),
+  );
   const voiceFilledRef = useRef(false);
   const submittedRef = useRef(false);
+
+  // G08 / B53: saved.day is only read once by the useState lazy initializer above.
+  // If the card mounts before the coach's tool call lands (or the event fires before
+  // this card subscribes), local state locks on the recommendedWeeklyDay() default and
+  // never reflects the actually-saved value. Resync whenever the persisted day changes
+  // so the selection matches what was really saved (same pattern as ScheduleCard/B53).
+  const savedDayKey = typeof saved?.day === 'number' ? String(saved.day) : '';
+  const lastSyncedDayKey = useRef(savedDayKey);
+  useEffect(() => {
+    if (savedDayKey === lastSyncedDayKey.current) return;
+    lastSyncedDayKey.current = savedDayKey;
+    if (!savedDayKey) return;
+    setDay(saved!.day as number);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedDayKey]);
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
     if (readOnly || result.action !== 'set_weekly_day') return;
