@@ -55,6 +55,7 @@ import {
   habitsByGoal,
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
+import { parseHabitsRegex } from '../parseBrainDumpRegex';
 import type { BeatCapture, FlowAnswers, FlowComponentType, FlowNode } from '../types';
 import { nextHabitSelection } from './habitSelectionRules';
 import { useNarrationElementCount } from './narration/NarrationRevealContext';
@@ -1659,14 +1660,22 @@ function AdvancedFrequencyAdapter({ answers, onCapture, readOnly }: BeatAdapterP
     polarity?: 'positive' | 'negative';
   }[];
   const fromSkimmer = skimmerHabits.map((h) => h.name).filter(Boolean);
-  const fromDump = brainDumpText
-    .split(/[\n,]+/)
-    .map((s) => s.trim())
+  // F10 (live path): this beat is the one that actually renders on the server-
+  // driven advance (the coach's submit_brain_dump only ever persists raw
+  // brainDumpText server-side — see submitBrainDump.ts — so brainDumpHabits,
+  // the client skimmer's AI-split result, never reaches this beat over that
+  // path; BrainDumpCapture's own F10/F27 fix never runs here). This fallback
+  // split used a narrower regex (comma/newline only) than the shared splitter,
+  // so a period-separated dump with no commas ("Walking. Reading. Drinking
+  // more water.") still collapsed into one clause here even after F10 shipped.
+  // Reuse the same fixed splitter so both call sites split identically.
+  const fromDump = parseHabitsRegex(brainDumpText)
+    .map((h) => h.name.trim())
     .filter((s) => s.length > 0 && s.length < 80);
-  const habitNames =
+  // No hardcoded sample fallback here: an empty result renders zero cards
+  // rather than fabricating unmentioned habits (B54/B55, never invent data).
+  const names =
     fromConfigs.length > 0 ? fromConfigs : fromSkimmer.length > 0 ? fromSkimmer : fromDump;
-  const SAMPLE = ['Morning walk', 'No screens after 10 PM', 'Meditate'];
-  const names = habitNames.length > 0 ? habitNames : SAMPLE;
 
   const [configs, setConfigs] = useState<
     Record<string, { days: number[]; time: string; reminder: boolean }>

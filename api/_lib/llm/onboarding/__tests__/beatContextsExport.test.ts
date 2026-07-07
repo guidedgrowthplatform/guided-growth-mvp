@@ -16,6 +16,21 @@ describe('beatContexts tool-gate overlay (from onboarding_combined.json)', () =>
     ]);
   });
 
+  // F10 layer 2: add_habit used to be reachable on this beat as a fallback
+  // for setting days, but this beat's only job is scheduling ALREADY-captured
+  // habits (update_habit). A reachable add_habit here let the coach silently
+  // inject an ungrounded/fabricated habit name into habitConfigs alongside (or
+  // effectively replacing, once the collapsed brain-dump card was the only
+  // other entry) the real captured one — observed live as the brain-dump
+  // habit swapping to an unrelated, never-typed name ("No screens after
+  // 10 PM") by the time the real Home screen rendered.
+  it('never exposes add_habit on the advanced habit-days beat (F10 layer 2)', () => {
+    expect(getBeatAllowedTools('ONBOARD-ADVANCED-FREQUENCY')).toEqual([
+      'update_habit',
+      'advance_step',
+    ]);
+  });
+
   it('leaves the coach context prose untouched (no appended lines)', () => {
     const beat = getBeatContext('ONBOARD-STATE-CHECK');
     expect(beat!.context).not.toContain('Ask for each in order');
