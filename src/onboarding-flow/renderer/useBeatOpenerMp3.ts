@@ -33,7 +33,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
-import { registerCoachAudioElement, unregisterCoachAudioElement } from '@/lib/audio/coachAudioBus';
+import {
+  pausePreviousCoachAudio,
+  registerCoachAudioElement,
+  unregisterCoachAudioElement,
+} from '@/lib/audio/coachAudioBus';
 import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 import { onsetsForDisplayWords, revealCountAtTime } from '@/lib/voice/openerWordTimeline';
 import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
@@ -344,6 +348,9 @@ export function useBeatOpenerMp3(
       if (activation.isSettled() || abort.signal.aborted) {
         throw new DOMException('Playback attempt aborted', 'AbortError');
       }
+      // Silence any prior-beat element BEFORE this clip is audible (pause-
+      // before-play) so the two are never in the playing state at once.
+      pausePreviousCoachAudio(el);
       await attemptPlayWithGestureFallback(el, {
         defer: true,
         signal: abort.signal,

@@ -101,6 +101,10 @@ export interface SpeakOpenerOptions {
   gestureFallback?: boolean;
   /** Access to the audio element before play (mute wiring etc.). */
   onElement?: (el: HTMLAudioElement) => void;
+  /** Fires synchronously immediately before el.play(). Used to enforce the
+   * single-playback invariant (pause the previous coach-audio element before
+   * this one becomes audible). No awaits between this and play(). */
+  onBeforePlay?: (el: HTMLAudioElement) => void;
   /** Playback actually started (after any gesture wait). */
   onPlaying?: () => void;
   /** Word-accurate reveal: display words spoken so far, from real Cartesia
@@ -263,6 +267,7 @@ export function speakOpener(
         raf = requestAnimationFrame(tick);
       }
       try {
+        opts?.onBeforePlay?.(el);
         if (opts?.gestureFallback) {
           await attemptPlayWithGestureFallback(el, { defer: true, signal: abort.signal });
         } else {
