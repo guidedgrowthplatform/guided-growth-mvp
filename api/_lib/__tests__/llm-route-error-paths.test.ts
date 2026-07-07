@@ -276,8 +276,11 @@ describe('LLM route — error-path tool persistence', () => {
     expect(writes).toContain('openai_error');
   });
 
-  it('L600 — tool_cap reached after MAX_ROUNDS persists all dispatched tool rows', async () => {
-    // Stream factory: every round emits a tool_call. With 5 rounds, persistedToolRows ends at 5.
+  it('L600 — tool_cap reached after MAX_ROUNDS still persists all dispatched tool rows, PLUS an assistant row with fallback text (never a silent turn — W_SILENT-FIX)', async () => {
+    // Stream factory: every round emits a tool_call and no text at all — a
+    // model that never produces a single token of prose (the worst case:
+    // even the forced text-only final round somehow still returns a tool
+    // call, exercising the last-resort fallback rather than lever 2 alone).
     // Distinct args per round — same-turn dedupe (W2-E) would otherwise treat
     // rounds 2-5 as exact repeats of round 1 and skip their dispatch, which
     // is not what this test is about (it verifies tool_cap persistence).
@@ -320,6 +323,21 @@ describe('LLM route — error-path tool persistence', () => {
     });
 
     const { client, queries } = makeClient();
+    // Now that the tool_cap path persists WITH includeAssistant (the fix),
+    // persistChatTurn's own dup-check ('SELECT 1 FROM chat_messages WHERE
+    // id') must report no prior row, or it would short-circuit as if this
+    // turn were already saved. The plain makeClient() default (rowCount: 1
+    // for any unmatched query) accidentally simulates a false duplicate here.
+    client.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      queries.push({ sql, params: params ?? [] });
+      if (sql.includes('COALESCE(MAX(turn_index)')) {
+        return { rowCount: 1, rows: [{ base: 0 }] };
+      }
+      if (sql.includes('SELECT 1 FROM chat_messages WHERE id')) {
+        return { rowCount: 0, rows: [] };
+      }
+      return { rowCount: 1, rows: [] };
+    });
     pool.connect.mockResolvedValue(client);
 
     const res = mockRes();
@@ -335,7 +353,7 @@ describe('LLM route — error-path tool persistence', () => {
     );
     await flushDeferred();
 
-    // All 5 tool rows persisted (one INSERT each).
+    // All 5 tool rows persisted (one INSERT each) — unchanged by the fix.
     const toolInserts = queries.filter(
       (q) => q.sql.includes('role, content, tool_call_id') && q.sql.includes('user_turn_id'),
     );
@@ -345,13 +363,33 @@ describe('LLM route — error-path tool persistence', () => {
       expect(match, `tool row for round ${i}`).toBeDefined();
       if (match) expect(match.params).toContain(USER_TURN_ID);
     }
+
+    // The fix: an assistant row IS now written, carrying the authored
+    // fallback line (the model never produced any text of its own).
     const assistantInsert = queries.find(
       (q) => q.sql.includes("'assistant'") && q.sql.includes('openai_response_id'),
     );
-    expect(assistantInsert).toBeUndefined();
+    expect(assistantInsert).toBeDefined();
+    if (assistantInsert) {
+      expect(assistantInsert.params).toContain(
+        "I couldn't quite get that saved just now. Mind trying again?",
+      );
+    }
 
+    // The client stream ends with a normal 'done' (a real coach reply), not a
+    // bare 'error' — the old bug's silent-turn-then-generic-bubble path.
     const writes = (res as unknown as { _writes: string[] })._writes.join('');
-    expect(writes).toContain('tool_cap_reached');
+    expect(writes).toContain('"type":"delta"');
+    expect(writes).toContain("I couldn't quite get that saved just now");
+    expect(writes).toContain('"type":"done"');
+    expect(writes).not.toContain('"type":"error"');
+
+    // Lever 2: the final (5th, index-4) round was requested text-only.
+    const finalCallOpts = openMock.mock.calls[4][0] as { toolChoice?: unknown };
+    expect(finalCallOpts.toolChoice).toBe('none');
+    // Earlier rounds were not forced.
+    const firstCallOpts = openMock.mock.calls[0][0] as { toolChoice?: unknown };
+    expect(firstCallOpts.toolChoice).toBeUndefined();
   });
 
   it('L621 — outer catch persists round-1 tool row when round-2 res.write throws', async () => {

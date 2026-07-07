@@ -63,6 +63,25 @@ type LLMStreamEvent =
   | { type: 'error'; code: string; message: string; debug?: { stage: string; class?: string } };
 
 const MAX_ROUNDS = 5;
+// W_SILENT-FIX (Mint 2026-07-07 "coach goes silent" report; root-caused in
+// gg-spec/docs/video-feedback-runs/Mint-test-and-bug-report-2026-07-07-at-13.17.16/conductor-review.md):
+// a model that keeps re-emitting a tool call the gate or a handler guard
+// rejects (unknown_tool on the wrong beat, checkin_not_grounded, invalid_args,
+// max_habits_reached, ...) used to burn the whole round budget in silence —
+// same-turn dedupe (SameTurnToolDedupe) only catches an EXACT (name, args)
+// repeat, so varied args slip straight through. Two levers below stop the
+// storm and guarantee the turn always ends with real coach text:
+//  - Lever 1: once a specific tool has failed this many times in ONE turn,
+//    stop offering it for the rest of the turn (killed at the source).
+//  - Lever 2 (below, in the round loop): the last allowed round is always
+//    forced text-only (tool_choice: 'none'), so even a turn that never trips
+//    the per-tool ban still ends with words instead of one more doomed call.
+const TOOL_FAILURE_BAN_LIMIT = 2;
+// Last-resort line if a capped turn still produced literally no text (the
+// model only ever emitted tool calls, never a token of prose). Mirrors the
+// voice already authored for the model itself — see the example line in
+// noInternalNarrationRule.ts.
+const TOOL_CAP_FALLBACK_TEXT = "I couldn't quite get that saved just now. Mind trying again?";
 const ONBOARDING_MODEL = process.env.ONBOARDING_LLM_MODEL || 'gpt-4o';
 const FORK_SCREEN_ID = 'ONBOARD-FORK--FORM';
 // Onboarding turns emit tool JSON (add_habit / update_habit / advance_step,
@@ -671,6 +690,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // submit_brain_dump is excluded (handled separately by the merge above).
   const toolDedupe = new SameTurnToolDedupe();
 
+  // W_SILENT-FIX lever 1 (see MAX_ROUNDS comment above): per-tool-name
+  // failure count + ban set, scoped to this one request/turn.
+  const toolFailureCounts = new Map<string, number>();
+  const bannedToolNames = new Set<string>();
+
   try {
     let finished = false;
     for (let round = 0; round < MAX_ROUNDS && !finished; round++) {
@@ -682,12 +706,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const forcingThisRound = forceForkChoice && round === 0;
+      // Lever 2: the final allowed round always forces text-only, so a turn
+      // about to hit MAX_ROUNDS produces a real reply instead of one more
+      // tool call (see the MAX_ROUNDS comment above for the full mechanism).
+      const forceTextOnlyThisRound = !forcingThisRound && round === MAX_ROUNDS - 1;
+      // Lever 1: drop any tool that has already failed TOOL_FAILURE_BAN_LIMIT
+      // times this turn from what's offered — the model can still try a
+      // different tool, or (having none left it trusts) answer in words.
+      const roundTools = forcingThisRound
+        ? forkChoiceTools
+        : requestTools?.filter((t) => !bannedToolNames.has(t.name));
       const baseStreamOpts = {
         model: requestModel,
         instructions: systemPrompt,
         input: currentInput,
-        tools: forcingThisRound ? forkChoiceTools : requestTools,
-        toolChoice: forcingThisRound ? ('required' as const) : undefined,
+        tools: roundTools,
+        toolChoice: forcingThisRound
+          ? ('required' as const)
+          : forceTextOnlyThisRound
+            ? ('none' as const)
+            : undefined,
         store: true,
         signal: abortController.signal,
         // Onboarding turns carry tool JSON on top of text — the 600 default
@@ -876,6 +914,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (allowedToolNames.has(tc.name) && toolDedupe.shouldSkip(tc.name, args)) {
           result = toolDedupe.priorResult(tc.name, args) as ToolResult;
           dedupeSkipped = true;
+        } else if (bannedToolNames.has(tc.name)) {
+          // W_SILENT-FIX lever 1: this tool already failed
+          // TOOL_FAILURE_BAN_LIMIT times this turn and was dropped from this
+          // round's offered tools — belt-and-suspenders gate in case the
+          // model still names it explicitly.
+          result = {
+            ok: false,
+            error: 'tool_disabled_this_turn',
+            message: `${tc.name} has already failed repeatedly this turn and is disabled for the rest of this turn. Use a different tool, or reply in words instead.`,
+          };
         } else if (!allowedToolNames.has(tc.name)) {
           // Actionable rejection (W2-C): tell the model what IS callable here
           // instead of a bare "unknown", so a wrong-beat call (e.g. firing a
@@ -971,6 +1019,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             result = { ok: false, error: 'handler_error', message: (err as Error).message };
           }
         }
+        // W_SILENT-FIX lever 1: track failures per tool name across the whole
+        // turn (every round, whichever branch above produced the failure —
+        // gate rejection or handler guard), so a model that keeps hammering
+        // one broken tool gets cut off instead of burning every remaining
+        // round on it.
+        if (!result.ok) {
+          const failCount = (toolFailureCounts.get(tc.name) ?? 0) + 1;
+          toolFailureCounts.set(tc.name, failCount);
+          if (failCount >= TOOL_FAILURE_BAN_LIMIT) {
+            bannedToolNames.add(tc.name);
+          }
+        }
         // Record only genuine dispatch attempts (not a skipped repeat, not the
         // unknown-tool rejection) so the FIRST real execution of a pair is what
         // a later duplicate reuses.
@@ -1019,8 +1079,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       endStatus = 'tool_cap';
       endCode = 'tool_cap_reached';
       logFailure('rounds', 'tool_cap_reached', undefined, { tool_rounds: toolRounds });
-      send({ type: 'error', code: 'tool_cap_reached', message: 'Exceeded max tool rounds (5)' });
-      await persistChatTurn({ includeAssistant: false });
+      // The turn must never end with zero coach text — this was the literal
+      // "coach goes silent" bug (Mint 2026-07-07 report). Lever 2 (the forced
+      // text-only final round, above) means this branch should be rare now,
+      // but if it's still hit, use whatever partial text the last round
+      // produced, or an authored fallback, and finish the turn as a normal
+      // completed reply — not a bare 'error' — so the client renders it like
+      // any other coach message instead of degrading to the generic
+      // retry bubble (or silently writing nothing at all, as before).
+      if (finalAssistantContent.trim().length === 0) {
+        finalAssistantContent = TOOL_CAP_FALLBACK_TEXT;
+        send({ type: 'delta', content: finalAssistantContent });
+      }
+      send({
+        type: 'done',
+        latency_ms: Math.round(performance.now() - startedAt),
+        total_tokens: totalTokens,
+        tool_rounds: toolRounds,
+        ...(firstDeltaAtMs !== null ? { ttft_ms: Math.round(firstDeltaAtMs) } : {}),
+      });
+      await persistChatTurn();
       res.end();
       waitUntil(finalize());
       return;
