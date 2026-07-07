@@ -1361,7 +1361,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   );
 
   const {
-    sendUserTurn,
+    sendUserTurn: sendUserTurnRaw,
     chatBusy,
     interrupt: interruptCoach,
     regenerate: regenerateCoach,
@@ -1436,8 +1436,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         flag_on: SEMANTIC_TURN_END,
       });
     }
-    sendUserTurn(text);
-  }, [sendUserTurn, regenerateCoach]);
+    // Raw (unwrapped) call: emitVoiceInFinal already notified the transcript
+    // bus with this same text when the Soniox final arrived, above — the
+    // wrapped sendUserTurn (below) would double-notify for this path.
+    sendUserTurnRaw(text);
+  }, [sendUserTurnRaw, regenerateCoach]);
   // Re-arming (same-breath interim/final) always goes through this normal
   // path — only the FIRST arm after a semantic end token uses the short
   // absorb window (see emitVoiceInFinal). Per audit risk 3: the absorb window
@@ -1844,6 +1847,26 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     setProviderError(null);
     await updatePreferences({ voiceMode: 'voice', micEnabled: true });
   }, [clearRetryTimer, clearRemoteEndCooldownTimer, updatePreferences]);
+
+  // W3-A: externally-visible sendUserTurn (composer + the QA convo-harness
+  // seam below) notifies the transcript bus with a genuine role:'user' event
+  // before dispatching. This is the ONLY call site that does — the internal
+  // Soniox flush above uses sendUserTurnRaw directly, since emitVoiceInFinal
+  // already notified for that turn when the final transcript arrived. Vapi
+  // (Path 1) never calls sendUserTurn at all (its tool calls land server-side
+  // via the webhook), so this notify is a real, load-bearing signal:
+  // useFlowOrchestrator's identity-beat guard (VAPI_UNGUARDED_SETUP_SCREENS)
+  // uses it to tell "a real user turn happened on this beat" apart from "the
+  // row changed for some other reason" for the two Vapi tool handlers that
+  // ship with no refusal/grounding guard of their own (see that guard's doc
+  // comment in useFlowOrchestrator.ts).
+  const sendUserTurn = useCallback(
+    (text: string) => {
+      notifyTranscriptListeners({ role: 'user', kind: 'final', text });
+      sendUserTurnRaw(text);
+    },
+    [notifyTranscriptListeners, sendUserTurnRaw],
+  );
 
   // QA convo-harness test seam (QA_SCREEN_ENABLED builds only): expose the
   // same sendUserTurn a voice transcript final feeds, so an external

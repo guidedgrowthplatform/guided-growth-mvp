@@ -15,12 +15,31 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { OnboardingTranscriptListener } from '@/contexts/useOnboardingVoiceSession';
 import type { OnboardingState } from '@gg/shared/types';
 import { loadPublishedFlow } from '../useFlow';
 import { useFlowOrchestrator, type FlowOrchestrator } from '../useFlowOrchestrator';
 
+// W3-A: the identity-beat guard for VAPI_UNGUARDED_SETUP_SCREENS (morning
+// check-in, reflection) now requires a real role:'user' transcript event
+// since the beat became active, on top of the evidence itself. Tests below
+// that exercise those two screens emit one via this fake bus; tests for
+// state-check (not in that set) are unaffected and keep voice as null.
+let transcriptListener: OnboardingTranscriptListener | null = null;
+function emitUserTranscript(text = 'ok'): void {
+  transcriptListener?.({ role: 'user', kind: 'final', text });
+}
 vi.mock('@/contexts/useOnboardingVoiceSession', () => ({
-  useOnboardingVoice: () => null,
+  useOnboardingVoice: () => ({
+    subscribeTranscripts: (listener: OnboardingTranscriptListener) => {
+      transcriptListener = listener;
+      return () => {
+        transcriptListener = null;
+      };
+    },
+    registerScreen: () => {},
+    setFormSnapshot: () => {},
+  }),
 }));
 
 let serverState: OnboardingState | null = null;
@@ -90,6 +109,7 @@ function rowAt(step: number, data: Record<string, unknown>): OnboardingState {
 beforeEach(() => {
   serverState = null;
   latest = null;
+  transcriptListener = null;
   persistence.saveStep.mockClear();
   persistence.complete.mockClear();
   container = document.createElement('div');
@@ -124,6 +144,11 @@ describe('identity-beat evidence advance (B47)', () => {
     await flush();
     expect(latest!.currentNode?.id).toBe('morning-checkin-setup');
 
+    // W3-A: ONBOARD-MORNING-SETUP is in VAPI_UNGUARDED_SETUP_SCREENS, so the
+    // evidence-arrival advance also requires a real user transcript event
+    // since this beat became active (see useFlowOrchestrator.ts). A genuine
+    // voice save always comes with one; simulate it here.
+    emitUserTranscript('9am every weekday please');
     serverState = rowAt(7, {
       ...POSITIONAL_DATA,
       stateCheck: { mood: 4 },
@@ -132,6 +157,27 @@ describe('identity-beat evidence advance (B47)', () => {
     render('morning-checkin-setup');
     await flush();
     expect(latest!.currentNode?.id).toBe('reflection-setup');
+  });
+
+  it('W3-A: holds morning-checkin-setup forever if evidence arrives with NO real user transcript (the round-3 cascade shape)', async () => {
+    serverState = rowAt(7, { ...POSITIONAL_DATA, stateCheck: { mood: 4 } });
+    render('morning-checkin-setup');
+    await flush();
+    expect(latest!.currentNode?.id).toBe('morning-checkin-setup');
+
+    // Evidence + a fresh updated_at appear (mirrors an unattended Vapi call's
+    // own assistant calling submit_morning_checkin with fabricated-but-valid
+    // args, with zero real user speech in between) but NO transcript event
+    // was ever emitted for this beat. Must hold, not advance.
+    serverState = rowAt(7, {
+      ...POSITIONAL_DATA,
+      stateCheck: { mood: 4 },
+      morningCheckin: { time: '08:00', days: [1, 2, 3], reminder: true },
+    });
+    render('morning-checkin-setup');
+    await flush();
+    expect(latest!.currentNode?.id).toBe('morning-checkin-setup');
+    expect(persistence.saveStep).not.toHaveBeenCalled();
   });
 
   it('holds a beat entered with its evidence already present (back-nav semantics)', async () => {
