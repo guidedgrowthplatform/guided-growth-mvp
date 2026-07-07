@@ -5,7 +5,6 @@ import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
 import { Toggle } from '@/components/ui/Toggle';
 import { DEFAULT_REFLECTION_PROMPTS } from '@gg/shared/types';
 import { SECTION_LABEL_CLASS } from './constants';
-import { SchedulePicker, type ScheduleOption } from './SchedulePicker';
 
 interface DailyReflectionCardProps {
   time: string;
@@ -14,8 +13,6 @@ interface DailyReflectionCardProps {
   onToggleDay: (day: number) => void;
   reminder: boolean;
   onToggleReminder: (value: boolean) => void;
-  schedule: ScheduleOption;
-  onScheduleChange: (value: ScheduleOption) => void;
   onCreatePrompts?: () => void;
   prompts?: string[];
   selectedPrompts?: string[];
@@ -35,8 +32,6 @@ export function DailyReflectionCard({
   onToggleDay,
   reminder,
   onToggleReminder,
-  schedule,
-  onScheduleChange,
   onCreatePrompts,
   prompts,
   selectedPrompts,
@@ -115,12 +110,6 @@ export function DailyReflectionCard({
             <div className="h-px w-full bg-border-light" />
           </>
         )}
-
-        {/* Schedule */}
-        <div className="flex items-center justify-between">
-          <span className="text-[14px] font-semibold text-content-secondary">Schedule:</span>
-          <SchedulePicker value={schedule} onChange={onScheduleChange} />
-        </div>
 
         {/* When? — full-width clickable row */}
         <div className="flex flex-col gap-[16px]">

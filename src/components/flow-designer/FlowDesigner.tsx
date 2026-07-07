@@ -8,7 +8,6 @@ import { GoalCard } from '@/components/onboarding/GoalCard';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
-import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 
 /**
@@ -134,7 +133,6 @@ function ReflectionBody() {
   const [time, setTime] = useState('21:30');
   const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
   const [reminder, setReminder] = useState(true);
-  const [schedule, setSchedule] = useState<ScheduleOption>('Every day');
   return (
     <DailyReflectionCard
       time={time}
@@ -150,8 +148,6 @@ function ReflectionBody() {
       }
       reminder={reminder}
       onToggleReminder={setReminder}
-      schedule={schedule}
-      onScheduleChange={setSchedule}
     />
   );
 }

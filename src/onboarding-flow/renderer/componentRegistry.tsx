@@ -514,10 +514,15 @@ function MicPermissionAdapter({ node, onCapture }: BeatAdapterProps) {
     // 20%) against its own container, the same way SplashIntro does inside
     // IntroGate's h-screen ancestor. componentOwned + hideOrb make this beat the
     // sole visible content while active (BeatView renders the adapter alone, the
-    // docked orb is suppressed), so give it that same full-viewport reference
-    // height here rather than the natural (content-sized) flex height it would
-    // otherwise get inside the scrolling beat feed.
-    <div className="relative h-[100dvh] w-full">
+    // docked orb is suppressed), so it needs that same full-viewport reference
+    // height IntroGate gives SplashIntro. Unlike the greeting, this beat mounts
+    // deep inside FlowRenderer's scrolling beat feed (state.visited.map, inside
+    // the flex-col overflow-y-auto column) rather than replacing the whole tree,
+    // so an in-flow h-[100dvh] div only ever gets a tall, scrolled-past box, not
+    // the actual viewport (F04: the orb rendered off the top of the visible
+    // scroll position, cropped to a sliver). `fixed inset-0` escapes that
+    // ancestor and gives it the real viewport, matching the ground-truth render.
+    <div className="fixed inset-0 z-30 h-[100dvh] w-full">
       <MicPermission
         heading={props.heading}
         subheading={props.sub}
@@ -1015,8 +1020,6 @@ function ScheduleCard({
         onToggleDay={toggleDay}
         reminder={reminder}
         onToggleReminder={setReminder}
-        schedule={schedule}
-        onScheduleChange={changeSchedule}
       />
       {!readOnly && (
         <Cta
@@ -1202,8 +1205,6 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
         onToggleDay={toggleDay}
         reminder={reminder}
         onToggleReminder={setReminder}
-        schedule={schedule}
-        onScheduleChange={changeSchedule}
       />
       {props.showModePicker && (
         <ReflectionModeEditor

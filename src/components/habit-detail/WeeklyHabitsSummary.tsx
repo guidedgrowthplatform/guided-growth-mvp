@@ -70,7 +70,7 @@ export function WeeklyHabitsSummary({
         </span>
       </div>
 
-      <div className="mt-5 grid grid-cols-[minmax(0,1fr)_repeat(7,24px)_38px] gap-x-2 gap-y-3">
+      <div className="mt-5 grid grid-cols-[minmax(0,1fr)_repeat(7,20px)_32px] gap-x-1.5 gap-y-3">
         <div />
         {dayLabels.slice(0, 7).map((label, index) => (
           <div
@@ -84,7 +84,10 @@ export function WeeklyHabitsSummary({
 
         {rows.map((row) => (
           <div key={row.name} className="contents">
-            <div className="flex min-h-6 items-center truncate text-sm font-medium text-content">
+            <div
+              className="min-h-6 min-w-0 truncate pr-1 text-sm font-medium leading-6 text-content"
+              title={row.name}
+            >
               {row.name}
             </div>
             {row.cells.slice(0, 7).map((cell, index) => (
