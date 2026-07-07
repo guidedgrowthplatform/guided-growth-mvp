@@ -403,4 +403,90 @@ describe('buildSystemPromptForRequest', () => {
     expect(systemPrompt).toContain("this screen's BEHAVIOR calls for");
     expect(systemPrompt).not.toContain('AI RESPONSE PATTERN');
   });
+
+  // G07: weekly-day recommendation threading
+  describe('weekly-day recommendation block (G07)', () => {
+    function mockWeeklySetup() {
+      pool.query.mockReset();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [{ context_block: 'SCREEN_ID: ONBOARD-WEEKLY-SETUP\nBEHAVIOR: pick day.', version: 1 }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // onboarding_states
+    }
+
+    it('injects Saturday (day=6) for Asia/Jerusalem timezone', async () => {
+      mockWeeklySetup();
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: 'ONBOARD-WEEKLY-SETUP',
+        coaching_style: 'warm',
+        recent_events,
+        timezone: 'Asia/Jerusalem',
+      });
+      expect(systemPrompt).toContain('## Recommended Weekly Day');
+      expect(systemPrompt).toContain('Saturday');
+      expect(systemPrompt).toContain('day=6');
+      // Block overrides the language heuristic — the block precedes the beat context
+      // in the prompt and explicitly says to ignore language-based heuristics.
+      expect(systemPrompt).toContain('Ignore any language-based day heuristic');
+    });
+
+    it('injects Sunday (day=0) for a Monday-start timezone (America/New_York)', async () => {
+      mockWeeklySetup();
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: 'ONBOARD-WEEKLY-SETUP',
+        coaching_style: 'warm',
+        recent_events,
+        timezone: 'America/New_York',
+      });
+      expect(systemPrompt).toContain('## Recommended Weekly Day');
+      expect(systemPrompt).toContain('Sunday');
+      expect(systemPrompt).toContain('day=0');
+    });
+
+    it('defaults to Sunday when timezone is absent', async () => {
+      mockWeeklySetup();
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: 'ONBOARD-WEEKLY-SETUP',
+        coaching_style: 'warm',
+        recent_events,
+      });
+      expect(systemPrompt).toContain('## Recommended Weekly Day');
+      expect(systemPrompt).toContain('Sunday');
+      expect(systemPrompt).toContain('day=0');
+    });
+
+    it('does NOT inject the weekly-day block on other onboarding screens', async () => {
+      pool.query.mockReset();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [{ context_block: 'SCREEN_ID: ONBOARD-BEGINNER-02\nBEHAVIOR: goals.', version: 1 }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: 'ONBOARD-BEGINNER-02',
+        coaching_style: 'warm',
+        recent_events,
+        timezone: 'Asia/Jerusalem',
+      });
+      expect(systemPrompt).not.toContain('## Recommended Weekly Day');
+    });
+
+    it('does NOT inject the weekly-day block on non-onboarding screens', async () => {
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: 'HOME-MORNING',
+        coaching_style: 'warm',
+        recent_events,
+        timezone: 'Asia/Jerusalem',
+      });
+      expect(systemPrompt).not.toContain('## Recommended Weekly Day');
+    });
+  });
 });

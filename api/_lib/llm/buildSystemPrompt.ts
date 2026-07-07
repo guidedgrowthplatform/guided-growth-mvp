@@ -177,9 +177,13 @@ export async function buildSystemPromptForRequest(
   const optionsBlock = isOnboardingScreen
     ? buildCanonicalOptionsBlock(args.screen_id, onboardingRow?.data ?? {})
     : '';
+  // G07: thread the timezone-resolved recommended day into the weekly-setup beat so
+  // the coach's suggestion always matches the card's preselected day, regardless of
+  // spoken language (the beat context text keyed on Hebrew/language is overridden here).
+  const weeklyDayBlock = buildWeeklyDayRecommendBlock(args.screen_id, args.timezone);
 
   return {
-    systemPrompt: `${coachingPreamble}${onboardingGlobalBlock}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}\n\n${READ_OPTIONS_ON_REQUEST_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${onboardingGlobalBlock}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}\n\n${READ_OPTIONS_ON_REQUEST_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${weeklyDayBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
@@ -280,6 +284,39 @@ function buildAlreadyFilledBlock(row: OnboardingRow): string {
     (row.path ? `path: ${row.path}\n` : '') +
     `data: ${JSON.stringify(data)}\n` +
     `Do NOT re-ask for any field that already has a value here. Acknowledge briefly if the user re-states it, then move to the next still-missing field per the screen's BEHAVIOR.`
+  );
+}
+
+// G07: timezone-to-day resolver for the weekly-setup beat. Mirrors
+// src/utils/weeklyDay.ts (front-end); kept inline so the API is self-contained.
+const SUNDAY_START_ZONES = new Set<string>(['Asia/Jerusalem']);
+const WEEKLY_DAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+
+function resolvedWeeklyDay(timezone?: string): number {
+  return SUNDAY_START_ZONES.has(timezone ?? '') ? 6 : 0;
+}
+
+// Inject the timezone-resolved recommended day for the ONBOARD-WEEKLY-SETUP beat.
+// This block overrides the language-keyed "If Hebrew → Saturday" heuristic in the
+// beat context so the coach recommends the SAME day the card preselects (G07 fix).
+function buildWeeklyDayRecommendBlock(screenId: string, timezone?: string): string {
+  if (screenId !== 'ONBOARD-WEEKLY-SETUP') return '';
+  const day = resolvedWeeklyDay(timezone);
+  const name = WEEKLY_DAY_NAMES[day];
+  return (
+    `\n\n## Recommended Weekly Day (resolved from device timezone)\n` +
+    `Recommend **${name}** (day=${day}). ` +
+    `This is already preselected on the card. Ignore any language-based day heuristic — ` +
+    `always recommend the day shown above, regardless of the language you are speaking. ` +
+    `When the user affirms or picks a day, call submit_weekly_config with that day.`
   );
 }
 
