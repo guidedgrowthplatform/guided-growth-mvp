@@ -38,6 +38,7 @@ const { removeHabit } = await import('../handlers/removeHabit.js');
 const { updateHabit } = await import('../handlers/updateHabit.js');
 const { submitReflectionConfig } = await import('../handlers/submitReflectionConfig.js');
 const { submitWeeklyConfig } = await import('../handlers/submitWeeklyConfig.js');
+const { submitMorningCheckin } = await import('../handlers/submitMorningCheckin.js');
 const { submitBrainDump } = await import('../handlers/submitBrainDump.js');
 const { advanceStep } = await import('../handlers/advanceStep.js');
 const { confirmPlan } = await import('../handlers/confirmPlan.js');
@@ -855,6 +856,57 @@ describe('submit_reflection_config', () => {
     expect(payload.reflectionConfig.schedule).toBe('Weekday'); // no preset match → keep LLM label
     expect(payload.reflectionConfig.days).toEqual([1, 3, 5]);
   });
+
+  // ─── B58 setup-config guard: reject a refused/ungrounded reflection save ──
+  describe('setup-config guard (B58)', () => {
+    it('rejects an explicit refusal of the evening reflection', async () => {
+      const r = await submitReflectionConfig(
+        { ...CTX, user_text: "I don't want the evening reflection either." },
+        valid,
+      );
+      expect(r).toEqual({ ok: false, error: 'handler_error', message: 'config_refused_by_user' });
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('rejects an ungrounded off-topic turn', async () => {
+      const r = await submitReflectionConfig(
+        { ...CTX, user_text: 'What do you think about the news lately?' },
+        valid,
+      );
+      expect(r).toEqual({ ok: false, error: 'handler_error', message: 'config_not_grounded' });
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('accepts a bare affirmation to a coach proposal', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { reflectionConfig: valid }, current_step: 8 }],
+      });
+      const r = await submitReflectionConfig({ ...CTX, user_text: 'Yes please.' }, valid);
+      expect(r.ok).toBe(true);
+    });
+
+    it('does not guard when no raw turn text is supplied (backward compatible)', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { reflectionConfig: valid }, current_step: 8 }],
+      });
+      const r = await submitReflectionConfig(CTX, valid);
+      expect(r.ok).toBe(true);
+    });
+
+    it('still accepts a genuine cooperative setup turn (no false positive)', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { reflectionConfig: valid }, current_step: 8 }],
+      });
+      const r = await submitReflectionConfig(
+        { ...CTX, user_text: '9pm every day, no reminder needed.' },
+        valid,
+      );
+      expect(r.ok).toBe(true);
+    });
+  });
 });
 
 // ─── submit_weekly_config ────────────────────────────────────────────
@@ -900,6 +952,150 @@ describe('submit_weekly_config', () => {
     });
     const r = await submitWeeklyConfig(CTX, { day: 3 });
     expect(r).toMatchObject({ ok: true, result: { weeklyConfig: { day: 3 } } });
+  });
+
+  // ─── B58 setup-config guard: reject a refused/ungrounded weekly save ──────
+  describe('setup-config guard (B58)', () => {
+    it('rejects an explicit refusal of the weekly review', async () => {
+      const r = await submitWeeklyConfig(
+        { ...CTX, user_text: "I don't want the weekly review, skip it." },
+        { day: 0 },
+      );
+      expect(r).toEqual({ ok: false, error: 'handler_error', message: 'config_refused_by_user' });
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('rejects an ungrounded clarifying question', async () => {
+      const r = await submitWeeklyConfig(
+        { ...CTX, user_text: 'Sorry, what were you asking?' },
+        { day: 0 },
+      );
+      expect(r).toEqual({ ok: false, error: 'handler_error', message: 'config_not_grounded' });
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('accepts a bare affirmation to a coach-suggested Sunday default', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { weeklyConfig: { day: 0 } }, current_step: 9 }],
+      });
+      const r = await submitWeeklyConfig({ ...CTX, user_text: 'Sounds good.' }, { day: 0 });
+      expect(r.ok).toBe(true);
+    });
+
+    it('does not guard when no raw turn text is supplied (backward compatible)', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { weeklyConfig: { day: 0 } }, current_step: 9 }],
+      });
+      const r = await submitWeeklyConfig(CTX, { day: 0 });
+      expect(r.ok).toBe(true);
+    });
+
+    it('still accepts a genuine day pick (no false positive)', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { weeklyConfig: { day: 0 } }, current_step: 9 }],
+      });
+      const r = await submitWeeklyConfig(
+        { ...CTX, user_text: "Let's do Sunday for the weekly review." },
+        { day: 0 },
+      );
+      expect(r.ok).toBe(true);
+    });
+  });
+});
+
+// ─── submit_morning_checkin ──────────────────────────────────────────
+
+describe('submit_morning_checkin', () => {
+  const valid = {
+    time: '09:00',
+    days: [1, 2, 3, 4, 5],
+    reminder: true,
+    schedule: 'Weekday',
+  };
+
+  it('rejects invalid time', async () => {
+    const r = await submitMorningCheckin(CTX, { ...valid, time: '99:99' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects days out of range', async () => {
+    const r = await submitMorningCheckin(CTX, { ...valid, days: [-1] });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('accepts valid config, bumps current_step to the V3 morning step (7)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { morningCheckin: valid }, current_step: 7 }],
+    });
+    const r = await submitMorningCheckin(CTX, valid);
+    expect(r.ok).toBe(true);
+    const [sql, params] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/current_step = GREATEST\(onboarding_states.current_step, 7\)/);
+    expect(sql).toMatch(/VALUES \(\$1, 7,/);
+    expect(JSON.parse(params[1] as string)).toEqual({ morningCheckin: valid });
+  });
+
+  // ─── B58 setup-config guard: the proven regression, now blocked server-side ──
+  describe('setup-config guard (B58)', () => {
+    it('rejects the exact reproduced regression: explicit morning refusal must not save', async () => {
+      // This is the verbatim text from the live QA proof: submit_morning_checkin
+      // fired with default config ({time:"09:00", days:[0..6], reminder:true})
+      // ok:true, persisted, in the same turn as this refusal. See
+      // gg-spec/tools/convo-harness/reports/b54-morning-refusal-proof.md and
+      // qa-rounds/round2/resister/trail.md turn 12.
+      const r = await submitMorningCheckin(
+        {
+          ...CTX,
+          user_text: "I don't want to do a morning thing at all. Just the evening one.",
+        },
+        { time: '09:00', days: [0, 1, 2, 3, 4, 5, 6], reminder: true, schedule: 'Every day' },
+      );
+      expect(r).toEqual({ ok: false, error: 'handler_error', message: 'config_refused_by_user' });
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('rejects an ungrounded off-topic turn', async () => {
+      const r = await submitMorningCheckin(
+        { ...CTX, user_text: 'Anyway, what do you think about the news lately?' },
+        valid,
+      );
+      expect(r).toEqual({ ok: false, error: 'handler_error', message: 'config_not_grounded' });
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('accepts a bare affirmation to a coach-proposed time', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { morningCheckin: valid }, current_step: 7 }],
+      });
+      const r = await submitMorningCheckin({ ...CTX, user_text: 'Yes please.' }, valid);
+      expect(r.ok).toBe(true);
+    });
+
+    it('does not guard when no raw turn text is supplied (backward compatible)', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { morningCheckin: valid }, current_step: 7 }],
+      });
+      const r = await submitMorningCheckin(CTX, valid);
+      expect(r.ok).toBe(true);
+    });
+
+    it('still accepts a genuine cooperative morning setup turn (no false positive)', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { morningCheckin: valid }, current_step: 7 }],
+      });
+      const r = await submitMorningCheckin(
+        { ...CTX, user_text: 'Every weekday at 9am, with a reminder.' },
+        valid,
+      );
+      expect(r.ok).toBe(true);
+    });
   });
 });
 

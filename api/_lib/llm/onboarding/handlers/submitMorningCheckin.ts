@@ -6,11 +6,13 @@ import {
   getBoolean,
   getNumberArray,
   getString,
+  handlerError,
   invalid,
   ok,
   TIME_REGEX,
   type OnboardingHandlerCtx,
 } from './shared.js';
+import { checkSetupConfigGuard, SURFACES } from './setupConfigGuard.js';
 
 function isScheduleOption(v: string): boolean {
   return (SCHEDULE_OPTIONS as readonly string[]).includes(v);
@@ -23,6 +25,16 @@ export async function submitMorningCheckin(
   ctx: OnboardingHandlerCtx,
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
+  // B58 server-side guard: an explicit refusal ("I don't want a morning thing
+  // at all") or a turn with no real config content must not save. Proven
+  // live twice that the prompt-only DATA INTEGRITY law does not stop the
+  // model from calling this tool with default args in the same turn as the
+  // refusal (see setupConfigGuard.ts doc comment). Skips entirely when the
+  // caller has no raw turn text (backward compatible, same as addHabit's
+  // habit_name_ungrounded convention).
+  const guard = checkSetupConfigGuard(SURFACES.morning, ctx.user_text);
+  if (guard.blocked) return handlerError(guard.code);
+
   const time = getString(args, 'time');
   if (time === undefined || !TIME_REGEX.test(time)) {
     return invalid('time must be HH:MM in 24-hour format');

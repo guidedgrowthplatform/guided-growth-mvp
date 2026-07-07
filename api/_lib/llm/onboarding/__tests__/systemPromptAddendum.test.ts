@@ -69,6 +69,12 @@ describe('ONBOARDING_TOOL_ADDENDUM', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/DIRECTLY asks to hear them/i);
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/read them to me/i);
   });
+
+  it('documents the B58 setup-config guard error codes in ERROR RECOVERY', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('config_refused_by_user');
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('config_not_grounded');
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/never say you set it up/i);
+  });
 });
 
 describe('goal taxonomy drift guard', () => {

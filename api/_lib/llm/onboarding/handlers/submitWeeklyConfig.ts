@@ -1,11 +1,19 @@
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
-import { getNumber, invalid, ok, type OnboardingHandlerCtx } from './shared.js';
+import { getNumber, handlerError, invalid, ok, type OnboardingHandlerCtx } from './shared.js';
+import { checkSetupConfigGuard, SURFACES } from './setupConfigGuard.js';
 
 export async function submitWeeklyConfig(
   ctx: OnboardingHandlerCtx,
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
+  // B58 server-side guard: same pattern as submitMorningCheckin. See
+  // setupConfigGuard.ts doc comment for the two-leg design. Weekly config's
+  // only field is a day-of-week int, so leg 2's CONFIG_CONTENT_RE (which
+  // matches weekday names) still recognizes real grounding here.
+  const guard = checkSetupConfigGuard(SURFACES.weekly, ctx.user_text);
+  if (guard.blocked) return handlerError(guard.code);
+
   const day = getNumber(args, 'day');
   if (day === undefined || !Number.isInteger(day) || day < 0 || day > 6) {
     return invalid('day must be an integer 0-6');

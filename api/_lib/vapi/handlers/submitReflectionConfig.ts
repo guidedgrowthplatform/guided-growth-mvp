@@ -6,6 +6,11 @@
  * identity arrives as `anon_id` injected by Vapi from static call params.
  *
  * Validation patterns mirror add_habit for time/days/schedule.
+ *
+ * B58 scope note: see the same note in ./submitMorningCheckin.ts. The
+ * sibling onboarding-lane handler's server-side refusal/grounding guard is
+ * not ported here because the Vapi webhook payload never carries the raw
+ * user turn text this guard needs.
  */
 import pool, { type Queryable } from '../../db.js';
 import {

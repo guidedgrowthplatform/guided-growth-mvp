@@ -6,6 +6,17 @@
  * identity arrives as `anon_id` injected by Vapi from static call params.
  *
  * Validation patterns mirror submitReflectionConfig (time/days/reminder/schedule).
+ *
+ * B58 scope note: the sibling onboarding-lane handler
+ * (../../llm/onboarding/handlers/submitMorningCheckin.ts) gained a
+ * server-side refusal/grounding guard keyed on the raw current-turn user
+ * text. That guard is NOT ported here: the Vapi webhook payload (see
+ * ../../../vapi/[...path].ts) carries only { id, name, arguments } for the
+ * tool call itself, no transcript or user message ever reaches this
+ * handler, so there is no raw turn text to check against. This mirrors the
+ * B54 habit_name_ungrounded guard in the onboarding-lane addHabit.ts, which
+ * was likewise never ported to this file's addHabit.ts for the same
+ * structural reason.
  */
 import pool, { type Queryable } from '../../db.js';
 import {

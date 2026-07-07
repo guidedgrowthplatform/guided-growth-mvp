@@ -8,6 +8,11 @@
  *
  * Validation pattern mirrors submitReflectionConfig (day is the same 0-6 int
  * shape as its `days` array items, just a single value here).
+ *
+ * B58 scope note: see the same note in ./submitMorningCheckin.ts. The
+ * sibling onboarding-lane handler's server-side refusal/grounding guard is
+ * not ported here because the Vapi webhook payload never carries the raw
+ * user turn text this guard needs.
  */
 import pool, { type Queryable } from '../../db.js';
 
