@@ -217,11 +217,53 @@ describe('CHECKIN_TOOL_NAMES + isCheckinToolName', () => {
   });
 });
 
+const checkinNames = (tools: readonly { name: string }[] | undefined) =>
+  (tools ?? []).map((t) => t.name).sort();
+
 describe('getCheckinTools / isCheckinScreen', () => {
-  it('returns tools for the explicit check-in conversation screens', () => {
+  it('HOME-CHECKIN (the free-form always-on assistant) gets the full set, every mode', () => {
     expect(getCheckinTools('HOME-CHECKIN')).toBe(CHECKIN_TOOLS);
-    expect(getCheckinTools('MCHECK-01')).toBe(CHECKIN_TOOLS);
-    expect(getCheckinTools('ECHECK-01')).toBe(CHECKIN_TOOLS);
+    expect(getCheckinTools('HOME-CHECKIN', 'chat')).toBe(CHECKIN_TOOLS);
+    expect(getCheckinTools('HOME-CHECKIN', 'opener')).toBe(CHECKIN_TOOLS);
+  });
+
+  it("gates MCHECK-01 (morning) to its scripted flow's own data tool + the always-on read-only pair (W2-C)", () => {
+    expect(checkinNames(getCheckinTools('MCHECK-01', 'chat'))).toEqual([
+      'get_summary',
+      'query_habits',
+      'record_checkin',
+    ]);
+    // No explicit mode (defensive default, matches 'chat' behavior) still gates.
+    expect(checkinNames(getCheckinTools('MCHECK-01'))).toEqual([
+      'get_summary',
+      'query_habits',
+      'record_checkin',
+    ]);
+  });
+
+  it("gates ECHECK-01 (evening) to its scripted flow's own data tools + the always-on read-only pair (W2-C)", () => {
+    expect(checkinNames(getCheckinTools('ECHECK-01', 'chat'))).toEqual([
+      'complete_habit',
+      'get_summary',
+      'log_reflection',
+      'query_habits',
+    ]);
+  });
+
+  it('update_reflection is NOT exposed on the scripted evening walk — that edit surface is HOME-CHECKIN only', () => {
+    expect(checkinNames(getCheckinTools('ECHECK-01', 'chat'))).not.toContain('update_reflection');
+    expect(checkinNames(getCheckinTools('HOME-CHECKIN'))).toContain('update_reflection');
+  });
+
+  it('opener mode on a scripted screen collapses to just the always-on read-only pair (the dedicated opener tool comes from getCheckinOpenerTools instead)', () => {
+    expect(checkinNames(getCheckinTools('MCHECK-01', 'opener'))).toEqual([
+      'get_summary',
+      'query_habits',
+    ]);
+    expect(checkinNames(getCheckinTools('ECHECK-01', 'opener'))).toEqual([
+      'get_summary',
+      'query_habits',
+    ]);
   });
 
   it('returns undefined for dashboard/onboarding/other screens', () => {

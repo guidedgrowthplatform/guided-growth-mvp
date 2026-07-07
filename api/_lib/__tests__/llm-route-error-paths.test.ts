@@ -679,3 +679,156 @@ describe('LLM route — check-in opener starts a fresh response chain', () => {
     expect(streamToolNames()).toEqual([]);
   });
 });
+
+// W2-C acceptance: the check-in-lane analog of the onboarding wrong-beat-write
+// bug (round-2 QA: at ONBOARD-STATE-CHECK a later beat's setup tool fired and
+// silently skipped 3 beats). MCHECK-01 / ECHECK-01 are scripted single-purpose
+// flows — a tool belonging to the OTHER scripted flow, or to the free-form
+// HOME-CHECKIN surface, must never execute from either.
+describe('LLM route — per-beat check-in tool gating (W2-C, wrong-beat writes)', () => {
+  function toolResultEvents(writes: string): Array<{ id: string; ok: boolean; result: unknown }> {
+    return writes
+      .split('\n\n')
+      .filter((chunk) => chunk.startsWith('data: '))
+      .map((chunk) => JSON.parse(chunk.slice('data: '.length)) as Record<string, unknown>)
+      .filter((evt) => evt.type === 'tool_result') as unknown as Array<{
+      id: string;
+      ok: boolean;
+      result: unknown;
+    }>;
+  }
+
+  async function* twoToolCalls(
+    wrongName: string,
+    wrongArgs: Record<string, unknown>,
+    rightName: string,
+    rightArgs: Record<string, unknown>,
+  ) {
+    // Mirrors the live round-2 repro shape: the model reaches for a tool that
+    // belongs to a LATER/OTHER beat in the same turn as (or instead of) the
+    // current beat's own tool.
+    yield {
+      type: 'tool_call',
+      callId: 'call-wrong',
+      name: wrongName,
+      argumentsRaw: JSON.stringify(wrongArgs),
+    };
+    yield {
+      type: 'tool_call',
+      callId: 'call-right',
+      name: rightName,
+      argumentsRaw: JSON.stringify(rightArgs),
+    };
+    yield { type: 'completed', responseId: 'resp-checkin-gate', totalTokens: 10 };
+  }
+  async function* completedNoTools() {
+    yield { type: 'completed', responseId: 'resp-checkin-gate-2', totalTokens: 1 };
+  }
+
+  async function runChatTurn(screenId: string, gen: AsyncGenerator<unknown>) {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ foreign_owned: false, prev_response_id: null }],
+    });
+    pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] }); // dedupLookup miss (call-wrong)
+    pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] }); // dedupLookup miss (call-right)
+    pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
+    (openResponsesStream as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(gen)
+      .mockResolvedValueOnce(completedNoTools());
+    const { client } = makeClient();
+    pool.connect.mockResolvedValue(client);
+
+    const res = mockRes();
+    await handler(
+      mockReq({
+        session_id: 'sess-abcd1234',
+        screen_id: screenId,
+        user_message: 'test turn',
+        chat_session_id: CHAT_SESSION_ID,
+        user_turn_id: USER_TURN_ID,
+      }),
+      res,
+    );
+    await flushDeferred();
+    return (res as unknown as { _writes: string[] })._writes.join('');
+  }
+
+  it('MCHECK-01 (morning) rejects a HOME-CHECKIN-only tool (create_habit) server-side; its own record_checkin still proceeds', async () => {
+    const writes = await runChatTurn(
+      'MCHECK-01',
+      twoToolCalls('create_habit', { name: 'stretching' }, 'record_checkin', { mood: 4, sleep: 3 }),
+    );
+    const results = toolResultEvents(writes);
+    const wrong = results.find((r) => r.id === 'call-wrong')!;
+    const right = results.find((r) => r.id === 'call-right')!;
+
+    expect(wrong.ok).toBe(false);
+    expect((wrong.result as { error: string }).error).toBe('unknown_tool');
+    // Actionable message: names what IS available on this screen.
+    expect((wrong.result as { message: string }).message).toContain('not available on this screen');
+    expect((wrong.result as { message: string }).message).toContain('record_checkin');
+
+    // The beat's own tool reaches its real handler (dispatched, not gate-rejected)
+    // — whatever it does with the mock DB from there is that handler's own
+    // concern (covered by handlers.test.ts), not the gate's.
+    expect(right.ok ? true : (right.result as { error: string }).error !== 'unknown_tool').toBe(
+      true,
+    );
+  });
+
+  it('ECHECK-01 (evening) rejects an onboarding-style tool (submit_morning_checkin) server-side; complete_habit still reaches its own handler', async () => {
+    const writes = await runChatTurn(
+      'ECHECK-01',
+      twoToolCalls(
+        'submit_morning_checkin',
+        { time: '07:30', days: [0, 1, 2, 3, 4, 5, 6], reminder: true, schedule: 'Every day' },
+        'complete_habit',
+        { name: 'reading' },
+      ),
+    );
+    const results = toolResultEvents(writes);
+    const wrong = results.find((r) => r.id === 'call-wrong')!;
+    const right = results.find((r) => r.id === 'call-right')!;
+
+    expect(wrong.ok).toBe(false);
+    expect((wrong.result as { error: string }).error).toBe('unknown_tool');
+    expect((wrong.result as { message: string }).message).toContain('not available on this screen');
+
+    // complete_habit is dispatched (not gate-rejected) — with no habit row in
+    // the mock DB it correctly reports not_found, never unknown_tool.
+    expect((right.result as { error?: string }).error).not.toBe('unknown_tool');
+  });
+
+  it('ECHECK-01 rejects update_reflection — that edit surface is HOME-CHECKIN only, not part of the scripted evening walk', async () => {
+    const writes = await runChatTurn(
+      'ECHECK-01',
+      twoToolCalls('update_reflection', { mode: 'freeform' }, 'log_reflection', {
+        text: 'today was good',
+      }),
+    );
+    const results = toolResultEvents(writes);
+    const wrong = results.find((r) => r.id === 'call-wrong')!;
+    const right = results.find((r) => r.id === 'call-right')!;
+
+    expect(wrong.ok).toBe(false);
+    expect((wrong.result as { error: string }).error).toBe('unknown_tool');
+    // log_reflection is dispatched (not gate-rejected) — it may fail on the
+    // mock DB's empty RETURNING row, but never with unknown_tool.
+    expect((right.result as { error?: string }).error).not.toBe('unknown_tool');
+  });
+
+  it('HOME-CHECKIN (the free-form always-on assistant) is unaffected — update_reflection still works there', async () => {
+    const writes = await runChatTurn(
+      'HOME-CHECKIN',
+      twoToolCalls('query_habits', {}, 'update_reflection', { mode: 'freeform' }),
+    );
+    const results = toolResultEvents(writes);
+    // Both are legitimate HOME-CHECKIN tools — neither should be rejected.
+    for (const r of results) {
+      if (!r.ok) {
+        expect((r.result as { error: string }).error).not.toBe('unknown_tool');
+      }
+    }
+  });
+});
