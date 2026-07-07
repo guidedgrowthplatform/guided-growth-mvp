@@ -9,9 +9,22 @@
  * control screen can call this right after signing in as a test user.
  *
  * Touches (and ONLY) the authed QA user:
- *   - DELETE FROM onboarding_states / user_habits / chat_messages / session_log  WHERE anon_id = <user>
+ *   - DELETE FROM onboarding_states / user_habits / reflection_settings /
+ *     chat_sessions / chat_messages / session_log  WHERE anon_id = <user>
  *   - UPDATE profiles SET onboarding fields = NULL  WHERE id = <user>
  * The auth.users + profiles rows survive, so the ACCOUNT stays, the DATA is wiped.
+ *
+ * reflection_settings and chat_sessions were added by the fresh-restart ruling
+ * (2026-07): reflection_settings is where onboarding materializes reminder
+ * time/days/mode/prompts AND The Weekly's day-of-week (weekly_day, migration
+ * 055) on completion, and chat_sessions is the per-screen cold-open dedup
+ * anchor onboarding chat writes (isOnboardingScreen in api/chat/[...path].ts).
+ * Neither was cleared before, so a "fresh" re-walk could inherit a prior
+ * round's reminder/weekly config, or resolve a stale chat_session_id for the
+ * onboarding thread anchor even though its messages were already wiped. Both
+ * only cascade from a full account delete, never from this scoped reset.
+ * habit_completions is NOT listed explicitly: it FK-cascades off user_habits
+ * (ON DELETE CASCADE), so deleting the habit rows already clears it.
  * This mirrors api/qa-reset.ts but scopes to the caller instead of an email body.
  */
 
@@ -38,7 +51,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { authUserId, anonId } = user;
-  const deleted = { onboarding_states: 0, user_habits: 0, chat_messages: 0, session_log: 0 };
+  const deleted = {
+    onboarding_states: 0,
+    user_habits: 0,
+    reflection_settings: 0,
+    chat_sessions: 0,
+    chat_messages: 0,
+    session_log: 0,
+  };
 
   const client = await pool.connect();
   try {
@@ -49,6 +69,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       deleted.onboarding_states = o.rowCount ?? 0;
       const h = await client.query(`DELETE FROM user_habits WHERE anon_id = $1`, [anonId]);
       deleted.user_habits = h.rowCount ?? 0;
+      const r = await client.query(`DELETE FROM reflection_settings WHERE anon_id = $1`, [anonId]);
+      deleted.reflection_settings = r.rowCount ?? 0;
+      const cs = await client.query(`DELETE FROM chat_sessions WHERE anon_id = $1`, [anonId]);
+      deleted.chat_sessions = cs.rowCount ?? 0;
       const c = await client.query(`DELETE FROM chat_messages WHERE anon_id = $1`, [anonId]);
       deleted.chat_messages = c.rowCount ?? 0;
       const s = await client.query(`DELETE FROM session_log WHERE anon_id = $1`, [anonId]);

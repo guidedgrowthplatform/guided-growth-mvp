@@ -14,11 +14,21 @@
  * with 400. The guard is the security boundary, not the default value.
  *
  * What it touches (and ONLY what it touches) for the matched user:
- *   - DELETE FROM onboarding_states WHERE anon_id = <qa user>
- *   - DELETE FROM user_habits       WHERE anon_id = <qa user>
- *   - DELETE FROM chat_messages     WHERE anon_id = <qa user>
- *   - DELETE FROM session_log       WHERE anon_id = <qa user>
+ *   - DELETE FROM onboarding_states    WHERE anon_id = <qa user>
+ *   - DELETE FROM user_habits          WHERE anon_id = <qa user>
+ *   - DELETE FROM reflection_settings  WHERE anon_id = <qa user>
+ *   - DELETE FROM chat_sessions        WHERE anon_id = <qa user>
+ *   - DELETE FROM chat_messages        WHERE anon_id = <qa user>
+ *   - DELETE FROM session_log          WHERE anon_id = <qa user>
  *   - UPDATE profiles SET onboarding-related fields = NULL WHERE id = <qa user>
+ *
+ * reflection_settings and chat_sessions were added by the fresh-restart ruling
+ * (2026-07), see api/qa/self-reset.ts's doc comment for why: reflection_settings
+ * holds the reminder time/days/mode/prompts AND The Weekly's day-of-week that
+ * onboarding materializes on completion, and chat_sessions is the onboarding
+ * chat's cold-open dedup anchor. Both used to survive a reset and leak into
+ * the next "fresh" walk. habit_completions FK-cascades off user_habits, so it
+ * needs no explicit delete here.
  *
  * Auth: bearer token via Authorization header, value = process.env.QA_RESET_TOKEN.
  * Rate-limited at 10 requests/hour per source IP.
@@ -36,6 +46,8 @@ const DEFAULT_QA_EMAIL = 'qa-onboarding-fresh@guidedgrowth.test';
 type DeletedCounts = {
   onboarding_states: number;
   user_habits: number;
+  reflection_settings: number;
+  chat_sessions: number;
   chat_messages: number;
   session_log: number;
 };
@@ -101,6 +113,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const deleted: DeletedCounts = {
     onboarding_states: 0,
     user_habits: 0,
+    reflection_settings: 0,
+    chat_sessions: 0,
     chat_messages: 0,
     session_log: 0,
   };
@@ -138,6 +152,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const habits = await client.query(`DELETE FROM user_habits WHERE anon_id = $1`, [anonId]);
       deleted.user_habits = habits.rowCount ?? 0;
+
+      const reflection = await client.query(`DELETE FROM reflection_settings WHERE anon_id = $1`, [
+        anonId,
+      ]);
+      deleted.reflection_settings = reflection.rowCount ?? 0;
+
+      const chatSessions = await client.query(`DELETE FROM chat_sessions WHERE anon_id = $1`, [
+        anonId,
+      ]);
+      deleted.chat_sessions = chatSessions.rowCount ?? 0;
 
       const chats = await client.query(`DELETE FROM chat_messages WHERE anon_id = $1`, [anonId]);
       deleted.chat_messages = chats.rowCount ?? 0;
