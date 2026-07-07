@@ -37,6 +37,42 @@ export function isStaleRealtimeRow(
 }
 
 /**
+ * Data-provenance guard for the "empty cache" case (fresh page load, or a
+ * cache just cleared by a DELETE event handled inline in
+ * `useOnboardingRealtimeSync` below).
+ *
+ * `isStaleRealtimeRow` only rejects a row when there is a CACHED `updated_at`
+ * to compare against. On a genuinely empty cache it always returns `false`
+ * ("not stale"), so the very first incoming Realtime event used to be
+ * accepted unconditionally, however old. That is exactly how a buffered or
+ * in-flight echo from a PRIOR session's real writes (same anon_id channel,
+ * e.g. right after a QA reset re-subscribes) could land in a brand new
+ * session and be mistaken for live data.
+ *
+ * The fix: when the cache is empty, a row can only be a legitimate
+ * consequence of THIS session if it was written at-or-after the moment this
+ * hook subscribed. Anything timestamped strictly before that instant cannot
+ * have been caused by anything this session did, so it is provenance-stale
+ * and must be dropped. A row timestamped at-or-after `subscribedAt` is kept
+ * — this is what lets a genuinely fresh write that raced ahead of the
+ * initial `useAppGate` fetch land correctly (Realtime delivering before the
+ * REST fetch resolves is a normal, not a stale, race).
+ *
+ * Uses `updated_at` when present, falling back to `created_at` for a
+ * brand-new INSERT row that has not been updated since creation.
+ */
+export function isProvenanceStaleOnEmptyCache(
+  next: { updated_at?: string | null; created_at?: string | null },
+  subscribedAt: number,
+): boolean {
+  const stamp = next.updated_at ?? next.created_at;
+  if (!stamp) return false; // never drop on uncertainty
+  const n = Date.parse(stamp);
+  if (Number.isNaN(n)) return false;
+  return n < subscribedAt;
+}
+
+/**
  * Apply a passed-the-guard realtime row onto the cached row. `current_step` and
  * other scalars take the incoming (newest-by-timestamp) value — back-nav via
  * navigate_next to a lower step must still take effect. `data` is UNIONED so a
@@ -88,11 +124,14 @@ export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
     }
 
     setStatus('subscribing');
+    // Data-provenance anchor for `isProvenanceStaleOnEmptyCache`: nothing
+    // this session subscribes to can legitimately be older than the moment
+    // it started listening. Captured once per (re)subscribe, before any
+    // event can arrive.
+    const subscribedAt = Date.now();
     const channel = supabase
       .channel(`onboarding-states:${anonId}`)
       .on(
-        // @ts-expect-error — supabase-js types lag behind the runtime API
-        // for postgres_changes; the call works at runtime.
         'postgres_changes',
         {
           event: '*',
@@ -100,22 +139,67 @@ export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
           table: 'onboarding_states',
           filter: `anon_id=eq.${anonId}`,
         },
-        (payload: { new?: OnboardingState | null; eventType?: string }) => {
+        (payload: {
+          new?: OnboardingState | Record<string, never> | null;
+          old?: Partial<OnboardingState> | null;
+          eventType?: string;
+        }) => {
           if (import.meta.env.DEV) {
             console.log('[realtime] onboarding_states event', payload.eventType, payload.new);
           }
-          const next = payload.new ?? null;
-          if (!next) return;
+          // A real DELETE (the QA self-reset flow, or any future reset path)
+          // carries `new: {}` per the Supabase Realtime contract, NOT `null`
+          // — so a bare `if (!next) return` never actually detects it (an
+          // empty object is truthy). Left undetected, the row that used to
+          // live in the cache keeps being treated as current, and a stale
+          // echo arriving afterward on the same channel gets compared
+          // against data that the server has already wiped. Clear the cache
+          // so the wipe is observed, then stop: there is nothing to merge.
+          if (payload.eventType === 'DELETE') {
+            qc.setQueryData(queryKeys.onboarding.state, null);
+            if (import.meta.env.DEV) {
+              console.log('[realtime] row deleted, cache cleared');
+            }
+            return;
+          }
+          const next = (payload.new ?? null) as OnboardingState | null;
+          if (!next || !('anon_id' in next)) return;
           // RLS already scopes delivery; drop any foreign row as defense-in-depth.
           if (next.anon_id !== anonId) return;
-          // Guard against out-of-order Realtime delivery clobbering the
-          // cache with a stale row. `onboarding_states.updated_at` is bumped
-          // by the API on every write (Alembic trigger) so strict `>` is
-          // safe.
           const current = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state);
-          if (isStaleRealtimeRow(current, next)) {
+          if (current) {
+            // Guard against out-of-order Realtime delivery clobbering the
+            // cache with a stale row. `onboarding_states.updated_at` is bumped
+            // by the API on every write (Alembic trigger) so strict `>` is
+            // safe.
+            if (isStaleRealtimeRow(current, next)) {
+              if (import.meta.env.DEV) {
+                console.log(
+                  '[realtime] dropped (stale)',
+                  next.updated_at,
+                  '<',
+                  current?.updated_at,
+                );
+              }
+              return;
+            }
+          } else if (isProvenanceStaleOnEmptyCache(next, subscribedAt)) {
+            // No cached row to compare `updated_at` against (fresh page load,
+            // or the cache was just cleared by a DELETE above). Without this
+            // check the FIRST event on an empty cache used to be accepted
+            // unconditionally, however old — exactly how a buffered echo of a
+            // PRIOR session's real writes on the same anon_id channel could
+            // be mistaken for this session's live data. A row timestamped
+            // before we subscribed cannot be a consequence of anything this
+            // session did, so it is dropped; the initial `useAppGate` fetch
+            // (not Realtime) is the source of truth for pre-existing state.
             if (import.meta.env.DEV) {
-              console.log('[realtime] dropped (stale)', next.updated_at, '<', current?.updated_at);
+              console.log(
+                '[realtime] dropped (provenance-stale on empty cache)',
+                next.updated_at ?? next.created_at,
+                '<',
+                new Date(subscribedAt).toISOString(),
+              );
             }
             return;
           }

@@ -9,7 +9,7 @@
  * RETURNING; this test pins the guard's behavior for both row shapes.
  */
 import { describe, expect, it } from 'vitest';
-import { isStaleRealtimeRow } from '../useOnboardingRealtimeSync';
+import { isProvenanceStaleOnEmptyCache, isStaleRealtimeRow } from '../useOnboardingRealtimeSync';
 
 type Row = { updated_at?: string };
 
@@ -68,5 +68,44 @@ describe('isStaleRealtimeRow', () => {
     // is correctly dropped.
     const freshSaveWithTimestamp: Row = { updated_at: '2026-06-25T10:00:05.000Z' };
     expect(isStaleRealtimeRow(freshSaveWithTimestamp, olderEcho)).toBe(true);
+  });
+});
+
+describe('isProvenanceStaleOnEmptyCache', () => {
+  const subscribedAt = Date.parse('2026-06-25T10:00:00.000Z');
+
+  it('drops a row timestamped strictly before the subscribe instant', () => {
+    const row = { updated_at: '2026-06-25T09:59:59.000Z' };
+    expect(isProvenanceStaleOnEmptyCache(row, subscribedAt)).toBe(true);
+  });
+
+  it('keeps a row timestamped at or after the subscribe instant', () => {
+    expect(
+      isProvenanceStaleOnEmptyCache({ updated_at: '2026-06-25T10:00:00.000Z' }, subscribedAt),
+    ).toBe(false);
+    expect(
+      isProvenanceStaleOnEmptyCache({ updated_at: '2026-06-25T10:00:01.000Z' }, subscribedAt),
+    ).toBe(false);
+  });
+
+  it('falls back to created_at when updated_at is absent (fresh INSERT row)', () => {
+    expect(
+      isProvenanceStaleOnEmptyCache({ created_at: '2026-06-25T09:59:00.000Z' }, subscribedAt),
+    ).toBe(true);
+    expect(
+      isProvenanceStaleOnEmptyCache({ created_at: '2026-06-25T10:00:30.000Z' }, subscribedAt),
+    ).toBe(false);
+  });
+
+  it('never drops on uncertainty: no timestamp at all, or an unparseable one', () => {
+    expect(isProvenanceStaleOnEmptyCache({}, subscribedAt)).toBe(false);
+    expect(isProvenanceStaleOnEmptyCache({ updated_at: 'not-a-date' }, subscribedAt)).toBe(false);
+  });
+
+  it('handles the Postgres space-form timestamp the same as ISO (epoch compare, not lexical)', () => {
+    const spaceFormOlder = { updated_at: '2026-06-25 09:59:59.000000+00' };
+    const spaceFormNewer = { updated_at: '2026-06-25 10:00:01.000000+00' };
+    expect(isProvenanceStaleOnEmptyCache(spaceFormOlder, subscribedAt)).toBe(true);
+    expect(isProvenanceStaleOnEmptyCache(spaceFormNewer, subscribedAt)).toBe(false);
   });
 });
