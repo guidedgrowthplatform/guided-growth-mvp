@@ -12,6 +12,10 @@ import { SessionLogContext, type SessionLogContextValue } from '@/contexts/Sessi
 import type { VoiceMessage } from '@/contexts/useOnboardingVoiceSession';
 import { getOrCreateOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
 import { queryKeys } from '@/lib/query';
+import {
+  claimBeatAudio,
+  resetBeatAudioOwnerForTests,
+} from '@/onboarding-flow/renderer/beatAudioOwner';
 import { useAuthStore } from '@/stores/authStore';
 import type { LLMStreamEvent, LLMToolEvent } from '@gg/shared/types/llm';
 import { useChatToolEvents } from '../useChatToolEvents';
@@ -34,6 +38,29 @@ vi.mock('@/lib/onboarding/onboardingChatSession', async (orig) => {
     getOrCreateOnboardingChatSessionId: vi.fn(actual.getOrCreateOnboardingChatSessionId),
   };
 });
+// Spies on the ACTUAL audio-emitting calls (not just the ownership claim), so
+// the B58/B40 regression test below can assert that no second audio path ever
+// starts producing sound — not merely that a claim was denied after the fact.
+// vi.hoisted: vi.mock's factory is hoisted above this module's own const
+// declarations, so ttsSpies must be declared via vi.hoisted to be safely
+// referenced inside the factory below (plain `const ttsSpies = {...}` would
+// hit a temporal-dead-zone error at factory-eval time).
+const ttsSpies = vi.hoisted(() => ({
+  speak: vi.fn(() => Promise.resolve()),
+  beginSpeechTurn: vi.fn(() => 1),
+  pushSpeechChunk: vi.fn(),
+  endSpeechTurn: vi.fn(() => Promise.resolve()),
+  stopTTS: vi.fn(),
+}));
+vi.mock('@/lib/services/tts-service', () => ({
+  speak: ttsSpies.speak,
+  beginSpeechTurn: ttsSpies.beginSpeechTurn,
+  pushSpeechChunk: ttsSpies.pushSpeechChunk,
+  endSpeechTurn: ttsSpies.endSpeechTurn,
+  stopTTS: ttsSpies.stopTTS,
+  ttsKaraokeActive: () => false,
+  useTtsPlaybackStore: { getState: () => ({ isSpeaking: false }) },
+}));
 
 const sessionCtx: SessionLogContextValue = {
   sessionId: 'test-session-id-1234567890',
@@ -62,6 +89,8 @@ interface BridgeProps {
   onAdvance?: () => void;
   startThread?: UseOnboardingChatArgs['startThread'];
   chatNative?: boolean;
+  beatOwnsOpener?: UseOnboardingChatArgs['beatOwnsOpener'];
+  speakReplies?: boolean;
 }
 function Bridge({
   screenId = 'ONBOARD-FORK--FORM',
@@ -70,6 +99,8 @@ function Bridge({
   onAdvance = vi.fn(),
   startThread = noopStartThread,
   chatNative,
+  beatOwnsOpener,
+  speakReplies,
 }: BridgeProps) {
   const v = useOnboardingChat({
     screenId,
@@ -82,6 +113,8 @@ function Bridge({
     onVoiceAction: vi.fn(),
     onAdvance,
     chatNative,
+    beatOwnsOpener,
+    speakReplies,
   });
   useEffect(() => {
     hookRef = v;
@@ -128,6 +161,12 @@ beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
+  resetBeatAudioOwnerForTests();
+  ttsSpies.speak.mockClear();
+  ttsSpies.beginSpeechTurn.mockClear();
+  ttsSpies.pushSpeechChunk.mockClear();
+  ttsSpies.endSpeechTurn.mockClear();
+  ttsSpies.stopTTS.mockClear();
 });
 
 afterEach(() => {
@@ -137,6 +176,7 @@ afterEach(() => {
     // ignore
   }
   container.remove();
+  resetBeatAudioOwnerForTests();
   vi.restoreAllMocks();
 });
 
@@ -887,5 +927,187 @@ describe('opener fallback (B44): name substitution + liveness', () => {
         .map((c) => c[0] as VoiceMessage)
         .some((m) => m.role === 'ai' && m.text === 'got it'),
     ).toBe(true);
+  });
+});
+
+describe('B58/B40 — beat-audio double-arm: beatOwnsOpener suppresses the redundant opener', () => {
+  beforeEach(() => {
+    (getOrCreateOnboardingChatSessionId as ReturnType<typeof vi.fn>).mockReturnValue(STABLE_ID);
+  });
+
+  afterEach(() => {
+    qc.setQueryData(queryKeys.onboarding.state, null);
+  });
+
+  it('never calls /api/llm for the opener when beatOwnsOpener says the beat already voices its own (single-arm invariant)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'delta', content: 'a redundant generated opener' },
+        { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const startThread = vi.fn();
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge
+            screenId="ONBOARD-BEGINNER-04"
+            chatNative
+            startThread={startThread}
+            beatOwnsOpener={() => true}
+          />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    // The narration driver / BeatView already speaks this beat's opener —
+    // Direct-LLM must never independently generate + speak a second one.
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(false);
+    // The thread still registers under the right screenId so the real
+    // (post-opener) dialogue lands correctly once the user speaks.
+    expect(startThread).toHaveBeenCalledWith('ONBOARD-BEGINNER-04', [], 'append');
+  });
+
+  it('no second audio-producing call EVER fires while another owner holds the beat — not just a denied claim after the fact', async () => {
+    // This is the sharpened acceptance bar: the human-reported symptom was two
+    // audio elements literally PLAYING at once (the pre-recorded MP3 and the
+    // Cartesia/Sonic voice), not merely a console warning. beatAudioOwner's
+    // claim-before-play gate already existed pre-fix, so a warning-count check
+    // alone can't distinguish "denied after starting" from "never attempted."
+    // Simulate the real race: the beat's own audio path (the narration driver
+    // / BeatView's mp3-cartesia opener) claims and holds the beat's audio for
+    // the ENTIRE test, exactly as it would while its real clip plays. If
+    // useOnboardingChat's opener path were still live, it would race to claim
+    // too and, on a timing flip, could start playing before losing the race —
+    // the actual audible-overlap failure mode. Assert speak/beginSpeechTurn/
+    // pushSpeechChunk are never called: the redundant call site does not
+    // exist anymore, so there is no second audio source that could ever play,
+    // regardless of timing.
+    const owns = claimBeatAudio('ONBOARD-BEGINNER-04', 'narration-driver');
+    expect(owns).toBe(true); // sanity: this test's simulated "other player" really holds it
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'delta', content: 'a redundant generated opener that must never be spoken' },
+        { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge
+            screenId="ONBOARD-BEGINNER-04"
+            chatNative
+            beatOwnsOpener={() => true}
+            speakReplies
+          />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    // The narration driver's simulated claim is still held (never contested).
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'narration-driver')).toBe(true);
+    // No LLM call was ever made for this beat's opener...
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(false);
+    // ...and consequently NONE of the real audio-emitting calls fired either —
+    // proving there was never a second audio source that could have played,
+    // not just that a claim attempt lost a race.
+    expect(ttsSpies.speak).not.toHaveBeenCalled();
+    expect(ttsSpies.beginSpeechTurn).not.toHaveBeenCalled();
+    expect(ttsSpies.pushSpeechChunk).not.toHaveBeenCalled();
+  });
+
+  it('control: WITHOUT beatOwnsOpener, a spoken reply DOES call the real audio path (proves the mocks + suppression are meaningful, not silent by default)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'delta', content: 'a normal spoken reply' },
+        { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          {/* A real screen with an authored opener, no beatOwnsOpener passed. */}
+          <Bridge screenId="ONBOARD-01--FORM" chatNative speakReplies />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(true);
+    expect(
+      ttsSpies.speak.mock.calls.length > 0 || ttsSpies.beginSpeechTurn.mock.calls.length > 0,
+    ).toBe(true);
+  });
+
+  it('still dispatches the real user turn to /api/llm after the opener was suppressed (beat is not dead)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'delta', content: 'got it, saved that schedule' },
+        { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const appendMessage = vi.fn();
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge
+            screenId="ONBOARD-BEGINNER-04"
+            chatNative
+            appendMessage={appendMessage}
+            beatOwnsOpener={() => true}
+          />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(false);
+
+    await act(async () => {
+      hookRef!.sendUserTurn('Monday through Friday at 7am');
+    });
+    await flush();
+    await flush();
+
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(true);
+    expect(
+      appendMessage.mock.calls
+        .map((c) => c[0] as VoiceMessage)
+        .some((m) => m.role === 'ai' && m.text === 'got it, saved that schedule'),
+    ).toBe(true);
+  });
+
+  it('falls back to the normal opener when beatOwnsOpener is absent (no regression for beats without their own audio)', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockSSE([{ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 }]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="ONBOARD-FORK--FORM" chatNative />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(true);
   });
 });

@@ -76,7 +76,11 @@ import { createListenerBus } from '@/lib/util/listenerBus';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
 import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
 import { clampFlushDelayMs, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
-import { isVapiCapableBeat, isIdleCaptureBeat } from '@/onboarding-flow/beatEngineMeta';
+import {
+  beatOwnsOpenerAudio,
+  isVapiCapableBeat,
+  isIdleCaptureBeat,
+} from '@/onboarding-flow/beatEngineMeta';
 import { registerQaSendUserTurn } from '@/onboarding-flow/qaConvoHarness';
 import { applyName } from '@/onboarding-flow/renderer/applyName';
 import { resolveOnboardingOpener } from '@/onboarding-flow/renderer/resolveBeatOpener';
@@ -1380,6 +1384,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     // (Vapi speaks itself); off the chat page the voice-out button drives TTS.
     speakReplies: engine.speakReplies,
     hasExistingTurn,
+    // B58/B40: skip Direct-LLM's own opener for beats BeatView already voices
+    // itself (MP3 clip, live Cartesia line, or a narration script) — see
+    // beatOwnsOpenerAudio's header (the beat-audio double-arm's real source).
+    beatOwnsOpener: beatOwnsOpenerAudio,
   });
 
   // End-of-turn aggregation (mirrors useCoachChat): Soniox streams a long
