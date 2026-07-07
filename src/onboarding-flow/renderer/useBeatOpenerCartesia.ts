@@ -16,7 +16,11 @@
  * speakOpener() call, settles immediately as done with no audio.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { registerCoachAudioElement, unregisterCoachAudioElement } from '@/lib/audio/coachAudioBus';
+import {
+  pausePreviousCoachAudio,
+  registerCoachAudioElement,
+  unregisterCoachAudioElement,
+} from '@/lib/audio/coachAudioBus';
 import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
 import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
 import { type BeatAudioOwnerKind, claimBeatAudio, releaseBeatAudio } from './beatAudioOwner';
@@ -112,6 +116,8 @@ export function useBeatOpenerCartesia(
         elRef.current = audioEl;
         el.muted = isQaMuted();
       },
+      // Pause any prior-beat coach audio BEFORE this line becomes audible.
+      onBeforePlay: (audioEl) => pausePreviousCoachAudio(audioEl),
       onPlaying: () => {
         setPlaying(true);
         if (el) registerCoachAudioElement(el);

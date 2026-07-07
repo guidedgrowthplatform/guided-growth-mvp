@@ -1111,3 +1111,161 @@ describe('B58/B40 — beat-audio double-arm: beatOwnsOpener suppresses the redun
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(true);
   });
 });
+
+describe('B40-2 — cross-beat audio bleed: stopTTS and send-opener-speech guard on narration-owned beats', () => {
+  beforeEach(() => {
+    (getOrCreateOnboardingChatSessionId as ReturnType<typeof vi.fn>).mockReturnValue(STABLE_ID);
+  });
+
+  afterEach(() => {
+    qc.setQueryData(queryKeys.onboarding.state, null);
+  });
+
+  it('calls stopTTS() when the hook mounts on a narration-owned beat, cutting any prior-beat Cartesia reply', async () => {
+    // The profile beat (ONBOARD-01--FORM, voiceOut=cartesia) may still be
+    // draining through tts-service when the user advances to the fork beat
+    // (ONBOARD-FORK--FORM, narration-owned). stopTTS() must fire at the
+    // moment the hook registers the new beat's screenId so the audio stops
+    // before the fork beat's MP3 opener starts.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockSSE([{ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 }]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge
+            screenId="ONBOARD-FORK--FORM"
+            chatNative
+            beatOwnsOpener={() => true}
+            speakReplies
+          />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    // stopTTS must have been called to cut the previous beat's audio.
+    expect(ttsSpies.stopTTS).toHaveBeenCalled();
+    // No audio must be attempted for this beat's opener via Direct-LLM.
+    expect(ttsSpies.speak).not.toHaveBeenCalled();
+    expect(ttsSpies.beginSpeechTurn).not.toHaveBeenCalled();
+    expect(ttsSpies.pushSpeechChunk).not.toHaveBeenCalled();
+  });
+
+  it('a trailing streamed reply does not claim send-opener-speech on a narration-owned beat (B04 multi-part race made deterministic)', async () => {
+    // ONBOARD-BEGINNER-04 has a two-part narration. On !498 an intermittent
+    // race allowed a trailing LLM stream from the previous beat to claim
+    // send-opener-speech BEFORE NarrationBeatView's narration-driver mounted,
+    // silently dropping part 2. The fix must make this deterministic: the
+    // beatOwnsOpener pre-claim check skips the attempt entirely instead of
+    // racing claimBeatAudio with the narration driver.
+
+    // Simulate a streaming reply arriving with the screenId already on BEGINNER-04.
+    // In production this happens when advance_step fires during a prior beat's LLM
+    // stream and screenIdRef flips before the stream finishes.
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'delta', content: 'trailing words from the previous beat' },
+        { type: 'delta', content: ' still streaming' },
+        { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge
+            screenId="ONBOARD-BEGINNER-04"
+            chatNative
+            beatOwnsOpener={() => true}
+            speakReplies
+          />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    // narration-driver must be able to claim the beat — if send-opener-speech
+    // had won first, this second claim would return false (the race scenario).
+    const narrationCanClaim = claimBeatAudio('ONBOARD-BEGINNER-04', 'narration-driver');
+    expect(narrationCanClaim).toBe(true);
+
+    // No audio emitting calls for the trailing LLM reply.
+    expect(ttsSpies.speak).not.toHaveBeenCalled();
+    expect(ttsSpies.beginSpeechTurn).not.toHaveBeenCalled();
+    expect(ttsSpies.pushSpeechChunk).not.toHaveBeenCalled();
+  });
+
+  it('cuts a prior-beat reply on a narration-owned beat even when the opener-seed effect is skipped (enabled=false / guard-skip)', async () => {
+    // !505's stopTTS() lived inside the opener-seed effect. That effect
+    // early-returns on !enabled (and STATIC_FEED / historyLoaded / openerSeeded
+    // / rehydrate / hasExistingTurn) — exactly the guards the live walk hit on
+    // the fork transition, so the profile beat's Cartesia reply kept draining
+    // through tts-service into the fork narration WAV window (note 4058). The
+    // unguarded screen-change effect must still cut it. speakReplies pins the
+    // ONLY other stopTTS source (the voice-out-off effect) OFF, so a green
+    // assertion can come from nothing but the new fix.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockSSE([{ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 }]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge
+            screenId="ONBOARD-FORK--FORM"
+            enabled={false}
+            chatNative
+            beatOwnsOpener={() => true}
+            speakReplies
+          />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(ttsSpies.stopTTS).toHaveBeenCalled();
+  });
+
+  it('does NOT cut TTS on a non-self-voicing beat (text beats still speak their own replies)', async () => {
+    // The cut is gated on beatOwnsOpener: a plain text/Path-3 beat voices its
+    // reply through tts-service and must never be silenced on entry. enabled
+    // false + speakReplies keeps every other stopTTS source off, so a call here
+    // would be a false cut from the new effect.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockSSE([{ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 }]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge
+            screenId="ONBOARD-FORK--FORM"
+            enabled={false}
+            chatNative
+            beatOwnsOpener={() => false}
+            speakReplies
+          />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(ttsSpies.stopTTS).not.toHaveBeenCalled();
+  });
+});

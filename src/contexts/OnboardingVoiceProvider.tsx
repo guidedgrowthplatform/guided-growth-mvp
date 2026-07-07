@@ -1057,8 +1057,16 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       // carries the cold-start latency, so only that call takes the silent-first
       // path (Cartesia speaks the opener, Vapi waits). Default OFF → this whole
       // block is dead and the standard speaks-first overrides ship unchanged.
+      // B40: beats that already own their opener audio (MP3 narration, Cartesia
+      // line via BeatView/NarrationBeatView) must never also fire the instant
+      // Cartesia opener — that redundant second call is the structural source of
+      // the concurrent-playback overlap (two real audio streams for one beat).
+      // beatOwnsOpenerAudio is the same guard useOnboardingChat already uses.
       const isFirstColdStartBeat =
-        ONBOARDING_INSTANT_OPENER && !openerUsedRef.current && isVapiCapableBeat(sid);
+        ONBOARDING_INSTANT_OPENER &&
+        !openerUsedRef.current &&
+        isVapiCapableBeat(sid) &&
+        !beatOwnsOpenerAudio(sid);
 
       const overrides = buildAssistantOverrides({
         screenId: ctx.screen_id,

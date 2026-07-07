@@ -149,9 +149,46 @@ function connectElement(el: HTMLAudioElement): MediaElementAudioSourceNode | nul
 }
 
 /**
+ * Silence whatever coach-audio element is currently registered, BEFORE a new
+ * element's play() runs. This is the single-playback invariant's enforcement
+ * point: callers invoke it synchronously right before el.play() on the
+ * incoming element, so at no instant are two elements audible.
+ *
+ * Why here and not inside registerCoachAudioElement: the beat-opener paths
+ * register only AFTER play() resolves (so the orb taps a confirmed-playing
+ * element). Pausing the predecessor at register time therefore fires ~one
+ * frame after the new clip is already audible — the residual overlap. Pausing
+ * pre-play closes that window to zero.
+ *
+ * No-op when the incoming element is already the current one (a same-element
+ * re-arm, e.g. a retry). Same-beat sequential segments (ONBOARD-BEGINNER-04
+ * part-1 WAV then part-2 Cartesia TTS) are unaffected: part-1's settle()
+ * already paused + unregistered before part-2 plays, so currentEl is null.
+ */
+export function pausePreviousCoachAudio(incomingEl: HTMLAudioElement): void {
+  if (currentEl === null || currentEl === incomingEl) return;
+  const outgoing = currentEl;
+  // Clear first so the tick loop reports inactive immediately and a later
+  // unregister of the outgoing element can't evict the incoming one.
+  currentEl = null;
+  smoothedRef.value = 0;
+  emit({ amp: 0, active: false });
+  try {
+    outgoing.pause();
+  } catch {
+    // Element may already be detached; non-fatal.
+  }
+}
+
+/**
  * Register the element that is about to (or already does) play coach audio.
  * Safe to call every time a path starts a new clip on a pooled/reused
  * element — reconnecting is a no-op when it's already the current element.
+ *
+ * Single-playback guarantee: if another element is somehow still registered
+ * (a path that did not call pausePreviousCoachAudio pre-play), pause it before
+ * handing the bus to the new element. This is a belt-and-suspenders backstop;
+ * the primary enforcement is pausePreviousCoachAudio() called pre-play.
  */
 export function registerCoachAudioElement(el: HTMLAudioElement): void {
   if (typeof window === 'undefined') return;
@@ -161,6 +198,14 @@ export function registerCoachAudioElement(el: HTMLAudioElement): void {
   if (currentEl === el) {
     startLoop();
     return;
+  }
+  // Backstop: pause any element the pre-play hook didn't already silence.
+  if (currentEl !== null) {
+    try {
+      currentEl.pause();
+    } catch {
+      // Element may already be detached; non-fatal.
+    }
   }
   currentEl = el;
   connectElement(el);

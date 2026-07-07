@@ -375,7 +375,13 @@ export function useOnboardingChat({
       // beat's real dialogue (the user's turn, once the authored audio ends)
       // still lands under the right screenId, but skip seeding/firing an
       // opener of our own.
+      // B40-2: also stop any Cartesia TTS that's still draining from the
+      // previous beat's reply (the profile beat's Cartesia stream can bleed
+      // into the fork beat's MP3 opener window if the beat transition fires
+      // while the prior reply is still playing). stopTTS() is a no-op when
+      // nothing is playing, so this is safe to call unconditionally here.
       if (beatOwnsOpenerRef.current?.(screenId)) {
+        stopTTS();
         suppressTrailingRef.current = false;
         openerCardRef.current = null;
         startThread(screenId, [], 'append');
@@ -421,6 +427,12 @@ export function useOnboardingChat({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, screenId, isOnboardingScreen, startThread, qc, chatNative, historyLoaded]);
+
+  // B40-3: cut prior-beat tts-service reply on entry to any self-voicing beat.
+  // Unguarded, unlike !505's opener-seed stopTTS the live walk's guards skipped.
+  useEffect(() => {
+    if (screenId && beatOwnsOpenerRef.current?.(screenId)) stopTTS();
+  }, [screenId]);
 
   // Vapi takeover: abort any in-flight Direct-LLM stream so it can't collide
   // with Vapi's opening turn. (Disabling for other reasons — e.g. mic drop —
@@ -485,7 +497,15 @@ export function useOnboardingChat({
       // beat) -> back off entirely, no beginSpeechTurn/pushSpeechChunk. This
       // only gates a REPLY turn, never a beat's own opener, so it cannot dead
       // end the beat: the opener already claimed and will settle normally.
+      // B40-2: if the current beat owns its audio via narration/MP3 (beatOwnsOpener),
+      // a trailing reply from the previous beat must never claim that beat's audio —
+      // NarrationBeatView hasn't mounted yet but narration-driver must win. Bail
+      // silently: the narration will play and the user's next turn carries the reply.
       const sid = screenIdRef.current;
+      if (sid && beatOwnsOpenerRef.current?.(sid)) {
+        ownsSpeechClaimRef.current = false;
+        return;
+      }
       const owns = sid ? claimBeatAudio(sid, 'send-opener-speech') : true;
       ownsSpeechClaimRef.current = owns;
       if (!owns) return;
@@ -599,12 +619,16 @@ export function useOnboardingChat({
         // B40: claim before the one-shot reply speaks; denied -> stay silent
         // text (another owner already has this beat's audio) instead of
         // playing over it. Release when the clip actually finishes.
+        // B40-2: same beat-owns guard as the streaming path: don't claim
+        // send-opener-speech on a narration-owned beat mid-transition.
         if (speakRepliesRef.current) {
           const sid = screenIdRef.current;
-          const owns = sid ? claimBeatAudio(sid, 'send-opener-speech') : true;
-          if (owns) {
-            ownsSpeechClaimRef.current = true;
-            void speak(content).finally(releaseSpeechClaim);
+          if (!sid || !beatOwnsOpenerRef.current?.(sid)) {
+            const owns = sid ? claimBeatAudio(sid, 'send-opener-speech') : true;
+            if (owns) {
+              ownsSpeechClaimRef.current = true;
+              void speak(content).finally(releaseSpeechClaim);
+            }
           }
         }
       }
@@ -725,12 +749,16 @@ export function useOnboardingChat({
         appendMessage({ id: `user-${now}`, role: 'user', text });
         appendMessage({ id: `ai-${now}`, role: 'ai', text: 'Great — moving on.' });
         // B40: same claim/release contract as the other one-shot speak() above.
+        // B40-2: same beat-owns guard — if the beat we just advanced TO already
+        // owns its audio, don't speak over its narration opener.
         if (speakRepliesRef.current) {
           const sid = screenIdRef.current;
-          const owns = sid ? claimBeatAudio(sid, 'send-opener-speech') : true;
-          if (owns) {
-            ownsSpeechClaimRef.current = true;
-            void speak('Great — moving on.').finally(releaseSpeechClaim);
+          if (!sid || !beatOwnsOpenerRef.current?.(sid)) {
+            const owns = sid ? claimBeatAudio(sid, 'send-opener-speech') : true;
+            if (owns) {
+              ownsSpeechClaimRef.current = true;
+              void speak('Great — moving on.').finally(releaseSpeechClaim);
+            }
           }
         }
         // Already-complete revisit: no current_step transition for useAgentNavigation,

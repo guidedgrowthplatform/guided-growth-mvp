@@ -19,10 +19,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const registerCoachAudioElement = vi.fn();
 const unregisterCoachAudioElement = vi.fn();
+const pausePreviousCoachAudio = vi.fn();
 
 vi.mock('@/lib/audio/coachAudioBus', () => ({
   registerCoachAudioElement: (...args: unknown[]) => registerCoachAudioElement(...args),
   unregisterCoachAudioElement: (...args: unknown[]) => unregisterCoachAudioElement(...args),
+  pausePreviousCoachAudio: (...args: unknown[]) => pausePreviousCoachAudio(...args),
 }));
 
 // Import after the mock so the hook picks up the mocked module.
@@ -91,6 +93,7 @@ beforeEach(() => {
   resetOpenerPreloadPool();
   registerCoachAudioElement.mockClear();
   unregisterCoachAudioElement.mockClear();
+  pausePreviousCoachAudio.mockClear();
   vi.stubGlobal('Audio', FakeAudio);
   if (typeof globalThis.requestAnimationFrame === 'undefined') {
     vi.stubGlobal(
@@ -122,6 +125,20 @@ describe('useBeatOpenerMp3 registers its playing element with coachAudioBus', ()
     expect(registerCoachAudioElement).toHaveBeenCalledTimes(1);
     expect(registerCoachAudioElement).toHaveBeenCalledWith(FakeAudio.instances[0]);
     expect(unregisterCoachAudioElement).not.toHaveBeenCalled();
+  });
+
+  it('B40: pauses the previous coach audio BEFORE this clip plays (pause-before-play)', async () => {
+    await render(<Probe src="/voice/ob/mic_permission_1.wav" active />);
+    const el = FakeAudio.instances[0];
+
+    // pausePreviousCoachAudio must fire, and it must have run before play().
+    expect(pausePreviousCoachAudio).toHaveBeenCalledWith(el);
+    const pauseOrder = pausePreviousCoachAudio.mock.invocationCallOrder[0];
+    // FakeAudio.play increments playCalls; assert it ran and after the pause.
+    expect(el.playCalls).toBe(1);
+    // Register (post-play) must come after the pre-play pause hook.
+    const registerOrder = registerCoachAudioElement.mock.invocationCallOrder[0];
+    expect(pauseOrder).toBeLessThan(registerOrder);
   });
 
   it('calls unregisterCoachAudioElement with the same element when the clip ends', async () => {
