@@ -24,6 +24,21 @@ export function isOnboardingScreen(screenId: string | null | undefined): boolean
   return !!screenId && screenId.startsWith('ONBOARD');
 }
 
+// Reads the real server error code off a failed tool_result payload's
+// `error` field (see the ToolResult union in api/_lib/llm/tools.ts: 'unknown_tool'
+// | 'invalid_args' | 'not_found' | 'handler_error', plus onboarding-specific
+// codes like 'habit_name_ungrounded' surfaced via the same field or message).
+// Falls back to a generic label only when the payload carries no usable code,
+// so the console top line shows what actually failed instead of always
+// reading the same generic suffix.
+export function toolResultErrorCode(result: unknown): string {
+  if (result && typeof result === 'object' && 'error' in result) {
+    const code = (result as { error?: unknown }).error;
+    if (typeof code === 'string' && code.trim() !== '') return code;
+  }
+  return 'tool_failed';
+}
+
 const BADGE: Record<DebugSource, string> = {
   vapi: 'onb·vapi',
   llm: 'onb·llm',
