@@ -144,6 +144,106 @@ describe('useLLM', () => {
     );
   });
 
+  it('B56a: inserts a space when a confirmation sentence is glued to the next sentence', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'delta', content: 'Your habit is set for weekdays.' },
+        { type: 'delta', content: "Now, let's set your time." },
+        { type: 'done', latency_ms: 90, total_tokens: 20, tool_rounds: 0 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    await act(async () => {
+      await hookRef!.sendMessage('every day');
+    });
+    await flush();
+
+    expect(hookRef!.messages[1]).toMatchObject({
+      role: 'assistant',
+      content: "Your habit is set for weekdays. Now, let's set your time.",
+    });
+  });
+
+  it('B56a: repairs a glued seam across a tool round; streamed response equals final content', async () => {
+    const pending = pendingSSE();
+    const fetchMock = vi.fn().mockResolvedValue(pending.response);
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = hookRef!.sendMessage('every day');
+    });
+    await flush();
+
+    // Round 1 text ends with terminal punctuation, no trailing space.
+    act(() => {
+      pending.emit({ type: 'delta', content: 'Your habit is set for weekdays.' });
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 60)); // let the 40ms coalescer flush
+    });
+    const streamedFirst = hookRef!.response;
+
+    // Tool round between the two text segments.
+    act(() => {
+      pending.emit({ type: 'tool_call', id: 't1', name: 'add_habit', args: {} });
+      pending.emit({ type: 'tool_result', id: 't1', ok: true, result: {} });
+      // Round 2 opens glued to round 1 (model supplied no separator).
+      pending.emit({ type: 'delta', content: "Now, let's set your time." });
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 60));
+    });
+    const streamedAll = hookRef!.response;
+
+    act(() => {
+      pending.emit({ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 1 });
+      pending.close();
+    });
+    await act(async () => {
+      await sendPromise;
+    });
+    await flush();
+
+    const assistant = hookRef!.messages[1];
+    // Exactly one space at the join.
+    expect(assistant.content).toBe("Your habit is set for weekdays. Now, let's set your time.");
+    // Invariant: what streamed (TTS chunker input) is byte-identical to the
+    // final message content, so sentence-chunk offsets stay aligned.
+    expect(streamedFirst).toBe('Your habit is set for weekdays.');
+    expect(streamedAll).toBe(assistant.content);
+  });
+
+  it('B56a: no false positive on a mid-word delta split or lowercase continuation', async () => {
+    const pending = pendingSSE();
+    const fetchMock = vi.fn().mockResolvedValue(pending.response);
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = hookRef!.sendMessage('hi');
+    });
+    await flush();
+
+    act(() => {
+      pending.emit({ type: 'delta', content: 'Set for wee' });
+      pending.emit({ type: 'delta', content: 'kdays. It ends.' });
+      pending.emit({ type: 'delta', content: ' and more' });
+      pending.emit({ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 });
+      pending.close();
+    });
+    await act(async () => {
+      await sendPromise;
+    });
+    await flush();
+
+    expect(hookRef!.messages[1].content).toBe('Set for weekdays. It ends. and more');
+  });
+
   it('tool loop: tool_call/tool_result attach to assistant message', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       mockSSE([

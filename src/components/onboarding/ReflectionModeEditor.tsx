@@ -10,7 +10,17 @@ interface ReflectionModeEditorProps {
 }
 
 // Shared mode-choice + custom-prompt editor for both onboarding paths.
-// 'prompts' mode = answer questions (a user-editable list); 'freeform' = no questions.
+// 'prompts' mode = answer questions; 'freeform' = no questions. Within 'prompts'
+// mode, this card doubles as both the guided default (the coach's recommended
+// "suggested template" of fixed questions, shown when no custom prompts have
+// been entered yet) and the custom-prompt editor (once the user actually adds
+// one). B57: 'prompts' is the correct default mode, but the card must read as
+// "Daily Reflection" while it still represents the default, not "Custom
+// Prompts". In the default state the body shows the three daily questions
+// read-only (the server falls back to DEFAULT_REFLECTION_PROMPTS when no
+// custom prompts are saved) with an opt-in customize input; nothing is
+// required. Only once the user actually enters a prompt does the card become
+// the "Custom Prompts" editor.
 export function ReflectionModeEditor({
   mode,
   onModeChange,
@@ -18,6 +28,11 @@ export function ReflectionModeEditor({
   onPromptsChange,
 }: ReflectionModeEditorProps) {
   const [newPrompt, setNewPrompt] = useState('');
+  const hasCustomPrompts = prompts.some((p) => p.trim());
+  const promptsCardLabel = hasCustomPrompts ? 'Custom Prompts' : 'Daily Reflection';
+  const promptsCardIcon = hasCustomPrompts
+    ? 'material-symbols:format-list-bulleted'
+    : 'ic:round-menu-book';
 
   function updatePrompt(index: number, value: string) {
     onPromptsChange(prompts.map((p, i) => (i === index ? value : p)));
@@ -76,13 +91,8 @@ export function ReflectionModeEditor({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <Icon
-              icon="material-symbols:format-list-bulleted"
-              width={18}
-              height={15}
-              className="text-content"
-            />
-            <span className="pl-[12px] text-[18px] font-bold text-content">Custom Prompts</span>
+            <Icon icon={promptsCardIcon} width={18} height={15} className="text-content" />
+            <span className="pl-[12px] text-[18px] font-bold text-content">{promptsCardLabel}</span>
           </div>
           <div
             className={`flex size-[20px] items-center justify-center rounded-full border-2 ${
@@ -96,9 +106,20 @@ export function ReflectionModeEditor({
         {mode === 'prompts' && (
           <div className="mt-[16px] flex flex-col gap-[16px]">
             <div className="border-t border-border" />
-            <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
-              Add at least 1 prompt:
-            </span>
+            {hasCustomPrompts ? (
+              <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
+                Add at least 1 prompt:
+              </span>
+            ) : (
+              // Default (guided) state: the three daily questions are already
+              // listed by DailyReflectionCard directly above this editor on
+              // the beat, so reference them once instead of repeating them.
+              // Nothing is required here; the input below is an opt-in
+              // customization affordance, not a blocking field (B57).
+              <p className="px-[4px] text-[14px] leading-[20px] text-content-secondary">
+                You'll answer the three daily questions shown above.
+              </p>
+            )}
 
             {prompts.map((prompt, i) =>
               prompt.trim() ? (
@@ -129,6 +150,11 @@ export function ReflectionModeEditor({
             )}
 
             <div className="flex flex-col gap-[8px]">
+              {!hasCustomPrompts && (
+                <p className="px-[4px] text-[13px] leading-[18px] text-content-secondary">
+                  Want your own questions instead? Type one below to customize.
+                </p>
+              )}
               <input
                 type="text"
                 value={newPrompt}

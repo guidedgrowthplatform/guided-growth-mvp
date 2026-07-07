@@ -3,6 +3,7 @@ import { track } from '@/analytics';
 import { streamLLM } from '@/api/llm';
 import { isOnboardingScreen, logDebugEvent } from '@/lib/debug/onboardingDebug';
 import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
+import { fixedStreamAppend, fixSentenceJoinSpacing } from '@/lib/text/sentenceJoinSpacing';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import type {
   CoachingStyle,
@@ -238,8 +239,14 @@ export function useLLM(
         armIdleWatchdog();
         switch (e.type) {
           case 'delta': {
-            acc += e.content;
-            deltaBufferRef.current += e.content;
+            // B56a: repair glued sentence seams ("weekdays.Now") at the
+            // stream point, so the live response (TTS sentence chunker,
+            // karaoke partials) and the final message carry identical
+            // corrected text. Only the appended slice is fixed; text already
+            // emitted is never rewritten, so chunker offsets stay valid.
+            const content = fixedStreamAppend(acc, e.content);
+            acc += content;
+            deltaBufferRef.current += content;
             if (flushTimerRef.current === null) {
               flushTimerRef.current = setTimeout(flushDeltaBuffer, DELTA_COALESCE_MS);
             }
@@ -292,8 +299,13 @@ export function useLLM(
             flushDeltaBuffer();
             // Skip a blank assistant turn (tool-only). Truly empty (no text, no
             // tools) → fallback line so the turn never renders as silence.
-            const display =
-              acc.trim() === '' && localTools.length === 0 ? EMPTY_TURN_FALLBACK : acc;
+            // B56a: acc is already seam-repaired per delta (fixedStreamAppend
+            // above), so this call is an idempotent backstop; it keeps the
+            // final content byte-identical to the streamed response, which
+            // the TTS chunker's offsets depend on (sentenceChunks.ts).
+            const display = fixSentenceJoinSpacing(
+              acc.trim() === '' && localTools.length === 0 ? EMPTY_TURN_FALLBACK : acc,
+            );
             if (display.trim() !== '') {
               const assistant: LLMChatMessage = {
                 id: makeId(idCounterRef.current),
