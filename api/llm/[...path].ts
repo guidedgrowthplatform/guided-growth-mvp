@@ -11,6 +11,10 @@ import {
   type ToolName,
   type ToolResult,
 } from '../_lib/llm/tools.js';
+import {
+  joinBrainDumpChunks,
+  mergeBrainDumpChunks,
+} from '../_lib/llm/onboarding/brainDumpTurnMerge.js';
 import { dispatchOnboardingToolCall } from '../_lib/llm/onboarding/dispatch.js';
 import { getOnboardingTools } from '../_lib/llm/onboarding/registry.js';
 import { isOnboardingToolName } from '../_lib/llm/onboarding/schemas.js';
@@ -600,6 +604,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   waitUntil(writeStartRow());
 
+  // W2-D / F10 live-path: the model sometimes splits ONE brain dump across
+  // several submit_brain_dump calls in a single turn (observed 4x/6x live),
+  // and the handler overwrites the row per call, so only the LAST chunk
+  // survived and the user's other habits silently vanished. Accumulate the
+  // turn's chunks and rewrite each call to carry the running union, so the
+  // final write always holds the whole dump. Request-scoped on purpose: a
+  // correction in a LATER user turn still replaces the dump wholesale.
+  let turnBrainDumpChunks: string[] = [];
+
   try {
     let finished = false;
     for (let round = 0; round < MAX_ROUNDS && !finished; round++) {
@@ -778,6 +791,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } catch {
           args = {};
         }
+        // Same-turn submit_brain_dump chunk merge (see turnBrainDumpChunks
+        // above): rewrite this call's raw text to the union of every chunk
+        // the turn has produced so far, so the handler's overwrite persists
+        // the whole dump instead of only the last fragment.
+        if (tc.name === 'submit_brain_dump' && typeof args.brain_dump_raw === 'string') {
+          turnBrainDumpChunks = mergeBrainDumpChunks(turnBrainDumpChunks, args.brain_dump_raw);
+          const merged = joinBrainDumpChunks(turnBrainDumpChunks);
+          if (merged && merged !== args.brain_dump_raw) {
+            args = { ...args, brain_dump_raw: merged };
+          }
+        }
+
         send({ type: 'tool_call', id: tc.callId, name: tc.name, args });
 
         let result: ToolResult;
