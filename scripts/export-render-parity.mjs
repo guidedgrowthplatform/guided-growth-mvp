@@ -56,7 +56,7 @@ function findBeatsArray(sourceFile) {
     if (
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
-      node.name.text === 'BEATS' &&
+      (node.name.text === 'BASE_BEATS' || node.name.text === 'BEATS') &&
       node.initializer &&
       ts.isArrayLiteralExpression(node.initializer)
     ) {

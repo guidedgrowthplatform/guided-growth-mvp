@@ -72,6 +72,10 @@ interface BeatMeta {
   variable: boolean;
   variableNote?: string;
   opener: string | null;
+  secondBubble?: string | null;
+  closeBubble?: string | null;
+  confirmBubble?: string | null;
+  buttonLabel?: string | null;
   openerMode?: string;
   openerShowsAsBubble?: boolean;
   expectedResponse: string;
@@ -86,6 +90,69 @@ const ONBOARDING_METADATA = onboardingMetadataRaw as { beats: BeatMeta[] };
 export const METADATA_BY_SCREEN_ID: Record<string, BeatMeta> = Object.fromEntries(
   ONBOARDING_METADATA.beats.map((b) => [b.screenId, b]),
 );
+
+function sortedElements(meta?: BeatMeta): BeatElementMeta[] {
+  return meta?.elements ? [...meta.elements].sort((a, b) => a.order - b.order) : [];
+}
+
+function bubbleLines(meta?: BeatMeta): string[] {
+  return (meta?.narration ?? [])
+    .filter((seg) => seg.bubble != null && seg.say)
+    .map((seg) => seg.say);
+}
+
+function metadataPropsForBeat(type: string, screenId?: string): Record<string, string> {
+  if (!screenId) return {};
+  const meta = METADATA_BY_SCREEN_ID[screenId];
+  if (!meta) return {};
+
+  const bubbles = bubbleLines(meta);
+  const elements = sortedElements(meta);
+
+  switch (type) {
+    case 'profile-beat':
+      return {
+        greeting: meta.opener ?? '',
+        askAge: elements.find((element) => element.elementId === 'age')?.line ?? elements[0]?.line ?? '',
+        askGender:
+          elements.find((element) => element.elementId === 'gender')?.line ?? elements[1]?.line ?? '',
+      };
+    case 'advanced-capture':
+      return {
+        coachLine: meta.opener ?? '',
+        closeCoachLine: meta.closeBubble ?? bubbles[1] ?? '',
+      };
+    case 'advanced-frequency':
+      return {
+        coachLine: meta.opener ?? '',
+        coachLine2: meta.secondBubble ?? bubbles[1] ?? '',
+        confirmCoachLine: meta.confirmBubble ?? bubbles[bubbles.length - 1] ?? '',
+      };
+    case 'into-app':
+      return {
+        coachLine: meta.opener ?? '',
+        buttonLabel: meta.buttonLabel ?? 'Approve and start',
+      };
+    case 'state-check':
+    case 'morning-checkin-setup':
+    case 'reflection-card':
+    case 'habit-schedule':
+      return {
+        coachLine: meta.opener ?? '',
+        coachLine2: meta.secondBubble ?? bubbles[1] ?? '',
+      };
+    case 'mic-permission':
+    case 'path-selection':
+    case 'category-grid':
+    case 'goals-list':
+    case 'habit-picker':
+    case 'custom-entry':
+    case 'weekly-projection':
+      return { coachLine: meta.opener ?? '' };
+    default:
+      return {};
+  }
+}
 
 // --- Isolated per-beat flow-state provider ---
 // A fresh, scoped FlowState for one beat, so beats can stack in one scroll
@@ -572,7 +639,7 @@ interface FlowBeat {
 // greeting, sign-up, and mic permission, then straight into profile and the
 // rest of the onboarding chain, through the beginner and advanced lanes and
 // the five weekly-projection frames.
-export const BEATS: FlowBeat[] = [
+export const BASE_BEATS: FlowBeat[] = [
   // 0a. Splash. Brand alone, no coach voice.
   {
     id: 'splash',
@@ -616,8 +683,6 @@ export const BEATS: FlowBeat[] = [
     props: {
       heading: 'Allow your microphone',
       sub: 'So you can talk with your coach out loud.',
-      coachLine:
-        "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -630,11 +695,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'profile',
     type: 'profile-beat',
-    props: {
-      greeting: 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
-      askAge: 'How old are you?',
-      askGender: "What's your gender?",
-    },
     engine: 'Cartesia',
     mode: 'Verbatim',
     screenId: 'ONBOARD-01--FORM',
@@ -646,12 +706,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'state-check',
     type: 'state-check',
-    props: {
-      coachLine:
-        "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
-      coachLine2:
-        "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-    },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-STATE-CHECK',
@@ -661,12 +715,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'checkin',
     type: 'morning-checkin-setup',
-    props: {
-      coachLine:
-        "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
-      coachLine2:
-        "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well.",
-    },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-MORNING-SETUP',
@@ -676,10 +724,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'reflection',
     type: 'reflection-card',
-    props: {
-      coachLine:
-        'One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.',
-    },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-07',
@@ -689,9 +733,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'fork',
     type: 'path-selection',
-    props: {
-      coachLine: "For the next part of the process, I'd like to know:",
-    },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-FORK--FORM',
@@ -701,10 +742,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'category',
     type: 'category-grid',
-    props: {
-      coachLine:
-        "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-    },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-01',
@@ -719,8 +756,6 @@ export const BEATS: FlowBeat[] = [
     type: 'category-grid',
     props: {
       variant: 'female',
-      coachLine:
-        "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -731,7 +766,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'goals',
     type: 'goals-list',
-    props: { coachLine: 'So within that, which goals would you like to start with? Pick one or two.' },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-02',
@@ -744,7 +778,6 @@ export const BEATS: FlowBeat[] = [
     type: 'custom-entry',
     props: {
       kind: 'goal',
-      coachLine: "Tell me the goal you want to add, and I'll set it up.",
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -755,10 +788,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'habits',
     type: 'habit-picker',
-    props: {
-      coachLine:
-        "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
-    },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-03',
@@ -771,7 +800,6 @@ export const BEATS: FlowBeat[] = [
     type: 'custom-entry',
     props: {
       kind: 'habit',
-      coachLine: "Tell me the habit you want to add, and I'll set it up.",
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -783,12 +811,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'schedule',
     type: 'habit-schedule',
-    props: {
-      coachLine:
-        "Please set the days that you're going to actually do these habits.",
-      coachLine2:
-        'Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.',
-    },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-04',
@@ -799,12 +821,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'advanced-capture',
     type: 'advanced-capture',
-    props: {
-      coachLine:
-        'Read me the list of the habits that you already track. In the next step we\'ll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.',
-      closeCoachLine:
-        "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
-    },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-ADVANCED',
@@ -814,12 +830,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'advanced-frequency',
     type: 'advanced-frequency',
-    props: {
-      coachLine: "Please set the days that you're going to actually do these habits.",
-      coachLine2:
-        'Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.',
-      confirmCoachLine: 'Your habits are all set, your plan is ready.',
-    },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-ADVANCED-FREQUENCY',
@@ -829,11 +839,6 @@ export const BEATS: FlowBeat[] = [
   {
     id: 'plan',
     type: 'into-app',
-    props: {
-      coachLine:
-        "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
-      buttonLabel: 'Start',
-    },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-COMPLETE',
@@ -846,7 +851,6 @@ export const BEATS: FlowBeat[] = [
     type: 'weekly-projection',
     props: {
       state: 'blank',
-      coachLine: 'This is your week. Blank, starting today.',
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -858,7 +862,6 @@ export const BEATS: FlowBeat[] = [
     type: 'weekly-projection',
     props: {
       state: 'full',
-      coachLine: 'Best case, every day green. 100% success. That would be amazing.',
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -870,8 +873,6 @@ export const BEATS: FlowBeat[] = [
     type: 'weekly-projection',
     props: {
       state: 'p78',
-      coachLine:
-        'Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.',
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -883,8 +884,6 @@ export const BEATS: FlowBeat[] = [
     type: 'weekly-projection',
     props: {
       state: 'p36',
-      coachLine:
-        "Some weeks can look like this. And even that's okay, because you're in the process and you're consistent inside the process.",
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -896,8 +895,6 @@ export const BEATS: FlowBeat[] = [
     type: 'weekly-projection',
     props: {
       state: 'gaps',
-      coachLine:
-        'The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going.',
     },
     engine: 'MP3',
     mode: 'Verbatim',
@@ -905,6 +902,14 @@ export const BEATS: FlowBeat[] = [
     path: 'both',
   },
 ];
+
+export const BEATS: FlowBeat[] = BASE_BEATS.map((beat) => ({
+  ...beat,
+  props: {
+    ...(beat.props ?? {}),
+    ...metadataPropsForBeat(beat.type, beat.screenId),
+  },
+}));
 
 // --- Morning check-in beats ---
 // Source: MORNING_CHECKIN_FLOW in FlowBuilder.tsx.
