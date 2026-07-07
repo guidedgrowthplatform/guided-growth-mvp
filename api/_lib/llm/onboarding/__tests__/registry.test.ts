@@ -306,6 +306,23 @@ describe('getOnboardingTools / isOnboardingScreen', () => {
       'advance_step',
       'update_habit',
     ]);
+    // Ruling 2026-07-07: mid-flow scheduling beats are schedule-only. This
+    // beat sets days/time/reminder for habits already picked on
+    // ONBOARD-BEGINNER-03. add_habit must not be reachable here; full habit
+    // editing (add a habit) lives on the plan-review/confirm screen instead.
+    expect(names(getOnboardingTools('ONBOARD-BEGINNER-04'))).toEqual([
+      'advance_step',
+      'update_habit',
+    ]);
+    // Ruling 2026-07-07: the plan-review/confirm screen (ONBOARD-COMPLETE) is
+    // where FULL habit editing lives: add a habit, remove a habit, and edit
+    // an existing habit's schedule, all before the user approves the plan.
+    expect(names(getOnboardingTools('ONBOARD-COMPLETE'))).toEqual([
+      'add_habit',
+      'confirm_plan',
+      'remove_habit',
+      'update_habit',
+    ]);
   });
 
   it('exposes no tools on the silent auth beat', () => {

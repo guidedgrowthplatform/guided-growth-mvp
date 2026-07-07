@@ -4,8 +4,15 @@ import { getBeatContext, getBeatAllowedTools } from '../beatContexts.js';
 // Guards the tool-gate overlay: allowedTools come from the flow builder via
 // onboarding_combined.json; context/opener prose is left untouched.
 describe('beatContexts tool-gate overlay (from onboarding_combined.json)', () => {
-  it('takes allowedTools from the export (ONBOARD-COMPLETE gains update_habit)', () => {
-    expect(getBeatAllowedTools('ONBOARD-COMPLETE')).toEqual(['update_habit', 'confirm_plan']);
+  // Ruling 2026-07-07: ONBOARD-COMPLETE is the plan-review/confirm screen,
+  // where full habit editing (add, remove, change frequency) lives.
+  it('takes allowedTools from the export (ONBOARD-COMPLETE gains full habit editing)', () => {
+    expect(getBeatAllowedTools('ONBOARD-COMPLETE')).toEqual([
+      'add_habit',
+      'remove_habit',
+      'update_habit',
+      'confirm_plan',
+    ]);
   });
 
   it('sources the interactive beats tools from the export', () => {

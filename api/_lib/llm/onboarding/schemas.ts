@@ -141,7 +141,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'add_habit',
     description:
-      'Add or edit a habit on ONBOARD-BEGINNER-03. ' +
+      'Add or edit a habit on ONBOARD-BEGINNER-03, or add a new habit to the plan on the plan-review/confirm screen. ' +
       'ONE HABIT AT A TIME — STRICT (habits-ACROSS, not fields-WITHIN): even if the user names two habits in one breath ("walking and meditation"), capture and FULLY configure habit #1 (pick + days + time + reminder) BEFORE you call add_habit for habit #2. Do not batch picks with defaults and then come back to configure them. ' +
       'WITHIN a single habit, batch-parsing a full sentence is fine — "walking every day at 9:30 PM with a reminder" → add_habit(name="Walking", days=[0,1,2,3,4,5,6], time="21:30", reminder=true, schedule="Every day") in one call. ' +
       'TWO-CALL CONFIGURATION PATTERN per habit (when the user did NOT pre-state the schedule): (1) call add_habit(name=<exact label>) — records the pick with server defaults. (2) Ask the user for days, time, reminder — one short question at a time, waiting for each answer. (3) Call add_habit AGAIN with the same name plus the full schedule. Server merges by name. (4) THEN move to habit #2 if any. ' +
@@ -185,7 +185,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'remove_habit',
     description:
-      'Remove a previously-added habit on ONBOARD-BEGINNER-03. Case-insensitive name match. Idempotent (returns ok even if the habit is absent).',
+      'Remove a previously-added habit, on ONBOARD-BEGINNER-03 or on the plan-review/confirm screen. Case-insensitive name match. Idempotent (returns ok even if the habit is absent).',
     parameters: {
       type: 'object',
       properties: {
