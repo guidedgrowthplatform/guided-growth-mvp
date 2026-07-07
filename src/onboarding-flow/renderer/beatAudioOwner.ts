@@ -117,10 +117,17 @@ export function isBeatAudioClaimed(beatId: string): boolean {
   return claims.has(beatId);
 }
 
-/** Current owner of `beatId`'s audio, or null. Test/debug only. */
+/**
+ * Current owner of `beatId`'s audio, or null. Sanctioned for production use:
+ * peek before racing a claim you may not need (see useOnboardingChat) so a
+ * denied claim never has to be the thing that tells you to back off.
+ */
 export function beatAudioOwnerOf(beatId: string): BeatAudioOwnerKind | null {
   return claims.get(beatId)?.owner ?? null;
 }
+
+/** Alias for production call sites - reads clearer than beatAudioOwnerOf there. */
+export const peekBeatAudioOwner = beatAudioOwnerOf;
 
 /** Clear every claim. Tests only - production code never needs a global reset. */
 export function resetBeatAudioOwnerForTests(): void {

@@ -32,6 +32,7 @@ import type { BeatCapture, FlowAnswers, FlowNode, NarrationSegment } from '../..
 import { applyName } from '../applyName';
 import { BeatConversation, COACH_BUBBLE_CLASS, Karaoke } from '../BeatPlayer';
 import { openerRevealPin } from '../openerReveal';
+import { useBeatAudioHold } from '../useBeatAudioHold';
 import { useBeatOpenerMp3 } from '../useBeatOpenerMp3';
 import { countWords } from '../useCoachSpeechReveal';
 import { narrationClipSrc } from './narrationClips';
@@ -111,11 +112,23 @@ export function NarrationBeatView({
   const mp3Assets = node.meta?.voiceOut?.mp3Assets;
   const clipSrc = active?.clip ? narrationClipSrc(active.clip, mp3Assets) : null;
   const wordTotal = say ? countWords(say) : 0;
+  const scriptDone = narrationDone(script, segIdx);
+  // B58: hold this beat's audio for the whole script AND the close sequence,
+  // not per segment - useBeatOpenerMp3 alone released between segments
+  // (breaths, clip-less dwells), leaving those gaps open for chat TTS to grab.
+  // The interaction lull (script done, close not started) deliberately releases
+  // so the coach can answer questions about the card; closes re-claim.
+  useBeatAudioHold(node.screenId, 'narration-driver', !scriptDone || closing);
   // B40: claim this beat's audio (beatAudioOwner) for every segment. A repeat
   // claim by this same owner is allowed (segments advancing within one beat
   // re-claim cleanly); a stray legacy opener or sendOpener-speech activation
   // on the same beat backs off instead of playing over the narration script.
-  const narrationOwnership = { beatId: node.screenId, owner: 'narration-driver' as const };
+  // releaseOnSettle: false - the hold above owns the release, not each clip.
+  const narrationOwnership = {
+    beatId: node.screenId,
+    owner: 'narration-driver' as const,
+    releaseOnSettle: false,
+  };
   const audio = useBeatOpenerMp3(clipSrc, !!clipSrc, wordTotal, narrationOwnership);
 
   // Advance on the segment's terminal condition: audio settled (clip segments,
@@ -176,7 +189,6 @@ export function NarrationBeatView({
   const bubbles = visibleBubbles(script, segIdx);
   const revealN = revealCountAt(script, segIdx);
   const showCard = cardVisibleAt(script, segIdx) || closing;
-  const scriptDone = narrationDone(script, segIdx);
   // Close bubbles shown so far (the active one included; it karaokes).
   const closeBubbles = closing ? closes.slice(0, Math.min(closeIdx + 1, closes.length)) : [];
 
