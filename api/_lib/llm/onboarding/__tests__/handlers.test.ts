@@ -1120,6 +1120,84 @@ describe('add_habit', () => {
       );
       expect(r.ok).toBe(true);
     });
+
+    // ─── B60: explicit-correction priority ───
+    describe('explicit-correction priority (B60)', () => {
+      it('rejects the discarded reading when the user explicitly corrects ("I said work more, not walk more")', async () => {
+        // The tester trail: user said "work more" as their goal, the transcript
+        // heard "walk more", the coach tried to save "Walk more", then the user
+        // corrected ("I said work more, not walk more"). The coach must reject
+        // "Walk more" and re-ask — looksUngrounded alone does NOT catch this
+        // because both terms share tokens in the correction text.
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'I said work more, not walk more',
+            user_text_window: ['I said work more, not walk more'],
+          },
+          { ...validHabit, name: 'Walk more' },
+        );
+        expect(r).toEqual({
+          ok: false,
+          error: 'handler_error',
+          message: 'habit_name_ungrounded',
+        });
+      });
+
+      it('accepts the corrected reading when coach saves it after the correction', async () => {
+        // After a correction the coach should save the corrected term.
+        // "Work more" passes because it does NOT match the discarded term "walk".
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'I said work more, not walk more',
+            user_text_window: ['I said work more, not walk more'],
+          },
+          { ...validHabit, name: 'Work more' },
+        );
+        expect(r.ok).toBe(true);
+      });
+
+      it('rejects the discarded reading when the correction appears in a prior window turn', async () => {
+        // The correction may have been in the previous turn; the current turn is
+        // a bare "yes" or a follow-on. The guard still fires from the window.
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'yes',
+            user_text_window: ['yes', "I didn't say walk, I said work"],
+          },
+          { ...validHabit, name: 'Walk' },
+        );
+        expect(r).toEqual({
+          ok: false,
+          error: 'handler_error',
+          message: 'habit_name_ungrounded',
+        });
+      });
+
+      it('does not fire when the correction turn names an unrelated word (safe non-match)', async () => {
+        // "I meant exercise, not workout" — the coach saves "Exercise", which is
+        // the corrected-to term, not the discarded term. Must pass.
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'I meant exercise, not workout',
+            user_text_window: ['I meant exercise, not workout'],
+          },
+          { ...validHabit, name: 'Exercise' },
+        );
+        expect(r.ok).toBe(true);
+      });
+    });
   });
 });
 

@@ -155,6 +155,52 @@ function hasOwnUserContent(userTextWindow: string[]): boolean {
   );
 }
 
+// B60: explicit-correction priority. Reproduces the "work more" / "walk more"
+// trail: the user said "I said work more, not walk more" and the coach
+// saved "Walk more" anyway, because both words appear in the correction text
+// and looksUngrounded() did not fire. An explicit correction turn must block
+// the discarded reading from being saved, even when the token overlap check
+// passes. Uses a separate, broader stopword set so filler words like "more"
+// do not bridge the discarded and corrected terms.
+//
+// Mechanism: detect a correction-shaped turn in the window, then extract the
+// discarded term (the phrase after "not", "didn't say", etc.) and reject the
+// name when all of its meaningful tokens appear in the discarded phrase. When
+// no discarded term is extractable the guard does not fire (conservative: it
+// never rejects the corrected-to name).
+const CORRECTION_STOPWORDS = new Set([
+  ...['a', 'an', 'the', 'and', 'or', 'but', 'to', 'of', 'in', 'on', 'at', 'for', 'with'],
+  ...['my', 'me', 'i', 'is', 'am', 'are', 'be', 'do', 'no', 'not', 'every', 'each'],
+  ...['day', 'days', 'per', 'week', 'about', 'just', 'this', 'that', 'it'],
+  ...['more', 'less', 'much', 'very', 'some', 'any', 'all'],
+]);
+
+function correctionTokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length > 2 && !CORRECTION_STOPWORDS.has(t));
+}
+
+const EXPLICIT_CORRECTION_RE =
+  /\b(?:i\s+said\b|no[,.]?\s+i\s+meant\b|i\s+meant\b|that(?:'s|s)\s+wrong\b|i\s+didn'?t\s+say\b|i\s+didn'?t\s+mean\b|not\s+\w+[,.]?\s+(?:i\s+said|i\s+meant)\b)/i;
+
+const DISCARDED_TERM_RE =
+  /\b(?:not|didn'?t\s+say|didn'?t\s+mean)\s+(.+?)(?:\s*[,.]|\s+but\b|\s+i\s+(?:said|meant)|$)/i;
+
+export function nameMatchesDiscardedTerm(name: string, userTextWindow: string[]): boolean {
+  const nameTokens = correctionTokens(name);
+  if (nameTokens.length === 0) return false;
+  for (const text of userTextWindow) {
+    if (!EXPLICIT_CORRECTION_RE.test(text.trim())) continue;
+    const m = text.match(DISCARDED_TERM_RE);
+    if (!m) continue;
+    const discarded = correctionTokens(m[1]);
+    if (discarded.length > 0 && nameTokens.every((t) => discarded.includes(t))) return true;
+  }
+  return false;
+}
+
 export async function addHabit(
   ctx: OnboardingHandlerCtx,
   args: Record<string, unknown>,
@@ -241,6 +287,13 @@ export async function addHabit(
           : [];
     const ungrounded = looksUngroundedInWindow(name, userTextWindow);
 
+    // B60: explicit-correction override. When the user explicitly corrects
+    // their own words ("I said work more, not walk more"), the discarded
+    // reading must be rejected even when looksUngroundedInWindow would pass
+    // it (both terms share tokens in the correction text). Checked before the
+    // escape hatches below so they cannot launder the wrong reading through.
+    const discardedByCorrection = nameMatchesDiscardedTerm(name, userTextWindow);
+
     // W2-H: affirmed-coach-proposal escape hatch. Only consulted when the
     // user-window check above rejected AND the current turn is a bare
     // affirmation ("yes", "yes please add it", ...) — never for a refusal, a
@@ -260,13 +313,14 @@ export async function addHabit(
     const currentTurnText = userTextWindow[0];
     const affirmedCoachProposal =
       ungrounded &&
+      !discardedByCorrection &&
       Boolean(currentTurnText) &&
       isBareAffirmation(currentTurnText as string) &&
       !hasOwnUserContent(userTextWindow) &&
       Boolean(ctx.assistant_text_window) &&
       groundsInAssistantWindow(name, ctx.assistant_text_window as string[]);
 
-    if (!isEdit && ungrounded && !affirmedCoachProposal) {
+    if (!isEdit && (ungrounded || discardedByCorrection) && !affirmedCoachProposal) {
       await client.query('ROLLBACK');
       return handlerError('habit_name_ungrounded');
     }
