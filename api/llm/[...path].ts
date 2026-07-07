@@ -577,7 +577,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // double-writing via update_profile/navigate_next which target a different
   // sink). Matches path-1 Vapi assistant scope.
   const onboardingTools = getOnboardingTools(screenId);
-  const checkinTools = getCheckinTools(screenId);
+  const checkinTools = getCheckinTools(screenId, mode);
   // Dashboard / chat / wrap-up screens get TOOL_DEFINITIONS + read-only check-in tools
   // (query_habits, get_summary) so the coach can answer "what are my habits?" / "how was my week?".
   const readOnlyCheckinTools = getReadOnlyCheckinTools(screenId);
@@ -782,10 +782,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let result: ToolResult;
         if (!allowedToolNames.has(tc.name)) {
+          // Actionable rejection (W2-C): tell the model what IS callable here
+          // instead of a bare "unknown", so a wrong-beat call (e.g. firing a
+          // later beat's setup tool from the current one) steers back to this
+          // screen's own data tool rather than retrying blind or stalling.
+          const available = [...allowedToolNames].sort().join(', ') || 'none';
           result = {
             ok: false,
             error: 'unknown_tool',
-            message: `Tool ${tc.name} not available on this screen`,
+            message: `Tool ${tc.name} is not available on this screen. Available: ${available}. Capture this screen's data first, using one of the available tools, before doing anything else.`,
           };
         } else if (onboardingTools !== undefined && isOnboardingToolName(tc.name)) {
           // Onboarding screen — dispatch to onboarding handler. Screen context
