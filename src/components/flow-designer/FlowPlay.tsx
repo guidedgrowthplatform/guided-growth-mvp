@@ -4,7 +4,7 @@ import { COACH_BG } from './beats/_beatStyle';
 import { SpokenWordsCtx } from './beatKit';
 import { Orb } from '@/components/orb/Orb';
 import { orbIdle, orbSpeaking } from '@/components/orb/orbView';
-import { kindOf, sample, runBeatNarration, stopSpeech, wait } from './beatNarration';
+import { kindOf, sample, runBeatNarration, stopSpeech } from './beatNarration';
 import { BEATS, IsolatedBeat, METADATA_BY_SCREEN_ID } from './FlowDesigner';
 
 // Play mode: runs the real onboarding beats in order in a single phone, speaking
@@ -59,17 +59,6 @@ export function FlowPlay() {
 
   async function playBeat(i: number, run: number) {
     const b = BEATS[i];
-    // The greeting (splash-intro) plays its own audio + orb bloom + captions via the
-    // component. Running the narration driver too would play the greeting a second
-    // time (the echo Yair heard), so let the component own it and just hold while it
-    // plays, polling so a Next press still bails cleanly.
-    if (b.type === 'splash-intro') {
-      setStepReveal(99);
-      setElementReveal(null);
-      setSyncWords(null);
-      for (let t = 0; t < 72 && run === runRef.current; t++) await wait(200);
-      return;
-    }
     const m = b.screenId ? METADATA_BY_SCREEN_ID[b.screenId] : undefined;
     const opener = sample(m?.opener ?? b.props?.coachLine ?? b.props?.greeting ?? '');
     const lines = m?.elements

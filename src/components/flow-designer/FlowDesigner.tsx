@@ -10,7 +10,7 @@ import {
 } from './beatKit';
 import { BEAT_DEFS } from './beats';
 import { COACH_BG } from './beats/_beatStyle';
-import { kindOf, raf, runBeatNarration, sample, stopSpeech, wait } from './beatNarration';
+import { kindOf, raf, runBeatNarration, sample, stopSpeech } from './beatNarration';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 import { Orb } from '@/components/orb/Orb';
 import { orbSpeaking } from '@/components/orb/orbView';
@@ -1474,13 +1474,6 @@ function PlayableBeat({
     (async () => {
       // Let the fresh remount settle to an empty state, then run the script.
       await raf();
-      if (beat.type === 'splash-intro') {
-        // SplashIntro owns its own MP3, captions, and orb timing. Running the
-        // shared narration driver here would play the same greeting clip again.
-        for (let t = 0; t < 72 && !cancelled && run === runRef.current; t++) await wait(200);
-        if (!cancelled && run === runRef.current) onDoneRef.current();
-        return;
-      }
       await runBeatNarration({
         narration: m?.narration,
         kind: kindOf(beat.type),
