@@ -77,9 +77,45 @@ describe('ONBOARDING_TOOL_ADDENDUM', () => {
   });
 
   it('adds the B59 mirror rule: no false-failure narration alongside the no-false-success rule', () => {
-    expect(ONBOARDING_TOOL_ADDENDUM).toContain('DATA INTEGRITY (five rules, no exceptions)');
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('DATA INTEGRITY (six rules, no exceptions)');
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/MIRROR THE TOOL RESULT, IN BOTH DIRECTIONS/);
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/never a false success and never a false failure/i);
+  });
+
+  // B60 correction priority. The tester trail: the user said "work more", the
+  // transcript (or the coach) heard "walk more", the user corrected ("I said
+  // work more") and the coach asserted its own guess back ("It sounds like you
+  // meant to say 'walk more.' Let's stick with that.") and built the next
+  // question on the wrong goal.
+  it('adds the correction-priority rule: an explicit user correction outranks the coach reading (B60)', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(
+      /AN EXPLICIT USER CORRECTION OUTRANKS YOUR READING OF THEIR WORDS/,
+    );
+    // the exact tester shape is the worked example
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('"I said work more, not walk more"');
+    // semantics 1: wins immediately, verbatim, and flows into tool args
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/correction wins immediately/i);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/adopt the corrected words verbatim/i);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/every tool call from that point on/i);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/re-call the same tool with the corrected value/i);
+    // the observed failure phrasing is named as the anti-pattern
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/NEVER assert your own guess over a correction/);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/it sounds like you meant to say/i);
+    // semantics 2: garbled input gets ONE clarifying question, never an asserted guess
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/genuinely garbled or ambiguous/i);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/ONE short clarifying question/);
+  });
+
+  // B60 must be additive: the guards from !478/!490/!493/!496 stay intact.
+  it('keeps the earlier integrity guards intact alongside the correction rule (B60 no-weakening)', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('config_refused_by_user');
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('config_not_grounded');
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('path_choice_not_grounded');
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('habit_name_ungrounded');
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(
+      /their own words outrank a suggestion of yours even when their reply back to you was a plain "yes"/,
+    );
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/MIRROR THE TOOL RESULT, IN BOTH DIRECTIONS/);
   });
 
   it('updates the habit_name_ungrounded guidance so user content outranks a coach proposal (B59)', () => {

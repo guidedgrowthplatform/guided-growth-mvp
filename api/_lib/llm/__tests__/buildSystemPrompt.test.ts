@@ -404,6 +404,72 @@ describe('buildSystemPromptForRequest', () => {
     expect(systemPrompt).not.toContain('AI RESPONSE PATTERN');
   });
 
+  // B60 correction priority: the rule must reach the live system prompt on the
+  // onboarding beats where the "work more"/"walk more" trail happened (a goals
+  // beat), and the correction shape itself must not trip any prompt stripping.
+  // Red on unfixed code: the addendum had no correction rule, so the assembled
+  // prompt never carried this text.
+  describe('correction-priority rule reaches the assembled prompt (B60)', () => {
+    it('injects the correction rule on an onboarding goals beat', async () => {
+      pool.query.mockReset();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            { context_block: 'SCREEN_ID: ONBOARD-BEGINNER-02\nBEHAVIOR: pick goals.', version: 1 },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: 'ONBOARD-BEGINNER-02',
+        coaching_style: 'warm',
+        recent_events,
+      });
+      expect(systemPrompt).toContain(
+        'AN EXPLICIT USER CORRECTION OUTRANKS YOUR READING OF THEIR WORDS',
+      );
+      expect(systemPrompt).toContain('"I said work more, not walk more"');
+      expect(systemPrompt).toMatch(/every tool call from that point on/i);
+      expect(systemPrompt).toMatch(/ONE short clarifying question/);
+      // rule 6 joins the same DATA INTEGRITY family as !496, not a new block
+      expect(systemPrompt).toContain('DATA INTEGRITY (six rules, no exceptions)');
+    });
+
+    it('injects the correction rule on the habit beat too (same addendum)', async () => {
+      pool.query.mockReset();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            { context_block: 'SCREEN_ID: ONBOARD-BEGINNER-03\nBEHAVIOR: pick habits.', version: 1 },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: 'ONBOARD-BEGINNER-03',
+        coaching_style: 'warm',
+        recent_events,
+      });
+      expect(systemPrompt).toContain(
+        'AN EXPLICIT USER CORRECTION OUTRANKS YOUR READING OF THEIR WORDS',
+      );
+    });
+
+    it('does not inject the onboarding addendum rule off onboarding', async () => {
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: 'HOME-MORNING',
+        coaching_style: 'warm',
+        recent_events,
+      });
+      expect(systemPrompt).not.toContain(
+        'AN EXPLICIT USER CORRECTION OUTRANKS YOUR READING OF THEIR WORDS',
+      );
+    });
+  });
+
   // G07: weekly-day recommendation threading
   describe('weekly-day recommendation block (G07)', () => {
     function mockWeeklySetup() {
