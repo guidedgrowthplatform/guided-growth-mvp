@@ -89,6 +89,30 @@ const DEFAULT_HABIT_CONFIG: Omit<HabitConfigSerialized, never> = {
   schedule: 'Weekday',
 };
 
+// Match a coach-supplied habit name (e.g. "running") to a card key (e.g. "run").
+// The AdvancedFrequency cards are keyed on the parsed brain-dump names, but the
+// coach names habits in its own words, so an exact match misses the common
+// stem-drift case ("run"/"running", "read"/"reading"). Strategy, in order:
+//   1. exact case-insensitive
+//   2. first-word prefix either direction (min 3 chars), and ONLY when the
+//      candidate is unique — an ambiguous match touches nothing (safer than
+//      editing the wrong habit).
+// Returns the matched key or undefined. Pure; unit-tested.
+export function matchHabitKey(keys: string[], rawName: string): string | undefined {
+  const target = rawName.trim().toLowerCase();
+  if (!target) return undefined;
+  const exact = keys.find((k) => k.toLowerCase() === target);
+  if (exact) return exact;
+  const targetHead = target.split(/\s+/)[0];
+  if (targetHead.length < 3) return undefined;
+  const candidates = keys.filter((k) => {
+    const keyHead = k.trim().toLowerCase().split(/\s+/)[0];
+    if (keyHead.length < 3) return false;
+    return targetHead.startsWith(keyHead) || keyHead.startsWith(targetHead);
+  });
+  return candidates.length === 1 ? candidates[0] : undefined;
+}
+
 function Cta({
   label,
   disabled,
@@ -955,14 +979,11 @@ function ScheduleCard({
   const [reminder, setReminder] = useState(initialReminder);
   const [schedule, setSchedule] = useState<ScheduleOption>(initialSchedule);
 
-  // B53: `initialDays`/`initialSchedule` are only read once by the useState
-  // lazy initializers above (mount-time). If this card mounts before the
-  // backend save (voice tool call) lands, or the tool event fires before this
-  // card subscribes to it, the local state locks onto the WEEKDAYS/Weekday
-  // fallback and never re-derives from a later-arriving correct value (e.g. a
-  // save of all 7 days for "every day"/"every night"), even though the prop
-  // now carries it. Resync whenever the incoming persisted days actually
-  // change, so the picker reflects what was really saved.
+  // B53 / G08 / G14: initial* props are only read once by the useState lazy
+  // initializers above. If the tool-save answer arrives after mount the local
+  // state stays locked on the default. Resync each field independently so
+  // voice saves for time, days, reminder, or schedule are all reflected without
+  // a manual tap.
   const initialDaysKey =
     initialDays && initialDays.length > 0 ? [...initialDays].sort((a, b) => a - b).join(',') : '';
   const lastSyncedDaysKey = useRef(initialDaysKey);
@@ -975,6 +996,32 @@ function ScheduleCard({
     setSchedule(inferSchedule(nextDays) ?? initialSchedule);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialDaysKey]);
+
+  const lastSyncedTime = useRef(initialTime);
+  useEffect(() => {
+    if (initialTime === lastSyncedTime.current) return;
+    lastSyncedTime.current = initialTime;
+    setTime(initialTime);
+  }, [initialTime]);
+
+  const lastSyncedReminder = useRef(initialReminder);
+  useEffect(() => {
+    if (initialReminder === lastSyncedReminder.current) return;
+    lastSyncedReminder.current = initialReminder;
+    setReminder(initialReminder);
+  }, [initialReminder]);
+
+  const lastSyncedSchedule = useRef(initialSchedule);
+  useEffect(() => {
+    if (initialSchedule === lastSyncedSchedule.current) return;
+    lastSyncedSchedule.current = initialSchedule;
+    // Only sync when days didn't already resync (days resync also sets schedule).
+    if (!initialDaysKey) {
+      setSchedule(initialSchedule);
+      setDays(new Set(SCHEDULE_DAYS[initialSchedule]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSchedule]);
 
   const changeSchedule = (value: ScheduleOption) => {
     setSchedule(value);
@@ -1127,11 +1174,9 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
   );
   const [prompts, setPrompts] = useState<string[]>(() => (answers.customPrompts as string[]) ?? []);
 
-  // B53: same mount-time-only capture as ScheduleCard — `saved?.days` is only
-  // read once by the useState lazy initializer above. Resync when the
-  // persisted days actually change (e.g. a later tool-call save lands after
-  // this card already mounted with the WEEKDAYS fallback), so the picker
-  // reflects what was really saved instead of a stale default.
+  // B53 / G08 / G14: all initial state is seeded once at mount. Resync each
+  // field when the persisted answers update so voice saves for days, time,
+  // reminder, schedule, mode, or prompts are reflected without a manual tap.
   const savedDaysKey =
     saved?.days && saved.days.length > 0 ? [...saved.days].sort((a, b) => a - b).join(',') : '';
   const lastSyncedDaysKey = useRef(savedDaysKey);
@@ -1144,6 +1189,52 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
     setSchedule(inferSchedule(nextDays) ?? (saved?.schedule as ScheduleOption) ?? 'Weekday');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedDaysKey]);
+
+  const savedTime = saved?.time ?? '21:45';
+  const lastSyncedTime = useRef(savedTime);
+  useEffect(() => {
+    if (savedTime === lastSyncedTime.current) return;
+    lastSyncedTime.current = savedTime;
+    setTime(savedTime);
+  }, [savedTime]);
+
+  const savedReminder = saved?.reminder ?? true;
+  const lastSyncedReminder = useRef(savedReminder);
+  useEffect(() => {
+    if (savedReminder === lastSyncedReminder.current) return;
+    lastSyncedReminder.current = savedReminder;
+    setReminder(savedReminder);
+  }, [savedReminder]);
+
+  const savedSchedule = (saved?.schedule as ScheduleOption) ?? 'Weekday';
+  const lastSyncedSchedule = useRef(savedSchedule);
+  useEffect(() => {
+    if (savedSchedule === lastSyncedSchedule.current) return;
+    lastSyncedSchedule.current = savedSchedule;
+    if (!savedDaysKey) {
+      setSchedule(savedSchedule);
+      setDays(new Set(SCHEDULE_DAYS[savedSchedule]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedSchedule]);
+
+  const savedMode = (answers.reflectionMode as ReflectionMode) ?? 'prompts';
+  const lastSyncedMode = useRef(savedMode);
+  useEffect(() => {
+    if (savedMode === lastSyncedMode.current) return;
+    lastSyncedMode.current = savedMode;
+    setMode(savedMode);
+  }, [savedMode]);
+
+  const savedPromptsKey = ((answers.customPrompts as string[]) ?? []).join('\x00');
+  const lastSyncedPromptsKey = useRef(savedPromptsKey);
+  useEffect(() => {
+    if (savedPromptsKey === lastSyncedPromptsKey.current) return;
+    lastSyncedPromptsKey.current = savedPromptsKey;
+    const ps = (answers.customPrompts as string[]) ?? [];
+    if (ps.length > 0) setPrompts(ps);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedPromptsKey]);
 
   const changeSchedule = (value: ScheduleOption) => {
     setSchedule(value);
@@ -1706,6 +1797,71 @@ function AdvancedFrequencyAdapter({ answers, onCapture, readOnly }: BeatAdapterP
       };
     }
     return base;
+  });
+
+  // G08 / G14: configs is seeded once at mount. When a voice tool call saves
+  // updated per-habit days into answers.habitConfigs AFTER this card mounts,
+  // the cards wedge at the stale default. Resync from habitConfigs when its
+  // serialised key changes so day-picker cards re-render after a tool save.
+  const savedHabitConfigsKey = Object.entries(
+    (answers.habitConfigs ?? {}) as Record<string, HabitConfigSerialized>,
+  )
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([n, c]) => `${n}:${[...c.days].sort((a, b) => a - b).join('-')}`)
+    .join('|');
+  const lastSyncedHabitConfigsKey = useRef('');
+  useEffect(() => {
+    if (!savedHabitConfigsKey || savedHabitConfigsKey === lastSyncedHabitConfigsKey.current) return;
+    lastSyncedHabitConfigsKey.current = savedHabitConfigsKey;
+    const saved = (answers.habitConfigs ?? {}) as Record<string, HabitConfigSerialized>;
+    setConfigs((prev) => {
+      const next = { ...prev };
+      for (const name of names) {
+        if (saved[name]) {
+          next[name] = {
+            days: [...saved[name].days],
+            time: saved[name].time,
+            reminder: saved[name].reminder,
+          };
+        }
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedHabitConfigsKey]);
+
+  // W3 (live path): update_habit is a server-side no-op DURING this beat — the
+  // advanced/braindump lane only ever persists raw brainDumpText, so
+  // habitConfigs does not exist in the row yet (see updateHabit.ts's
+  // "Idempotent on miss... the client voice-action still fires" comment). The
+  // answers-keyed resync above only catches a habitConfigs value that lands
+  // LATER; it never fires for this beat's own live saves. Listen for the
+  // synthetic update_habit voice action directly (same pattern as
+  // ScheduleCard's set_habit_schedule listener) so a per-habit day/time/
+  // reminder/schedule save is reflected without a manual tap.
+  useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (readOnly || result.action !== 'update_habit') return;
+    const p = result.params as { name?: string; patch?: Record<string, unknown> };
+    if (typeof p.name !== 'string' || !p.patch) return;
+    const patch = p.patch;
+    setConfigs((prev) => {
+      const matchKey = matchHabitKey(Object.keys(prev), p.name as string);
+      if (!matchKey) return prev;
+      const existing = prev[matchKey] ?? { days: [...WEEKDAYS], time: '09:00', reminder: true };
+      const next = { ...existing };
+      if (Array.isArray(patch.days)) {
+        const ds = (patch.days as unknown[]).filter(
+          (d): d is number => typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6,
+        );
+        if (ds.length > 0) next.days = ds;
+      } else if (typeof patch.schedule === 'string' && patch.schedule in SCHEDULE_DAYS) {
+        next.days = [...SCHEDULE_DAYS[patch.schedule as ScheduleOption]];
+      }
+      if (typeof patch.time === 'string' && /^\d{1,2}:\d{2}$/.test(patch.time))
+        next.time = patch.time;
+      if (typeof patch.reminder === 'boolean') next.reminder = patch.reminder;
+      return { ...prev, [matchKey]: next };
+    });
   });
 
   const toggleDay = (name: string, day: number) => {
