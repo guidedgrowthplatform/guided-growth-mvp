@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { UUID_REGEX } from '../_lib/validation.js';
+import { fixSentenceJoinSpacing } from '../../src/lib/text/sentenceJoinSpacing.js';
 import type { LLMChatMessage, LLMToolEvent, OnboardingThreadTurn } from '@gg/shared/types/llm';
 
 function isValidChatSessionId(id: unknown): id is string {
@@ -60,7 +61,7 @@ function decodeCursor(raw: string): LinearCursor | null {
   return null;
 }
 
-function buildHistory(rows: ChatRow[]): LLMChatMessage[] {
+export function buildHistory(rows: ChatRow[]): LLMChatMessage[] {
   const messages: LLMChatMessage[] = [];
   const assistantById = new Map<string, LLMChatMessage>();
   const toolCallToAssistantId = new Map<string, string>();
@@ -92,10 +93,18 @@ function buildHistory(rows: ChatRow[]): LLMChatMessage[] {
             return [{ id: tc.id, name: tc.function.name, args }];
           })
         : [];
+      // W2-E: persisted assistant content never passed through the
+      // stream-point seam fix (sentenceJoinSpacing.ts is only wired into
+      // useLLM.ts's live stream). A tool-call-failure recap message that
+      // glues sentences together ("habit.Let's simplify") renders exactly
+      // as stored once loaded here — e.g. on a resumed/rehydrated session —
+      // with no later stream frame to self-correct it. Apply the same
+      // idempotent backstop used at useLLM.ts's done-time so every render
+      // path (live stream + rehydrated history) carries identical text.
       const msg: LLMChatMessage = {
         id: row.id,
         role: 'assistant',
-        content: row.content ?? '',
+        content: fixSentenceJoinSpacing(row.content ?? ''),
         toolEvents: toolEvents.length > 0 ? toolEvents : undefined,
       };
       assistantById.set(row.id, msg);
@@ -123,6 +132,18 @@ function buildHistory(rows: ChatRow[]): LLMChatMessage[] {
   }
 
   return messages;
+}
+
+// W2-E: the onboarding-thread feed (handleOnboardingThread) returns raw DB
+// rows directly, a second settled-DOM composition site distinct from
+// buildHistory above — the round-2 judge's evidence (tool-call-failure recap
+// messages like "habit.Let's simplify") is on this cross-device rehydration
+// path. Assistant content only; user rows are the user's own typed/spoken
+// text and were never LLM-composed.
+export function fixOnboardingThreadSeams(rows: OnboardingThreadTurn[]): OnboardingThreadTurn[] {
+  return rows.map((row) =>
+    row.role === 'assistant' ? { ...row, content: fixSentenceJoinSpacing(row.content ?? '') } : row,
+  );
 }
 
 // DESC+reverse so long chats keep the latest turns, not the oldest.
@@ -276,7 +297,9 @@ async function handleOnboardingThread(req: VercelRequest, res: VercelResponse) {
       LIMIT $3`,
     [user.anonId, chatSessionId, MAX_LIMIT],
   );
-  return res.status(200).json({ chat_session_id: chatSessionId, messages: rows.rows });
+  return res
+    .status(200)
+    .json({ chat_session_id: chatSessionId, messages: fixOnboardingThreadSeams(rows.rows) });
 }
 
 async function handleLinearHistory(req: VercelRequest, res: VercelResponse) {

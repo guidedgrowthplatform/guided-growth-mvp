@@ -15,6 +15,7 @@ import {
   joinBrainDumpChunks,
   mergeBrainDumpChunks,
 } from '../_lib/llm/onboarding/brainDumpTurnMerge.js';
+import { SameTurnToolDedupe } from '../_lib/llm/onboarding/sameTurnToolDedupe.js';
 import { dispatchOnboardingToolCall } from '../_lib/llm/onboarding/dispatch.js';
 import { getOnboardingTools } from '../_lib/llm/onboarding/registry.js';
 import { isOnboardingToolName } from '../_lib/llm/onboarding/schemas.js';
@@ -279,12 +280,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const isForkScreen = screenId === FORK_SCREEN_ID;
 
+  // W2-E: confirm-turn grounding window. habit_name_ungrounded (addHabit.ts)
+  // compared only the CURRENT turn's user_text, which trips on a two-turn
+  // confirm shape ("I want to stop doomscrolling at night" / next turn:
+  // "yes please add it") — the name grounds in the EARLIER turn, not the one
+  // that actually triggers the tool call. Load the last few real user turns
+  // (this table already has them; role='user' rows are the user's own typed
+  // or Vapi-relayed text) so the guard can check the whole window, not just
+  // the latest message. Onboarding-only and persistChat-only — the same
+  // scope the guard itself already applies in (isOnboardingScreen dispatch).
+  const USER_TEXT_WINDOW_SIZE = 3;
   let systemPrompt: string;
   let previousResponseId: string | null = null;
   let foreignOwned: boolean;
   let pathAlreadySet = false;
+  let userTextWindow: string[] | undefined;
   try {
-    const [built, ownerRow, forkPathRow] = await Promise.all([
+    const [built, ownerRow, forkPathRow, recentUserTurns] = await Promise.all([
       buildSystemPromptForRequest({
         anon_id: user.anonId,
         screen_id: screenId,
@@ -317,8 +329,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }>(`SELECT path FROM onboarding_states WHERE anon_id = $1`, [user.anonId])
             .then((r) => r.rows[0] ?? null)
         : Promise.resolve(null),
+      isOnboardingScreen && persistChat && mode === 'chat'
+        ? pool
+            .query<{ content: string | null }>(
+              `SELECT content FROM chat_messages
+                WHERE anon_id = $1 AND chat_session_id = $2 AND role = 'user'
+                  AND content IS NOT NULL AND length(trim(content)) > 0
+                ORDER BY turn_index DESC
+                LIMIT $3`,
+              [user.anonId, chatSessionId, USER_TEXT_WINDOW_SIZE],
+            )
+            .then((r) => r.rows.map((row) => row.content as string))
+        : Promise.resolve<string[]>([]),
     ]);
     systemPrompt = built.systemPrompt;
+    // Newest-first from the query (DESC); the CURRENT turn's own message
+    // (scrubbedMessage/userMessage) isn't in chat_messages yet at this point
+    // in the request, so this is purely PRIOR turns, oldest excluded beyond N.
+    userTextWindow = recentUserTurns.length > 0 ? recentUserTurns : undefined;
     // A dedicated check-in opener LEADS a fresh structured flow (evening:
     // habits → reflection → wrap-up). Chaining onto prior chatter in the same
     // session anchors the model to whatever it said before (e.g. a stale "let's
@@ -613,6 +641,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // correction in a LATER user turn still replaces the dump wholesale.
   let turnBrainDumpChunks: string[] = [];
 
+  // W2-E: same-turn duplicate tool-call dedupe (R20/R21/R26) — request-scoped
+  // (spans every round of this turn), exact (name, args) match only.
+  // submit_brain_dump is excluded (handled separately by the merge above).
+  const toolDedupe = new SameTurnToolDedupe();
+
   try {
     let finished = false;
     for (let round = 0; round < MAX_ROUNDS && !finished; round++) {
@@ -806,7 +839,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         send({ type: 'tool_call', id: tc.callId, name: tc.name, args });
 
         let result: ToolResult;
-        if (!allowedToolNames.has(tc.name)) {
+        let dedupeSkipped = false;
+        // W2-E: same-turn duplicate tool-call dedupe (R20/R21/R26). An exact
+        // repeat of an already-EXECUTED (name, args) pair this request skips
+        // re-dispatch and hands the model the first call's real result, so a
+        // model that fires the same tool twice reads success and moves on
+        // instead of retrying blind or silently abandoning the task. Scoped
+        // to genuine dispatch attempts only (not the unknown-tool rejection
+        // below), and never applies to the excluded tool set (submit_brain_dump,
+        // handled separately by the chunk-merge above).
+        if (allowedToolNames.has(tc.name) && toolDedupe.shouldSkip(tc.name, args)) {
+          result = toolDedupe.priorResult(tc.name, args) as ToolResult;
+          dedupeSkipped = true;
+        } else if (!allowedToolNames.has(tc.name)) {
           // Actionable rejection (W2-C): tell the model what IS callable here
           // instead of a bare "unknown", so a wrong-beat call (e.g. firing a
           // later beat's setup tool from the current one) steers back to this
@@ -826,6 +871,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               anon_id: user.anonId,
               screen_id: screenId,
               user_text: userMessage,
+              // W2-E: current turn first, then the up-to-2 prior turns
+              // (userTextWindow, newest-first from the query), capped at 3
+              // total. Lets habit_name_ungrounded ground a confirm-turn call
+              // ("yes please add it") against the earlier turn that actually
+              // named the habit, not just this turn's own short reply.
+              user_text_window: [userMessage, ...(userTextWindow ?? [])].slice(
+                0,
+                USER_TEXT_WINDOW_SIZE,
+              ),
             });
           } catch (err) {
             reportToolFailure({
@@ -887,6 +941,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
             result = { ok: false, error: 'handler_error', message: (err as Error).message };
           }
+        }
+        // Record only genuine dispatch attempts (not a skipped repeat, not the
+        // unknown-tool rejection) so the FIRST real execution of a pair is what
+        // a later duplicate reuses.
+        if (!dedupeSkipped && allowedToolNames.has(tc.name)) {
+          toolDedupe.record(tc.name, args, result);
         }
         if (!result.ok && result.error !== 'handler_error') {
           reportToolFailure({

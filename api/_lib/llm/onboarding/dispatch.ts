@@ -48,6 +48,9 @@ export async function dispatchOnboardingToolCall(
     // Raw current-turn user message, when the caller has it. Only addHabit's
     // data-integrity guard reads this; every other handler ignores it.
     user_text?: string | null;
+    // W2-E: rolling window of recent raw user turns (current turn first).
+    // Same guard, wider grounding source — see shared.ts's OnboardingHandlerCtx.
+    user_text_window?: string[] | null;
   },
 ): Promise<ToolResult> {
   if (!ctx.anon_id) {
@@ -65,6 +68,7 @@ export async function dispatchOnboardingToolCall(
       anon_id: ctx.anon_id,
       screen_id: ctx.screen_id ?? undefined,
       user_text: ctx.user_text ?? undefined,
+      user_text_window: ctx.user_text_window ?? undefined,
     },
     args as Record<string, unknown>,
   );

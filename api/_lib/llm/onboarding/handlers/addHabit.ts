@@ -88,6 +88,21 @@ export function looksUngrounded(name: string, userText: string): boolean {
   return !nameTokens.some((t) => textTokens.has(t));
 }
 
+// W2-E: confirm-turn grounding window. A two-turn shape (turn 1: "I want to
+// stop doomscrolling at night", turn 2: "yes please add it") trips
+// looksUngrounded when checked against only the current turn's short reply,
+// even though the name genuinely grounds in the turn just before it. Passes
+// when the name grounds in ANY entry of the window (current turn plus a few
+// recent prior turns); rejects only when it grounds in none of them. Blank
+// entries are dropped first — looksUngrounded('', ...) always passes (no
+// tokens to compare), which would otherwise let one blank entry launder the
+// whole window regardless of what the other entries say.
+export function looksUngroundedInWindow(name: string, userTextWindow: string[]): boolean {
+  const texts = userTextWindow.filter((t) => t.trim().length > 0);
+  if (texts.length === 0) return false;
+  return texts.every((text) => looksUngrounded(name, text));
+}
+
 export async function addHabit(
   ctx: OnboardingHandlerCtx,
   args: Record<string, unknown>,
@@ -159,7 +174,18 @@ export async function addHabit(
     // real word with what the user said this turn, so reject and force the
     // coach to either ask again or save the user's own words instead of a
     // guessed/substituted name (see systemPromptAddendum.ts DATA INTEGRITY).
-    if (!isEdit && ctx.user_text && looksUngrounded(name, ctx.user_text)) {
+    //
+    // W2-E: when the caller supplies user_text_window (a rolling window of
+    // recent user turns, current turn first), check the WHOLE window instead
+    // of just the current turn — a two-turn confirm shape ("...doomscrolling
+    // at night" then next turn "yes please add it") grounds in the earlier
+    // turn, not the short confirm reply itself. Window absent falls back to
+    // the exact current-turn-only check (backward compatible).
+    const ungrounded =
+      ctx.user_text_window && ctx.user_text_window.length > 0
+        ? looksUngroundedInWindow(name, ctx.user_text_window)
+        : Boolean(ctx.user_text) && looksUngrounded(name, ctx.user_text as string);
+    if (!isEdit && ungrounded) {
       await client.query('ROLLBACK');
       return handlerError('habit_name_ungrounded');
     }
