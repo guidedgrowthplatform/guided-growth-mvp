@@ -267,6 +267,11 @@ export interface OnboardingStepData {
     reminder: boolean;
     schedule: string | null;
   } | null;
+  // B58 follow-up: true when the user explicitly refused the morning check-in
+  // during onboarding (config_refused_by_user). Terminal answer for the
+  // morning-checkin-setup beat: satisfies its advance gate and resume evidence
+  // without a config. A later real morningCheckin save takes precedence.
+  morningCheckinSkipped?: boolean | null;
   // The Weekly's chosen day, captured in onboarding (ONBOARD-WEEKLY-SETUP).
   // 0-6, 0=Sunday. Materializes to reflection_settings.weekly_day.
   weeklyConfig?: {

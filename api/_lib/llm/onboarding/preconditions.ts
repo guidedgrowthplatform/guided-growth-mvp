@@ -56,8 +56,15 @@ const GATES: Record<string, Gate> = {
     }
     return null;
   },
+  // B58 follow-up: an explicit refusal (config_refused_by_user) persists
+  // morningCheckinSkipped=true as a terminal answer — without a skip path the
+  // beat is inescapable and the model retries submit_morning_checkin on later
+  // turns, where unrelated time/day content can slip past the guard and save a
+  // config the user already declined.
   'morning-checkin-setup': (data) =>
-    !data.morningCheckin ? 'morning_checkin_missing: call submit_morning_checkin first' : null,
+    !data.morningCheckin && data.morningCheckinSkipped !== true
+      ? 'morning_checkin_missing: call submit_morning_checkin first'
+      : null,
   'reflection-card': (data) =>
     !data.reflectionConfig ? 'reflection_missing: call submit_reflection_config first' : null,
   'weekly-day-picker': (data) =>
@@ -124,6 +131,7 @@ export function traceAdvanceStep0(
     goals: Array.isArray(data.goals) && data.goals.length > 0,
     habitConfigs: !!habits && Object.keys(habits).length > 0,
     morningCheckin: !!data.morningCheckin,
+    morningCheckinSkipped: data.morningCheckinSkipped === true,
     reflectionConfig: !!data.reflectionConfig,
     weeklyConfig: !!data.weeklyConfig,
     brainDump: typeof brainDumpRaw === 'string' && brainDumpRaw.length > 0,

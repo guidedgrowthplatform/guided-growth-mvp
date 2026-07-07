@@ -46,6 +46,33 @@ describe('serverCaptureForBeat parity with persistsFields', () => {
   }
 });
 
+describe('morning refusal skip marker (B58 follow-up)', () => {
+  const node = flow.nodes.find((n) => n.componentType === 'morning-checkin-setup')!;
+
+  it('replays morningCheckinSkipped when no config exists, so the capture completes the beat', () => {
+    // An explicit refusal persists the marker instead of a config. The capture
+    // must carry SOMETHING or captureCompletesBeat blocks the advance and the
+    // user is stuck on the beat they just declined.
+    const cap = serverCaptureForBeat(node, {
+      ...FULL_DATA,
+      morningCheckin: undefined,
+      morningCheckinSkipped: true,
+    } as unknown as OnboardingStepData);
+    expect(cap.data).toEqual({ morningCheckinSkipped: true });
+  });
+
+  it('a real config wins over a stale marker (user refused, then changed their mind)', () => {
+    const cap = serverCaptureForBeat(node, {
+      ...FULL_DATA,
+      morningCheckinSkipped: true,
+    } as unknown as OnboardingStepData);
+    expect(cap.data.morningCheckin).toEqual(
+      (FULL_DATA as { morningCheckin: unknown }).morningCheckin,
+    );
+    expect(cap.data.morningCheckinSkipped).toBeUndefined();
+  });
+});
+
 describe('advanced-capture replay carries the skimmer cards (B26)', () => {
   it('copies brainDumpHabits alongside brainDumpText', () => {
     const node = flow.nodes.find((n) => n.componentType === 'advanced-capture')!;

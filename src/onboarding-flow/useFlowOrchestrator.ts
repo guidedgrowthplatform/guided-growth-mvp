@@ -198,7 +198,14 @@ export function serverCaptureForBeat(
       break;
     }
     case 'morning-checkin-setup':
-      if (data.morningCheckin != null) out.data.morningCheckin = data.morningCheckin;
+      if (data.morningCheckin != null) {
+        out.data.morningCheckin = data.morningCheckin;
+      } else if (data.morningCheckinSkipped === true) {
+        // Explicit refusal (B58 follow-up): replay the skip marker so the
+        // capture proves the beat completed (captureCompletesBeat) without
+        // fabricating a config the user declined.
+        out.data.morningCheckinSkipped = true;
+      }
       break;
     case 'plan-cards':
     case 'into-app':
@@ -299,7 +306,10 @@ export function beatCompletionEvidence(
     case 'state-check':
       return d.stateCheck != null || d.checkin != null;
     case 'morning-checkin-setup':
-      return d.morningCheckin != null;
+      // A persisted config OR the explicit-refusal skip marker (B58 follow-up)
+      // both complete the beat — a refused morning check-in must not pull the
+      // resume walk back onto the beat the user already declined.
+      return d.morningCheckin != null || d.morningCheckinSkipped === true;
     case 'reflection-card':
       return d.reflectionConfig != null;
     case 'weekly-day-picker':

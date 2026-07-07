@@ -42,6 +42,7 @@ const { submitMorningCheckin } = await import('../handlers/submitMorningCheckin.
 const { submitBrainDump } = await import('../handlers/submitBrainDump.js');
 const { advanceStep } = await import('../handlers/advanceStep.js');
 const { confirmPlan } = await import('../handlers/confirmPlan.js');
+const { checkAdvanceData } = await import('../preconditions.js');
 
 const CTX = { anon_id: '11111111-1111-4111-8111-111111111111' };
 
@@ -1266,10 +1267,33 @@ describe('submit_morning_checkin', () => {
         { time: '09:00', days: [0, 1, 2, 3, 4, 5, 6], reminder: true, schedule: 'Every day' },
       );
       expect(r).toEqual({ ok: false, error: 'handler_error', message: 'config_refused_by_user' });
-      expect(pool.query).not.toHaveBeenCalled();
+      // B58 follow-up: the refusal is a terminal answer — a lightweight skip
+      // marker is persisted (so the advance gate lets the flow leave the beat),
+      // but never the refused config itself.
+      expect(pool.query).toHaveBeenCalledTimes(1);
+      const [sql, params] = pool.query.mock.calls[0];
+      expect(sql).toMatch(/data = onboarding_states.data \|\| \$2::jsonb/);
+      expect(JSON.parse(params[1] as string)).toEqual({ morningCheckinSkipped: true });
     });
 
-    it('rejects an ungrounded off-topic turn', async () => {
+    it('the persisted skip marker satisfies the morning-setup advance gate (escape path)', async () => {
+      // The !478 follow-up bug: after a correctly-rejected refusal the beat had
+      // no terminal state, so the model retried submit_morning_checkin on later
+      // turns and unrelated time/day content could silently save. The marker the
+      // refusal writes must let advance_step leave the beat.
+      await submitMorningCheckin(
+        { ...CTX, user_text: "I don't want to do a morning thing at all. Just the evening one." },
+        { time: '09:00', days: [0, 1, 2, 3, 4, 5, 6], reminder: true, schedule: 'Every day' },
+      );
+      const written = JSON.parse(pool.query.mock.calls[0][1][1] as string);
+      expect(
+        checkAdvanceData({ sourceStep: 7, data: written, path: null, brainDumpRaw: null }),
+      ).toBeNull();
+    });
+
+    it('rejects an ungrounded off-topic turn and does NOT write the skip marker', async () => {
+      // Only an explicit refusal is a terminal answer; an off-topic turn must
+      // leave the beat's gate untouched (no morningCheckinSkipped write).
       const r = await submitMorningCheckin(
         { ...CTX, user_text: 'Anyway, what do you think about the news lately?' },
         valid,
