@@ -1,0 +1,158 @@
+{
+  "source": {
+    "beats": "src/components/flow-designer/FlowDesigner.tsx#BEATS",
+    "metadata": "src/components/flow-designer/onboardingMetadata.json"
+  },
+  "beats": [
+    {
+      "index": 1,
+      "screenId": null,
+      "opener": null,
+      "path": "both"
+    },
+    {
+      "index": 2,
+      "screenId": null,
+      "opener": null,
+      "path": "both"
+    },
+    {
+      "index": 3,
+      "screenId": "COACH-GREETING",
+      "opener": "Hey, I might have startled you. You're probably not used to an app just talking to you. I'm your AI coach here at your service at Guided Growth, and I'm excited to help you improve things in your life that are important to you. So let's get you in, and we'll get started.",
+      "path": "both"
+    },
+    {
+      "index": 4,
+      "screenId": "ONBOARD-AUTH--FORM",
+      "opener": null,
+      "path": "both"
+    },
+    {
+      "index": 5,
+      "screenId": "MIC-PERMISSION",
+      "opener": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+      "path": "both"
+    },
+    {
+      "index": 6,
+      "screenId": "ONBOARD-01--FORM",
+      "opener": "Good to meet you, {name}. Two quick things so I can tailor this to you.",
+      "path": "both"
+    },
+    {
+      "index": 7,
+      "screenId": "ONBOARD-STATE-CHECK",
+      "opener": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+      "path": "both"
+    },
+    {
+      "index": 8,
+      "screenId": "ONBOARD-MORNING-SETUP",
+      "opener": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+      "path": "both"
+    },
+    {
+      "index": 9,
+      "screenId": "ONBOARD-BEGINNER-07",
+      "opener": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+      "path": "both"
+    },
+    {
+      "index": 10,
+      "screenId": "ONBOARD-FORK--FORM",
+      "opener": "For the next part of the process, I'd like to know:",
+      "path": "both"
+    },
+    {
+      "index": 11,
+      "screenId": "ONBOARD-BEGINNER-01",
+      "opener": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+      "path": "beginner"
+    },
+    {
+      "index": 12,
+      "screenId": "ONBOARD-BEGINNER-01",
+      "opener": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+      "path": "beginner"
+    },
+    {
+      "index": 13,
+      "screenId": "ONBOARD-BEGINNER-02",
+      "opener": "So within that, which goals would you like to start with? Pick one or two.",
+      "path": "beginner"
+    },
+    {
+      "index": 14,
+      "screenId": "ONBOARD-BEGINNER-02-CUSTOM",
+      "opener": "Tell me the goal you want to add, and I'll set it up.",
+      "path": "beginner"
+    },
+    {
+      "index": 15,
+      "screenId": "ONBOARD-BEGINNER-03",
+      "opener": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
+      "path": "beginner"
+    },
+    {
+      "index": 16,
+      "screenId": "ONBOARD-BEGINNER-03-CUSTOM",
+      "opener": "Tell me the habit you want to add, and I'll set it up.",
+      "path": "beginner"
+    },
+    {
+      "index": 17,
+      "screenId": "ONBOARD-BEGINNER-04",
+      "opener": "Please set the days that you're going to actually do these habits.",
+      "path": "beginner"
+    },
+    {
+      "index": 18,
+      "screenId": "ONBOARD-ADVANCED",
+      "opener": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+      "path": "advanced"
+    },
+    {
+      "index": 19,
+      "screenId": "ONBOARD-ADVANCED-FREQUENCY",
+      "opener": "Please set the days that you're going to actually do these habits.",
+      "path": "advanced"
+    },
+    {
+      "index": 20,
+      "screenId": "ONBOARD-COMPLETE",
+      "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+      "path": "both"
+    },
+    {
+      "index": 21,
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-BLANK",
+      "opener": "This is your week. Blank, starting today.",
+      "path": "both"
+    },
+    {
+      "index": 22,
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-FULL",
+      "opener": "Best case, every day green. 100% success. That would be amazing.",
+      "path": "both"
+    },
+    {
+      "index": 23,
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-P78",
+      "opener": "Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.",
+      "path": "both"
+    },
+    {
+      "index": 24,
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-P36",
+      "opener": "Some weeks can look like this. And even that's okay, because you're in the process and you're consistent inside the process.",
+      "path": "both"
+    },
+    {
+      "index": 25,
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-GAPS",
+      "opener": "The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going.",
+      "path": "both"
+    }
+  ]
+}
