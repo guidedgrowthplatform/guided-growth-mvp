@@ -57,6 +57,13 @@ export function useCoachVoiceActivity(
   const busActiveRef = useRef(false);
   const rafRef = useRef<number | null>(null);
 
+  // Read inside the priority-1 subscriber below (which subscribes once and
+  // must see the LATEST prop values, not the ones from its first render).
+  const assistantSpeakingRef = useRef(assistantSpeaking);
+  assistantSpeakingRef.current = assistantSpeaking;
+  const vapiVolumeLevelRef = useRef(vapiVolumeLevel);
+  vapiVolumeLevelRef.current = vapiVolumeLevel;
+
   const setIfChanged = (next: CoachVoiceActivity) => {
     const prev = emittedRef.current;
     if (
@@ -74,8 +81,21 @@ export function useCoachVoiceActivity(
   useEffect(() => {
     const unsub = subscribeCoachAudioLevel((level) => {
       busActiveRef.current = level.active;
-      if (!level.active) return;
-      setIfChanged({ intensity: bucket(level.amp), speaking: true, source: 'audio' });
+      if (level.active) {
+        setIfChanged({ intensity: bucket(level.amp), speaking: true, source: 'audio' });
+        return;
+      }
+      // Bug fix: the bus going inactive (an MP3 clip ending, or any
+      // registered element pausing) used to be a silent no-op here, so the
+      // last non-zero reading stuck forever once real playback stopped —
+      // the orb would freeze mid-pulse instead of settling back to idle.
+      // Only clear to silent when nothing ELSE currently covers the coach
+      // side; a live Vapi volume-level reading or an active fallback window
+      // (assistantSpeaking still true) owns emission from here and should
+      // not be stomped by this bus-inactive tick.
+      if (vapiVolumeLevelRef.current <= 0 && !assistantSpeakingRef.current) {
+        setIfChanged({ intensity: 0, speaking: false, source: 'silent' });
+      }
     });
     return unsub;
   }, []);

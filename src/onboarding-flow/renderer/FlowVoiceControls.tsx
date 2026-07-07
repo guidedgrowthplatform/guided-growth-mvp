@@ -23,7 +23,7 @@ import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useCoachVoiceActivity } from '@/hooks/useCoachVoiceActivity';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
-import { orbStateFrom } from '@/lib/orb/orbState';
+import { orbStateFrom, resolveActiveRings } from '@/lib/orb/orbState';
 
 const IDLE_GRADIENT =
   'linear-gradient(to top, rgba(19,91,236,0.7) 0%, rgba(255,255,255,0) 60%, rgba(255,255,255,0) 100%)';
@@ -60,7 +60,15 @@ export function FlowVoiceControls() {
     isVoiceInOnly && voiceInListening,
   );
   const micRingIntensity = isVoiceInOnly ? sonioxMicIntensity : userAudioLevel;
-  const { intensity: coachIntensity } = useCoachVoiceActivity(
+  // `speaking` (not just `intensity`) matters here: it is true whenever the
+  // coachAudioBus has a real registered element playing (MP3 opener clips,
+  // Cartesia one-shots, Direct-LLM TTS), independent of Vapi's own
+  // isAssistantSpeaking flag — which stays false for the whole duration of
+  // an MP3-only opener beat. Bug fix: activeRings below used to gate the
+  // coach ring on isAssistantSpeaking alone, so the orb never lit up (and
+  // resolveOrbMic never got a chance to apply coachIntensity) for any MP3
+  // coach line, even though coachIntensity itself was already correct.
+  const { intensity: coachIntensity, speaking: coachSpeaking } = useCoachVoiceActivity(
     isAssistantSpeaking,
     assistantVolumeLevel,
   );
@@ -82,18 +90,16 @@ export function FlowVoiceControls() {
       : 'idle';
   const gradient = voiceState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
 
-  const dualActiveRings: 'left' | 'right' | 'ready' | 'idle' | null =
-    isVoiceInOnly && voiceInListening
-      ? micSpeaking
-        ? 'right'
-        : 'ready'
-      : micRuntimeOn && isUserSpeaking
-        ? 'right'
-        : voiceChosen && isAssistantSpeaking
-          ? 'left'
-          : vapiActive
-            ? 'idle'
-            : null;
+  const dualActiveRings = resolveActiveRings({
+    isVoiceInOnly,
+    voiceInListening,
+    micSpeaking,
+    micRuntimeOn,
+    isUserSpeaking,
+    voiceChosen,
+    coachSpeaking,
+    vapiActive,
+  });
 
   return (
     <div
