@@ -108,10 +108,12 @@ function runToFork(): { st: FlowMachineState; row: SimulatedRow } {
 const forkNode = () => getNode(flow, 'path-fork')!;
 
 describe('live advance at the fork — scripted run over the generated flow', () => {
-  it('reaches the fork right after profile with no path (B47 order)', () => {
+  it('reaches the fork after the setup block with no path (rhythm-first order)', () => {
     const { st, row } = runToFork();
     expect(st.currentNodeId).toBe('path-fork');
-    expect(row.current_step).toBe(1); // only the profile save has landed (GREATEST pin)
+    // Rhythm-first: profile (1) + the setup block (state-check 6, morning 7,
+    // reflection 8) save before the fork, so the GREATEST-pinned step is 8.
+    expect(row.current_step).toBe(8);
     expect(row.data.path).toBeUndefined();
   });
 
@@ -147,7 +149,7 @@ describe('live advance at the fork — scripted run over the generated flow', ()
       // upsert leaves current_step untouched, so the climb detector never
       // fires. The fork must still advance off the replayed evidence alone.
       const answered = { ...row, data: { ...row.data, path } };
-      expect(answered.current_step).toBe(1); // unchanged: no climb
+      expect(answered.current_step).toBe(8); // unchanged by the path write: no climb
       const cap = serverCaptureForBeat(forkNode(), answered.data as OnboardingStepData);
       expect(cap.path).toBe(path);
       expect(captureCompletesBeat(forkNode(), cap)).toBe(true);

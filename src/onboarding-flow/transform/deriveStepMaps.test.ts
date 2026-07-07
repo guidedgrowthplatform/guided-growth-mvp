@@ -35,6 +35,7 @@ describe('deriveStepMaps cutover equivalence (the retired hand tables)', () => {
   });
 
   it('stepToScreenLabel matches the historical session-log labels', () => {
+    // Step 9 (ONBOARD-WEEKLY-SETUP) is cut from onboarding, so the scale ends at 8.
     expect(derived.stepToScreenLabel).toEqual({
       1: 'ONBOARD-01',
       2: 'ONBOARD-FORK',
@@ -44,7 +45,6 @@ describe('deriveStepMaps cutover equivalence (the retired hand tables)', () => {
       6: 'ONBOARD-STATE-CHECK',
       7: 'ONBOARD-MORNING-SETUP',
       8: 'ONBOARD-BEGINNER-07',
-      9: 'ONBOARD-WEEKLY-SETUP',
     });
   });
 
@@ -58,11 +58,11 @@ describe('deriveStepMaps cutover equivalence (the retired hand tables)', () => {
   });
 
   it('identity beats (self-advancing) are exactly the off-window pre-fork set', () => {
+    // WEEKLY-SETUP is cut, so the identity (off-window pre-fork) set is these three.
     expect(derived.selfAdvancingScreens).toEqual([
       'ONBOARD-STATE-CHECK',
       'ONBOARD-MORNING-SETUP',
       'ONBOARD-BEGINNER-07',
-      'ONBOARD-WEEKLY-SETUP',
     ]);
   });
 
@@ -144,16 +144,17 @@ describe('no-hand-edit property: derived maps follow a flow mutation', () => {
   it('reordering the pre-fork setup beats leaves the maps stable (order-independent identities)', () => {
     const mutated = structuredClone(flow) as FlowDocument;
     const byId = new Map(mutated.nodes.map((n) => [n.id, n]));
-    // Swap morning-checkin-setup and reflection-setup in the walk order.
+    // Swap morning-checkin-setup and reflection-setup in the rhythm-first walk
+    // order: state-check -> reflection -> morning -> path-fork (the fork follows
+    // the setup block now that it runs pre-fork).
     const stateCheck = byId.get('state-check') as BeatNode;
     const morning = byId.get('morning-checkin-setup') as BeatNode;
     const reflection = byId.get('reflection-setup') as BeatNode;
     stateCheck.nextId = 'reflection-setup';
     reflection.nextId = 'morning-checkin-setup';
     reflection.backId = 'state-check';
-    morning.nextId = 'weekly-day-setup';
+    morning.nextId = 'path-fork';
     morning.backId = 'reflection-setup';
-    (byId.get('weekly-day-setup') as BeatNode).backId = 'morning-checkin-setup';
 
     const d = deriveStepMaps(mutated);
     expect(d.entryServerStep).toEqual(derived.entryServerStep);
