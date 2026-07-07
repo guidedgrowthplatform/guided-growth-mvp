@@ -46,6 +46,24 @@ describe('checkAdvanceData — canonical resync tail', () => {
     expect(gate(7, { morningCheckin: { time: '07:30', days: [1], reminder: true } })).toBeNull();
   });
 
+  it('case 7: the explicit-refusal skip marker satisfies the gate (B58 follow-up)', () => {
+    // config_refused_by_user persists morningCheckinSkipped=true as a terminal
+    // answer; without this skip path the beat is inescapable and the model
+    // retries submit_morning_checkin on later turns, where unrelated time/day
+    // content can slip past the guard and save a refused config.
+    expect(gate(7, { morningCheckinSkipped: true })).toBeNull();
+    // strictly the marker — falsy or wrong-typed truthy values stay gated
+    expect(gate(7, { morningCheckinSkipped: false })).toMatch(/morning_checkin_missing/);
+    expect(gate(7, { morningCheckinSkipped: 'yes' })).toMatch(/morning_checkin_missing/);
+    // a real config still passes regardless of the marker
+    expect(
+      gate(7, {
+        morningCheckin: { time: '07:30', days: [1], reminder: true },
+        morningCheckinSkipped: true,
+      }),
+    ).toBeNull();
+  });
+
   it('case 8 (leaving reflection) requires reflectionConfig', () => {
     expect(gate(8, {})).toMatch(/reflection_missing/);
     expect(gate(8, { reflectionConfig: { time: '21:00', days: [1], reminder: true } })).toBeNull();

@@ -303,3 +303,40 @@ describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
     expect(st.status).toBe('running');
   });
 });
+
+describe('explicit morning refusal (B58 follow-up): skip marker resumes past the beat', () => {
+  it('a row holding morningCheckinSkipped (no config) does not land back on the refused beat', () => {
+    // Walk the beginner tap path up to the morning beat, maintaining the row
+    // exactly as the save path writes it.
+    let st: FlowMachineState = initFlowMachine(flow);
+    let row: SimulatedRow = { current_step: 1, data: { nickname: 'Yonas' } };
+    for (let guard = 0; guard < 50; guard++) {
+      const node = getNode(flow, st.currentNodeId)!;
+      if (node.screenId === 'ONBOARD-MORNING-SETUP') break;
+      const cap: BeatCapture =
+        node.type === 'branch'
+          ? { data: {}, path: 'simple' }
+          : (TAP_CAPTURE[node.componentType] ?? { data: {} });
+      if (node.persist) row = saveToRow(row, node, cap);
+      st = applyCapture(flow, st, cap);
+    }
+    expect(getNode(flow, st.currentNodeId)!.screenId).toBe('ONBOARD-MORNING-SETUP');
+
+    // The refusal path persists ONLY the marker (markMorningCheckinSkipped in
+    // submitMorningCheckin.ts): jsonb merge + GREATEST(current_step, 7) — no
+    // config is fabricated.
+    row = {
+      current_step: Math.max(row.current_step, 7),
+      data: { ...row.data, morningCheckinSkipped: true },
+    };
+
+    // The live machine advances off the marker (evidence arrival)...
+    st = applyCapture(flow, st, { data: { morningCheckinSkipped: true } as BeatCapture['data'] });
+    const after = getNode(flow, st.currentNodeId)!;
+    expect(after.screenId).not.toBe('ONBOARD-MORNING-SETUP');
+
+    // ...and a refresh lands on that SAME next beat — a refused morning
+    // check-in must never pull the user back onto the beat they declined.
+    expect(resumedScreenId(row)).toBe(after.screenId);
+  });
+});

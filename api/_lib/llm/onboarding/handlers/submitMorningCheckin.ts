@@ -18,6 +18,21 @@ function isScheduleOption(v: string): boolean {
   return (SCHEDULE_OPTIONS as readonly string[]).includes(v);
 }
 
+// Same upsert shape (step pin, status, jsonb merge) as the config save below,
+// but merging only the skip marker — never a fabricated config.
+async function markMorningCheckinSkipped(anonId: string): Promise<void> {
+  await pool.query(
+    `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
+     VALUES ($1, 7, 'in_progress', $2::jsonb, now())
+     ON CONFLICT (anon_id) DO UPDATE SET
+       current_step = GREATEST(onboarding_states.current_step, 7),
+       status = 'in_progress',
+       data = onboarding_states.data || $2::jsonb,
+       updated_at = now()`,
+    [anonId, JSON.stringify({ morningCheckinSkipped: true })],
+  );
+}
+
 // Persist the morning check-in schedule on ONBOARD-MORNING-SETUP. Same validation
 // and merge shape as submitReflectionConfig, written under the `morningCheckin`
 // key at onboarding step 7.
@@ -33,7 +48,22 @@ export async function submitMorningCheckin(
   // caller has no raw turn text (backward compatible, same as addHabit's
   // habit_name_ungrounded convention).
   const guard = checkSetupConfigGuard(SURFACES.morning, ctx.user_text);
-  if (guard.blocked) return handlerError(guard.code);
+  if (guard.blocked) {
+    // An explicit refusal is a TERMINAL answer for this beat, not a missing
+    // one: persist a lightweight skip marker so the morning-checkin-setup
+    // advance gate (preconditions.ts) lets the flow leave the beat. Without
+    // it the beat is inescapable after a refusal, and the model retries this
+    // tool on later turns where unrelated time/day content (e.g. the evening
+    // reflection's time) can pass the guard and silently save a config the
+    // user already declined (!478 follow-up finding). config_not_grounded is
+    // NOT terminal — an off-topic turn is not an answer — so it writes
+    // nothing. A later genuine save overrides the marker: the gate checks
+    // morningCheckin first.
+    if (guard.code === 'config_refused_by_user') {
+      await markMorningCheckinSkipped(ctx.anon_id);
+    }
+    return handlerError(guard.code);
+  }
 
   const time = getString(args, 'time');
   if (time === undefined || !TIME_REGEX.test(time)) {
