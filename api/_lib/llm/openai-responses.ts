@@ -31,7 +31,7 @@ export interface OpenResponsesStreamOpts {
   signal?: AbortSignal;
   temperature?: number;
   maxOutputTokens?: number;
-  toolChoice?: 'auto' | 'required' | { type: 'function'; name: string };
+  toolChoice?: 'auto' | 'required' | 'none' | { type: 'function'; name: string };
 }
 
 let cachedClient: OpenAI | null = null;
