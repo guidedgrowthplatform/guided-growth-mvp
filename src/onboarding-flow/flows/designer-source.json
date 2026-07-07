@@ -225,6 +225,412 @@
       }
     },
     {
+      "beat": "8a",
+      "name": "State check (sleep / mood / energy / stress)",
+      "componentType": "state-check",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-STATE-CHECK: First State Check",
+      "transition": null,
+      "context": "",
+      "props": {
+        "coachLine": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+        "coachLine2": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process. Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
+        "allowedTools": "record_checkin, advance_step",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Fills sleep, mood, energy, stress on the same cards",
+        "perElement": [
+          {
+            "elementId": "sleep",
+            "line": "How's your sleep?",
+            "order": 1,
+            "showsAsBubble": false,
+            "clip": "state_sleep"
+          },
+          {
+            "elementId": "mood",
+            "line": "How's your mood?",
+            "order": 2,
+            "showsAsBubble": false,
+            "clip": "state_mood"
+          },
+          {
+            "elementId": "energy",
+            "line": "How's your energy?",
+            "order": 3,
+            "showsAsBubble": false,
+            "clip": "state_energy"
+          },
+          {
+            "elementId": "stress",
+            "line": "How's your stress?",
+            "order": 4,
+            "showsAsBubble": false,
+            "clip": "state_stress"
+          }
+        ],
+        "mp3Assets": [
+          {
+            "id": "onboard_state_check_1",
+            "label": "onboard_state_check_1",
+            "file": "/voice/ob/onboard_state_check_1.wav",
+            "transcript": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+            "timing": "opener"
+          },
+          {
+            "id": "onboard_state_check_2",
+            "label": "onboard_state_check_2",
+            "file": "/voice/ob/onboard_state_check_2.wav",
+            "transcript": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
+            "timing": "opener"
+          },
+          {
+            "id": "state_sleep",
+            "label": "state_sleep",
+            "file": "/voice/ob/state_sleep.wav",
+            "transcript": "How's your sleep?",
+            "elementId": "sleep",
+            "timing": "element"
+          },
+          {
+            "id": "state_mood",
+            "label": "state_mood",
+            "file": "/voice/ob/state_mood.wav",
+            "transcript": "How's your mood?",
+            "elementId": "mood",
+            "timing": "element"
+          },
+          {
+            "id": "state_energy",
+            "label": "state_energy",
+            "file": "/voice/ob/state_energy.wav",
+            "transcript": "How's your energy?",
+            "elementId": "energy",
+            "timing": "element"
+          },
+          {
+            "id": "state_stress",
+            "label": "state_stress",
+            "file": "/voice/ob/state_stress.wav",
+            "transcript": "How's your stress?",
+            "elementId": "stress",
+            "timing": "element"
+          }
+        ],
+        "variable": false,
+        "engine": {
+          "backId": "profile"
+        }
+      },
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+          "clip": "onboard_state_check_1"
+        },
+        {
+          "kind": "bubble",
+          "n": 2,
+          "say": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
+          "clip": "onboard_state_check_2"
+        },
+        {
+          "kind": "reveal",
+          "n": 1,
+          "say": "How's your sleep?",
+          "clip": "state_sleep"
+        },
+        {
+          "kind": "reveal",
+          "n": 2,
+          "say": "How's your mood?",
+          "clip": "state_mood"
+        },
+        {
+          "kind": "reveal",
+          "n": 3,
+          "say": "How's your energy?",
+          "clip": "state_energy"
+        },
+        {
+          "kind": "reveal",
+          "n": 4,
+          "say": "How's your stress?",
+          "clip": "state_stress"
+        }
+      ]
+    },
+    {
+      "beat": "8b",
+      "name": "Morning check-in setup",
+      "componentType": "morning-checkin-setup",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-MORNING-SETUP: Morning Check-in Time",
+      "transition": null,
+      "context": "",
+      "props": {
+        "coachLine": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+        "coachLine2": "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "openerMode": "A",
+        "allowedTools": "submit_morning_checkin, advance_step",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Sets a time and days",
+        "perElement": [
+          {
+            "elementId": "days",
+            "line": "Weekdays, weekends, or your own days?",
+            "order": 1,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "when",
+            "line": "What time?",
+            "order": 2,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "reminder",
+            "line": "Want a reminder?",
+            "order": 3,
+            "showsAsBubble": false
+          }
+        ],
+        "mp3Assets": [
+          {
+            "id": "onboard_morning_setup_1",
+            "label": "onboard_morning_setup_1",
+            "file": "/voice/ob/onboard_morning_setup_1.wav",
+            "transcript": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+            "timing": "opener"
+          },
+          {
+            "id": "onboard_morning_setup_2",
+            "label": "onboard_morning_setup_2",
+            "file": "/voice/ob/onboard_morning_setup_2.wav",
+            "transcript": "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well.",
+            "timing": "opener"
+          }
+        ],
+        "spokenContent": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+        "variable": false
+      },
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+          "clip": "onboard_morning_setup_1"
+        },
+        {
+          "kind": "bubble",
+          "n": 2,
+          "say": "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well.",
+          "clip": "onboard_morning_setup_2"
+        },
+        {
+          "kind": "reveal",
+          "n": 1
+        },
+        {
+          "kind": "reveal",
+          "n": 2
+        },
+        {
+          "kind": "reveal",
+          "n": 3
+        }
+      ]
+    },
+    {
+      "beat": "9",
+      "name": "Evening reflection setup",
+      "componentType": "reflection-card",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-BEGINNER-07: Evening Reflection Setup",
+      "transition": null,
+      "context": "",
+      "props": {
+        "coachLine": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+        "openerMode": "B",
+        "allowedTools": "submit_reflection_config, submit_custom_prompts, advance_step",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Picks a style and time",
+        "perElement": [
+          {
+            "elementId": "proud",
+            "line": "What am I proud of?",
+            "order": 1,
+            "showsAsBubble": false,
+            "clip": "reflect_proud"
+          },
+          {
+            "elementId": "forgive",
+            "line": "What do I forgive myself for?",
+            "order": 2,
+            "showsAsBubble": false,
+            "clip": "reflect_forgive"
+          },
+          {
+            "elementId": "grateful",
+            "line": "What am I grateful for?",
+            "order": 3,
+            "showsAsBubble": false,
+            "clip": "reflect_grateful"
+          },
+          {
+            "elementId": "alt",
+            "line": "Or make your own, or just talk freely.",
+            "order": 4,
+            "showsAsBubble": false,
+            "clip": "reflect_alt"
+          },
+          {
+            "elementId": "days",
+            "line": "Which days?",
+            "order": 5,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "when",
+            "line": "I'd recommend doing this before bed, maybe 15 minutes before you wind down.",
+            "order": 6,
+            "showsAsBubble": false,
+            "clip": "reflect_time"
+          },
+          {
+            "elementId": "reminder",
+            "line": "Want a reminder?",
+            "order": 7,
+            "showsAsBubble": false
+          }
+        ],
+        "engine": {
+          "nodeId": "reflection-setup",
+          "backId": "morning-checkin-setup",
+          "persistStep": "8",
+          "captureFields": "reflectionConfig",
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        },
+        "mp3Assets": [
+          {
+            "id": "onboard_beginner_07_1",
+            "label": "onboard_beginner_07_1",
+            "file": "/voice/ob/onboard_beginner_07_1.wav",
+            "transcript": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+            "timing": "opener"
+          },
+          {
+            "id": "reflect_proud",
+            "label": "reflect_proud",
+            "file": "/voice/ob/reflect_proud.wav",
+            "transcript": "What am I proud of?",
+            "elementId": "proud",
+            "timing": "element"
+          },
+          {
+            "id": "reflect_forgive",
+            "label": "reflect_forgive",
+            "file": "/voice/ob/reflect_forgive.wav",
+            "transcript": "What do I forgive myself for?",
+            "elementId": "forgive",
+            "timing": "element"
+          },
+          {
+            "id": "reflect_grateful",
+            "label": "reflect_grateful",
+            "file": "/voice/ob/reflect_grateful.wav",
+            "transcript": "What am I grateful for?",
+            "elementId": "grateful",
+            "timing": "element"
+          },
+          {
+            "id": "reflect_alt",
+            "label": "reflect_alt",
+            "file": "/voice/ob/reflect_alt.wav",
+            "transcript": "Or make your own, or just talk freely.",
+            "elementId": "alt",
+            "timing": "element"
+          },
+          {
+            "id": "reflect_time",
+            "label": "reflect_time",
+            "file": "/voice/ob/reflect_time.wav",
+            "transcript": "I'd recommend doing this before bed, maybe 15 minutes before you wind down.",
+            "elementId": "when",
+            "timing": "element"
+          }
+        ],
+        "variable": false
+      },
+      "narration": [
+        {
+          "kind": "bubble",
+          "n": 1,
+          "say": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+          "clip": "onboard_beginner_07_1"
+        },
+        {
+          "kind": "reveal",
+          "n": 1,
+          "say": "What am I proud of?",
+          "clip": "reflect_proud"
+        },
+        {
+          "kind": "reveal",
+          "n": 2,
+          "say": "What do I forgive myself for?",
+          "clip": "reflect_forgive"
+        },
+        {
+          "kind": "reveal",
+          "n": 3,
+          "say": "What am I grateful for?",
+          "clip": "reflect_grateful"
+        },
+        {
+          "kind": "reveal",
+          "n": 4,
+          "say": "Or make your own, or just talk freely.",
+          "clip": "reflect_alt"
+        },
+        {
+          "kind": "reveal",
+          "n": 5
+        },
+        {
+          "kind": "reveal",
+          "n": 6,
+          "say": "I'd recommend doing this before bed, maybe 15 minutes before you wind down.",
+          "clip": "reflect_time"
+        },
+        {
+          "kind": "reveal",
+          "n": 7
+        }
+      ]
+    },
+    {
       "beat": "10",
       "name": "Path choice",
       "componentType": "path-selection",
@@ -744,451 +1150,6 @@
           "clip": "onboard_advanced_frequency_2"
         }
       ]
-    },
-    {
-      "beat": "8a",
-      "name": "State check (sleep / mood / energy / stress)",
-      "componentType": "state-check",
-      "variant": "shared",
-      "showOnPath": null,
-      "background": "coach",
-      "sheetStage": "ONBOARD-STATE-CHECK: First State Check",
-      "transition": null,
-      "context": "",
-      "props": {
-        "coachLine": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
-        "coachLine2": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now."
-      },
-      "meta": {
-        "voiceEngine": "MP3",
-        "voiceMode": "Verbatim",
-        "spokenContent": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process. Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-        "allowedTools": "record_checkin, advance_step",
-        "openerShowsAsBubble": true,
-        "expectedResponse": "Fills sleep, mood, energy, stress on the same cards",
-        "perElement": [
-          {
-            "elementId": "sleep",
-            "line": "How's your sleep?",
-            "order": 1,
-            "showsAsBubble": false,
-            "clip": "state_sleep"
-          },
-          {
-            "elementId": "mood",
-            "line": "How's your mood?",
-            "order": 2,
-            "showsAsBubble": false,
-            "clip": "state_mood"
-          },
-          {
-            "elementId": "energy",
-            "line": "How's your energy?",
-            "order": 3,
-            "showsAsBubble": false,
-            "clip": "state_energy"
-          },
-          {
-            "elementId": "stress",
-            "line": "How's your stress?",
-            "order": 4,
-            "showsAsBubble": false,
-            "clip": "state_stress"
-          }
-        ],
-        "mp3Assets": [
-          {
-            "id": "onboard_state_check_1",
-            "label": "onboard_state_check_1",
-            "file": "/voice/ob/onboard_state_check_1.wav",
-            "transcript": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
-            "timing": "opener"
-          },
-          {
-            "id": "onboard_state_check_2",
-            "label": "onboard_state_check_2",
-            "file": "/voice/ob/onboard_state_check_2.wav",
-            "transcript": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-            "timing": "opener"
-          },
-          {
-            "id": "state_sleep",
-            "label": "state_sleep",
-            "file": "/voice/ob/state_sleep.wav",
-            "transcript": "How's your sleep?",
-            "elementId": "sleep",
-            "timing": "element"
-          },
-          {
-            "id": "state_mood",
-            "label": "state_mood",
-            "file": "/voice/ob/state_mood.wav",
-            "transcript": "How's your mood?",
-            "elementId": "mood",
-            "timing": "element"
-          },
-          {
-            "id": "state_energy",
-            "label": "state_energy",
-            "file": "/voice/ob/state_energy.wav",
-            "transcript": "How's your energy?",
-            "elementId": "energy",
-            "timing": "element"
-          },
-          {
-            "id": "state_stress",
-            "label": "state_stress",
-            "file": "/voice/ob/state_stress.wav",
-            "transcript": "How's your stress?",
-            "elementId": "stress",
-            "timing": "element"
-          }
-        ],
-        "variable": false,
-        "engine": {
-          "backId": "profile"
-        }
-      },
-      "narration": [
-        {
-          "kind": "bubble",
-          "n": 1,
-          "say": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
-          "clip": "onboard_state_check_1"
-        },
-        {
-          "kind": "bubble",
-          "n": 2,
-          "say": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-          "clip": "onboard_state_check_2"
-        },
-        {
-          "kind": "reveal",
-          "n": 1,
-          "say": "How's your sleep?",
-          "clip": "state_sleep"
-        },
-        {
-          "kind": "reveal",
-          "n": 2,
-          "say": "How's your mood?",
-          "clip": "state_mood"
-        },
-        {
-          "kind": "reveal",
-          "n": 3,
-          "say": "How's your energy?",
-          "clip": "state_energy"
-        },
-        {
-          "kind": "reveal",
-          "n": 4,
-          "say": "How's your stress?",
-          "clip": "state_stress"
-        }
-      ]
-    },
-    {
-      "beat": "8b",
-      "name": "Morning check-in setup",
-      "componentType": "morning-checkin-setup",
-      "variant": "shared",
-      "showOnPath": null,
-      "background": "coach",
-      "sheetStage": "ONBOARD-MORNING-SETUP: Morning Check-in Time",
-      "transition": null,
-      "context": "",
-      "props": {
-        "coachLine": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
-        "coachLine2": "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well."
-      },
-      "meta": {
-        "voiceEngine": "MP3",
-        "voiceMode": "Verbatim",
-        "openerMode": "A",
-        "allowedTools": "submit_morning_checkin, advance_step",
-        "openerShowsAsBubble": true,
-        "expectedResponse": "Sets a time and days",
-        "perElement": [
-          {
-            "elementId": "days",
-            "line": "Weekdays, weekends, or your own days?",
-            "order": 1,
-            "showsAsBubble": false
-          },
-          {
-            "elementId": "when",
-            "line": "What time?",
-            "order": 2,
-            "showsAsBubble": false
-          },
-          {
-            "elementId": "reminder",
-            "line": "Want a reminder?",
-            "order": 3,
-            "showsAsBubble": false
-          }
-        ],
-        "mp3Assets": [
-          {
-            "id": "onboard_morning_setup_1",
-            "label": "onboard_morning_setup_1",
-            "file": "/voice/ob/onboard_morning_setup_1.wav",
-            "transcript": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
-            "timing": "opener"
-          },
-          {
-            "id": "onboard_morning_setup_2",
-            "label": "onboard_morning_setup_2",
-            "file": "/voice/ob/onboard_morning_setup_2.wav",
-            "transcript": "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well.",
-            "timing": "opener"
-          }
-        ],
-        "spokenContent": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
-        "variable": false
-      },
-      "narration": [
-        {
-          "kind": "bubble",
-          "n": 1,
-          "say": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
-          "clip": "onboard_morning_setup_1"
-        },
-        {
-          "kind": "bubble",
-          "n": 2,
-          "say": "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well.",
-          "clip": "onboard_morning_setup_2"
-        },
-        {
-          "kind": "reveal",
-          "n": 1
-        },
-        {
-          "kind": "reveal",
-          "n": 2
-        },
-        {
-          "kind": "reveal",
-          "n": 3
-        }
-      ]
-    },
-    {
-      "beat": "9",
-      "name": "Evening reflection setup",
-      "componentType": "reflection-card",
-      "variant": "shared",
-      "showOnPath": null,
-      "background": "coach",
-      "sheetStage": "ONBOARD-BEGINNER-07: Evening Reflection Setup",
-      "transition": null,
-      "context": "",
-      "props": {
-        "coachLine": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions."
-      },
-      "meta": {
-        "voiceEngine": "MP3",
-        "voiceMode": "Verbatim",
-        "spokenContent": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
-        "openerMode": "B",
-        "allowedTools": "submit_reflection_config, submit_custom_prompts, advance_step",
-        "openerShowsAsBubble": true,
-        "expectedResponse": "Picks a style and time",
-        "perElement": [
-          {
-            "elementId": "proud",
-            "line": "What am I proud of?",
-            "order": 1,
-            "showsAsBubble": false,
-            "clip": "reflect_proud"
-          },
-          {
-            "elementId": "forgive",
-            "line": "What do I forgive myself for?",
-            "order": 2,
-            "showsAsBubble": false,
-            "clip": "reflect_forgive"
-          },
-          {
-            "elementId": "grateful",
-            "line": "What am I grateful for?",
-            "order": 3,
-            "showsAsBubble": false,
-            "clip": "reflect_grateful"
-          },
-          {
-            "elementId": "alt",
-            "line": "Or make your own, or just talk freely.",
-            "order": 4,
-            "showsAsBubble": false,
-            "clip": "reflect_alt"
-          },
-          {
-            "elementId": "days",
-            "line": "Which days?",
-            "order": 5,
-            "showsAsBubble": false
-          },
-          {
-            "elementId": "when",
-            "line": "I'd recommend doing this before bed, maybe 15 minutes before you wind down.",
-            "order": 6,
-            "showsAsBubble": false,
-            "clip": "reflect_time"
-          },
-          {
-            "elementId": "reminder",
-            "line": "Want a reminder?",
-            "order": 7,
-            "showsAsBubble": false
-          }
-        ],
-        "engine": {
-          "nodeId": "reflection-setup",
-          "backId": "morning-checkin-setup",
-          "persistStep": "8",
-          "captureFields": "reflectionConfig",
-          "voiceExpectsInput": true,
-          "voiceDirectLlmAllowed": true
-        },
-        "mp3Assets": [
-          {
-            "id": "onboard_beginner_07_1",
-            "label": "onboard_beginner_07_1",
-            "file": "/voice/ob/onboard_beginner_07_1.wav",
-            "transcript": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
-            "timing": "opener"
-          },
-          {
-            "id": "reflect_proud",
-            "label": "reflect_proud",
-            "file": "/voice/ob/reflect_proud.wav",
-            "transcript": "What am I proud of?",
-            "elementId": "proud",
-            "timing": "element"
-          },
-          {
-            "id": "reflect_forgive",
-            "label": "reflect_forgive",
-            "file": "/voice/ob/reflect_forgive.wav",
-            "transcript": "What do I forgive myself for?",
-            "elementId": "forgive",
-            "timing": "element"
-          },
-          {
-            "id": "reflect_grateful",
-            "label": "reflect_grateful",
-            "file": "/voice/ob/reflect_grateful.wav",
-            "transcript": "What am I grateful for?",
-            "elementId": "grateful",
-            "timing": "element"
-          },
-          {
-            "id": "reflect_alt",
-            "label": "reflect_alt",
-            "file": "/voice/ob/reflect_alt.wav",
-            "transcript": "Or make your own, or just talk freely.",
-            "elementId": "alt",
-            "timing": "element"
-          },
-          {
-            "id": "reflect_time",
-            "label": "reflect_time",
-            "file": "/voice/ob/reflect_time.wav",
-            "transcript": "I'd recommend doing this before bed, maybe 15 minutes before you wind down.",
-            "elementId": "when",
-            "timing": "element"
-          }
-        ],
-        "variable": false
-      },
-      "narration": [
-        {
-          "kind": "bubble",
-          "n": 1,
-          "say": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
-          "clip": "onboard_beginner_07_1"
-        },
-        {
-          "kind": "reveal",
-          "n": 1,
-          "say": "What am I proud of?",
-          "clip": "reflect_proud"
-        },
-        {
-          "kind": "reveal",
-          "n": 2,
-          "say": "What do I forgive myself for?",
-          "clip": "reflect_forgive"
-        },
-        {
-          "kind": "reveal",
-          "n": 3,
-          "say": "What am I grateful for?",
-          "clip": "reflect_grateful"
-        },
-        {
-          "kind": "reveal",
-          "n": 4,
-          "say": "Or make your own, or just talk freely.",
-          "clip": "reflect_alt"
-        },
-        {
-          "kind": "reveal",
-          "n": 5
-        },
-        {
-          "kind": "reveal",
-          "n": 6,
-          "say": "I'd recommend doing this before bed, maybe 15 minutes before you wind down.",
-          "clip": "reflect_time"
-        },
-        {
-          "kind": "reveal",
-          "n": 7
-        }
-      ]
-    },
-    {
-      "beat": "9b",
-      "name": "The Weekly day setup",
-      "componentType": "weekly-day-setup",
-      "variant": "shared",
-      "showOnPath": null,
-      "background": "coach",
-      "sheetStage": "ONBOARD-WEEKLY-SETUP: The Weekly Day",
-      "transition": null,
-      "context": "BEAT: The Weekly day.\n\nSet up The Weekly, the once-a-week session where you and the user look back over the whole week and plan the next one together. Your opener carries the pitch and is spoken as written. After it, recommend the day out loud, then let them choose.\n\nRecommend the evening before their work week starts:\n- If you are speaking Hebrew, that day is מוצ״ש (Saturday night). Say מוצ״ש, the natural Israeli word for it, not the formal motzaei Shabbat.\n- Otherwise, recommend Sunday night.\nFrame it as the evening before their week gets going, then ask if that works or if another day fits them better. The card already has that day preselected to match, so they can keep it or pick another.\n\nCapture the day with submit_weekly_config, then move on.\n\nDO NOT:\n- Read the seven days out loud. The card shows them.\n- Oversell. Opener, the day, let them choose, move on.\n- Let it be skipped silently. If they truly will not pick, set the recommended day and tell them they can change it later.",
-      "props": {
-        "coachLine": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you."
-      },
-      "meta": {
-        "voiceEngine": "Cartesia",
-        "voiceMode": "Verbatim",
-        "spokenContent": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you.",
-        "openerMode": "B",
-        "allowedTools": "submit_weekly_config, advance_step",
-        "openerShowsAsBubble": true,
-        "expectedResponse": "Picks a day, 0-6",
-        "perElement": [
-          {
-            "elementId": "day",
-            "line": "Which day?",
-            "order": 1,
-            "showsAsBubble": false
-          }
-        ],
-        "engine": {
-          "nodeId": "weekly-day-setup",
-          "backId": "reflection-setup",
-          "persistStep": "9",
-          "captureFields": "weeklyConfig",
-          "voiceExpectsInput": true,
-          "voiceDirectLlmAllowed": true
-        }
-      }
     },
     {
       "beat": "12",

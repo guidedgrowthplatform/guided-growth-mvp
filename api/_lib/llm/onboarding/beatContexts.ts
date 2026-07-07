@@ -105,7 +105,7 @@ export interface BeatContext {
 }
 
 // Bumped when beat copy/tooling changes meaningfully.
-export const BEAT_CONTEXT_VERSION = 3;
+export const BEAT_CONTEXT_VERSION = 4;
 
 export const BEAT_CONTEXTS: Record<string, BeatContext> = {
   // Beat 0 — auth. Card-only; coach stays silent (the page auto-advances on
@@ -125,8 +125,7 @@ SPEAK MODE: VERBATIM_OPENER
 You already know the user's name from sign-in. Greet them by name, warmly, and collect two things: their age and their gender. Ask gender plainly, and never let them skip or decline it. Accept voice or taps. If they give one, ask for the other. Both are required before moving on, gender included. Don't ask for anything else.`,
     // submit_profile saves age+gender; advance_step is the nav (only after both are in).
     allowedTools: ['submit_profile', 'advance_step'],
-    opener:
-      'Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?',
+    opener: 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
   },
 
   // NOTE(B54): this hand-authored context is currently shadowed at runtime by beatContexts.generated.json
@@ -143,8 +142,7 @@ DO NOT:
 - Pick a path for the user because they asked you to skip or choose for them ("just pick one", "skip this too"). Recommend one if you like, then ask them to confirm it, and wait for their answer before calling submit_path_choice. Treat a skip request here exactly like an unanswered required field, same as the profile beat.`,
     // submit_path_choice routes; ask_clarification only for ambiguous answers; advance_step is the nav.
     allowedTools: ['submit_path_choice', 'ask_clarification', 'advance_step'],
-    opener:
-      'Quick one. Have you tracked habits before, or is this new for you? Both are totally fine.',
+    opener: "For the next part of the process, I'd like to know:",
   },
 
   'ONBOARD-BEGINNER-01': {
@@ -163,7 +161,7 @@ DO NOT:
     // submit_category saves the pick (valid values live in the tool's enum); advance_step is the nav.
     allowedTools: ['submit_category', 'advance_step'],
     opener:
-      'What part of your life do you most want to work on right now? Pick the one that pulls you.',
+      "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
   },
 
   'ONBOARD-BEGINNER-02': {
@@ -180,7 +178,7 @@ DO NOT:
 - Coach or explain per subcategory.`,
     // submit_goals saves exact labels (Subcategory Options block is the reference); advance_step is the nav.
     allowedTools: ['submit_goals', 'advance_step'],
-    opener: "Within that, what's the piece you want to start with?",
+    opener: 'So within that, which goals would you like to start with? Pick one or two.',
   },
 
   // Consolidation seed 2026-07-06: the create-your-own goal detour beat.
@@ -220,7 +218,7 @@ DO NOT:
     // add_habit/remove_habit edit the pick set (Habit Options block is the reference); advance_step is the nav.
     allowedTools: ['add_habit', 'remove_habit', 'advance_step'],
     opener:
-      "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+      "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
   },
 
   // Consolidation seed 2026-07-06: the create-your-own habit detour beat.
@@ -256,7 +254,7 @@ DO NOT:
   confirm screen at the end (ONBOARD-COMPLETE), not mid-flow.`,
     // update_habit sets days/time on a picked habit; add_habit removed (ruling 2026-07-07, schedule-only); advance_step is the nav.
     allowedTools: ['update_habit', 'advance_step'],
-    opener: 'How often, and roughly when, for each one? Add a reminder only if you want a nudge.',
+    opener: "Please set the days that you're going to actually do these habits.",
   },
 
   'ONBOARD-BEGINNER-05': {
@@ -292,7 +290,7 @@ DO NOT:
     // submit_reflection_config saves AND self-advances (addendum); submit_custom_prompts for the custom style; advance_step kept as nav fallback.
     allowedTools: ['submit_reflection_config', 'submit_custom_prompts', 'advance_step'],
     opener:
-      'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
+      'One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.',
   },
 
   'ONBOARD-WEEKLY-SETUP': {
@@ -332,7 +330,7 @@ DO NOT:
     // submit_brain_dump carries the verbatim transcript (never summarized); advance_step is the nav.
     allowedTools: ['submit_brain_dump', 'advance_step'],
     opener:
-      'Read me the habits you already track. Less is more to start, you can always build on it.',
+      "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
   },
 
   'ONBOARD-ADVANCED-02': {
@@ -385,7 +383,8 @@ The user just did their first check-in. Now set the daily time for it, reminder 
 If the user says they do not want a morning check-in at all, do not call submit_morning_checkin anyway. Say plainly that you're skipping the morning one, and move on. Never save it "just in case" while telling them you heard their no (see DATA INTEGRITY).`,
     // submit_morning_checkin saves AND self-advances (addendum); advance_step kept as nav fallback.
     allowedTools: ['submit_morning_checkin', 'advance_step'],
-    opener: "When do you want this each day? I'll nudge you then.",
+    opener:
+      "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
   },
 
   // Final completion beat. Habits + morning + evening are all saved; confirm_plan
@@ -475,7 +474,7 @@ DO NOT:
 - Give advice on what they reported. One warm line, then move on.`,
     allowedTools: ['record_checkin', 'advance_step'],
     opener:
-      "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+      "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
   },
 
   // Advanced habit-frequency beat. update_habit sets the days on the ALREADY
@@ -502,7 +501,7 @@ DO NOT:
 - Turn a reminder on unless they ask.
 - Create a new habit here. Every habit on this beat already exists as a card; only set its days with update_habit. If a habit seems to be missing, say so, never invent or add one.`,
     allowedTools: ['update_habit', 'advance_step'],
-    opener: "Now the days. Tell me how often each one runs and I'll fill them in.",
+    opener: "Please set the days that you're going to actually do these habits.",
   },
 
   // Weekly projection, frame 1 of 5. MP3-candidate narration. No data, frontend advances.
@@ -532,7 +531,7 @@ DO NOT:
 - Improvise or add.
 - Promise this is what will happen.`,
     allowedTools: [],
-    opener: 'Best case, every day green. Every streak going strong. That would be amazing.',
+    opener: 'Best case, every day green. 100% success. That would be amazing.',
   },
 
   // Weekly projection, frame 3 of 5. MP3-candidate narration. No data, frontend advances.
@@ -547,7 +546,7 @@ DO NOT:
 - Improvise or add.`,
     allowedTools: [],
     opener:
-      "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+      'Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.',
   },
 
   // Weekly projection, frame 4 of 5. MP3-candidate narration. No data, frontend advances.
@@ -563,7 +562,7 @@ DO NOT:
 - Make a rough week sound like failure.`,
     allowedTools: [],
     opener:
-      "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+      "Some weeks can look like this. And even that's okay, because you're in the process and you're consistent inside the process.",
   },
 
   // Weekly projection, frame 5 of 5. MP3-candidate narration. No data, frontend advances.
@@ -579,7 +578,7 @@ DO NOT:
 - Shame the user. The point is reporting, not perfection.`,
     allowedTools: [],
     opener:
-      'The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.',
+      'The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going.',
   },
 };
 
