@@ -562,7 +562,7 @@
         "voiceEngine": "MP3",
         "voiceMode": "Verbatim",
         "openerMode": "A",
-        "allowedTools": "add_habit, update_habit, advance_step",
+        "allowedTools": "update_habit, advance_step",
         "openerShowsAsBubble": true,
         "expectedResponse": "Sets the days per habit",
         "perElement": [
@@ -1208,7 +1208,7 @@
         "voiceEngine": "MP3",
         "voiceMode": "Verbatim",
         "spokenContent": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
-        "allowedTools": "update_habit, confirm_plan",
+        "allowedTools": "add_habit, remove_habit, update_habit, confirm_plan",
         "openerShowsAsBubble": true,
         "expectedResponse": "Looks good, or an edit",
         "mp3Assets": [

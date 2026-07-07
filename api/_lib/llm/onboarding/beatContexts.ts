@@ -249,9 +249,13 @@ For each habit they chose, set how often and roughly when. The day circles and t
 
 DO NOT:
 - Turn a per-habit reminder on unless they ask.
-- Re-ask a piece they already gave.`,
-    // update_habit sets days/time on a picked habit; add_habit only for a new one named mid-beat; advance_step is the nav.
-    allowedTools: ['add_habit', 'update_habit', 'advance_step'],
+- Re-ask a piece they already gave.
+- Create a new habit here (ruling 2026-07-07). This beat is schedule-only:
+  set days/time/reminder for the habits already picked on ONBOARD-BEGINNER-03.
+  Full habit editing (add or remove a habit) belongs on the plan-review /
+  confirm screen at the end (ONBOARD-COMPLETE), not mid-flow.`,
+    // update_habit sets days/time on a picked habit; add_habit removed (ruling 2026-07-07, schedule-only); advance_step is the nav.
+    allowedTools: ['update_habit', 'advance_step'],
     opener: 'How often, and roughly when, for each one? Add a reminder only if you want a nudge.',
   },
 
@@ -391,9 +395,13 @@ If the user says they do not want a morning check-in at all, do not call submit_
 
 SPEAK MODE: VERBATIM_OPENER
 
-One confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. Ask if it looks right or if they want to change anything. On approval, they enter the app. This is a high-investment moment, make the line real and specific, not generic.`,
-    // confirm_plan finalizes onboarding (never advance_step here); update_habit for a last-second edit. Matches the flow overlay.
-    allowedTools: ['update_habit', 'confirm_plan'],
+One confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. Ask if it looks right or if they want to change anything, including adding or removing a habit. On approval, they enter the app. This is a high-investment moment, make the line real and specific, not generic.`,
+    // This is the plan-review/confirm screen (ruling 2026-07-07): full habit
+    // editing lives here, not on the mid-flow scheduling beats. confirm_plan
+    // finalizes onboarding (never advance_step here); update_habit edits a
+    // habit's schedule; add_habit/remove_habit edit the habit set itself.
+    // Matches the flow overlay.
+    allowedTools: ['add_habit', 'remove_habit', 'update_habit', 'confirm_plan'],
     opener:
       "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
   },

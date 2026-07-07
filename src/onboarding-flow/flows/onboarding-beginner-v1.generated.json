@@ -797,7 +797,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": ["add_habit", "update_habit", "advance_step"]
+          "allowedTools": ["update_habit", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -1714,7 +1714,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": ["update_habit", "confirm_plan"]
+          "allowedTools": ["add_habit", "remove_habit", "update_habit", "confirm_plan"]
         },
         "path": "path-3-direct-llm",
         "orb": {
