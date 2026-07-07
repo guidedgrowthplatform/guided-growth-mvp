@@ -3,7 +3,7 @@ stages:
   - verify
   - deploy
 
-# shared so verify/deploy rules can't diverge — needs:[verify] errors if they do.
+# shared so verify/deploy rules cannot diverge. needs:[verify] errors if they do.
 .branch_push_rules: &branch_push_rules
   - if: '$CI_COMMIT_BRANCH'
 
@@ -33,7 +33,7 @@ verify:
   rules: *branch_push_rules
   interruptible: true
   variables:
-    # npm ci wipes node_modules — cache the download cache, not the tree.
+    # npm ci wipes node_modules. Cache the download cache, not the tree.
     npm_config_cache: '$CI_PROJECT_DIR/.npm'
   cache:
     key:
@@ -46,6 +46,27 @@ verify:
     - npx tsc --noEmit
     - npx vitest run
     - npm run build
+
+render_parity:
+  stage: verify
+  image: node:20
+  rules: *branch_push_rules
+  interruptible: true
+  allow_failure: true
+  variables:
+    # npm ci wipes node_modules, so cache the download cache, not the tree.
+    npm_config_cache: '$CI_PROJECT_DIR/.npm'
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  script:
+    - npm ci --prefer-offline --no-audit --no-fund
+    - npm run render:parity
+  # REPORT MODE. The conductor flips allow_failure to false, REQUIRED, once
+  # main matches the render after reconciliation !507 lands.
 
 # gg-qa preview: deploy every branch push to the gg-qa Vercel project and post
 # the URL to the Deployments channel. Token + ids + webhook are CI variables.
