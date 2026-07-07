@@ -1720,13 +1720,16 @@ function ReflectionSayAdapter({ node, onCapture }: BeatAdapterProps) {
   const setAnswer = (key: string, value: string) =>
     setAnswersByKey((prev) => ({ ...prev, [key]: value }));
 
+  // Every question is required. A blank answer must hold the user on the beat
+  // and re-ask (Continue stays disabled) rather than silently drop that
+  // question and advance, which used to lose the answer with no way back.
+  const valid =
+    questions.length > 0 && questions.every((q) => (answersByKey[q.key] ?? '').trim().length > 0);
+
   const submit = () => {
+    if (!valid) return;
     const reflectionText = questions
-      .map((q) => {
-        const a = (answersByKey[q.key] ?? '').trim();
-        return a ? `${q.prompt} ${a}` : '';
-      })
-      .filter(Boolean)
+      .map((q) => `${q.prompt} ${(answersByKey[q.key] ?? '').trim()}`)
       .join('\n');
     onCapture({ data: { reflectionText } as Record<string, unknown> });
   };
@@ -1745,7 +1748,7 @@ function ReflectionSayAdapter({ node, onCapture }: BeatAdapterProps) {
           </div>
         ))}
       </div>
-      <Cta label="Continue" onClick={submit} />
+      <Cta label="Continue" disabled={!valid} onClick={submit} />
     </CardShell>
   );
 }
