@@ -6,11 +6,13 @@ import {
   getBoolean,
   getNumberArray,
   getString,
+  handlerError,
   invalid,
   ok,
   TIME_REGEX,
   type OnboardingHandlerCtx,
 } from './shared.js';
+import { checkSetupConfigGuard, SURFACES } from './setupConfigGuard.js';
 
 function isScheduleOption(v: string): boolean {
   return (SCHEDULE_OPTIONS as readonly string[]).includes(v);
@@ -20,6 +22,11 @@ export async function submitReflectionConfig(
   ctx: OnboardingHandlerCtx,
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
+  // B58 server-side guard: same pattern as submitMorningCheckin. See
+  // setupConfigGuard.ts doc comment for the two-leg design.
+  const guard = checkSetupConfigGuard(SURFACES.reflection, ctx.user_text);
+  if (guard.blocked) return handlerError(guard.code);
+
   const time = getString(args, 'time');
   if (time === undefined || !TIME_REGEX.test(time)) {
     return invalid('time must be HH:MM in 24-hour format');
