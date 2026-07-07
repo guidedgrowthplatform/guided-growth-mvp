@@ -196,6 +196,80 @@ describe('submit_path_choice', () => {
     const r = await submitPathChoice(CTX, { path: 'braindump' });
     expect(r.ok).toBe(true);
   });
+
+  // ── G13 grounding guard ──────────────────────────────────────────────
+
+  it('G13: rejects delegation turn "skip this too, just pick one for me"', async () => {
+    const r = await submitPathChoice(
+      { ...CTX, user_text: 'skip this too, just pick one for me' },
+      { path: 'simple' },
+    );
+    expect(r).toMatchObject({ ok: false, error: 'handler_error', message: 'path_choice_not_grounded' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('G13: accepts grounded simple turn "let\'s do the simple guided one"', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: {}, current_step: 2, path: 'simple' }],
+    });
+    const r = await submitPathChoice(
+      { ...CTX, user_text: "let's do the simple guided one" },
+      { path: 'simple' },
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it('G13: accepts grounded braindump turn "I already track my habits, brain dump"', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: {}, current_step: 2, path: 'braindump' }],
+    });
+    const r = await submitPathChoice(
+      { ...CTX, user_text: 'I already track my habits, brain dump' },
+      { path: 'braindump' },
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it('G13: bare "yes" passes (coach may have just proposed a specific path)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: {}, current_step: 2, path: 'simple' }],
+    });
+    const r = await submitPathChoice(
+      { ...CTX, user_text: 'yes' },
+      { path: 'simple' },
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it('G13: guard disabled when user_text is absent (Vapi parity)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: {}, current_step: 2, path: 'simple' }],
+    });
+    const r = await submitPathChoice(CTX, { path: 'simple' });
+    expect(r.ok).toBe(true);
+  });
+
+  it('G13: rejects "you decide for me, doesn\'t matter"', async () => {
+    const r = await submitPathChoice(
+      { ...CTX, user_text: "you decide for me, doesn't matter" },
+      { path: 'braindump' },
+    );
+    expect(r).toMatchObject({ ok: false, error: 'handler_error', message: 'path_choice_not_grounded' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('G13: rejects an off-topic turn with no path signal', async () => {
+    const r = await submitPathChoice(
+      { ...CTX, user_text: 'what time is it?' },
+      { path: 'simple' },
+    );
+    expect(r).toMatchObject({ ok: false, error: 'handler_error', message: 'path_choice_not_grounded' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
 });
 
 // ─── submit_category ─────────────────────────────────────────────────
