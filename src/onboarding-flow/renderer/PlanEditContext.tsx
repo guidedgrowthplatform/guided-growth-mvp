@@ -9,7 +9,10 @@
 import { createContext, useContext } from 'react';
 import type { FlowAnswers } from '../types';
 
-export type PatchAnswers = (patch: Partial<FlowAnswers>, opts?: { persist?: boolean }) => void;
+export type PatchAnswers = (
+  patch: Partial<FlowAnswers> | ((answers: FlowAnswers) => Partial<FlowAnswers>),
+  opts?: { persist?: boolean },
+) => void;
 
 const PlanEditContext = createContext<PatchAnswers | null>(null);
 

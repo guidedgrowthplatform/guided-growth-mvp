@@ -538,8 +538,16 @@ export interface FlowOrchestrator {
    * (the plan-review edits at ONBOARD-COMPLETE). `persist` defaults true and
    * saves through the same saveStep path a card tap uses; persist:false is the
    * local-only sync for a coach voice edit the server already wrote.
+   *
+   * `patch` may be a function of the LIVE answers so two edits dispatched
+   * synchronously in one turn (a coach emitting update_habit + remove_habit
+   * together) compose instead of the second full-map replace clobbering the
+   * first.
    */
-  patchAnswers: (patch: Partial<FlowAnswers>, opts?: { persist?: boolean }) => void;
+  patchAnswers: (
+    patch: Partial<FlowAnswers> | ((answers: FlowAnswers) => Partial<FlowAnswers>),
+    opts?: { persist?: boolean },
+  ) => void;
   back: () => void;
   canGoBack: boolean;
   isComplete: boolean;
@@ -675,16 +683,22 @@ export function useFlowOrchestrator(
   // side). No advance side effects at into-app: it carries no beatStep, so none
   // of the leading-edge / fork / identity effects act on the Realtime echo.
   const patchAnswers = useCallback(
-    (patch: Partial<FlowAnswers>, opts?: { persist?: boolean }) => {
+    (
+      patch: Partial<FlowAnswers> | ((answers: FlowAnswers) => Partial<FlowAnswers>),
+      opts?: { persist?: boolean },
+    ) => {
       const prev = stateRef.current;
       if (prev.status === 'complete') return;
-      const next: FlowMachineState = { ...prev, answers: { ...prev.answers, ...patch } };
+      // Resolve against the LIVE answers (stateRef, updated synchronously below),
+      // so batched same-turn edits compose rather than clobber.
+      const resolved = typeof patch === 'function' ? patch(prev.answers) : patch;
+      const next: FlowMachineState = { ...prev, answers: { ...prev.answers, ...resolved } };
       stateRef.current = next;
       setState(next);
       if (opts?.persist !== false) {
         // GREATEST keeps current_step, so the current server step never rewinds
         // the resume scale; the terminal plan beat has no step of its own.
-        persistence.saveStep(serverState?.current_step ?? 0, patch);
+        persistence.saveStep(serverState?.current_step ?? 0, resolved);
       }
     },
     [persistence, serverState?.current_step],

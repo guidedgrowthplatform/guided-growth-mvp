@@ -1449,13 +1449,21 @@ function IntoAppAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps
     onCapture({ data: {} });
   };
 
-  const applyHabits = (nextConfigs: FlowAnswers['habitConfigs'], persist: boolean) =>
-    patchAnswers?.({ habitConfigs: nextConfigs }, { persist });
+  // The transform runs against the LIVE answers inside patchAnswers (not the
+  // captured prop), so two edits dispatched synchronously in one coach turn
+  // (update_habit + remove_habit together) compose instead of the second
+  // full-map replace clobbering the first.
+  const applyHabits = (
+    transform: (live: FlowAnswers) => FlowAnswers['habitConfigs'],
+    persist: boolean,
+  ) => patchAnswers?.((live) => ({ habitConfigs: transform(live) }), { persist });
 
-  const onRemoveHabit = (name: string) => applyHabits(habitConfigsWithRemoved(answers, name), true);
+  const onRemoveHabit = (name: string) =>
+    applyHabits((live) => habitConfigsWithRemoved(live, name), true);
   const onChangeHabit = (name: string, patch: Partial<PlanHabit>) =>
-    applyHabits(habitConfigsWithPatch(answers, name, patch), true);
-  const onAddHabit = (name: string) => applyHabits(habitConfigsWithAdded(answers, name), true);
+    applyHabits((live) => habitConfigsWithPatch(live, name, patch), true);
+  const onAddHabit = (name: string) =>
+    applyHabits((live) => habitConfigsWithAdded(live, name), true);
 
   // Voice edits at review: the coach's tool already persisted server side, so
   // mirror the change into local answers (persist:false) the same way the other
@@ -1471,13 +1479,16 @@ function IntoAppAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps
     if (result.action === 'remove_habit') {
       const p = result.params as { name?: string };
       if (typeof p.name === 'string' && p.name.trim())
-        applyHabits(habitConfigsWithRemoved(answers, p.name), false);
+        applyHabits((live) => habitConfigsWithRemoved(live, p.name as string), false);
       return;
     }
     if (result.action === 'update_habit') {
       const p = result.params as { name?: string; patch?: Record<string, unknown> };
       if (typeof p.name !== 'string' || !p.patch) return;
-      applyHabits(habitConfigsWithPatch(answers, p.name, voicePatchToHabit(p.patch)), false);
+      applyHabits(
+        (live) => habitConfigsWithPatch(live, p.name as string, voicePatchToHabit(p.patch!)),
+        false,
+      );
       return;
     }
     if (result.action === 'add_habit') {
@@ -1490,13 +1501,13 @@ function IntoAppAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps
       };
       const name = typeof p.name === 'string' ? p.name.trim() : '';
       if (!name) return;
-      const added = habitConfigsWithAdded(answers, name);
       const patch = voicePatchToHabit(p);
-      const next =
-        Object.keys(patch).length > 0
+      applyHabits((live) => {
+        const added = habitConfigsWithAdded(live, name);
+        return Object.keys(patch).length > 0
           ? habitConfigsWithPatch({ habitConfigs: added } as FlowAnswers, name, patch)
           : added;
-      applyHabits(next, false);
+      }, false);
     }
   });
 

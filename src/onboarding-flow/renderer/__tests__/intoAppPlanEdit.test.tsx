@@ -65,15 +65,20 @@ describe('IntoAppAdapter plan edits', () => {
     expect(onCapture).toHaveBeenCalledWith({ data: {} });
   });
 
+  // patchAnswers is called with a FUNCTION of the live answers (so batched
+  // same-turn edits compose); resolve it against the answers to read the patch.
+  const resolve = (call: unknown[], answers: FlowAnswers) =>
+    (call[0] as (a: FlowAnswers) => { habitConfigs: FlowAnswers['habitConfigs'] })(answers);
+
   it('remove: drops the habit from habitConfigs and persists', () => {
     const patch = vi.fn();
     render({ patch });
     click(byAria('Edit Meditate'));
     click(byAria('Remove Meditate'));
     expect(patch).toHaveBeenCalledTimes(1);
-    const [payload, opts] = patch.mock.calls[0];
-    expect(Object.keys(payload.habitConfigs)).toEqual(['Workout']);
-    expect(opts).toEqual({ persist: true });
+    const payload = resolve(patch.mock.calls[0], ANSWERS);
+    expect(Object.keys(payload.habitConfigs!)).toEqual(['Workout']);
+    expect(patch.mock.calls[0][1]).toEqual({ persist: true });
   });
 
   it('change: a day toggle patches the habit days and persists', () => {
@@ -82,18 +87,16 @@ describe('IntoAppAdapter plan edits', () => {
     click(byAria('Edit Meditate'));
     const dayPills = buttons().filter((b) => (b.textContent ?? '').trim().length === 1);
     click(dayPills[0]); // Sunday, not selected -> added
-    const [payload, opts] = patch.mock.calls[0];
-    expect(payload.habitConfigs.Meditate.days).toEqual([0, 1, 2, 3, 4, 5]);
-    expect(payload.habitConfigs.Workout).toBeDefined(); // full-map replace keeps the rest
-    expect(opts).toEqual({ persist: true });
+    const payload = resolve(patch.mock.calls[0], ANSWERS);
+    expect(payload.habitConfigs!.Meditate.days).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(payload.habitConfigs!.Workout).toBeDefined(); // full-map replace keeps the rest
+    expect(patch.mock.calls[0][1]).toEqual({ persist: true });
   });
 
   it('add: appends a default-config habit and persists', () => {
     const patch = vi.fn();
-    render({
-      patch,
-      answers: { ...ANSWERS, habitConfigs: { Meditate: ANSWERS.habitConfigs!.Meditate } },
-    });
+    const answers = { ...ANSWERS, habitConfigs: { Meditate: ANSWERS.habitConfigs!.Meditate } };
+    render({ patch, answers });
     const input = container.querySelector('input') as HTMLInputElement;
     act(() => {
       const setter = Object.getOwnPropertyDescriptor(
@@ -104,10 +107,28 @@ describe('IntoAppAdapter plan edits', () => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
     click(byText('Add habit'));
-    const [payload, opts] = patch.mock.calls[0];
-    expect(Object.keys(payload.habitConfigs)).toEqual(['Meditate', 'Evening walk']);
-    expect(payload.habitConfigs['Evening walk']).toMatchObject({ time: '09:00', reminder: true });
-    expect(opts).toEqual({ persist: true });
+    const payload = resolve(patch.mock.calls[0], answers);
+    expect(Object.keys(payload.habitConfigs!)).toEqual(['Meditate', 'Evening walk']);
+    expect(payload.habitConfigs!['Evening walk']).toMatchObject({ time: '09:00', reminder: true });
+    expect(patch.mock.calls[0][1]).toEqual({ persist: true });
+  });
+
+  it('batched edits compose (a change then a remove against live answers)', () => {
+    const patch = vi.fn();
+    render({ patch });
+    // Edit 1: change Meditate days.
+    click(byAria('Edit Meditate'));
+    const dayPills = buttons().filter((b) => (b.textContent ?? '').trim().length === 1);
+    click(dayPills[0]);
+    // Edit 2: remove Workout.
+    click(byAria('Edit Workout'));
+    click(byAria('Remove Workout'));
+    // Feed edit 1's result as edit 2's live answers (what patchAnswers does
+    // synchronously via stateRef); the second must NOT clobber the first.
+    const afterChange = { ...ANSWERS, ...resolve(patch.mock.calls[0], ANSWERS) };
+    const afterRemove = resolve(patch.mock.calls[1], afterChange);
+    expect(afterRemove.habitConfigs!.Meditate.days).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(afterRemove.habitConfigs!.Workout).toBeUndefined();
   });
 
   it('with no patchAnswers context, renders read-only (no edit affordances)', () => {
