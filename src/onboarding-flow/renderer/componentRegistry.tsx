@@ -44,6 +44,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useWeekData } from '@/hooks/useWeekData';
+import { prewarmSoniox } from '@/lib/services/soniox-prewarm';
 import { unlockTTS } from '@/lib/services/tts-service';
 import { recommendedWeekdayPreset, recommendedWeeklyDay } from '@/utils/weeklyDay';
 import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
@@ -499,6 +500,10 @@ function MicPermissionAdapter({ node, onCapture }: BeatAdapterProps) {
     }
     track('grant_mic_permission', { granted, dismissed: false });
     await updatePreferences({ micPermission: granted, micEnabled: granted });
+    // Fire-and-forget: mint the Soniox temp key + pre-open its WS now, well
+    // before onboarding's voice beats ever open a mic stream. No-op when
+    // SONIOX_PREWARM is off (see soniox-prewarm.ts).
+    if (granted) prewarmSoniox();
     // MicPermission's onAllow already waited for the grant animation (mic gold,
     // orb docked) to settle before firing, so the beat can advance immediately.
     advance();

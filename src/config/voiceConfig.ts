@@ -53,3 +53,11 @@ export const SONIOX_V5 = import.meta.env.VITE_SONIOX_V5 === 'true';
 // re-arm the normal timer, short enough that a true end-of-turn still reads
 // as "instant" to the user.
 export const SEMANTIC_ABSORB_MS = 250;
+
+// Pre-mint the Soniox temp key AND pre-open its WebSocket at mic-permission-grant
+// time, before the user has spoken — QA harness (MR !457) measured p50
+// time-to-first-partial at 1224ms while the STT pipe itself only costs
+// ~190-205ms; the rest is key minting (521-1485ms) and WS open (~490-600ms),
+// both currently paid AFTER speech starts. Off until device-verified; flip on
+// to claim a warm key + socket at session start instead of minting/opening cold.
+export const SONIOX_PREWARM = import.meta.env.VITE_SONIOX_PREWARM === 'true';

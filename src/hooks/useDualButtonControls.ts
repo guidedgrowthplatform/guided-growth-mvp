@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { stopVoice, unlockCartesiaVoice } from '@/lib/services/cartesiaVoice';
+import { prewarmSoniox } from '@/lib/services/soniox-prewarm';
 import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
 
 export type MicRequestResult = 'granted' | 'denied' | 'unavailable';
@@ -42,6 +43,10 @@ export function useDualButtonControls(): DualButtonControls {
       await updatePreferences({ micPermission: true, micEnabled: true });
       unlockTTS();
       unlockCartesiaVoice();
+      // Fire-and-forget: mint the Soniox temp key + pre-open its WS now, well
+      // before the first utterance, instead of paying that cost at connect
+      // time (see soniox-prewarm.ts). No-op when SONIOX_PREWARM is off.
+      prewarmSoniox();
       return 'granted';
     } catch (err) {
       const name = err instanceof DOMException ? err.name : '';
@@ -55,6 +60,7 @@ export function useDualButtonControls(): DualButtonControls {
         void updatePreferences({ micEnabled: true });
         unlockTTS();
         unlockCartesiaVoice();
+        prewarmSoniox();
         return 'granted';
       }
       return 'unavailable';

@@ -1,5 +1,11 @@
 // Soniox realtime STT streaming client. Pure testable core + thin browser layer.
-import { SONIOX_V5 } from '@/config/voiceConfig';
+import { SONIOX_PREWARM, SONIOX_V5 } from '@/config/voiceConfig';
+import {
+  claimPrewarmedSocket,
+  openRealSonioxSocket,
+  SONIOX_WS_URL,
+  type SocketOpener,
+} from '@/lib/services/soniox-prewarm';
 import { takeTempKey } from '@/lib/services/soniox-temp-key-cache';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 
@@ -393,6 +399,10 @@ export interface ConnectMetrics {
   ws_ms: number;
   total_ms: number;
   cached: boolean;
+  // True when this session claimed a pre-opened socket from soniox-prewarm.ts
+  // (SONIOX_PREWARM on and a fresh handshake was waiting) — expect ws_ms ~0
+  // alongside it, same as `cached: true` collapsing key_ms.
+  prewarmed: boolean;
 }
 
 export interface StartBrowserSttOpts {
@@ -442,7 +452,6 @@ export class BoundedPcmBuffer {
   }
 }
 
-const SONIOX_WS_URL = 'wss://stt-rt.soniox.com/transcribe-websocket';
 const TARGET_RATE = 16000;
 // 120ms @ 16k — batch tiny worklet quanta to avoid ~375 sends/sec.
 const FRAME_SAMPLES_16K = 1920;
@@ -491,30 +500,10 @@ class CaptureProcessor extends AudioWorkletProcessor {
 registerProcessor('soniox-capture-processor', CaptureProcessor);
 `;
 
-function realSocketAdapter(url: string): SonioxSocket {
-  const ws = new WebSocket(url);
-  ws.binaryType = 'arraybuffer';
-  return {
-    send: (data) => ws.send(data as string | ArrayBufferLike),
-    close: () => ws.close(),
-    onOpen: (cb) => {
-      ws.onopen = () => cb();
-    },
-    onMessage: (cb) => {
-      ws.onmessage = (ev: MessageEvent) => {
-        // Soniox messages arrive as strings; tolerate blobs defensively.
-        if (typeof ev.data === 'string') cb(ev.data);
-        else if (ev.data instanceof ArrayBuffer) cb(new TextDecoder().decode(ev.data));
-      };
-    },
-    onError: (cb) => {
-      ws.onerror = (e) => cb(e);
-    },
-    onClose: (cb) => {
-      ws.onclose = (e: CloseEvent) => cb(e.code);
-    },
-  };
-}
+// soniox-prewarm.ts owns the actual WebSocket wrapper (readyState-aware
+// onOpen) so a prewarmed socket and a cold-opened one are wire-compatible —
+// aliased locally to keep the rest of this file's naming unchanged.
+const realSocketAdapter: SocketOpener = openRealSonioxSocket;
 
 const CONNECT_TIMEOUT_MS = 7000;
 // armed but zero audio frames — dead capture; else orb sits on 'listening' forever
@@ -625,6 +614,10 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
     let connectingAt = 0;
     let keyMs = 0;
     let cachedKey = false;
+    // Set synchronously by the openSocket dep below (before createSonioxSession
+    // returns), so it's always known by the time 'listening' fires and the
+    // metric is emitted — no ordering race with onStateChange.
+    let usedPrewarmedSocket = false;
 
     // Fresh single-use key per socket; first one drains the warm cache.
     const getTempKey = () => {
@@ -638,6 +631,21 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
       });
     };
 
+    // Claim a pre-opened, already-OPEN socket if prewarm left one waiting;
+    // otherwise fall back to a normal cold open. Claiming means ws_ms below
+    // collapses to ~0 since the handshake already happened before the user
+    // spoke. Flag-off / expired-prewarm path is byte-identical to before.
+    const openSocketDep = (url: string): SonioxSocket => {
+      if (SONIOX_PREWARM) {
+        const claimed = claimPrewarmedSocket();
+        if (claimed) {
+          usedPrewarmedSocket = true;
+          return claimed;
+        }
+      }
+      return realSocketAdapter(url);
+    };
+
     clearSessionWatchdog();
     sessionWatchdog = setTimeout(() => {
       sessionWatchdog = null;
@@ -648,7 +656,7 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
 
     const s = createSonioxSession({
       url: SONIOX_WS_URL,
-      openSocket: realSocketAdapter,
+      openSocket: openSocketDep,
       getTempKey,
       onInterim: opts.onInterim,
       onFinal: opts.onFinal,
@@ -672,6 +680,7 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
               ws_ms: connectingAt ? Math.round(tListen - connectingAt) : 0,
               total_ms: Math.round(tListen - tBootStart),
               cached: cachedKey,
+              prewarmed: usedPrewarmedSocket,
             });
           }
         }
