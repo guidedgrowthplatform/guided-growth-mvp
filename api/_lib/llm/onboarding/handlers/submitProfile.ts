@@ -77,5 +77,18 @@ export async function submitProfile(
   );
 
   const row = result.rows[0];
-  return ok({ data: row?.data ?? data, current_step: row?.current_step ?? 1 });
+  const mergedData = row?.data ?? data;
+  // When gender has not been captured yet (neither this call nor a prior tap),
+  // signal the model so it does NOT chain advance_step before asking for gender.
+  // The step-1 precondition gate requires age+gender; a premature advance is
+  // rejected and turns into a repeated-clarification loop.
+  const needsGender = !mergedData.gender;
+  return ok({
+    data: mergedData,
+    current_step: row?.current_step ?? 1,
+    ...(needsGender && {
+      requires_gender_before_advance:
+        'gender not yet captured — call submit_profile with gender (Male | Female | Other) before chaining advance_step',
+    }),
+  });
 }
