@@ -59,6 +59,14 @@ import { parseHabitsRegex } from '../parseBrainDumpRegex';
 import type { BeatCapture, FlowAnswers, FlowComponentType, FlowNode } from '../types';
 import { nextHabitSelection } from './habitSelectionRules';
 import { useNarrationElementCount } from './narration/NarrationRevealContext';
+import { PlanReview } from './PlanReview';
+import {
+  habitCapForPath,
+  morningRitual,
+  planHabitsFromAnswers,
+  reflectionRitual,
+  weeklyDay,
+} from './planReviewData';
 import { HomeTourAdapter } from './tour/HomeTourAdapter';
 import {
   buildProjectionRows,
@@ -1410,27 +1418,43 @@ function WeeklyDayPickerAdapter({ answers, onCapture, readOnly }: BeatAdapterPro
 
 /* ------------------------------------------------------------- into the app */
 
-// Terminal completion beat. A real node now (replaces the hardcoded "You're all
-// set" line in FlowRenderer): the coach line plays as the beat opener and the
-// user taps in. Captures {} to complete the flow.
-function IntoAppAdapter({ node, onCapture, readOnly }: BeatAdapterProps) {
+// Terminal ONBOARD-COMPLETE beat, now the plan REVIEW + EDIT screen: it shows
+// the whole plan the user just built (habits with schedules, plus the display-
+// only morning check-in, evening reflection, and weekly review day) and lets
+// them edit the HABITS before committing (the allowedTools for this beat are
+// add_habit/remove_habit/update_habit/confirm_plan). Confirming captures {} to
+// advance into the weekly-projection frames, after which the flow completes.
+//
+// Read-only for now (step 1: render the real plan). The edit affordances +
+// patchAnswers wiring land next.
+function IntoAppAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
   const props = node.componentProps as { ctaLabel?: string };
   // Voice leg of the tap CTA (B32): the addendum has the coach call confirm_plan
   // on "let's go", but the tool is validate-only server-side — without this
   // listener the machine never leaves into-app and the finale dead-ends.
   const advancedRef = useRef(false);
+  const confirm = () => {
+    if (advancedRef.current) return;
+    advancedRef.current = true;
+    onCapture({ data: {} });
+  };
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
     if (readOnly || advancedRef.current) return;
     if (result.action !== 'confirm_plan' || !result.success) return;
-    advancedRef.current = true;
-    onCapture({ data: {} });
+    confirm();
   });
+  // Terminal beat: never a past-beat receipt (FROZEN_BY_TYPE false).
+  if (readOnly) return null;
   return (
-    <CardShell>
-      {!readOnly && (
-        <Cta label={props.ctaLabel ?? "Let's go"} onClick={() => onCapture({ data: {} })} />
-      )}
-    </CardShell>
+    <PlanReview
+      habits={planHabitsFromAnswers(answers)}
+      reflection={reflectionRitual(answers)}
+      morning={morningRitual(answers)}
+      weeklyDayIndex={weeklyDay(answers)}
+      habitCap={habitCapForPath(answers.path)}
+      ctaLabel={props.ctaLabel ?? "Let's go"}
+      onConfirm={confirm}
+    />
   );
 }
 

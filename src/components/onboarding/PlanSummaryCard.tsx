@@ -2,7 +2,9 @@ import { Icon } from '@iconify/react';
 
 interface PlanSummaryCardProps {
   icon: string;
-  typeLabel: 'Habit' | 'Journal';
+  // Free-form row kind label (e.g. Habit, Journal, Check-in, Weekly). Widened
+  // from the original two-value union so the plan-review can reuse this row.
+  typeLabel: string;
   title: string;
   cadence: string;
   rule: string;
