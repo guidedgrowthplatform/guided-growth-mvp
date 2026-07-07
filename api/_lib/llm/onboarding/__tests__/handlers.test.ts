@@ -162,6 +162,93 @@ describe('submit_profile', () => {
   });
 });
 
+// ─── submit_profile — gender-loop regression (fix/profile-gender-required) ──────
+
+describe('submit_profile gender-loop regression', () => {
+  // The bug: submit_profile(age only) + advance_step in same turn → advance gate
+  // returns gender_missing → coach asks user to "clarify gender" → infinite loop.
+  // Fix: submit_profile returns requires_gender_before_advance when gender is not yet
+  // in the merged DB row, so the model does NOT chain advance_step prematurely.
+
+  it('returns requires_gender_before_advance when called without gender (age-only save)', async () => {
+    // DB row after merge: age present, gender absent.
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { age: 28 }, current_step: 1 }],
+    });
+    const r = await submitProfile(CTX, { age: '28' });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.result.requires_gender_before_advance).toBeTruthy();
+    }
+  });
+
+  it('returns requires_gender_before_advance when called with nickname only', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { nickname: 'alice' }, current_step: 1 }],
+    });
+    const r = await submitProfile(CTX, { nickname: 'alice' });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.result.requires_gender_before_advance).toBeTruthy();
+    }
+  });
+
+  it('does NOT return requires_gender_before_advance when gender is in the merged DB row (voice path)', async () => {
+    // User stated both age and gender in one turn.
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { age: 28, gender: 'Male' }, current_step: 1 }],
+    });
+    const r = await submitProfile(CTX, { age: '28', gender: 'Male' });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.result.requires_gender_before_advance).toBeUndefined();
+    }
+  });
+
+  it('does NOT return requires_gender_before_advance when gender was saved by a prior tap (tap path)', async () => {
+    // Tap wrote gender to DB before this LLM call. The RETURNING row includes gender
+    // even though this call only submitted age — the JSONB merge picks it up.
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { age: 28, gender: 'Female' }, current_step: 1 }],
+    });
+    const r = await submitProfile(CTX, { age: '28' }); // age-only call, but DB already has gender
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      // No warning — gender is present in the merged row; advance_step can be chained.
+      expect(r.result.requires_gender_before_advance).toBeUndefined();
+      expect((r.result.data as Record<string, unknown>).gender).toBe('Female');
+    }
+  });
+
+  it('advance_step(2) is rejected when DB has age but no gender (gate still enforces)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ current_step: 1, data: { age: 28 }, path: null, brain_dump_raw: null }],
+    });
+    const r = await advanceStep(CTX, { target_step: 2 });
+    expect(r).toMatchObject({ ok: false, error: 'handler_error' });
+    if (!r.ok) expect(r.message).toMatch(/gender_missing/);
+  });
+
+  it('advance_step(2) succeeds once both age and gender are in DB', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          { current_step: 1, data: { age: 28, gender: 'Male' }, path: null, brain_dump_raw: null },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 2 }] });
+    const r = await advanceStep(CTX, { target_step: 2 });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.current_step).toBe(2);
+  });
+});
+
 // ─── submit_path_choice ──────────────────────────────────────────────
 
 describe('submit_path_choice', () => {

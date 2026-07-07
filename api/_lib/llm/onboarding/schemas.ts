@@ -59,7 +59,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'submit_profile',
     description:
-      'Persist profile fields the user volunteered on ONBOARD-01--FORM. Call immediately the moment the user has stated their nickname (or updates any field on this screen). Re-call with same fields to edit. Only include fields the user explicitly stated — never invent values. Do not ask permission.',
+      'Persist profile fields the user volunteered on ONBOARD-01--FORM. Call immediately the moment the user has stated their nickname (or updates any field on this screen). Re-call with same fields to edit. Only include fields the user explicitly stated — never invent values. Do not ask permission. RESULT CHECK: if the result contains requires_gender_before_advance, do NOT chain advance_step — capture gender first, then call submit_profile again before advancing.',
     parameters: {
       type: 'object',
       properties: {
