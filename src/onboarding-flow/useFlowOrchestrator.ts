@@ -283,6 +283,54 @@ export function hasFreshServerWrite(
 }
 
 /**
+ * W3-A: screens whose Vapi tool handler (api/_lib/vapi/handlers/) does NOT
+ * carry the B58 refusal/grounding guard, because the Vapi webhook payload
+ * never includes the raw user turn text the guard needs (see the "B58 scope
+ * note" doc comments in submitMorningCheckin.ts and submitReflectionConfig.ts
+ * under api/_lib/vapi/handlers/). For every OTHER beat this is a documented,
+ * accepted gap (the Direct-LLM sibling handler is guarded; Vapi validates
+ * schema shape only). For these two specifically, that gap is exploitable as
+ * a silent, zero-Direct-LLM-call cascade: an unattended-but-still-armed Vapi
+ * call (idle-timeout dev-overridden long for QA per
+ * docs/vapi-onboarding-handoff.md) can have its assistant call
+ * submit_morning_checkin / submit_reflection_config with schema-valid but
+ * entirely fabricated arguments — a genuine, fresh server write with zero
+ * real user intent behind it, which `hasFreshServerWrite` cannot catch (the
+ * write really did happen while the beat was active; freshness proves
+ * "written", not "user-caused"). Round-3 RESISTER trail
+ * (qa-rounds/round3/resister/trail.md turns 15-16): morning-checkin-setup's
+ * refusal was correctly rejected server-side (B58 IS wired on the Direct-LLM
+ * path this tester exercised), yet the flow still advanced past reflection-
+ * setup into weekly-day-setup within ~90s of zero Direct-LLM calls.
+ *
+ * Fix: for these two screens ONLY, the identity-beat evidence-arrival advance
+ * additionally requires a real USER transcript event (role 'user', partial or
+ * final — see hasGenuineVoiceEngagement) to have been observed since the beat
+ * became active, on top of the existing hasFreshServerWrite check. Assistant
+ * transcripts (the beat's own opener) do not count — they fire immediately on
+ * beat entry regardless of any real engagement, so counting them would defeat
+ * the point. This does not touch the fork, the positional-window beats, or
+ * state-check/weekly-day-setup (guarded Vapi handlers or a different voice
+ * engine), and it does not affect the Direct-LLM/text path (which always
+ * advances via capture()/captureFor(), never this effect).
+ */
+export const VAPI_UNGUARDED_SETUP_SCREENS: ReadonlySet<string> = new Set([
+  'ONBOARD-MORNING-SETUP',
+  'ONBOARD-BEGINNER-07',
+]);
+
+/**
+ * Whether a real user transcript event (role 'user', partial or final) has
+ * been observed since the current beat became active. Pure boolean holder;
+ * see the ref usage below (sawVoiceActivitySinceEntryRef, fed only by
+ * role==='user' transcript events) for how the "since beat entry" window is
+ * tracked and why assistant transcripts are excluded.
+ */
+export function hasGenuineVoiceEngagement(sawActivitySinceEntry: boolean): boolean {
+  return sawActivitySinceEntry;
+}
+
+/**
  * Completion evidence: did the server row prove this persist-bearing beat was
  * completed? `undefined` = the beat carries no evidence signal of its own
  * (display beats, the head auth/mic gates). habit-schedule/advanced-frequency
@@ -729,6 +777,25 @@ export function useFlowOrchestrator(
   // client that something happened on THIS beat's watch, not before.
   const entryUpdatedAtRef = useRef<string | undefined>(undefined);
 
+  // W3-A: has a real USER transcript event (partial or final) been observed
+  // since the CURRENT beat became active? role === 'user' only — the coach's
+  // own opener/reply transcripts (role 'assistant') fire immediately on beat
+  // entry regardless of any real engagement, so counting them would defeat
+  // the point. Only consulted for VAPI_UNGUARDED_SETUP_SCREENS (see doc
+  // comment above) — every other beat's evidence-arrival advance is
+  // unaffected. Subscribes once per orchestrator instance; the per-beat reset
+  // happens in the baseline-reset effect below, same lifecycle as the other
+  // per-beat refs.
+  const sawVoiceActivitySinceEntryRef = useRef(false);
+  const subscribeTranscripts = voice?.subscribeTranscripts;
+  useEffect(() => {
+    if (!subscribeTranscripts) return;
+    return subscribeTranscripts((evt) => {
+      if (evt.role !== 'user') return;
+      sawVoiceActivitySinceEntryRef.current = true;
+    });
+  }, [subscribeTranscripts]);
+
   // Reset the per-beat baseline + fired-flag whenever the active beat changes, so
   // each beat judges advancement against the step seen on entry (not a prior
   // beat's) and a re-entered beat can advance again.
@@ -738,6 +805,7 @@ export function useFlowOrchestrator(
     forkEntryPathRef.current = undefined;
     identityEntryEvidenceRef.current = undefined;
     entryUpdatedAtRef.current = serverState?.updated_at;
+    sawVoiceActivitySinceEntryRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeNodeId]);
   useEffect(() => {
@@ -878,6 +946,22 @@ export function useFlowOrchestrator(
     // advance above — the evidence flip alone does not prove a save happened
     // while THIS beat was active (see entryUpdatedAtRef).
     if (!hasFreshServerWrite(entryUpdatedAtRef.current, serverState?.updated_at)) return;
+    // W3-A guard: for the two screens whose Vapi tool handler carries no
+    // refusal/grounding guard (VAPI_UNGUARDED_SETUP_SCREENS — see doc comment
+    // above hasGenuineVoiceEngagement), a fresh write alone is not enough. An
+    // unattended-but-still-armed Vapi call can produce a genuine, fresh write
+    // with zero real user intent behind it (its own assistant calling the
+    // tool with fabricated-but-schema-valid args) — hasFreshServerWrite
+    // cannot tell that apart from a real save, because the write really did
+    // land while this beat was active. Require actual observed voice
+    // engagement (any transcript event since entry) as a second, independent
+    // signal before trusting the evidence. Every other beat is unaffected.
+    if (
+      VAPI_UNGUARDED_SETUP_SCREENS.has(node.screenId) &&
+      !hasGenuineVoiceEngagement(sawVoiceActivitySinceEntryRef.current)
+    ) {
+      return;
+    }
     if (advancedNodeRef.current === activeNodeId) return; // fire once per beat
     const cap = serverCaptureForBeat(node, data);
     if (!captureCompletesBeat(node, cap)) return;
