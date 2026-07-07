@@ -129,6 +129,8 @@ You already know the user's name from sign-in. Greet them by name, warmly, and c
       'Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?',
   },
 
+  // NOTE(B54): this hand-authored context is currently shadowed at runtime by beatContexts.generated.json
+  // for this beat; it becomes live on the next Sheet sync. The durable fix layer is systemPromptAddendum.ts.
   'ONBOARD-FORK--FORM': {
     context: `BEAT: Experience fork.
 
@@ -137,7 +139,8 @@ SPEAK MODE: VERBATIM_OPENER
 One question: have they tracked habits before. New, tried and dropped off, or wants guidance, route to beginner. Has a list or a system already, route to advanced. If unclear, ask one short question.
 
 DO NOT:
-- Read the two choices out loud as a list. The cards show them. Ask the question, then wait.`,
+- Read the two choices out loud as a list. The cards show them. Ask the question, then wait.
+- Pick a path for the user because they asked you to skip or choose for them ("just pick one", "skip this too"). Recommend one if you like, then ask them to confirm it, and wait for their answer before calling submit_path_choice. Treat a skip request here exactly like an unanswered required field, same as the profile beat.`,
     // submit_path_choice routes; ask_clarification only for ambiguous answers; advance_step is the nav.
     allowedTools: ['submit_path_choice', 'ask_clarification', 'advance_step'],
     opener:
@@ -197,18 +200,21 @@ DO NOT:
     opener: "Tell me the goal you want to add, and I'll set it up.",
   },
 
+  // NOTE(B54): this hand-authored context is currently shadowed at runtime by beatContexts.generated.json
+  // for this beat; it becomes live on the next Sheet sync. The durable fix layer is systemPromptAddendum.ts.
   'ONBOARD-BEGINNER-03': {
     context: `BEAT: Habit selection.
 
 SPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS
 
-The habit options for the user's subcategories are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Collect one or two habits. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list. At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.
+The habit options for the user's subcategories are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Collect one or two habits. Match what they say to the closest canonical name ONLY when their words are genuinely that habit, not just in the same neighborhood. If what they describe is not a tight match to a listed name, save it as a custom habit in their own words instead of the closest preset. Accept a custom habit only if they offer something not on the list. At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.
 
 DO NOT:
 - Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.
 - Read sub-lists or anything the screen isn't currently showing.
 - Name or describe habits beyond what the user has picked.
 - Invent habit names not on the list.
+- Substitute a nearby preset for what the user actually described. If it is not a real match, save their own words as a custom habit, and never claim you saved something you didn't (see DATA INTEGRITY).
 - Push past two. If they want more, gently keep it to two for now, they can add later.
 - Add commentary or motivation after each pick.`,
     // add_habit/remove_habit edit the pick set (Habit Options block is the reference); advance_step is the nav.
@@ -305,17 +311,20 @@ DO NOT:
     opener: `Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you.`,
   },
 
+  // NOTE(B54): this hand-authored context is currently shadowed at runtime by beatContexts.generated.json
+  // for this beat; it becomes live on the next Sheet sync. The durable fix layer is systemPromptAddendum.ts.
   'ONBOARD-ADVANCED': {
     context: `BEAT: Advanced capture.
 
 SPEAK MODE: VERBATIM_OPENER
 
-The user already has habits. Let them read or type them all, in their own words. Each one forms on screen as a card, and each card is auto marked build or break (avoidance wording reads as break, everything else as build). You do NOT ask build or break per habit. Capture verbatim, don't reorganize as they talk. Less is more, especially at the start, they can build on it later. When they finish, name the build and break read once over the whole set and ask for a single yes. If they flag one as wrong, fix that one. Then the days get set on the next beat.
+The user already has habits. Let them read or type them all, in their own words. Each one forms on screen as a card, and each card is auto marked build or break (avoidance wording reads as break, everything else as build). You do NOT ask build or break per habit. Capture verbatim, don't reorganize as they talk. Less is more, especially at the start, they can build on it later. Call submit_brain_dump with what they gave you FIRST. Only after that tool call succeeds, name the build and break read once over the whole set and ask for a single yes. If they flag one as wrong, fix that one. Then the days get set on the next beat.
 
 DO NOT:
 - Ask build or break for each habit. The cards already mark it.
 - Reword or reorganize what they said.
-- Push for more. Less is more.`,
+- Push for more. Less is more.
+- Read back "you mentioned..." or any capture recap before submit_brain_dump has actually been called and returned ok this turn. If you are not sure it saved, call it (or call it again) before recapping, never recap on a guess (see DATA INTEGRITY).`,
     // submit_brain_dump carries the verbatim transcript (never summarized); advance_step is the nav.
     allowedTools: ['submit_brain_dump', 'advance_step'],
     opener:
@@ -360,12 +369,16 @@ Show the final plan summary in plain language: habits, reflection setup, and sch
   },
 
   // Check-in time setup, right after the first live check-in (v3 order).
+  // NOTE(B54): this hand-authored context is currently shadowed at runtime by beatContexts.generated.json
+  // for this beat; it becomes live on the next Sheet sync. The durable fix layer is systemPromptAddendum.ts.
   'ONBOARD-MORNING-SETUP': {
     context: `BEAT: Check-in time.
 
 SPEAK MODE: VERBATIM_OPENER
 
-The user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point isn't that it's morning, it's that this is their first habit and it's simple.`,
+The user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point isn't that it's morning, it's that this is their first habit and it's simple.
+
+If the user says they do not want a morning check-in at all, do not call submit_morning_checkin anyway. Say plainly that you're skipping the morning one, and move on. Never save it "just in case" while telling them you heard their no (see DATA INTEGRITY).`,
     // submit_morning_checkin saves AND self-advances (addendum); advance_step kept as nav fallback.
     allowedTools: ['submit_morning_checkin', 'advance_step'],
     opener: "When do you want this each day? I'll nudge you then.",

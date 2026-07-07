@@ -660,6 +660,100 @@ describe('add_habit', () => {
     expect(merge.Walk.schedule).toBe('Weekday');
     expect(merge.Walk.days).toEqual([1, 2, 3, 4, 5]);
   });
+
+  // ─── B54 data-integrity guard: reject a name ungrounded in the turn ────
+  describe('data-integrity guard (B54)', () => {
+    it('rejects a preset-shaped name with no overlap with the raw turn text', async () => {
+      // rambler trail F3: user described charging their phone in the kitchen;
+      // the model tried to save the nearby preset instead of their own words.
+      const client = habitClient({ hc: {} });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(
+        {
+          ...CTX,
+          user_text: 'putting my phone on the charger in the kitchen instead of the nightstand',
+        },
+        { ...validHabit, name: 'No screens after 10 PM' },
+      );
+      expect(r).toEqual({
+        ok: false,
+        error: 'handler_error',
+        message: 'habit_name_ungrounded',
+      });
+      const sqls = client.query.mock.calls.map((c) => c[0] as string);
+      expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(false);
+      expect(sqls.some((s) => /ROLLBACK/.test(s))).toBe(true);
+    });
+
+    it('does NOT catch a name built from a real word in an off-topic turn (documented limit)', async () => {
+      // rambler-advanced trail F4: a clarifying question mentioning the word
+      // "sleep" produced a fabricated Sleep habit with an invented time and
+      // schedule. The guard is a lexical name/turn-text overlap check, so a
+      // name built from a word that really is in the turn text (here,
+      // "sleep") passes it even though no habit was actually described. This
+      // class of fabrication (a real word, but never offered as a habit to
+      // track) is a semantic judgment the server cannot make reliably from
+      // string overlap alone; it's covered instead by the addendum's leg (a)
+      // ("never invent or infer data ... a clarifying question ... is not
+      // data"), not by this handler-level guard. Documented here so the
+      // boundary is explicit rather than silently assumed.
+      const client = habitClient({ hc: {} });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(
+        {
+          ...CTX,
+          user_text:
+            'Sorry, what were you asking? I want to make sure my sleep goal actually gets tracked with the rest of this',
+        },
+        { name: 'Sleep', schedule: 'Every day', time: '22:00' },
+      );
+      expect(r.ok).toBe(true);
+    });
+
+    it('accepts a custom habit name that genuinely matches the user turn', async () => {
+      const client = habitClient({ hc: {} });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(
+        {
+          ...CTX,
+          user_text: 'putting my phone on the charger in the kitchen instead of the nightstand',
+        },
+        { ...validHabit, name: 'Charge phone in the kitchen' },
+      );
+      expect(r.ok).toBe(true);
+    });
+
+    it('still accepts a genuine preset match when the user actually said it', async () => {
+      // No regression: when the user's own words really are the preset, the
+      // guard must not block it.
+      const client = habitClient({ hc: {} });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(
+        { ...CTX, user_text: 'no screens after 10 PM, that is the one I want' },
+        { ...validHabit, name: 'No screens after 10 PM' },
+      );
+      expect(r.ok).toBe(true);
+    });
+
+    it('does not guard when no raw turn text is supplied (backward compatible)', async () => {
+      const client = habitClient({ hc: {} });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(CTX, { ...validHabit, name: 'No screens after 10 PM' });
+      expect(r.ok).toBe(true);
+    });
+
+    it('does not guard an edit to an already-added habit (schedule-only follow-up call)', async () => {
+      // Two-call configure pattern: the schedule call reasonably won't
+      // restate the habit's name, so the guard must not fire on an edit.
+      const client = habitClient({ hc: { Walk: {} } });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(
+        { ...CTX, user_text: 'every weekday at 7am please' },
+        { ...validHabit, name: 'Walk' },
+      );
+      expect(r.ok).toBe(true);
+    });
+  });
 });
 
 // ─── remove_habit ────────────────────────────────────────────────────

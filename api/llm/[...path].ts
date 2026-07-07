@@ -795,6 +795,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             result = await dispatchOnboardingToolCall(tc.name, args, {
               anon_id: user.anonId,
               screen_id: screenId,
+              user_text: userMessage,
             });
           } catch (err) {
             reportToolFailure({
