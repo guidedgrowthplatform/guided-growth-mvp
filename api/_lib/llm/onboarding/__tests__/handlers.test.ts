@@ -743,6 +743,84 @@ describe('add_habit', () => {
       expect(r.ok).toBe(true);
     });
 
+    // ─── W2-E: confirm-turn grounding window ───
+    describe('confirm-turn grounding window (user_text_window)', () => {
+      it('two-turn confirm shape passes: name grounds in an earlier window entry, not the current short reply', async () => {
+        // turn 1: "I want to stop doomscrolling at night" (names the habit)
+        // turn 2 (current): "yes please add it" (confirms, triggers the call)
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'yes please add it',
+            user_text_window: ['yes please add it', 'I want to stop doomscrolling at night'],
+          },
+          { ...validHabit, name: 'Stop doomscrolling at night' },
+        );
+        expect(r.ok).toBe(true);
+      });
+
+      it('still rejects when the name grounds in NOTHING across the whole window', async () => {
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'yes please add it',
+            user_text_window: ['yes please add it', 'what do you think about the weather today'],
+          },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r).toEqual({
+          ok: false,
+          error: 'handler_error',
+          message: 'habit_name_ungrounded',
+        });
+      });
+
+      it('window absent falls back to the exact current-turn-only behavior (rejects)', async () => {
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'putting my phone on the charger in the kitchen instead of the nightstand',
+          },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r).toEqual({
+          ok: false,
+          error: 'handler_error',
+          message: 'habit_name_ungrounded',
+        });
+      });
+
+      it('window absent falls back to the exact current-turn-only behavior (accepts)', async () => {
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          { ...CTX, user_text: 'no screens after 10 PM, that is the one I want' },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r.ok).toBe(true);
+      });
+
+      it('an empty window array falls back to the current-turn-only check', async () => {
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'no screens after 10 PM, that is the one I want',
+            user_text_window: [],
+          },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r.ok).toBe(true);
+      });
+    });
+
     it('does not guard an edit to an already-added habit (schedule-only follow-up call)', async () => {
       // Two-call configure pattern: the schedule call reasonably won't
       // restate the habit's name, so the guard must not fire on an edit.

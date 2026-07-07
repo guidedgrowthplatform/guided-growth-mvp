@@ -277,19 +277,20 @@ describe('LLM route — error-path tool persistence', () => {
   });
 
   it('L600 — tool_cap reached after MAX_ROUNDS persists all dispatched tool rows', async () => {
-    pool.query.mockResolvedValueOnce({
-      rowCount: 1,
-      rows: [{ foreign_owned: false, prev_response_id: null }],
-    });
-
     // Stream factory: every round emits a tool_call. With 5 rounds, persistedToolRows ends at 5.
+    // Distinct args per round — same-turn dedupe (W2-E) would otherwise treat
+    // rounds 2-5 as exact repeats of round 1 and skip their dispatch, which
+    // is not what this test is about (it verifies tool_cap persistence).
     function makeGen(roundIdx: number) {
       return (async function* () {
         yield {
           type: 'tool_call',
           callId: `call-cap-${roundIdx}`,
           name: 'log_event',
-          argumentsRaw: JSON.stringify({ event_name: 'navigate' }),
+          // event_name must stay a canonical value (isSessionLogEvent
+          // whitelist); vary `properties` instead so each round's args are
+          // still distinct for the same-turn dedupe check.
+          argumentsRaw: JSON.stringify({ event_name: 'navigate', properties: { round: roundIdx } }),
         };
         yield { type: 'completed', responseId: `resp-${roundIdx}`, totalTokens: 1 };
       })();
@@ -297,15 +298,26 @@ describe('LLM route — error-path tool persistence', () => {
     const openMock = openResponsesStream as unknown as ReturnType<typeof vi.fn>;
     for (let i = 0; i < 5; i++) openMock.mockResolvedValueOnce(makeGen(i));
 
-    // Each round: 1 dedupLookup miss + 1 log_event INSERT into session_log.
-    for (let i = 0; i < 5; i++) {
-      pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
-      pool.query.mockResolvedValueOnce({
-        rowCount: 1,
-        rows: [{ id: `log-${i}`, timestamp: new Date() }],
-      });
-    }
-    pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
+    // Content-keyed pool.query mock (not positional mockResolvedValueOnce) —
+    // writeStartRow's own INSERT fires via a detached waitUntil() and races
+    // the round loop's own pool.query calls, so a strict FIFO queue is order-
+    // fragile (pre-existing; W2-E's extra Promise.all query shifted timing
+    // enough to expose it). dedupLookup's SELECT always misses here (no
+    // content column on the returned row), so log_event always does the real
+    // INSERT and gets a distinct id per round.
+    let insertSeq = 0;
+    pool.query.mockImplementation(async (sql: string) => {
+      if (sql.includes('EXISTS (')) {
+        return { rowCount: 1, rows: [{ foreign_owned: false, prev_response_id: null }] };
+      }
+      if (sql.includes('SELECT content FROM chat_messages')) {
+        return { rowCount: 0, rows: [] }; // dedupLookup miss, every round
+      }
+      if (sql.includes('INSERT INTO session_log') && sql.includes('RETURNING')) {
+        return { rowCount: 1, rows: [{ id: `log-${insertSeq++}`, timestamp: new Date() }] };
+      }
+      return { rowCount: 1, rows: [] }; // writeStartRow / writeEndRow inserts (no RETURNING)
+    });
 
     const { client, queries } = makeClient();
     pool.connect.mockResolvedValue(client);
@@ -343,11 +355,6 @@ describe('LLM route — error-path tool persistence', () => {
   });
 
   it('L621 — outer catch persists round-1 tool row when round-2 res.write throws', async () => {
-    pool.query.mockResolvedValueOnce({
-      rowCount: 1,
-      rows: [{ foreign_owned: false, prev_response_id: null }],
-    });
-
     async function* gen1() {
       yield {
         type: 'tool_call',
@@ -362,7 +369,11 @@ describe('LLM route — error-path tool persistence', () => {
         type: 'tool_call',
         callId: 'call-outer-2',
         name: 'log_event',
-        argumentsRaw: JSON.stringify({ event_name: 'navigate' }),
+        // Deliberately different args from round 1's call — same-turn dedupe
+        // (W2-E) would otherwise treat round 2 as an exact repeat and skip
+        // its dispatch entirely, which is not what this test is about.
+        // event_name must stay canonical (isSessionLogEvent whitelist).
+        argumentsRaw: JSON.stringify({ event_name: 'navigate', properties: { round: 2 } }),
       };
       yield { type: 'completed', responseId: 'resp-2', totalTokens: 1 };
     }
@@ -370,19 +381,27 @@ describe('LLM route — error-path tool persistence', () => {
       .mockResolvedValueOnce(gen1())
       .mockResolvedValueOnce(gen2());
 
-    // Round 1: dedupLookup miss + log_event INSERT.
-    pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
-    pool.query.mockResolvedValueOnce({
-      rowCount: 1,
-      rows: [{ id: 'log-1', timestamp: new Date() }],
+    // Content-keyed pool.query mock (not positional mockResolvedValueOnce) —
+    // writeStartRow's own INSERT fires via a detached waitUntil() and races
+    // the round loop's own pool.query calls, so a strict FIFO queue is order-
+    // fragile (pre-existing; W2-E's extra Promise.all query shifted timing
+    // enough to expose it). dedupLookup's SELECT always misses here (no
+    // content column on the returned row), so log_event always does the real
+    // INSERT and gets a distinct id per round.
+    let insertSeq = 0;
+    pool.query.mockImplementation(async (sql: string) => {
+      if (sql.includes('EXISTS (')) {
+        return { rowCount: 1, rows: [{ foreign_owned: false, prev_response_id: null }] };
+      }
+      if (sql.includes('SELECT content FROM chat_messages')) {
+        return { rowCount: 0, rows: [] }; // dedupLookup miss, every round
+      }
+      if (sql.includes('INSERT INTO session_log') && sql.includes('RETURNING')) {
+        insertSeq += 1;
+        return { rowCount: 1, rows: [{ id: `log-${insertSeq}`, timestamp: new Date() }] };
+      }
+      return { rowCount: 1, rows: [] }; // writeStartRow / writeEndRow inserts (no RETURNING)
     });
-    // Round 2: dedupLookup miss + log_event INSERT (then send throws).
-    pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
-    pool.query.mockResolvedValueOnce({
-      rowCount: 1,
-      rows: [{ id: 'log-2', timestamp: new Date() }],
-    });
-    pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
 
     const { client, queries } = makeClient();
     pool.connect.mockResolvedValue(client);
