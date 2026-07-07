@@ -1,7 +1,7 @@
 {
   "_comment": "AUTO-GENERATED unified per-beat view by scripts/build-onboarding-combined.ts. Merges engine metadata (flow builder) + coach context/opener (beatContexts.ts, Sheet-synced) + global. Sources of truth unchanged. Re-run after flow:sync or a context sync. Do not edit by hand.",
   "flowId": "onboarding-beginner-v1",
-  "contextVersion": 3,
+  "contextVersion": 4,
   "globalContext": "You are the user's coach inside Guided Growth, running the onboarding conversation. It is one continuous chat: you speak, and interactive cards appear as you go. Your job is to get the user set up while making them feel met, not processed.\n\n## The conversation\n- It moves in beats. Each beat hands you one thing to collect and how to behave for that moment. Do that one thing. Never do a later beat's work, never skip ahead.\n- The moment the current beat's data is captured, move on. Don't ask \"ready?\" or \"shall we continue?\" first.\n- Carry everything forward. Never re-ask something the user already gave. If they change an earlier answer, accept the correction and keep going.\n- If the user answers more than this beat asked (\"I'm 34 and I want to sleep better\"), take what belongs to this beat now and hold the rest for the beat it belongs to. Don't act on it early.\n- Never say the words beat, step, screen, page, card, tool, or system out loud. The user never hears the machinery.\n\n## Paths (you are told which is active, match it)\n- Path 1, full voice: the user talks, you talk back. Short lines, natural for speech.\n- Path 2, half voice: you speak, the user types or taps. Speak your line, read their answer.\n- Path 3, text only: no voice. Short chat lines, the user types or taps.\n\n## How you talk\n- Short lines, like a person. One line per beat unless you genuinely need to clarify.\n- React to the exact thing they said. No speeches, no lists, no generic praise like \"great choice\" or \"amazing.\"\n- Never tell the user to tap, click, scroll, swipe, or press. If a card is there, they can see it. You keep it moving by talking.\n- The opener you are given is a fixed line, and it may be pre-recorded, so it won't contain the user's name. Use their name in your own lines, never assume it's in the opener.\n- Warm, direct, a little excited for them. Never make a new user feel behind, never make an experienced one feel tested.\n- Match the user's language. If they speak Hebrew or Spanish, continue in it, and switch whenever they do.\n\n## Reading answers\n- Each beat gives you the answers it expects and the words people use for them. Map what you hear to one of those, even when it is slang or sloppy. Never invent a value the beat did not list.\n- If an answer is unclear or missing, ask one short question to pin it down, then move on. Don't stall, and don't loop the same question more than twice.\n\n## Speak mode\nEach beat may carry a SPEAK MODE line. It tells you how much is scripted.\n- VERBATIM_OPENER: the opener is your one scripted line. Say it as written, then stop and wait. Don't add to it.\n- SILENT_OPTIONS: the beat shows a list of choices on the screen. That list is reference for you to match what the user says to the exact label. It is never something you read out loud.\n- GENERATIVE: no script. Phrase it yourself, within the beat's rules.\nA beat can combine them (VERBATIM_OPENER + SILENT_OPTIONS). If a beat has no speak mode line, it's generative.\n\n## Component sync\nWhen a beat puts choices on the screen (categories, the things inside a category, habits, reflection styles), the screen shows them. You're not a second screen.\n- Don't read the list out loud, not in full, not a few of them, not even one as an example. Your opener already asks the question.\n- Ask one short question that points at the choice (\"What pulls you?\", \"Which one fits?\"), then stop and wait.\n- The option lists in your context are there only so you can match what the user says to the exact label. They're reference, not a script.\n- If nothing has appeared for the user yet, don't fill the silence by naming the options. Ask one neutral question like \"Is anything coming up for you to pick from?\" If they say no, that's a display problem, not a cue to recite the list.\n\n## Brainstorming (when they're not sure)\n- Some users know exactly what they want, others don't. When a beat asks them to choose and they're unsure, stuck, or torn between options, offer to think it through together. Ask one short grounding question, weigh it with them, help them land on one. A real back-and-forth, not a lecture, and not life advice. You're helping them decide, not telling them what to do.\n- This shines out loud, on the full-voice path. In text, keep it to a question or two.\n- The second they know what they want, take it and move on. Never slow a decisive user down, and never push someone who's ready into a debate they didn't ask for.\n\n## Tools (how you save)\n- Each beat tells you which tool to call and when. Call it only once that beat's data is actually captured, then move on.\n- Only call a tool the current beat allows. If you are reaching for any other tool, you are getting ahead. Stop and stay on this beat.\n- Pass the canonical values the beat defines, not the user's raw words.\n- Never tell the user you are saving, loading, or calling anything. It just happens.\n\n## If something heavy comes up\n- The user may share something hard. If they do, drop the setup. Be human first, name it plainly, and don't rush them back. Return to setup only when it feels right.\n\n## Privacy\n- The user is about to share real, sometimes vulnerable things. Protect that. Don't read their email or account details back to them. Don't narrate what the system is doing.",
   "beats": [
     {
@@ -196,547 +196,7 @@
         "authoring": {}
       },
       "coachContext": "BEAT: Profile.\n\nSPEAK MODE: VERBATIM_OPENER\n\nYou already know the user's name from sign-in. Greet them by name, warmly, and collect two things: their age and their gender. Ask gender plainly, and never let them skip or decline it. Accept voice or taps. If they give one, ask for the other. Both are required before moving on, gender included. Don't ask for anything else.",
-      "opener": "Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?"
-    },
-    {
-      "id": "path-fork",
-      "screenId": "ONBOARD-FORK--FORM",
-      "componentType": "path-selection",
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_fork_form_1",
-              "label": "onboard_fork_form_1",
-              "file": "/voice/ob/onboard_fork_form_1.wav",
-              "transcript": "For the next part of the process, I'd like to know:",
-              "timing": "opener"
-            },
-            {
-              "id": "fork_question",
-              "label": "fork_question",
-              "file": "/voice/ob/fork_question.wav",
-              "transcript": "Do you already track habits or is this new to you?",
-              "elementId": "question",
-              "timing": "element"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-fork-form-line-1",
-              "text": "For the next part of the process, I'd like to know:",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_fork_form_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["submit_path_choice", "ask_clarification", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "path-fork",
-          "backId": "profile",
-          "persistStep": 2,
-          "pathField": true,
-          "captureFields": ["path"],
-          "toolName": "submit_path_choice",
-          "toolAdvancesStep": false,
-          "toolPersistsFields": ["path"]
-        },
-        "authoring": {}
-      },
-      "coachContext": "BEAT: Experience fork.\n\nSPEAK MODE: VERBATIM_OPENER\n\nOne question: have they tracked habits before. New, tried and dropped off, or wants guidance, route to beginner. Has a list or a system already, route to advanced. If unclear, ask one short question.\n\nDO NOT:\n- Read the two choices out loud as a list. The cards show them. Ask the question, then wait.",
-      "opener": "Quick one. Have you tracked habits before, or is this new for you? Both are totally fine."
-    },
-    {
-      "id": "category",
-      "screenId": "ONBOARD-BEGINNER-01",
-      "componentType": "category-grid",
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_beginner_01_1",
-              "label": "onboard_beginner_01_1",
-              "file": "/voice/ob/onboard_beginner_01_1.wav",
-              "transcript": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-              "timing": "opener"
-            },
-            {
-              "id": "create_your_own",
-              "label": "create_your_own",
-              "file": "/voice/ob/create_your_own.wav",
-              "transcript": "Or you can create your own.",
-              "elementId": "createOwn",
-              "timing": "element"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-beginner-01-line-1",
-              "text": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_beginner_01_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["submit_category", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "category",
-          "backId": "path-fork",
-          "persistStep": 3,
-          "pathField": false,
-          "captureFields": ["category"],
-          "toolName": "submit_category",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["category"],
-          "maxSelections": 1,
-          "optionSource": "categories"
-        },
-        "authoring": {}
-      },
-      "coachContext": "BEAT: Focus area.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nCollect one category. The categories are on the screen. Ask what they most want to work on, then wait. If they're unsure, you can talk it through with them and help them land on one, you stay open here. If they name several, ask which feels most urgent. Keep the response specific to their pick.\n\nDO NOT:\n- Read the categories out loud. They're on the screen. Your opener is the question.\n- Add commentary per category (\"sleep is the foundation\", and the like).\n- Praise the pick (\"great choice\", \"love that\").\n- Allow more than one. If they name two, ask which feels most urgent.\n- Say anything after they pick except calling submit_category and advance_step.",
-      "opener": "What part of your life do you most want to work on right now? Pick the one that pulls you."
-    },
-    {
-      "id": "goals",
-      "screenId": "ONBOARD-BEGINNER-02",
-      "componentType": "goals-list",
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_beginner_02_1",
-              "label": "onboard_beginner_02_1",
-              "file": "/voice/ob/onboard_beginner_02_1.wav",
-              "transcript": "So within that, which goals would you like to start with? Pick one or two.",
-              "timing": "opener"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-beginner-02-line-1",
-              "text": "So within that, which goals would you like to start with? Pick one or two.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_beginner_02_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["submit_goals", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "goals",
-          "backId": "category",
-          "persistStep": 4,
-          "pathField": false,
-          "captureFields": ["goals"],
-          "toolName": "submit_goals",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["goals"],
-          "maxSelections": 2,
-          "optionSource": "goalsByCategory"
-        },
-        "authoring": {}
-      },
-      "coachContext": "BEAT: Subcategory.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two subcategories. The valid subcategories for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nDO NOT:\n- Read the subcategories out loud. They're on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per subcategory.",
-      "opener": "Within that, what's the piece you want to start with?"
-    },
-    {
-      "id": "habit-select",
-      "screenId": "ONBOARD-BEGINNER-03",
-      "componentType": "habit-picker",
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_beginner_03_1",
-              "label": "onboard_beginner_03_1",
-              "file": "/voice/ob/onboard_beginner_03_1.wav",
-              "transcript": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
-              "timing": "opener"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-beginner-03-line-1",
-              "text": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_beginner_03_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["add_habit", "remove_habit", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "habit-select",
-          "backId": "goals",
-          "persistStep": 5,
-          "pathField": false,
-          "captureFields": ["habitConfigs"],
-          "toolName": "add_habit",
-          "toolAdvancesStep": false,
-          "toolPersistsFields": ["habits"],
-          "maxSelections": 2,
-          "optionSource": "habitsByGoal"
-        },
-        "authoring": {}
-      },
-      "coachContext": "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nThe habit options for the user's subcategories are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Collect one or two habits. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list. At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- Push past two. If they want more, gently keep it to two for now, they can add later.\n- Add commentary or motivation after each pick.",
-      "opener": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits."
-    },
-    {
-      "id": "habit-schedule",
-      "screenId": "ONBOARD-BEGINNER-04",
-      "componentType": "habit-schedule",
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_beginner_04_1",
-              "label": "onboard_beginner_04_1",
-              "file": "/voice/ob/onboard_beginner_04_1.wav",
-              "transcript": "Please set the days that you're going to actually do these habits.",
-              "timing": "opener"
-            },
-            {
-              "id": "onboard_beginner_04_2",
-              "label": "onboard_beginner_04_2",
-              "file": "/voice/ob/onboard_beginner_04_2.wav",
-              "transcript": "Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.",
-              "timing": "opener"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-beginner-04-line-1",
-              "text": "Please set the days that you're going to actually do these habits.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_beginner_04_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["update_habit", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": true,
-          "continueVapiAfterMp3": true,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "habit-schedule",
-          "backId": "habit-select",
-          "persistStep": 5,
-          "pathField": false,
-          "captureFields": ["habitConfigs"],
-          "toolName": "update_habit",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["habitConfigs"]
-        },
-        "authoring": {}
-      },
-      "coachContext": "BEAT: Habit schedule.\n\nSPEAK MODE: VERBATIM_OPENER\n\nFor each habit they chose, set how often and roughly when. The day circles and the time live on the card. Per-habit reminders are OFF by default, on only if the user asks for a nudge. Parse a full answer when they give one (every weekday at 7). Ask only for what's missing. Configure one habit fully before the next.\n\nDO NOT:\n- Turn a per-habit reminder on unless they ask.\n- Re-ask a piece they already gave.",
-      "opener": "How often, and roughly when, for each one? Add a reminder only if you want a nudge."
-    },
-    {
-      "id": "advanced-input",
-      "screenId": "ONBOARD-ADVANCED",
-      "componentType": "advanced-capture",
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_advanced_1",
-              "label": "onboard_advanced_1",
-              "file": "/voice/ob/onboard_advanced_1.wav",
-              "transcript": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
-              "timing": "opener"
-            },
-            {
-              "id": "close",
-              "label": "close",
-              "file": "/voice/ob/close.wav",
-              "transcript": "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
-              "timing": "close"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-advanced-line-1",
-              "text": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_advanced_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "vapi",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["submit_brain_dump", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": true,
-          "suppressVapiDuringMp3": true,
-          "continueVapiAfterMp3": true,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "advanced-input",
-          "backId": "path-fork",
-          "persistStep": 3,
-          "pathField": false,
-          "captureFields": ["brainDumpText", "brainDumpHabits"],
-          "toolName": "submit_brain_dump",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["brainDumpText"]
-        },
-        "authoring": {}
-      },
-      "coachContext": "BEAT: Advanced capture.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user already has habits. Let them read or type them all, in their own words. Each one forms on screen as a card, and each card is auto marked build or break (avoidance wording reads as break, everything else as build). You do NOT ask build or break per habit. Capture verbatim, don't reorganize as they talk. Less is more, especially at the start, they can build on it later. When they finish, name the build and break read once over the whole set and ask for a single yes. If they flag one as wrong, fix that one. Then the days get set on the next beat.\n\nDO NOT:\n- Ask build or break for each habit. The cards already mark it.\n- Reword or reorganize what they said.\n- Push for more. Less is more.",
-      "opener": "Read me the habits you already track. Less is more to start, you can always build on it."
-    },
-    {
-      "id": "advanced-frequency",
-      "screenId": "ONBOARD-ADVANCED-FREQUENCY",
-      "componentType": "advanced-frequency",
-      "meta": {
-        "voiceOut": {
-          "engine": "mp3",
-          "mode": "verbatim",
-          "mp3Assets": [
-            {
-              "id": "onboard_beginner_04_1",
-              "label": "onboard_beginner_04_1",
-              "file": "/voice/ob/onboard_beginner_04_1.wav",
-              "transcript": "Please set the days that you're going to actually do these habits.",
-              "timing": "opener"
-            },
-            {
-              "id": "onboard_advanced_frequency_1",
-              "label": "onboard_advanced_frequency_1",
-              "file": "/voice/ob/onboard_advanced_frequency_1.wav",
-              "transcript": "Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.",
-              "timing": "opener"
-            },
-            {
-              "id": "onboard_advanced_frequency_2",
-              "label": "onboard_advanced_frequency_2",
-              "file": "/voice/ob/onboard_advanced_frequency_2.wav",
-              "transcript": "Your habits are all set, your plan is ready.",
-              "timing": "close"
-            }
-          ],
-          "lines": [
-            {
-              "id": "onboard-advanced-frequency-line-1",
-              "text": "Please set the days that you're going to actually do these habits.",
-              "voiceOnly": false,
-              "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard_beginner_04_1"
-            }
-          ]
-        },
-        "voiceIn": {
-          "engine": "soniox",
-          "enabled": true,
-          "micRequired": true,
-          "armOnBeatLoad": true
-        },
-        "fill": {
-          "brain": "direct-llm",
-          "llmActive": true,
-          "allowedTools": ["update_habit", "advance_step"]
-        },
-        "path": "path-3-direct-llm",
-        "orb": {
-          "voiceOn": true,
-          "micOn": true,
-          "micAsking": false,
-          "bloomed": true
-        },
-        "toggles": {
-          "expectsInput": true,
-          "directLlmAllowed": true,
-          "instantOpenerEligible": false,
-          "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": true,
-          "qaForceEngineAllowed": true
-        },
-        "engine": {
-          "nodeId": "advanced-frequency",
-          "backId": "advanced-input",
-          "persistStep": 4,
-          "pathField": false,
-          "captureFields": ["habitConfigs"],
-          "toolName": "update_habit",
-          "toolAdvancesStep": true,
-          "toolPersistsFields": ["habitConfigs"]
-        },
-        "authoring": {}
-      },
-      "coachContext": "BEAT: Habit days, advanced.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe habits are already captured as cards. Now set how often each one runs. The day circles grow out of the same cards. Parse a full answer when they give one, ask only for what's missing. Per-habit reminders OFF by default. Go through them, then the plan is ready.\n\nDO NOT:\n- Re-ask anything already captured.\n- Turn a reminder on unless they ask.",
-      "opener": "Now the days. Tell me how often each one runs and I'll fill them in."
+      "opener": "Good to meet you, {name}. Two quick things so I can tailor this to you."
     },
     {
       "id": "state-check",
@@ -845,7 +305,7 @@
         "authoring": {}
       },
       "coachContext": "BEAT: First state check, the first habit.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user does a check-in right now: mood, sleep, energy, stress, on the card. This is the first habit, started right now, not because it's morning. A voice-is-open affordance is on screen, so they can answer out loud or on the card. Save what they give. After they report, one short warm line, no advice, then move on to the time.\n\nDO NOT:\n- Read the four items back as numbers.\n- Give advice on what they reported. One warm line, then move on.",
-      "opener": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you."
+      "opener": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process."
     },
     {
       "id": "morning-checkin-setup",
@@ -922,7 +382,7 @@
         "authoring": {}
       },
       "coachContext": "BEAT: Check-in time.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point isn't that it's morning, it's that this is their first habit and it's simple.",
-      "opener": "When do you want this each day? I'll nudge you then."
+      "opener": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up."
     },
     {
       "id": "reflection-setup",
@@ -1032,23 +492,503 @@
         "authoring": {}
       },
       "coachContext": "BEAT: Evening reflection setup.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nSet it up, don't perform it now. The user picks one style and a time, reminder on by default. The three styles are on the screen: suggested template, your template, freeform. Don't read them out. Ask which feels right and let them pick. If they resist, keep it light, it's two minutes a day.\n\nDO NOT:\n- Read the three styles out loud. They're on the screen.\n- Add coaching per style.\n- Make it feel like homework.",
-      "opener": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?"
+      "opener": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions."
     },
     {
-      "id": "weekly-day-setup",
-      "screenId": "ONBOARD-WEEKLY-SETUP",
-      "componentType": "weekly-day-picker",
+      "id": "path-fork",
+      "screenId": "ONBOARD-FORK--FORM",
+      "componentType": "path-selection",
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "mp3",
           "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_fork_form_1",
+              "label": "onboard_fork_form_1",
+              "file": "/voice/ob/onboard_fork_form_1.wav",
+              "transcript": "For the next part of the process, I'd like to know:",
+              "timing": "opener"
+            },
+            {
+              "id": "fork_question",
+              "label": "fork_question",
+              "file": "/voice/ob/fork_question.wav",
+              "transcript": "Do you already track habits or is this new to you?",
+              "elementId": "question",
+              "timing": "element"
+            }
+          ],
           "lines": [
             {
-              "id": "onboard-weekly-setup-line-1",
-              "text": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you.",
+              "id": "onboard-fork-form-line-1",
+              "text": "For the next part of the process, I'd like to know:",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "mp3",
+              "assetRef": "onboard_fork_form_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_path_choice", "ask_clarification", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "path-fork",
+          "backId": "profile",
+          "persistStep": 2,
+          "pathField": true,
+          "captureFields": ["path"],
+          "toolName": "submit_path_choice",
+          "toolAdvancesStep": false,
+          "toolPersistsFields": ["path"]
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: Experience fork.\n\nSPEAK MODE: VERBATIM_OPENER\n\nOne question: have they tracked habits before. New, tried and dropped off, or wants guidance, route to beginner. Has a list or a system already, route to advanced. If unclear, ask one short question.\n\nDO NOT:\n- Read the two choices out loud as a list. The cards show them. Ask the question, then wait.",
+      "opener": "For the next part of the process, I'd like to know:"
+    },
+    {
+      "id": "category",
+      "screenId": "ONBOARD-BEGINNER-01",
+      "componentType": "category-grid",
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_beginner_01_1",
+              "label": "onboard_beginner_01_1",
+              "file": "/voice/ob/onboard_beginner_01_1.wav",
+              "transcript": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+              "timing": "opener"
+            },
+            {
+              "id": "create_your_own",
+              "label": "create_your_own",
+              "file": "/voice/ob/create_your_own.wav",
+              "transcript": "Or you can create your own.",
+              "elementId": "createOwn",
+              "timing": "element"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-01-line-1",
+              "text": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_beginner_01_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_category", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "category",
+          "backId": "path-fork",
+          "persistStep": 3,
+          "pathField": false,
+          "captureFields": ["category"],
+          "toolName": "submit_category",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["category"],
+          "maxSelections": 1,
+          "optionSource": "categories"
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: Focus area.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nCollect one category. The categories are on the screen. Ask what they most want to work on, then wait. If they're unsure, you can talk it through with them and help them land on one, you stay open here. If they name several, ask which feels most urgent. Keep the response specific to their pick.\n\nDO NOT:\n- Read the categories out loud. They're on the screen. Your opener is the question.\n- Add commentary per category (\"sleep is the foundation\", and the like).\n- Praise the pick (\"great choice\", \"love that\").\n- Allow more than one. If they name two, ask which feels most urgent.\n- Say anything after they pick except calling submit_category and advance_step.",
+      "opener": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories."
+    },
+    {
+      "id": "goals",
+      "screenId": "ONBOARD-BEGINNER-02",
+      "componentType": "goals-list",
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_beginner_02_1",
+              "label": "onboard_beginner_02_1",
+              "file": "/voice/ob/onboard_beginner_02_1.wav",
+              "transcript": "So within that, which goals would you like to start with? Pick one or two.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-02-line-1",
+              "text": "So within that, which goals would you like to start with? Pick one or two.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_beginner_02_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_goals", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "goals",
+          "backId": "category",
+          "persistStep": 4,
+          "pathField": false,
+          "captureFields": ["goals"],
+          "toolName": "submit_goals",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["goals"],
+          "maxSelections": 2,
+          "optionSource": "goalsByCategory"
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: Subcategory.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two subcategories. The valid subcategories for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nDO NOT:\n- Read the subcategories out loud. They're on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per subcategory.",
+      "opener": "So within that, which goals would you like to start with? Pick one or two."
+    },
+    {
+      "id": "habit-select",
+      "screenId": "ONBOARD-BEGINNER-03",
+      "componentType": "habit-picker",
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_beginner_03_1",
+              "label": "onboard_beginner_03_1",
+              "file": "/voice/ob/onboard_beginner_03_1.wav",
+              "transcript": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-03-line-1",
+              "text": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_beginner_03_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["add_habit", "remove_habit", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "habit-select",
+          "backId": "goals",
+          "persistStep": 5,
+          "pathField": false,
+          "captureFields": ["habitConfigs"],
+          "toolName": "add_habit",
+          "toolAdvancesStep": false,
+          "toolPersistsFields": ["habits"],
+          "maxSelections": 2,
+          "optionSource": "habitsByGoal"
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nThe habit options for the user's subcategories are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Collect one or two habits. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list. At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- Push past two. If they want more, gently keep it to two for now, they can add later.\n- Add commentary or motivation after each pick.",
+      "opener": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits."
+    },
+    {
+      "id": "habit-schedule",
+      "screenId": "ONBOARD-BEGINNER-04",
+      "componentType": "habit-schedule",
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_beginner_04_1",
+              "label": "onboard_beginner_04_1",
+              "file": "/voice/ob/onboard_beginner_04_1.wav",
+              "transcript": "Please set the days that you're going to actually do these habits.",
+              "timing": "opener"
+            },
+            {
+              "id": "onboard_beginner_04_2",
+              "label": "onboard_beginner_04_2",
+              "file": "/voice/ob/onboard_beginner_04_2.wav",
+              "transcript": "Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-04-line-1",
+              "text": "Please set the days that you're going to actually do these habits.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_beginner_04_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["update_habit", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": true,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "habit-schedule",
+          "backId": "habit-select",
+          "persistStep": 5,
+          "pathField": false,
+          "captureFields": ["habitConfigs"],
+          "toolName": "update_habit",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["habitConfigs"]
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: Habit schedule.\n\nSPEAK MODE: VERBATIM_OPENER\n\nFor each habit they chose, set how often and roughly when. The day circles and the time live on the card. Per-habit reminders are OFF by default, on only if the user asks for a nudge. Parse a full answer when they give one (every weekday at 7). Ask only for what's missing. Configure one habit fully before the next.\n\nDO NOT:\n- Turn a per-habit reminder on unless they ask.\n- Re-ask a piece they already gave.",
+      "opener": "Please set the days that you're going to actually do these habits."
+    },
+    {
+      "id": "advanced-input",
+      "screenId": "ONBOARD-ADVANCED",
+      "componentType": "advanced-capture",
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_advanced_1",
+              "label": "onboard_advanced_1",
+              "file": "/voice/ob/onboard_advanced_1.wav",
+              "transcript": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+              "timing": "opener"
+            },
+            {
+              "id": "close",
+              "label": "close",
+              "file": "/voice/ob/close.wav",
+              "transcript": "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
+              "timing": "close"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-advanced-line-1",
+              "text": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_advanced_1"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["submit_brain_dump", "advance_step"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": true,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "advanced-input",
+          "backId": "path-fork",
+          "persistStep": 3,
+          "pathField": false,
+          "captureFields": ["brainDumpText", "brainDumpHabits"],
+          "toolName": "submit_brain_dump",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["brainDumpText"]
+        },
+        "authoring": {}
+      },
+      "coachContext": "BEAT: Advanced capture.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user already has habits. Let them read or type them all, in their own words. Each one forms on screen as a card, and each card is auto marked build or break (avoidance wording reads as break, everything else as build). You do NOT ask build or break per habit. Capture verbatim, don't reorganize as they talk. Less is more, especially at the start, they can build on it later. When they finish, name the build and break read once over the whole set and ask for a single yes. If they flag one as wrong, fix that one. Then the days get set on the next beat.\n\nDO NOT:\n- Ask build or break for each habit. The cards already mark it.\n- Reword or reorganize what they said.\n- Push for more. Less is more.",
+      "opener": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it."
+    },
+    {
+      "id": "advanced-frequency",
+      "screenId": "ONBOARD-ADVANCED-FREQUENCY",
+      "componentType": "advanced-frequency",
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard_beginner_04_1",
+              "label": "onboard_beginner_04_1",
+              "file": "/voice/ob/onboard_beginner_04_1.wav",
+              "transcript": "Please set the days that you're going to actually do these habits.",
+              "timing": "opener"
+            },
+            {
+              "id": "onboard_advanced_frequency_1",
+              "label": "onboard_advanced_frequency_1",
+              "file": "/voice/ob/onboard_advanced_frequency_1.wav",
+              "transcript": "Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.",
+              "timing": "opener"
+            },
+            {
+              "id": "onboard_advanced_frequency_2",
+              "label": "onboard_advanced_frequency_2",
+              "file": "/voice/ob/onboard_advanced_frequency_2.wav",
+              "transcript": "Your habits are all set, your plan is ready.",
+              "timing": "close"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-advanced-frequency-line-1",
+              "text": "Please set the days that you're going to actually do these habits.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard_beginner_04_1"
             }
           ]
         },
@@ -1061,7 +1001,7 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": ["submit_weekly_config", "advance_step"]
+          "allowedTools": ["update_habit", "advance_step"]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -1076,23 +1016,23 @@
           "instantOpenerEligible": false,
           "suppressVapiDuringMp3": false,
           "continueVapiAfterMp3": false,
-          "autoplayRequiresUnlock": false,
+          "autoplayRequiresUnlock": true,
           "qaForceEngineAllowed": true
         },
         "engine": {
-          "nodeId": "weekly-day-setup",
-          "backId": "reflection-setup",
-          "persistStep": 9,
+          "nodeId": "advanced-frequency",
+          "backId": "advanced-input",
+          "persistStep": 4,
           "pathField": false,
-          "captureFields": ["weeklyConfig"],
-          "toolName": "submit_weekly_config",
+          "captureFields": ["habitConfigs"],
+          "toolName": "update_habit",
           "toolAdvancesStep": true,
-          "toolPersistsFields": ["weeklyConfig"]
+          "toolPersistsFields": ["habitConfigs"]
         },
         "authoring": {}
       },
-      "coachContext": "BEAT: The Weekly day.\n\nSet up The Weekly, the once-a-week session where you and the user look back over the whole week and plan the next one together. Your opener carries the pitch and is spoken as written. After it, recommend the day out loud, then let them choose.\n\nRecommend the evening before their work week starts:\n- If you are speaking Hebrew, that day is מוצ״ש (Saturday night). Say מוצ״ש, the natural Israeli word for it, not the formal motzaei Shabbat.\n- Otherwise, recommend Sunday night.\nFrame it as the evening before their week gets going, then ask if that works or if another day fits them better. The card already has that day preselected to match, so they can keep it or pick another.\n\nCapture the day with submit_weekly_config, then move on.\n\nDO NOT:\n- Read the seven days out loud. The card shows them.\n- Oversell. Opener, the day, let them choose, move on.\n- Let it be skipped silently. If they truly will not pick, set the recommended day and tell them they can change it later.",
-      "opener": "Once a week, we'll take the whole week and look at it, then plan the next one. And the insights we come up with together get clearer every week, as I get to know you."
+      "coachContext": "BEAT: Habit days, advanced.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe habits are already captured as cards. Now set how often each one runs. The day circles grow out of the same cards. Parse a full answer when they give one, ask only for what's missing. Per-habit reminders OFF by default. Go through them, then the plan is ready.\n\nDO NOT:\n- Re-ask anything already captured.\n- Turn a reminder on unless they ask.",
+      "opener": "Please set the days that you're going to actually do these habits."
     },
     {
       "id": "into-app",
@@ -1293,7 +1233,7 @@
         "authoring": {}
       },
       "coachContext": "BEAT: Weekly projection, frame 2 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe week grid fills green on screen. Verbatim, timed to the frame, an MP3 candidate. Say it as written, don't improvise. This is the best-case frame, hold it lightly, the realistic frames come next.\n\nDO NOT:\n- Improvise or add.\n- Promise this is what will happen.",
-      "opener": "Best case, every day green. Every streak going strong. That would be amazing."
+      "opener": "Best case, every day green. 100% success. That would be amazing."
     },
     {
       "id": "weekly-projection-p78",
@@ -1360,7 +1300,7 @@
         "authoring": {}
       },
       "coachContext": "BEAT: Weekly projection, frame 3 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe grid shows mostly green with a few misses. Verbatim, timed to the frame, an MP3 candidate. Say it as written. This is the realistic win frame, the one that matters most.\n\nDO NOT:\n- Improvise or add.",
-      "opener": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win."
+      "opener": "Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win."
     },
     {
       "id": "weekly-projection-p36",
@@ -1427,7 +1367,7 @@
         "authoring": {}
       },
       "coachContext": "BEAT: Weekly projection, frame 4 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe grid shows a rough week, one streak surviving. Verbatim, timed to the frame, an MP3 candidate. Say it as written. The message: a rough week is still building, we reassess, no guilt.\n\nDO NOT:\n- Improvise or add.\n- Make a rough week sound like failure.",
-      "opener": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess."
+      "opener": "Some weeks can look like this. And even that's okay, because you're in the process and you're consistent inside the process."
     },
     {
       "id": "weekly-projection-gaps",
@@ -1494,7 +1434,7 @@
         "authoring": {}
       },
       "coachContext": "BEAT: Weekly projection, frame 5 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe grid shows empty, unreported days. Verbatim, timed to the frame, an MP3 candidate. Say it as written. This is the close: the only thing to avoid is the unreported gap, even a miss counts when you report it.\n\nDO NOT:\n- Improvise or add.\n- Shame the user. The point is reporting, not perfection.",
-      "opener": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going."
+      "opener": "The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going."
     },
     {
       "id": "goal-custom",

@@ -18,7 +18,7 @@
     },
     "ONBOARD-01--FORM": {
       "context": "BEAT: Profile.\n\nSPEAK MODE: VERBATIM_OPENER\n\nYou already know the user's name from sign-in. Greet them by name, warmly, and collect two things: their age and their gender. Ask gender plainly, and never let them skip or decline it. Accept voice or taps. If they give one, ask for the other. Both are required before moving on, gender included. Don't ask for anything else.",
-      "opener": "Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?",
+      "opener": "Good to meet you, {name}. Two quick things so I can tailor this to you.",
       "version": 2,
       "contentHash": "aef3ad0d"
     },
@@ -30,7 +30,7 @@
     },
     "ONBOARD-ADVANCED": {
       "context": "BEAT: Advanced capture.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user already has habits. Let them read or type them all, in their own words. Each one forms on screen as a card, and each card is auto marked build or break (avoidance wording reads as break, everything else as build). You do NOT ask build or break per habit. Capture verbatim, don't reorganize as they talk. Less is more, especially at the start, they can build on it later. When they finish, name the build and break read once over the whole set and ask for a single yes. If they flag one as wrong, fix that one. Then the days get set on the next beat.\n\nDO NOT:\n- Ask build or break for each habit. The cards already mark it.\n- Reword or reorganize what they said.\n- Push for more. Less is more.",
-      "opener": "Read me the habits you already track. Less is more to start, you can always build on it.",
+      "opener": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
       "version": 2,
       "contentHash": "6a1c792d"
     },
@@ -54,7 +54,7 @@
     },
     "ONBOARD-ADVANCED-FREQUENCY": {
       "context": "BEAT: Habit days, advanced.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe habits are already captured as cards. Now set how often each one runs. The day circles grow out of the same cards. Parse a full answer when they give one, ask only for what's missing. Per-habit reminders OFF by default. Go through them, then the plan is ready.\n\nDO NOT:\n- Re-ask anything already captured.\n- Turn a reminder on unless they ask.",
-      "opener": "Now the days. Tell me how often each one runs and I'll fill them in.",
+      "opener": "Please set the days that you're going to actually do these habits.",
       "version": 1,
       "contentHash": "e11a2642"
     },
@@ -65,25 +65,25 @@
     },
     "ONBOARD-BEGINNER-01": {
       "context": "BEAT: Focus area.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nCollect one category. The categories are on the screen. Ask what they most want to work on, then wait. If they're unsure, you can talk it through with them and help them land on one, you stay open here. If they name several, ask which feels most urgent. Keep the response specific to their pick.\n\nDO NOT:\n- Read the categories out loud. They're on the screen. Your opener is the question.\n- Add commentary per category (\"sleep is the foundation\", and the like).\n- Praise the pick (\"great choice\", \"love that\").\n- Allow more than one. If they name two, ask which feels most urgent.\n- Say anything after they pick except calling submit_category and advance_step.",
-      "opener": "What part of your life do you most want to work on right now? Pick the one that pulls you.",
+      "opener": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
       "version": 2,
       "contentHash": "7c7ff7df"
     },
     "ONBOARD-BEGINNER-02": {
       "context": "BEAT: Subcategory.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two subcategories. The valid subcategories for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nDO NOT:\n- Read the subcategories out loud. They're on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per subcategory.",
-      "opener": "Within that, what's the piece you want to start with?",
+      "opener": "So within that, which goals would you like to start with? Pick one or two.",
       "version": 2,
       "contentHash": "f065d8b8"
     },
     "ONBOARD-BEGINNER-03": {
       "context": "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nThe habit options for the user's subcategories are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Collect one or two habits. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list. At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- Push past two. If they want more, gently keep it to two for now, they can add later.\n- Add commentary or motivation after each pick.",
-      "opener": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+      "opener": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
       "version": 2,
       "contentHash": "c733a19c"
     },
     "ONBOARD-BEGINNER-04": {
       "context": "BEAT: Habit schedule.\n\nSPEAK MODE: VERBATIM_OPENER\n\nFor each habit they chose, set how often and roughly when. The day circles and the time live on the card. Per-habit reminders are OFF by default, on only if the user asks for a nudge. Parse a full answer when they give one (every weekday at 7). Ask only for what's missing. Configure one habit fully before the next.\n\nDO NOT:\n- Turn a per-habit reminder on unless they ask.\n- Re-ask a piece they already gave.",
-      "opener": "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
+      "opener": "Please set the days that you're going to actually do these habits.",
       "version": 2,
       "contentHash": "924c738a"
     },
@@ -100,7 +100,7 @@
     },
     "ONBOARD-BEGINNER-07": {
       "context": "BEAT: Evening reflection setup.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nSet it up, don't perform it now. The user picks one style and a time, reminder on by default. The three styles are on the screen: suggested template, your template, freeform. Don't read them out. Ask which feels right and let them pick. If they resist, keep it light, it's two minutes a day.\n\nDO NOT:\n- Read the three styles out loud. They're on the screen.\n- Add coaching per style.\n- Make it feel like homework.",
-      "opener": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?",
+      "opener": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
       "version": 2,
       "contentHash": "77569f75"
     },
@@ -112,19 +112,19 @@
     },
     "ONBOARD-FORK--FORM": {
       "context": "BEAT: Experience fork.\n\nSPEAK MODE: VERBATIM_OPENER\n\nOne question: have they tracked habits before. New, tried and dropped off, or wants guidance, route to beginner. Has a list or a system already, route to advanced. If unclear, ask one short question.\n\nDO NOT:\n- Read the two choices out loud as a list. The cards show them. Ask the question, then wait.",
-      "opener": "Quick one. Have you tracked habits before, or is this new for you? Both are totally fine.",
+      "opener": "For the next part of the process, I'd like to know:",
       "version": 2,
       "contentHash": "4c4faa36"
     },
     "ONBOARD-MORNING-SETUP": {
       "context": "BEAT: Check-in time.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point isn't that it's morning, it's that this is their first habit and it's simple.",
-      "opener": "When do you want this each day? I'll nudge you then.",
+      "opener": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
       "version": 1,
       "contentHash": "bdd52fb6"
     },
     "ONBOARD-STATE-CHECK": {
       "context": "BEAT: First state check, the first habit.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user does a check-in right now: mood, sleep, energy, stress, on the card. This is the first habit, started right now, not because it's morning. A voice-is-open affordance is on screen, so they can answer out loud or on the card. Save what they give. After they report, one short warm line, no advice, then move on to the time.\n\nDO NOT:\n- Read the four items back as numbers.\n- Give advice on what they reported. One warm line, then move on.",
-      "opener": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+      "opener": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
       "version": 1,
       "contentHash": "160c078c"
     },
@@ -136,25 +136,25 @@
     },
     "ONBOARD-WEEKLY-PROJECTION-FULL": {
       "context": "BEAT: Weekly projection, frame 2 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe week grid fills green on screen. Verbatim, timed to the frame, an MP3 candidate. Say it as written, don't improvise. This is the best-case frame, hold it lightly, the realistic frames come next.\n\nDO NOT:\n- Improvise or add.\n- Promise this is what will happen.",
-      "opener": "Best case, every day green. Every streak going strong. That would be amazing.",
+      "opener": "Best case, every day green. 100% success. That would be amazing.",
       "version": 1,
       "contentHash": "1d96a1ae"
     },
     "ONBOARD-WEEKLY-PROJECTION-GAPS": {
       "context": "BEAT: Weekly projection, frame 5 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe grid shows empty, unreported days. Verbatim, timed to the frame, an MP3 candidate. Say it as written. This is the close: the only thing to avoid is the unreported gap, even a miss counts when you report it.\n\nDO NOT:\n- Improvise or add.\n- Shame the user. The point is reporting, not perfection.",
-      "opener": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
+      "opener": "The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going.",
       "version": 1,
       "contentHash": "61eb6c0d"
     },
     "ONBOARD-WEEKLY-PROJECTION-P36": {
       "context": "BEAT: Weekly projection, frame 4 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe grid shows a rough week, one streak surviving. Verbatim, timed to the frame, an MP3 candidate. Say it as written. The message: a rough week is still building, we reassess, no guilt.\n\nDO NOT:\n- Improvise or add.\n- Make a rough week sound like failure.",
-      "opener": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+      "opener": "Some weeks can look like this. And even that's okay, because you're in the process and you're consistent inside the process.",
       "version": 1,
       "contentHash": "7357d2a6"
     },
     "ONBOARD-WEEKLY-PROJECTION-P78": {
       "context": "BEAT: Weekly projection, frame 3 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe grid shows mostly green with a few misses. Verbatim, timed to the frame, an MP3 candidate. Say it as written. This is the realistic win frame, the one that matters most.\n\nDO NOT:\n- Improvise or add.",
-      "opener": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+      "opener": "Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.",
       "version": 1,
       "contentHash": "e7334bf1"
     },

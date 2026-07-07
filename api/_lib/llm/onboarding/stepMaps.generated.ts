@@ -35,10 +35,6 @@ export const STEP_OWNERS: Record<number, Partial<Record<string, string>>> = {
     simple: 'reflection-card',
     braindump: 'reflection-card',
   },
-  '9': {
-    simple: 'weekly-day-picker',
-    braindump: 'weekly-day-picker',
-  },
 };
 
 /** The componentType being LEFT at each STORED step (one-ahead display scale), per lane. */
@@ -73,7 +69,6 @@ export const SELF_ADVANCING_SCREENS: readonly string[] = [
   'ONBOARD-STATE-CHECK',
   'ONBOARD-MORNING-SETUP',
   'ONBOARD-BEGINNER-07',
-  'ONBOARD-WEEKLY-SETUP',
 ];
 
 /** The advance_step ladder taught to the LLM (beginner path, one-ahead on shared steps). */
@@ -81,4 +76,4 @@ export const ADVANCE_LADDER =
   'profile(1)→2, path(2)→3, category(3)→4, goals(4)→5, habit-select(5)→6, habit-schedule(6)→7';
 
 /** Highest identity step; legacy screen ids map past it by hand. */
-export const MAX_STEP = 9;
+export const MAX_STEP = 8;

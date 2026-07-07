@@ -38,9 +38,9 @@ export function getOnboardingOpener(screenId: string): string | undefined {
 // email+password — so when nickname is absent, open by asking for it too.
 const PROFILE_OPENER_SCREENS = new Set(['ONBOARD-01', 'ONBOARD-01--FORM']);
 const PROFILE_OPENER_ASK_NAME =
-  'Awesome — three quick things so I can tailor this to you. What should I call you? And how old are you, and what gender are you?';
+  "Good to meet you. Three quick things so I can tailor this to you. What should I call you? And how old are you, and what's your gender?";
 const PROFILE_OPENER_KNOWN_NAME =
-  'Awesome {name}, two quick things so I can tailor this to you. How old are you, and how do you identify?';
+  'Good to meet you, {name}. Two quick things so I can tailor this to you.';
 
 export function getOnboardingOpenerForState(
   screenId: string,
