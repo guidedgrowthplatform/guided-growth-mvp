@@ -26,7 +26,7 @@ Definitions:
 
 | Found | Regressed behavior (worked before -> broke now) | Introduced by | Detected by | Fix | Status |
 |---|---|---|---|---|---|
-| 2026-07-07 | ONBOARD-BEGINNER-04 two-part opener: part 2 stopped playing (only part 1 fired) | !498 (B58 beat-audio double-arm fix) | !498 live acceptance + B04 probe (notes 4020/4046) | folded into the B40 audio wave: !505 makes the multi-part handoff deterministic (single-playback enforcement, pause the live blob on cross-beat handoff) | in-progress (later found INTERMITTENT, a race; !498 stays merged as a net improvement 43->6 backoffs; B40 wave owns making part-2 deterministic, multi-run acceptance) |
+| 2026-07-07 | ONBOARD-BEGINNER-04 two-part opener: part 2 stopped playing (only part 1 fired) | !498 (B58 beat-audio double-arm fix) | !498 live acceptance + B04 probe (notes 4020/4046) | folded into the B40 audio wave: !505 makes the multi-part handoff deterministic (single-playback enforcement, pause the live blob on cross-beat handoff) | HOLDING (B40 wave head a9b705d1 played both parts 5/5 across the re-walk; !498 stays merged as a net improvement 43->6 backoffs; final confirm when the wave merges) |
 | 2026-07-07 | Beat-audio backoff churn got WORSE between rounds (max ~75 vs ~55 prior) | audio change in the B58/B40 line between round 2 and round 3 (unbisected at the time) | round-3 judge (gg-spec docs/qa-rounds/round3-judge-2026-07-07.md) | !498 landed the double-arm churn fix (34->5/walk); !505 closes the remaining fork Cartesia-vs-WAV overlap | in-progress (!498 merged; !505 fork-overlap fixer in flight) |
 
 ## How to add a row
