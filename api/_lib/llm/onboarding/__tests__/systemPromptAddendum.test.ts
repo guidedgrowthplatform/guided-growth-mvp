@@ -75,6 +75,18 @@ describe('ONBOARDING_TOOL_ADDENDUM', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toContain('config_not_grounded');
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/never say you set it up/i);
   });
+
+  it('adds the B59 mirror rule: no false-failure narration alongside the no-false-success rule', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('DATA INTEGRITY (five rules, no exceptions)');
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/MIRROR THE TOOL RESULT, IN BOTH DIRECTIONS/);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/never a false success and never a false failure/i);
+  });
+
+  it('updates the habit_name_ungrounded guidance so user content outranks a coach proposal (B59)', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(
+      /their own words outrank a suggestion of yours even when their reply back to you was a plain "yes"/,
+    );
+  });
 });
 
 describe('goal taxonomy drift guard', () => {

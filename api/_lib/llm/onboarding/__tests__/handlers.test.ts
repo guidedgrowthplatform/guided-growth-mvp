@@ -204,7 +204,11 @@ describe('submit_path_choice', () => {
       { ...CTX, user_text: 'skip this too, just pick one for me' },
       { path: 'simple' },
     );
-    expect(r).toMatchObject({ ok: false, error: 'handler_error', message: 'path_choice_not_grounded' });
+    expect(r).toMatchObject({
+      ok: false,
+      error: 'handler_error',
+      message: 'path_choice_not_grounded',
+    });
     expect(pool.query).not.toHaveBeenCalled();
   });
 
@@ -237,10 +241,7 @@ describe('submit_path_choice', () => {
       rowCount: 1,
       rows: [{ data: {}, current_step: 2, path: 'simple' }],
     });
-    const r = await submitPathChoice(
-      { ...CTX, user_text: 'yes' },
-      { path: 'simple' },
-    );
+    const r = await submitPathChoice({ ...CTX, user_text: 'yes' }, { path: 'simple' });
     expect(r.ok).toBe(true);
   });
 
@@ -258,16 +259,21 @@ describe('submit_path_choice', () => {
       { ...CTX, user_text: "you decide for me, doesn't matter" },
       { path: 'braindump' },
     );
-    expect(r).toMatchObject({ ok: false, error: 'handler_error', message: 'path_choice_not_grounded' });
+    expect(r).toMatchObject({
+      ok: false,
+      error: 'handler_error',
+      message: 'path_choice_not_grounded',
+    });
     expect(pool.query).not.toHaveBeenCalled();
   });
 
   it('G13: rejects an off-topic turn with no path signal', async () => {
-    const r = await submitPathChoice(
-      { ...CTX, user_text: 'what time is it?' },
-      { path: 'simple' },
-    );
-    expect(r).toMatchObject({ ok: false, error: 'handler_error', message: 'path_choice_not_grounded' });
+    const r = await submitPathChoice({ ...CTX, user_text: 'what time is it?' }, { path: 'simple' });
+    expect(r).toMatchObject({
+      ok: false,
+      error: 'handler_error',
+      message: 'path_choice_not_grounded',
+    });
     expect(pool.query).not.toHaveBeenCalled();
   });
 });
@@ -1030,6 +1036,79 @@ describe('add_habit', () => {
       });
     });
 
+    // ─── B59: user content outranks a coach proposal ───
+    describe('user-content precedence over a coach proposal (B59)', () => {
+      it('rejects a coach-proposed name on an ambiguous yes when the user stated their own habit earlier', async () => {
+        // Reproduces the round-3 skipper trail: the user said "stop
+        // doomscrolling" a couple of turns back, then gave an ambiguous
+        // "yes", and the coach tried to save its OWN suggested "Same
+        // bedtime" preset instead of the user's own habit. The name grounds
+        // in the assistant window (the coach really did propose it) and the
+        // current turn really is a bare affirmation, so before B59 this
+        // passed through the W2-H escape hatch. The user's own prior content
+        // must gate that hatch closed.
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'yes',
+            user_text_window: ['yes', 'stop doomscrolling at night'],
+            assistant_text_window: ["How about 'Same bedtime' instead?"],
+          },
+          { ...validHabit, name: 'Same bedtime' },
+        );
+        expect(r).toEqual({
+          ok: false,
+          error: 'handler_error',
+          message: 'habit_name_ungrounded',
+        });
+      });
+
+      it('still accepts the bare-yes-to-coach-preset deadlock when the user stated no content of their own', async () => {
+        // The true deadlock this rule must not break: every entry in the
+        // user window is itself just an affirmation (nothing of the user's
+        // own to outrank), so the coach's concretely-named proposal still
+        // grounds through the escape hatch.
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'yes please add it',
+            user_text_window: ['yes please add it', 'yeah', ''],
+            assistant_text_window: ["How about 'No screens after 10 PM'?"],
+          },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r.ok).toBe(true);
+      });
+
+      it('an explicit refusal still blocks the save even when the user stated their own habit earlier', async () => {
+        // Precedence is about which CONTENT grounds the name, not a license
+        // to save over a refusal. A "no" is never a bare affirmation
+        // regardless of what precedes it, so the coach-proposal escape
+        // hatch is never reached here and the save is rejected exactly as
+        // rule 4 (no saving a declined thing) requires.
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'no, not that one',
+            user_text_window: ['no, not that one', 'stop doomscrolling at night'],
+            assistant_text_window: ["How about 'Same bedtime' instead?"],
+          },
+          { ...validHabit, name: 'Same bedtime' },
+        );
+        expect(r).toEqual({
+          ok: false,
+          error: 'handler_error',
+          message: 'habit_name_ungrounded',
+        });
+      });
+    });
+
     it('does not guard an edit to an already-added habit (schedule-only follow-up call)', async () => {
       // Two-call configure pattern: the schedule call reasonably won't
       // restate the habit's name, so the guard must not fire on an edit.
@@ -1571,10 +1650,7 @@ describe('record_checkin', () => {
     it('rejects the exact "speed this up" bare-skip shape (observed fabrication 1)', async () => {
       // Round-3 corroboration: "speed this up" produced sleep:5 + other
       // fabricated values. The guard must reject before any DB write.
-      const r = await recordCheckin(
-        { ...CTX, user_text: 'speed this up' },
-        VALID_ARGS,
-      );
+      const r = await recordCheckin({ ...CTX, user_text: 'speed this up' }, VALID_ARGS);
       expect(r).toEqual({ ok: false, error: 'handler_error', message: 'checkin_not_grounded' });
       expect(pool.query).not.toHaveBeenCalled();
     });
@@ -1618,7 +1694,7 @@ describe('record_checkin', () => {
         rows: [{ data: { stateCheck: VALID_ARGS }, current_step: 6 }],
       });
       const r = await recordCheckin(
-        { ...CTX, user_text: "slept well, feeling great, not stressed at all" },
+        { ...CTX, user_text: 'slept well, feeling great, not stressed at all' },
         VALID_ARGS,
       );
       expect(r.ok).toBe(true);
@@ -1629,10 +1705,7 @@ describe('record_checkin', () => {
         rowCount: 1,
         rows: [{ data: { stateCheck: VALID_ARGS }, current_step: 6 }],
       });
-      const r = await recordCheckin(
-        { ...CTX, user_text: 'yes please' },
-        VALID_ARGS,
-      );
+      const r = await recordCheckin({ ...CTX, user_text: 'yes please' }, VALID_ARGS);
       expect(r.ok).toBe(true);
     });
 
