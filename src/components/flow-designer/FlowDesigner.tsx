@@ -10,7 +10,7 @@ import {
 } from './beatKit';
 import { BEAT_DEFS } from './beats';
 import { COACH_BG } from './beats/_beatStyle';
-import { kindOf, raf, runBeatNarration, sample, stopSpeech } from './beatNarration';
+import { kindOf, raf, runBeatNarration, sample, stopSpeech, wait } from './beatNarration';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 import { Orb } from '@/components/orb/Orb';
 import { orbSpeaking } from '@/components/orb/orbView';
@@ -37,15 +37,12 @@ import onboardingMetadataRaw from './onboardingMetadata.json';
  */
 
 // Layout constants. The page is laid out as per-beat rows of
-// [tag column | phone column | words column], so a tag, its beat, and its
-// words card share one flex row and stay aligned by construction at every
-// scroll position.
-const TAG_COL_W = 130; // fixed-width left column holding the voice tag
+// [source-of-truth rail | phone column], so each beat carries its own full
+// context beside the rendered screen.
+const TAG_COL_W = 320; // fixed-width left column holding the source-of-truth rail
 const TAG_GAP = 14; // space between the tag and the phone's left edge
 const PHONE_W = 420; // the phone interior width
-const WORDS_COL_W = 300; // fixed-width right column holding the words card
-const WORDS_GAP = 20; // space between the phone's right edge and the words card
-const TOTAL_W = TAG_COL_W + PHONE_W; // phone-frame width (words column sits outside this)
+const TOTAL_W = TAG_COL_W + TAG_GAP + PHONE_W; // full width of one annotated beat row
 
 // The real beat registry, keyed by type. BEAT_DEFS auto-collects every beat
 // file (the same set the flow builder uses). REGISTRY_MAP[type].Comp is the
@@ -54,7 +51,7 @@ const REGISTRY_MAP: Record<string, BeatDef> = Object.fromEntries(
   BEAT_DEFS.map((d) => [d.type, d]),
 );
 
-// --- Onboarding words metadata (the right "words" column) ---
+// --- Onboarding words metadata ---
 // Sourced from the App Master Sheet Beats Context + Beat Elements tabs, snapshot
 // at onboardingMetadata.json. Keyed by screenId, looked up per beat via
 // FlowBeat.screenId below. Wording is provisional; the shape (opener, per-element
@@ -282,7 +279,7 @@ export function IsolatedBeat({
     );
   }
   return (
-    <PlayingCtx.Provider value={true}>
+    <PlayingCtx.Provider value={animated}>
       <AnimationsCtx.Provider value={animated}>
         <StepRevealCtx.Provider value={stepReveal}>
           <RevealCtx.Provider value={elementReveal}>
@@ -456,10 +453,9 @@ function VoiceLegend() {
   );
 }
 
-// --- Words panel (the right column) ---
-// Read-only card showing the verbatim opener, per-element lines (only when the
-// beat has elements), the expected response, and small engine/variable/bubble
-// flags. Looked up per beat by screenId against METADATA_BY_SCREEN_ID.
+// --- Source-of-truth rail (left column) ---
+// Read-only card showing the beat context, verbatim copy, narration segments,
+// clip hooks, and the resolved props the component actually reads.
 
 function WordsFlagChip({ label, tone }: { label: string; tone: 'engine' | 'live' | 'note' }) {
   const styles: Record<typeof tone, { bg: string; text: string; border: string }> = {
@@ -489,129 +485,191 @@ function WordsFlagChip({ label, tone }: { label: string; tone: 'engine' | 'live'
   );
 }
 
-function WordsPanel({ screenId }: { screenId?: string }) {
-  const meta = screenId ? METADATA_BY_SCREEN_ID[screenId] : undefined;
+function ContextSection({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <details open={defaultOpen} style={{ borderTop: '1px solid #f1f5f9', paddingTop: 10 }}>
+      <summary
+        style={{
+          cursor: 'pointer',
+          fontSize: 11,
+          fontWeight: 800,
+          color: '#475569',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {title}
+      </summary>
+      <div style={{ marginTop: 8 }}>{children}</div>
+    </details>
+  );
+}
+
+function ContextKeyValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: '#94a3b8',
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.45, color: '#334155' }}>{value}</div>
+    </div>
+  );
+}
+
+function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
+  const meta = beat.screenId ? METADATA_BY_SCREEN_ID[beat.screenId] : undefined;
+  const metaElements = meta ? sortedElements(meta) : [];
+  const narration = meta?.narration ?? [];
+  const resolvedProps = beat.props ? Object.entries(beat.props) : [];
 
   if (!meta) {
     return (
-      <div
-        style={{
-          background: '#fff',
-          border: '1px dashed #e2e8f0',
-          borderRadius: 14,
-          padding: '14px 16px',
-          fontSize: 12,
-          color: '#94a3b8',
-          fontFamily: 'Urbanist, -apple-system, sans-serif',
-        }}
-      >
-        No words metadata for this beat yet.
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontFamily: 'Urbanist, -apple-system, sans-serif' }}>
+        <VoiceTag engine={beat.engine} mode={beat.mode} />
+        <div
+          style={{
+            background: '#fff',
+            border: '1px dashed #e2e8f0',
+            borderRadius: 14,
+            padding: '14px 16px',
+            fontSize: 12,
+            color: '#94a3b8',
+          }}
+        >
+          No metadata for this beat yet.
+        </div>
       </div>
     );
   }
 
-  const sortedElements = [...meta.elements].sort((a, b) => a.order - b.order);
-
   return (
-    <div
-      style={{
-        background: '#fff',
-        border: '1px solid #e2e8f0',
-        borderRadius: 14,
-        padding: '14px 16px',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-        fontFamily: 'Urbanist, -apple-system, sans-serif',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-      }}
-    >
-      {/* Opener */}
-      <div>
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: '#94a3b8',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            marginBottom: 4,
-          }}
-        >
-          Opener
-        </div>
-        {meta.opener ? (
-          <div style={{ fontSize: 13, lineHeight: 1.5, color: '#1e293b' }}>{meta.opener}</div>
-        ) : (
-          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: '#94a3b8', fontStyle: 'italic' }}>
-            No opener, the per-element lines lead.
-          </div>
-        )}
-      </div>
-
-      {/* Per-element lines */}
-      {sortedElements.length > 0 && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontFamily: 'Urbanist, -apple-system, sans-serif' }}>
+      <VoiceTag engine={beat.engine} mode={beat.mode} />
+      <div
+        style={{
+          background: '#fff',
+          border: '1px solid #e2e8f0',
+          borderRadius: 14,
+          padding: '14px 16px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
         <div>
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: '#94a3b8',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              marginBottom: 6,
-            }}
-          >
-            Per-element
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{beat.screenId}</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+            {beat.type}
+            {beat.path ? ` · ${PATH_STYLE[beat.path].label}` : ''}
           </div>
-          <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {sortedElements.map((el) => (
-              <li key={el.elementId} style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: '#c7d2e0',
-                    minWidth: 14,
-                    flexShrink: 0,
-                  }}
-                >
-                  {el.order}
-                </span>
-                <div>
-                  <div style={{ fontSize: 13, lineHeight: 1.45, color: '#1e293b' }}>{el.line}</div>
-                  <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{el.elementId}</div>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <WordsFlagChip label={meta.engine} tone="engine" />
+          {beat.mode && <WordsFlagChip label={beat.mode} tone="note" />}
+          {meta.variable && (
+            <WordsFlagChip
+              label={`live${meta.variableNote ? `, ${meta.variableNote.split(',')[0]}` : ', name'}`}
+              tone="live"
+            />
+          )}
+          {meta.openerShowsAsBubble === false && meta.opener && <WordsFlagChip label="opener hidden" tone="note" />}
+        </div>
+
+        <ContextSection title="Beat context" defaultOpen>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <ContextKeyValue label="Expected response" value={meta.expectedResponse} />
+            {meta.clipNote && <ContextKeyValue label="Clip note" value={meta.clipNote} />}
+            {meta.variableNote && <ContextKeyValue label="Variable note" value={meta.variableNote} />}
+            {meta.openerMode && <ContextKeyValue label="Opener mode" value={meta.openerMode} />}
+          </div>
+        </ContextSection>
+
+        <ContextSection title="Copy">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <ContextKeyValue
+              label="Opener"
+              value={meta.opener || 'No opener, this beat starts with rendered elements.'}
+            />
+            {meta.secondBubble && <ContextKeyValue label="Second bubble" value={meta.secondBubble} />}
+            {meta.closeBubble && <ContextKeyValue label="Close bubble" value={meta.closeBubble} />}
+            {meta.confirmBubble && <ContextKeyValue label="Confirm bubble" value={meta.confirmBubble} />}
+            {meta.buttonLabel && <ContextKeyValue label="Button label" value={meta.buttonLabel} />}
+          </div>
+        </ContextSection>
+
+        <ContextSection title={`Narration${narration.length ? ` (${narration.length})` : ''}`}>
+          {narration.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {narration.map((seg, idx) => {
+                const metaBits = [
+                  seg.bubble != null ? `bubble ${seg.bubble}` : null,
+                  seg.reveal != null ? `reveal ${seg.reveal}` : null,
+                  seg.clip ? `clip ${seg.clip}` : null,
+                  seg.audioSrc ?? null,
+                ].filter(Boolean);
+                return (
+                  <div key={`${beat.id}-seg-${idx}`} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>
+                      {idx + 1}. {metaBits.join(' · ') || 'timing only'}
+                    </div>
+                    <div style={{ fontSize: 12.5, lineHeight: 1.45, color: '#1e293b' }}>
+                      {seg.say || '(silent reveal)'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12.5, color: '#94a3b8' }}>No narration array on this beat.</div>
+          )}
+        </ContextSection>
+
+        <ContextSection title={`Beat elements${metaElements.length ? ` (${metaElements.length})` : ''}`}>
+          {metaElements.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {metaElements.map((el) => (
+                <div key={el.elementId} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>
+                    {el.order}. {el.elementId}
+                  </div>
+                  <div style={{ fontSize: 12.5, lineHeight: 1.45, color: '#1e293b' }}>{el.line}</div>
                 </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12.5, color: '#94a3b8' }}>No beat elements on this beat.</div>
+          )}
+        </ContextSection>
 
-      {/* Expected response */}
-      <div>
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: '#94a3b8',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            marginBottom: 4,
-          }}
-        >
-          Expected response
-        </div>
-        <div style={{ fontSize: 12.5, lineHeight: 1.45, color: '#475569' }}>{meta.expectedResponse}</div>
-      </div>
-
-      {/* Flags */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 2, borderTop: '1px solid #f1f5f9' }}>
-        <WordsFlagChip label={meta.engine} tone="engine" />
-        {meta.variable && (
-          <WordsFlagChip label={`live${meta.variableNote ? `, ${meta.variableNote.split(',')[0]}` : ', name'}`} tone="live" />
-        )}
-        {meta.openerShowsAsBubble === false && meta.opener && <WordsFlagChip label="no bubble" tone="note" />}
+        <ContextSection title={`Resolved props${resolvedProps.length ? ` (${resolvedProps.length})` : ''}`}>
+          {resolvedProps.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {resolvedProps.map(([key, value]) => (
+                <ContextKeyValue key={key} label={key} value={value} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12.5, color: '#94a3b8' }}>This beat has no explicit props.</div>
+          )}
+        </ContextSection>
       </div>
     </div>
   );
@@ -1271,7 +1329,6 @@ function PlayableBeat({
   const [stepReveal, setStepReveal] = useState<number | null>(null);
   const [elementReveal, setElementReveal] = useState<number | null>(null);
   const [syncWords, setSyncWords] = useState<number | null>(null);
-  const [nonce, setNonce] = useState(0);
   const runRef = useRef(0);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
@@ -1280,7 +1337,6 @@ function PlayableBeat({
     if (!active) return;
     const run = ++runRef.current;
     let cancelled = false;
-    setNonce((n) => n + 1);
     const m = beat.screenId ? METADATA_BY_SCREEN_ID[beat.screenId] : undefined;
     const opener = sample(m?.opener ?? beat.props?.coachLine ?? beat.props?.greeting ?? '');
     const lines = m?.elements
@@ -1289,6 +1345,13 @@ function PlayableBeat({
     (async () => {
       // Let the fresh remount settle to an empty state, then run the script.
       await raf();
+      if (beat.type === 'splash-intro') {
+        // SplashIntro owns its own MP3, captions, and orb timing. Running the
+        // shared narration driver here would play the same greeting clip again.
+        for (let t = 0; t < 72 && !cancelled && run === runRef.current; t++) await wait(200);
+        if (!cancelled && run === runRef.current) onDoneRef.current();
+        return;
+      }
       await runBeatNarration({
         narration: m?.narration,
         kind: kindOf(beat.type),
@@ -1324,7 +1387,7 @@ function PlayableBeat({
     >
       <SpokenWordsCtx.Provider value={active ? syncWords : null}>
         <IsolatedBeat
-          key={nonce}
+          key={`${beat.id}-${active ? 'active' : 'idle'}`}
           type={beat.type}
           props={beat.props}
           animated={active}
@@ -1337,8 +1400,7 @@ function PlayableBeat({
 }
 
 // Shared phone frame renderer. Each beat renders in its OWN phone card, with the
-// voice tag in the left margin and (on the Onboarding tab) the words card in the
-// right. `showWords` renders that third right-hand column and the per-beat divider.
+// source-of-truth rail in the left margin on the Onboarding tab.
 function FlowPhoneFrame({
   beats,
   showWords = false,
@@ -1350,12 +1412,12 @@ function FlowPhoneFrame({
   playingId: string | null;
   onRequestPlay: (id: string | null) => void;
 }) {
-  const frameWidth = showWords ? TOTAL_W + WORDS_GAP + WORDS_COL_W : TOTAL_W;
+  const frameWidth = TOTAL_W;
   return (
     <div style={{ width: frameWidth, maxWidth: '100%', margin: '0 auto' }}>
-      {/* Per-beat rows. tag (left), the phone (center), and words (right, when
-          showWords) are top-aligned in one row. A path banner (BEGINNER /
-          ADVANCED) sits above the row when the beat starts a path branch. */}
+      {/* Per-beat rows. The source-of-truth rail (left) and the phone (right) are
+          top-aligned in one row. A path banner sits above the row when the beat
+          starts a path branch. */}
       {beats.map((b, i) => {
         const branched = b.path === 'beginner' || b.path === 'advanced';
         const isStart = branched && b.path !== beats[i - 1]?.path;
@@ -1365,18 +1427,22 @@ function FlowPhoneFrame({
             {showWords && <BeatDivider n={i + 1} />}
             {showWords && isStart && <PathBanner path={b.path} edge="start" />}
             <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-              {/* Tag column: right-aligned so the tag sits flush to the phone's
-                  left edge, dropped to roughly the first coach bubble. */}
+              {/* Left rail: compact voice tag on non-onboarding tabs, full metadata
+                  panel on the onboarding tab. */}
               <div
                 style={{
                   flex: `0 0 ${TAG_COL_W}px`,
-                  display: 'flex',
-                  justifyContent: 'flex-end',
                   paddingRight: TAG_GAP,
-                  paddingTop: 96,
+                  paddingTop: showWords ? 8 : 96,
                 }}
               >
-                <VoiceTag engine={b.engine} mode={b.mode} />
+                {showWords ? (
+                  <SourceOfTruthPanel beat={b} />
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <VoiceTag engine={b.engine} mode={b.mode} />
+                  </div>
+                )}
               </div>
               {/* Phone column: a self-contained phone with the orb, playable in place. */}
               <div style={{ flex: `0 0 ${PHONE_W}px` }}>
@@ -1387,13 +1453,6 @@ function FlowPhoneFrame({
                   onDone={() => onRequestPlay(null)}
                 />
               </div>
-              {/* Words column: the right-hand authoring card, top-aligned to the
-                  phone. Only rendered on tabs with metadata (Onboarding). */}
-              {showWords && (
-                <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP, paddingTop: 8 }}>
-                  <WordsPanel screenId={b.screenId} />
-                </div>
-              )}
             </div>
             {showWords && isEnd && <PathBanner path={b.path} edge="end" />}
           </div>

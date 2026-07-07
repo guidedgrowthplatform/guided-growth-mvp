@@ -9,14 +9,14 @@ import { useIsPlaying, type BeatDef } from '../beatKit';
 // filling into the bubble synced to the clip, then the orb settles into its dock.
 // It brings its own orb, so the shared canvas orb is hidden on this beat (see
 // orbConfigForType in BeatOrb). In Play it plays the real recording; on the static
-// canvas it loops without audio (the orb speaks; the words fill once the audio
-// runs in Play).
+// canvas it renders settled and silent. The MP3 is only allowed while the beat
+// is actively playing in the annotated or Play view.
 function CoachGreetingBeat() {
   const playing = useIsPlaying();
   return (
     <div style={{ position: 'relative', width: '100%', height: 728 }}>
       <SplashIntro
-        autoPlay
+        autoPlay={playing}
         loop={!playing}
         audioSrc="/voice/splash_welcome.mp3"
         muted={!playing}
