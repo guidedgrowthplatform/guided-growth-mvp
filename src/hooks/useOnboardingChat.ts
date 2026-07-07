@@ -428,6 +428,12 @@ export function useOnboardingChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, screenId, isOnboardingScreen, startThread, qc, chatNative, historyLoaded]);
 
+  // B40-3: cut prior-beat tts-service reply on entry to any self-voicing beat.
+  // Unguarded, unlike !505's opener-seed stopTTS the live walk's guards skipped.
+  useEffect(() => {
+    if (screenId && beatOwnsOpenerRef.current?.(screenId)) stopTTS();
+  }, [screenId]);
+
   // Vapi takeover: abort any in-flight Direct-LLM stream so it can't collide
   // with Vapi's opening turn. (Disabling for other reasons — e.g. mic drop —
   // deliberately does NOT abort: the streamActiveRef latch lets an in-flight tool

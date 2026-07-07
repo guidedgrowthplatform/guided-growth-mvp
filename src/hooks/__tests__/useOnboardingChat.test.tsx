@@ -1127,9 +1127,11 @@ describe('B40-2 — cross-beat audio bleed: stopTTS and send-opener-speech guard
     // (ONBOARD-FORK--FORM, narration-owned). stopTTS() must fire at the
     // moment the hook registers the new beat's screenId so the audio stops
     // before the fork beat's MP3 opener starts.
-    const fetchMock = vi.fn().mockResolvedValue(
-      mockSSE([{ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 }]),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockSSE([{ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 }]),
+      );
     vi.stubGlobal('fetch', fetchMock);
 
     act(() => {
@@ -1199,5 +1201,71 @@ describe('B40-2 — cross-beat audio bleed: stopTTS and send-opener-speech guard
     expect(ttsSpies.speak).not.toHaveBeenCalled();
     expect(ttsSpies.beginSpeechTurn).not.toHaveBeenCalled();
     expect(ttsSpies.pushSpeechChunk).not.toHaveBeenCalled();
+  });
+
+  it('cuts a prior-beat reply on a narration-owned beat even when the opener-seed effect is skipped (enabled=false / guard-skip)', async () => {
+    // !505's stopTTS() lived inside the opener-seed effect. That effect
+    // early-returns on !enabled (and STATIC_FEED / historyLoaded / openerSeeded
+    // / rehydrate / hasExistingTurn) — exactly the guards the live walk hit on
+    // the fork transition, so the profile beat's Cartesia reply kept draining
+    // through tts-service into the fork narration WAV window (note 4058). The
+    // unguarded screen-change effect must still cut it. speakReplies pins the
+    // ONLY other stopTTS source (the voice-out-off effect) OFF, so a green
+    // assertion can come from nothing but the new fix.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockSSE([{ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 }]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge
+            screenId="ONBOARD-FORK--FORM"
+            enabled={false}
+            chatNative
+            beatOwnsOpener={() => true}
+            speakReplies
+          />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(ttsSpies.stopTTS).toHaveBeenCalled();
+  });
+
+  it('does NOT cut TTS on a non-self-voicing beat (text beats still speak their own replies)', async () => {
+    // The cut is gated on beatOwnsOpener: a plain text/Path-3 beat voices its
+    // reply through tts-service and must never be silenced on entry. enabled
+    // false + speakReplies keeps every other stopTTS source off, so a call here
+    // would be a false cut from the new effect.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockSSE([{ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 }]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge
+            screenId="ONBOARD-FORK--FORM"
+            enabled={false}
+            chatNative
+            beatOwnsOpener={() => false}
+            speakReplies
+          />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(ttsSpies.stopTTS).not.toHaveBeenCalled();
   });
 });
