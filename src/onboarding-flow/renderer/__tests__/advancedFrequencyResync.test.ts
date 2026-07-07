@@ -5,6 +5,7 @@
 // arrived with updated per-habit day selections.
 
 import { describe, it, expect } from 'vitest';
+import { matchHabitKey } from '../componentRegistry';
 
 type HabitConfig = { days: number[]; time: string; reminder: boolean };
 type Configs = Record<string, HabitConfig>;
@@ -144,8 +145,7 @@ function simulateUpdateHabitListener(names: string[]): {
     configs[name] = { days: [...WEEKDAYS], time: '09:00', reminder: true };
   }
   function applyLiveUpdate(name: string, patch: Record<string, unknown>) {
-    const target = name.trim().toLowerCase();
-    const matchKey = Object.keys(configs).find((k) => k.toLowerCase() === target);
+    const matchKey = matchHabitKey(Object.keys(configs), name);
     if (!matchKey) return;
     const existing = configs[matchKey];
     const next = { ...existing };
@@ -200,5 +200,51 @@ describe('AdvancedFrequencyAdapter live update_habit listener (W3 live-path gap)
     applyLiveUpdate('Running', { days: [9, -1], time: 'not-a-time' });
     expect(configs['Running'].days).toEqual(WEEKDAYS); // no valid days -> unchanged
     expect(configs['Running'].time).toBe('09:00'); // malformed time -> unchanged
+  });
+
+  // The live QA case that exact matching missed: the brain-dump splitter keys
+  // the card on "run"/"read most nights", but the coach's update_habit call
+  // names them "running"/"reading". matchHabitKey bridges the stem drift.
+  it('matches a coach stem-drift name ("running") to the card key ("run")', () => {
+    const { configs, applyLiveUpdate } = simulateUpdateHabitListener([
+      'run',
+      'meditate',
+      'read most nights',
+    ]);
+    applyLiveUpdate('running', { days: [0, 6], schedule: 'Weekend' });
+    expect(configs['run'].days).toEqual([0, 6]);
+    expect(configs['meditate'].days).toEqual(WEEKDAYS); // untouched
+    expect(configs['read most nights'].days).toEqual(WEEKDAYS); // untouched
+  });
+});
+
+describe('matchHabitKey (habit-name normalization)', () => {
+  const keys = ['run', 'meditate', 'read most nights'];
+
+  it('returns the exact case-insensitive key', () => {
+    expect(matchHabitKey(['Running', 'Reading'], 'running')).toBe('Running');
+  });
+
+  it('bridges stem drift both directions (run<->running, read<->reading)', () => {
+    expect(matchHabitKey(keys, 'running')).toBe('run');
+    expect(matchHabitKey(keys, 'reading')).toBe('read most nights');
+    expect(matchHabitKey(['running'], 'run')).toBe('running');
+  });
+
+  it('returns undefined for an unrelated name', () => {
+    expect(matchHabitKey(keys, 'yoga')).toBeUndefined();
+  });
+
+  it('returns undefined when the first-word prefix is ambiguous (2+ candidates)', () => {
+    // Both "read" and "reading list" share the "read" head with target "reading".
+    expect(matchHabitKey(['read', 'reading list'], 'reading')).toBeUndefined();
+  });
+
+  it('ignores heads shorter than 3 chars to avoid loose matches', () => {
+    expect(matchHabitKey(['go', 'gym'], 'go running')).toBeUndefined();
+  });
+
+  it('returns undefined for an empty name', () => {
+    expect(matchHabitKey(keys, '   ')).toBeUndefined();
   });
 });

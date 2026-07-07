@@ -89,6 +89,30 @@ const DEFAULT_HABIT_CONFIG: Omit<HabitConfigSerialized, never> = {
   schedule: 'Weekday',
 };
 
+// Match a coach-supplied habit name (e.g. "running") to a card key (e.g. "run").
+// The AdvancedFrequency cards are keyed on the parsed brain-dump names, but the
+// coach names habits in its own words, so an exact match misses the common
+// stem-drift case ("run"/"running", "read"/"reading"). Strategy, in order:
+//   1. exact case-insensitive
+//   2. first-word prefix either direction (min 3 chars), and ONLY when the
+//      candidate is unique — an ambiguous match touches nothing (safer than
+//      editing the wrong habit).
+// Returns the matched key or undefined. Pure; unit-tested.
+export function matchHabitKey(keys: string[], rawName: string): string | undefined {
+  const target = rawName.trim().toLowerCase();
+  if (!target) return undefined;
+  const exact = keys.find((k) => k.toLowerCase() === target);
+  if (exact) return exact;
+  const targetHead = target.split(/\s+/)[0];
+  if (targetHead.length < 3) return undefined;
+  const candidates = keys.filter((k) => {
+    const keyHead = k.trim().toLowerCase().split(/\s+/)[0];
+    if (keyHead.length < 3) return false;
+    return targetHead.startsWith(keyHead) || keyHead.startsWith(targetHead);
+  });
+  return candidates.length === 1 ? candidates[0] : undefined;
+}
+
 function Cta({
   label,
   disabled,
@@ -1819,10 +1843,9 @@ function AdvancedFrequencyAdapter({ answers, onCapture, readOnly }: BeatAdapterP
     if (readOnly || result.action !== 'update_habit') return;
     const p = result.params as { name?: string; patch?: Record<string, unknown> };
     if (typeof p.name !== 'string' || !p.patch) return;
-    const target = p.name.trim().toLowerCase();
     const patch = p.patch;
     setConfigs((prev) => {
-      const matchKey = Object.keys(prev).find((k) => k.toLowerCase() === target);
+      const matchKey = matchHabitKey(Object.keys(prev), p.name as string);
       if (!matchKey) return prev;
       const existing = prev[matchKey] ?? { days: [...WEEKDAYS], time: '09:00', reminder: true };
       const next = { ...existing };
