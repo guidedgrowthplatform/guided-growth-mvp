@@ -297,6 +297,15 @@ describe('getOnboardingTools / isOnboardingScreen', () => {
       'advance_step',
       'submit_weekly_config',
     ]);
+    // F10 layer 2: this beat only sets days on habits the brain dump already
+    // captured. add_habit must never be exposed to the model here — a
+    // reachable add_habit let the coach inject a fabricated/ungrounded habit
+    // name into habitConfigs, observed live as the real captured habit
+    // swapping to an unrelated, never-typed name by the time Home rendered.
+    expect(names(getOnboardingTools('ONBOARD-ADVANCED-FREQUENCY'))).toEqual([
+      'advance_step',
+      'update_habit',
+    ]);
   });
 
   it('exposes no tools on the silent auth beat', () => {

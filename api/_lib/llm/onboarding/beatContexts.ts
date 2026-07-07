@@ -470,7 +470,18 @@ DO NOT:
       "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
   },
 
-  // Advanced habit-frequency beat. add_habit / update_habit set the days; advance moves on.
+  // Advanced habit-frequency beat. update_habit sets the days on the ALREADY
+  // captured cards; advance moves on. add_habit is deliberately NOT allowed
+  // here (F10 layer 2): this beat's only job is scheduling habits the brain
+  // dump already captured, never creating a new one. add_habit used to be
+  // reachable here as a fallback, and the LLM could call it with a name that
+  // shares no real word with anything the user said (e.g. echoing one of the
+  // tool schema's own illustrative examples, "No screens after 10 PM")
+  // silently injecting a fabricated habit into habitConfigs alongside (or, if
+  // paired with an off-beat remove_habit, in place of) the real captured one —
+  // observed live as the collapsed brain-dump habit swapping to an unrelated,
+  // never-typed name by the time Home rendered. If a habit is missing here,
+  // the fix is re-running the brain dump, not creating one on this beat.
   'ONBOARD-ADVANCED-FREQUENCY': {
     context: `BEAT: Habit days, advanced.
 
@@ -480,8 +491,9 @@ The habits are already captured as cards. Now set how often each one runs. The d
 
 DO NOT:
 - Re-ask anything already captured.
-- Turn a reminder on unless they ask.`,
-    allowedTools: ['add_habit', 'update_habit', 'advance_step'],
+- Turn a reminder on unless they ask.
+- Create a new habit here. Every habit on this beat already exists as a card; only set its days with update_habit. If a habit seems to be missing, say so, never invent or add one.`,
+    allowedTools: ['update_habit', 'advance_step'],
     opener: "Now the days. Tell me how often each one runs and I'll fill them in.",
   },
 
