@@ -136,6 +136,25 @@ export function groundsInAssistantWindow(name: string, assistantTextWindow: stri
   return texts.some((text) => !looksUngrounded(name, text));
 }
 
+// B59: user-content precedence. The W2-H escape hatch above lets a bare
+// "yes" ground the coach's OWN proposed name, for the real deadlock where the
+// user never said anything of their own. But if the user's window ALSO
+// carries real content they stated themselves (not just an affirmation), the
+// escape hatch must not fire: the user's words outrank a coach proposal.
+// Reproduces a real trail: the user said "stop doomscrolling" a couple of
+// turns earlier, then gave an ambiguous "yes", and the coach saved its own
+// suggested "Same bedtime" preset instead of the user's own habit. A turn
+// counts as the user's own content when it is not itself a bare affirmation
+// and it tokenizes to at least one meaningful word — a blank turn or another
+// "yes" does not count, so the true deadlock (the user only ever affirmed)
+// still reaches the escape hatch below.
+function hasOwnUserContent(userTextWindow: string[]): boolean {
+  return userTextWindow.some(
+    (text) =>
+      text.trim().length > 0 && !isBareAffirmation(text) && meaningfulTokens(text).length > 0,
+  );
+}
+
 export async function addHabit(
   ctx: OnboardingHandlerCtx,
   args: Record<string, unknown>,
@@ -214,10 +233,13 @@ export async function addHabit(
     // at night" then next turn "yes please add it") grounds in the earlier
     // turn, not the short confirm reply itself. Window absent falls back to
     // the exact current-turn-only check (backward compatible).
-    const ungrounded =
+    const userTextWindow: string[] =
       ctx.user_text_window && ctx.user_text_window.length > 0
-        ? looksUngroundedInWindow(name, ctx.user_text_window)
-        : Boolean(ctx.user_text) && looksUngrounded(name, ctx.user_text as string);
+        ? ctx.user_text_window
+        : ctx.user_text
+          ? [ctx.user_text]
+          : [];
+    const ungrounded = looksUngroundedInWindow(name, userTextWindow);
 
     // W2-H: affirmed-coach-proposal escape hatch. Only consulted when the
     // user-window check above rejected AND the current turn is a bare
@@ -228,11 +250,19 @@ export async function addHabit(
     // user is affirming something concrete the coach just proposed, not
     // rubber-stamping a fabrication. See shared.ts's OnboardingHandlerCtx doc
     // and MR !484 evidence note 3908 for the deadlock this resolves.
-    const currentTurnText = ctx.user_text_window?.[0] ?? ctx.user_text;
+    //
+    // B59: user content outranks a coach proposal. The escape hatch above
+    // only exists for the true deadlock, where the user never stated any
+    // habit of their own and just affirmed what the coach named. If the
+    // window ALSO carries real content the user stated themselves, that
+    // content wins: the coach must save the user's own words, not substitute
+    // its suggestion, so hasOwnUserContent gates the escape hatch closed.
+    const currentTurnText = userTextWindow[0];
     const affirmedCoachProposal =
       ungrounded &&
       Boolean(currentTurnText) &&
       isBareAffirmation(currentTurnText as string) &&
+      !hasOwnUserContent(userTextWindow) &&
       Boolean(ctx.assistant_text_window) &&
       groundsInAssistantWindow(name, ctx.assistant_text_window as string[]);
 
