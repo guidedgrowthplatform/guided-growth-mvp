@@ -62,6 +62,10 @@ export function HomeTourAdapter({ node, answers, onCapture, readOnly }: BeatAdap
 
   const nickname = typeof answers.nickname === 'string' ? answers.nickname : '';
   const name = props.userName && props.userName !== '{name}' ? props.userName : nickname;
+  // W3-B: this tour previews the real Home the user is about to land on, so it
+  // must reflect the real morning-checkin outcome (server truth, answers.morningCheckin),
+  // not always show the card as configured.
+  const showMorningCheckin = answers.morningCheckin != null;
 
   // This beat is placed once per tour stage; the stage prop drives what shows.
   const idx = stageIndex(props.stage);
@@ -128,6 +132,7 @@ export function HomeTourAdapter({ node, answers, onCapture, readOnly }: BeatAdap
             <QuickActionCards
               onCheckInPress={() => setShowCheckIn((v) => !v)}
               onJournalPress={() => setShowCheckIn((v) => !v)}
+              showMorningCheckin={showMorningCheckin}
             />
             <div
               className={`grid transition-all duration-300 ease-in-out ${

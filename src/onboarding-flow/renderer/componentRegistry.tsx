@@ -1070,10 +1070,20 @@ function HabitScheduleAdapter({ answers, onCapture, readOnly }: BeatAdapterProps
 
 // Morning check-in setup beat: pick when the morning nudge fires. Lands under the
 // morningCheckin answer key (submit_morning_checkin server-side).
+//
+// W3-B: the server-side setup-config guard (B58, !478) can reject the save
+// (config_refused_by_user / config_not_grounded) while leaving the beat still
+// active or letting the flow move on via a separate advance_step call. Either
+// way `answers.morningCheckin` stays undefined. Once the beat is FROZEN
+// (readOnly, the beat is no longer active), that must render as "not set up",
+// never as a fully-configured card with fabricated defaults — server truth
+// only. The ACTIVE (still-editable) case is unaffected: it's the same setup
+// form the user can still fill in for real.
 function MorningCheckinAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const existing = answers.morningCheckin as
     | { time: string; days: number[]; reminder: boolean; schedule: string }
     | undefined;
+  if (readOnly && !existing) return null;
   // B49: first visit (no saved answer yet) defaults to the locale-aware
   // weekday preset the render spec calls for (Israel Sun-Thu, else Mon-Fri),
   // not the hardcoded Mon-Fri ScheduleCard falls back to on its own.
@@ -1769,7 +1779,9 @@ function WeeklyProjectionAdapter({ node, answers, onCapture }: BeatAdapterProps)
   // midnight passes while it is on screen.
   const [startDay] = useState(() => new Date().getDay());
   const dayOrder = dayOrderFrom(startDay);
-  const habits = projectionHabits(answers.habitConfigs);
+  // W3-B: server truth only — the morning ritual row must not render unless
+  // submit_morning_checkin actually saved (answers.morningCheckin present).
+  const habits = projectionHabits(answers.habitConfigs, answers.morningCheckin != null);
   const rows = buildProjectionRows(habits, state, dayOrder);
   const stats = projectionStats(rows);
 

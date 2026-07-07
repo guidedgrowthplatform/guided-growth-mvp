@@ -117,4 +117,38 @@ describe('projectionHabits', () => {
       ...SAMPLE_USER_HABITS.map((h) => h.name),
     ]);
   });
+
+  // W3-B: server truth only. The morning ritual row must not render unless
+  // submit_morning_checkin actually saved (a refusal must leave no trace).
+  it('drops the morning ritual row when morning check-in was not configured', () => {
+    const habits = projectionHabits(null, false);
+    expect(habits.map((h) => h.name)).not.toContain('Morning state check-in');
+    expect(habits.map((h) => h.name)).toEqual([
+      'Evening habit report',
+      'Daily reflection',
+      ...SAMPLE_USER_HABITS.map((h) => h.name),
+    ]);
+  });
+
+  it('keeps the morning ritual row when morning check-in was configured', () => {
+    const habits = projectionHabits(null, true);
+    expect(habits.map((h) => h.name)).toContain('Morning state check-in');
+  });
+
+  it('defaults to including the morning ritual row (back-compat for existing callers)', () => {
+    const habits = projectionHabits(null);
+    expect(habits.map((h) => h.name)).toEqual([
+      ...COACH_HABITS.map((h) => h.name),
+      ...SAMPLE_USER_HABITS.map((h) => h.name),
+    ]);
+  });
+
+  it('drops only the morning row, leaving real captured habits and other rituals intact', () => {
+    const habits = projectionHabits({ 'Evening walk': { days: [1, 3, 5] } }, false);
+    expect(habits.map((h) => h.name)).toEqual([
+      'Evening habit report',
+      'Daily reflection',
+      'Evening walk',
+    ]);
+  });
 });

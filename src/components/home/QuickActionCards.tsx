@@ -36,19 +36,31 @@ function ActionCard({
 interface QuickActionCardsProps {
   onCheckInPress: () => void;
   onJournalPress: () => void;
+  // W3-B: server truth only. The morning check-in card must not render unless
+  // the user actually configured one during onboarding (submit_morning_checkin
+  // can be rejected by the server-side setup-config guard, e.g. on refusal).
+  // No "not set up" variant of this card exists yet, so when unconfigured it
+  // simply does not appear (per Yair-ruled scope for this fix).
+  showMorningCheckin: boolean;
 }
 
-export function QuickActionCards({ onCheckInPress, onJournalPress }: QuickActionCardsProps) {
+export function QuickActionCards({
+  onCheckInPress,
+  onJournalPress,
+  showMorningCheckin,
+}: QuickActionCardsProps) {
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <ActionCard
-        icon="mdi:white-balance-sunny"
-        iconWrapClass="bg-primary"
-        iconClass="text-white"
-        title="How are you feeling?"
-        buttonLabel="Morning Check In"
-        onPress={onCheckInPress}
-      />
+    <div className={showMorningCheckin ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-1 gap-3'}>
+      {showMorningCheckin && (
+        <ActionCard
+          icon="mdi:white-balance-sunny"
+          iconWrapClass="bg-primary"
+          iconClass="text-white"
+          title="How are you feeling?"
+          buttonLabel="Morning Check In"
+          onPress={onCheckInPress}
+        />
+      )}
       <ActionCard
         icon="fa6-solid:cloud-moon"
         iconWrapClass="bg-[#fdf0cd]"

@@ -1,5 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react';
 import { Icon } from '@iconify/react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { checkInDimensions } from '@/components/home/checkInConfig';
 import { DateStrip } from '@/components/home/DateStrip';
 import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
 import { FeedbackButton } from '@/components/home/FeedbackButton';
@@ -8,7 +9,6 @@ import { HomeHeader } from '@/components/home/HomeHeader';
 import { OpenChatButton } from '@/components/home/OpenChatButton';
 import { QuickActionCards } from '@/components/home/QuickActionCards';
 import { SectionHeader } from '@/components/home/SectionHeader';
-import { checkInDimensions } from '@/components/home/checkInConfig';
 import { formatTime12 } from '@/components/ui/TimePicker';
 import { useAnimations, useIsPlaying, type BeatDef } from '../beatKit';
 import { useFlowState, type HabitScheduleCfg } from '../flowStateCtx';
@@ -169,7 +169,9 @@ function ChatPeek({ name }: { name: string }) {
             background: `radial-gradient(circle at 35% 30%, #5b9bff, ${BLUE})`,
           }}
         />
-        <div style={{ fontFamily: FONT, fontSize: 14, fontWeight: 800, color: 'rgb(15,23,42)' }}>Coach</div>
+        <div style={{ fontFamily: FONT, fontSize: 14, fontWeight: 800, color: 'rgb(15,23,42)' }}>
+          Coach
+        </div>
       </div>
       <Bubble who="coach">{name ? `Right here, ${name}.` : 'Right here.'} Open me whenever.</Bubble>
     </div>
@@ -277,7 +279,16 @@ function ChatOverlay({ name, onClose }: { name: string; onClose: () => void }) {
       </div>
 
       {/* Thread */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '4px 16px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
         <Bubble who="coach">
           {name ? `I'm right here, ${name}.` : "I'm right here."} What's on your mind?
         </Bubble>
@@ -386,7 +397,12 @@ function RecentReflections() {
             background: 'rgba(100,74,185,0.10)',
           }}
         >
-          <Icon icon="mdi:weather-night" width={20} height={20} style={{ color: 'rgb(100,74,185)' }} />
+          <Icon
+            icon="mdi:weather-night"
+            width={20}
+            height={20}
+            style={{ color: 'rgb(100,74,185)' }}
+          />
         </div>
         <span className="text-sm font-medium text-content-secondary">
           Your reflections show up here after your first evening reflection.
@@ -518,6 +534,7 @@ function HomeTourBeat(props?: Record<string, string>) {
             <QuickActionCards
               onCheckInPress={() => setShowCheckIn((v) => !v)}
               onJournalPress={() => setShowCheckIn((v) => !v)}
+              showMorningCheckin
             />
             <div
               className={`grid transition-all duration-300 ease-in-out ${
@@ -584,14 +601,26 @@ function HomeTourBeat(props?: Record<string, string>) {
       {/* Floating feedback + open-chat buttons. While the coach narrates they
           float above the caption; on the live beat they settle above the nav. */}
       <div
-        style={{ position: 'absolute', left: 8, bottom: showCaption ? 152 : 78, zIndex: 30, transition: 'bottom 320ms ease-out' }}
+        style={{
+          position: 'absolute',
+          left: 8,
+          bottom: showCaption ? 152 : 78,
+          zIndex: 30,
+          transition: 'bottom 320ms ease-out',
+        }}
       >
         <Reveal show={showButtons}>
           <FeedbackButton onPress={() => setFeedbackAck(true)} />
         </Reveal>
       </div>
       <div
-        style={{ position: 'absolute', right: 8, bottom: showCaption ? 152 : 78, zIndex: 30, transition: 'bottom 320ms ease-out' }}
+        style={{
+          position: 'absolute',
+          right: 8,
+          bottom: showCaption ? 152 : 78,
+          zIndex: 30,
+          transition: 'bottom 320ms ease-out',
+        }}
       >
         <Reveal show={showButtons}>
           <OpenChatButton onPress={() => setChatOpen(true)} />

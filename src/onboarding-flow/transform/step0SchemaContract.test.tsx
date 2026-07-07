@@ -17,12 +17,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { validateFlow } from '../flowMachine';
-import { getAdapter } from '../renderer/componentRegistry';
-import type { BeatCapture, BeatNode, FlowNode, NarrationSegment } from '../types';
 import eveningCheckinJson from '../flows/designer-source.evening-checkin.json';
 import homeTourJson from '../flows/designer-source.home-tour.json';
 import morningCheckinJson from '../flows/designer-source.morning-checkin.json';
 import weeklyCheckinJson from '../flows/designer-source.weekly-checkin.json';
+import { getAdapter } from '../renderer/componentRegistry';
+import type { BeatCapture, BeatNode, FlowNode, NarrationSegment } from '../types';
 import {
   DESIGNER_ONBOARDING_FLOW_FROM_JSON,
   designerBeatsFromExport,
@@ -337,8 +337,25 @@ describe('STEP-0: renderer mounts the new kinds from generated nodes', () => {
     const node = flow.nodes.find((n) => n.id === 'weekly-p78-sample') as FlowNode;
     const Adapter = getAdapter('weekly-projection')!;
     expect(Adapter).toBeDefined();
+    // W3-B: the morning ritual row only renders when morningCheckin was
+    // actually saved (server truth) — pass a realistic saved config here so
+    // this test still proves the generated node mounts and renders all three
+    // ritual rows, not just two.
     act(() => {
-      root.render(<Adapter node={node} answers={{}} onCapture={() => {}} />);
+      root.render(
+        <Adapter
+          node={node}
+          answers={{
+            morningCheckin: {
+              time: '08:00',
+              days: [1, 2, 3, 4, 5],
+              reminder: true,
+              schedule: 'Weekday',
+            },
+          }}
+          onCapture={() => {}}
+        />,
+      );
     });
     // The real projection grid renders its ritual rows (A2).
     expect(container.textContent).toContain('Morning state check-in');
