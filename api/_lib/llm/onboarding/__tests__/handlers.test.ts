@@ -821,6 +821,139 @@ describe('add_habit', () => {
       });
     });
 
+    // ─── W2-H: affirmed-coach-proposal deadlock ───
+    describe('affirmed coach proposal (assistant_text_window)', () => {
+      it('bare "yes" after a coach turn naming the preset is accepted', async () => {
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'yes please add it',
+            user_text_window: ['yes please add it'],
+            assistant_text_window: [
+              "It seems like I need to stick to the specific habits available. How about 'No screens after 10 PM'?",
+            ],
+          },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r.ok).toBe(true);
+      });
+
+      it('a variant bare affirmation ("yes please add the first one") is accepted', async () => {
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'yes please add the first one',
+            user_text_window: ['yes please add the first one'],
+            assistant_text_window: ["I'd suggest 'No screens after 10 PM' or 'Morning walk'."],
+          },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r.ok).toBe(true);
+      });
+
+      it('bare "yes" with no coach-named habit in the assistant window is still rejected', async () => {
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'yes please add it',
+            user_text_window: ['yes please add it'],
+            assistant_text_window: ['What kind of habit would you like to work on?'],
+          },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r).toEqual({
+          ok: false,
+          error: 'handler_error',
+          message: 'habit_name_ungrounded',
+        });
+      });
+
+      it('bare "yes" with no assistant_text_window supplied at all is still rejected (backward compatible)', async () => {
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'yes please add it',
+            user_text_window: ['yes please add it'],
+          },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r).toEqual({
+          ok: false,
+          error: 'handler_error',
+          message: 'habit_name_ungrounded',
+        });
+      });
+
+      it('a non-affirmation turn never consults the assistant window, even if the name grounds there', async () => {
+        // The current turn carries its OWN content (a different, unrelated
+        // sentence) rather than a bare yes — the assistant window must not be
+        // consulted, so a name that only grounds in the coach's proposal still
+        // rejects here.
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'what time does the app usually recommend for habits like this',
+            user_text_window: ['what time does the app usually recommend for habits like this'],
+            assistant_text_window: ["How about 'No screens after 10 PM'?"],
+          },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r).toEqual({
+          ok: false,
+          error: 'handler_error',
+          message: 'habit_name_ungrounded',
+        });
+      });
+
+      it('a refusal turn is never treated as an affirmation, even with a coach-named habit in window', async () => {
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'no, not that one',
+            user_text_window: ['no, not that one'],
+            assistant_text_window: ["How about 'No screens after 10 PM'?"],
+          },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r).toEqual({
+          ok: false,
+          error: 'handler_error',
+          message: 'habit_name_ungrounded',
+        });
+      });
+
+      it('does not consult the assistant window at all when the user window already grounds the name', async () => {
+        // Regression guard: when the user already grounds the name themselves,
+        // the affirmed-coach-proposal path must not even be reached (ungrounded
+        // is false, so affirmedCoachProposal short-circuits) — assert success
+        // stands even with an assistant window that would NOT ground the name.
+        const client = habitClient({ hc: {} });
+        pool.connect.mockResolvedValue(client);
+        const r = await addHabit(
+          {
+            ...CTX,
+            user_text: 'no screens after 10 PM, that is the one I want',
+            user_text_window: ['no screens after 10 PM, that is the one I want'],
+            assistant_text_window: ['What kind of habit would you like to work on?'],
+          },
+          { ...validHabit, name: 'No screens after 10 PM' },
+        );
+        expect(r.ok).toBe(true);
+      });
+    });
+
     it('does not guard an edit to an already-added habit (schedule-only follow-up call)', async () => {
       // Two-call configure pattern: the schedule call reasonably won't
       // restate the habit's name, so the guard must not fire on an edit.

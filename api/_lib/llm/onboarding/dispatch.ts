@@ -51,6 +51,10 @@ export async function dispatchOnboardingToolCall(
     // W2-E: rolling window of recent raw user turns (current turn first).
     // Same guard, wider grounding source — see shared.ts's OnboardingHandlerCtx.
     user_text_window?: string[] | null;
+    // W2-H: last 1-2 raw assistant (coach) turns. Only addHabit's guard reads
+    // this, and only when the current user turn is a bare affirmation — see
+    // shared.ts's OnboardingHandlerCtx for the full rationale.
+    assistant_text_window?: string[] | null;
   },
 ): Promise<ToolResult> {
   if (!ctx.anon_id) {
@@ -69,6 +73,7 @@ export async function dispatchOnboardingToolCall(
       screen_id: ctx.screen_id ?? undefined,
       user_text: ctx.user_text ?? undefined,
       user_text_window: ctx.user_text_window ?? undefined,
+      assistant_text_window: ctx.assistant_text_window ?? undefined,
     },
     args as Record<string, unknown>,
   );

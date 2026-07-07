@@ -290,26 +290,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // the latest message. Onboarding-only and persistChat-only — the same
   // scope the guard itself already applies in (isOnboardingScreen dispatch).
   const USER_TEXT_WINDOW_SIZE = 3;
+  // W2-H: assistant (coach) window, same scope, much shorter — only used to
+  // resolve a bare "yes" affirming a coach-named preset (see addHabit.ts).
+  // 2 turns is enough to cover the proposal turn even if the coach split its
+  // reply across an extra short turn; wider would risk grounding against a
+  // stale proposal from earlier in the conversation.
+  const ASSISTANT_TEXT_WINDOW_SIZE = 2;
   let systemPrompt: string;
   let previousResponseId: string | null = null;
   let foreignOwned: boolean;
   let pathAlreadySet = false;
   let userTextWindow: string[] | undefined;
+  let assistantTextWindow: string[] | undefined;
   try {
-    const [built, ownerRow, forkPathRow, recentUserTurns] = await Promise.all([
-      buildSystemPromptForRequest({
-        anon_id: user.anonId,
-        screen_id: screenId,
-        coaching_style: coachingStyle,
-        recent_events: recentEvents,
-        mode,
-        timezone: rawTimezone,
-        input_mode: inputMode,
-      }),
-      persistChat
-        ? pool
-            .query<{ foreign_owned: boolean; prev_response_id: string | null }>(
-              `SELECT
+    const [built, ownerRow, forkPathRow, recentUserTurns, recentAssistantTurns] = await Promise.all(
+      [
+        buildSystemPromptForRequest({
+          anon_id: user.anonId,
+          screen_id: screenId,
+          coaching_style: coachingStyle,
+          recent_events: recentEvents,
+          mode,
+          timezone: rawTimezone,
+          input_mode: inputMode,
+        }),
+        persistChat
+          ? pool
+              .query<{ foreign_owned: boolean; prev_response_id: string | null }>(
+                `SELECT
                  EXISTS (
                    SELECT 1 FROM chat_messages
                     WHERE chat_session_id = $2 AND anon_id <> $1
@@ -318,35 +326,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     WHERE anon_id = $1 AND chat_session_id = $2 AND role = 'assistant'
                       AND openai_response_id IS NOT NULL
                     ORDER BY turn_index DESC LIMIT 1) AS prev_response_id`,
-              [user.anonId, chatSessionId],
-            )
-            .then((r) => r.rows[0] ?? null)
-        : Promise.resolve(null),
-      isForkScreen
-        ? pool
-            .query<{
-              path: string | null;
-            }>(`SELECT path FROM onboarding_states WHERE anon_id = $1`, [user.anonId])
-            .then((r) => r.rows[0] ?? null)
-        : Promise.resolve(null),
-      isOnboardingScreen && persistChat && mode === 'chat'
-        ? pool
-            .query<{ content: string | null }>(
-              `SELECT content FROM chat_messages
+                [user.anonId, chatSessionId],
+              )
+              .then((r) => r.rows[0] ?? null)
+          : Promise.resolve(null),
+        isForkScreen
+          ? pool
+              .query<{
+                path: string | null;
+              }>(`SELECT path FROM onboarding_states WHERE anon_id = $1`, [user.anonId])
+              .then((r) => r.rows[0] ?? null)
+          : Promise.resolve(null),
+        isOnboardingScreen && persistChat && mode === 'chat'
+          ? pool
+              .query<{ content: string | null }>(
+                `SELECT content FROM chat_messages
                 WHERE anon_id = $1 AND chat_session_id = $2 AND role = 'user'
                   AND content IS NOT NULL AND length(trim(content)) > 0
                 ORDER BY turn_index DESC
                 LIMIT $3`,
-              [user.anonId, chatSessionId, USER_TEXT_WINDOW_SIZE],
-            )
-            .then((r) => r.rows.map((row) => row.content as string))
-        : Promise.resolve<string[]>([]),
-    ]);
+                [user.anonId, chatSessionId, USER_TEXT_WINDOW_SIZE],
+              )
+              .then((r) => r.rows.map((row) => row.content as string))
+          : Promise.resolve<string[]>([]),
+        isOnboardingScreen && persistChat && mode === 'chat'
+          ? pool
+              .query<{ content: string | null }>(
+                `SELECT content FROM chat_messages
+                WHERE anon_id = $1 AND chat_session_id = $2 AND role = 'assistant'
+                  AND content IS NOT NULL AND length(trim(content)) > 0
+                ORDER BY turn_index DESC
+                LIMIT $3`,
+                [user.anonId, chatSessionId, ASSISTANT_TEXT_WINDOW_SIZE],
+              )
+              .then((r) => r.rows.map((row) => row.content as string))
+          : Promise.resolve<string[]>([]),
+      ],
+    );
     systemPrompt = built.systemPrompt;
     // Newest-first from the query (DESC); the CURRENT turn's own message
     // (scrubbedMessage/userMessage) isn't in chat_messages yet at this point
     // in the request, so this is purely PRIOR turns, oldest excluded beyond N.
     userTextWindow = recentUserTurns.length > 0 ? recentUserTurns : undefined;
+    // Same newest-first, prior-turns-only shape as userTextWindow above, just
+    // for the coach's own text (W2-H). Never mixed into userTextWindow — see
+    // shared.ts's OnboardingHandlerCtx doc for why the two stay separate.
+    assistantTextWindow = recentAssistantTurns.length > 0 ? recentAssistantTurns : undefined;
     // A dedicated check-in opener LEADS a fresh structured flow (evening:
     // habits → reflection → wrap-up). Chaining onto prior chatter in the same
     // session anchors the model to whatever it said before (e.g. a stale "let's
@@ -880,6 +905,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 0,
                 USER_TEXT_WINDOW_SIZE,
               ),
+              // W2-H: coach's own recent turns, most-recent-first. addHabit's
+              // guard only ever reads this when the current turn is a bare
+              // affirmation — see shared.ts's OnboardingHandlerCtx doc.
+              assistant_text_window: assistantTextWindow,
             });
           } catch (err) {
             reportToolFailure({
