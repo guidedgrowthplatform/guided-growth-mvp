@@ -113,4 +113,44 @@ describe('beatAudioOwner', () => {
     expect(beatAudioOwnerOf('ONBOARD-BEGINNER-01')).toBe('opener-mp3');
     expect(beatAudioOwnerOf('ONBOARD-BEGINNER-02')).toBe('opener-cartesia');
   });
+
+  it('B58 live-verification finding: a re-polling caller denied repeatedly by the SAME owner warns only ONCE per episode', () => {
+    // useOnboardingChat's streamed-reply effect re-attempts its claim on every
+    // delta chunk while denied (so a reply that started mid-narration can pick
+    // up and speak the moment the narration driver releases, instead of
+    // staying silent for the rest of the turn). Found live on a CI preview
+    // during B58 verification: this produced dozens of IDENTICAL warnings for
+    // ONE ongoing collision. The retry/denial semantics must stay exactly the
+    // same (still denied, still retryable) -- only the repeat LOG is silenced.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'narration-driver')).toBe(true);
+
+    for (let i = 0; i < 12; i++) {
+      expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'send-opener-speech')).toBe(false);
+    }
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(beatAudioOwnerOf('ONBOARD-BEGINNER-04')).toBe('narration-driver');
+  });
+
+  it('a genuinely NEW collision after the beat frees up logs again (not permanently silenced)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'narration-driver')).toBe(true);
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'send-opener-speech')).toBe(false);
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'send-opener-speech')).toBe(false);
+    expect(warn).toHaveBeenCalledTimes(1);
+
+    releaseBeatAudio('ONBOARD-BEGINNER-04', 'narration-driver');
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'narration-driver')).toBe(true);
+    // A fresh collision episode after the beat cleared and re-armed logs again.
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'send-opener-speech')).toBe(false);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it('a DIFFERENT requester denied by the same owner still logs its own warning (componentOwned-style fan-out unaffected)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'narration-driver')).toBe(true);
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'opener-mp3')).toBe(false);
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'send-opener-speech')).toBe(false);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
 });

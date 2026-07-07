@@ -51,6 +51,26 @@ const claims = new Map<string, Claim>();
 let nextClaimId = 1;
 
 /**
+ * Last denial logged per beat, so a caller that RE-POLLS an unchanged
+ * collision doesn't spam an identical warning on every call. This matters in
+ * practice: useOnboardingChat's streamed-reply effect re-attempts its claim
+ * on every delta chunk while denied (so a reply that started while another
+ * owner still holds the beat can pick up and speak the moment that owner
+ * releases, rather than staying silent for the rest of the turn), which
+ * produced dozens of IDENTICAL warnings for one ongoing collision instead of
+ * one distinct episode. The claim/return semantics are completely unchanged
+ * here (still denied every call, still retried every call) -- only a
+ * REPEAT of the exact same (existingOwner, requester) pair for a beat that
+ * was never freed in between is silenced. A genuinely new collision (a
+ * different existing owner, a different requester, or the claim having
+ * cleared and re-armed since) always logs.
+ */
+const lastDenialLogged = new Map<
+  string,
+  { existingOwner: BeatAudioOwnerKind; requester: BeatAudioOwnerKind }
+>();
+
+/**
  * Claim a beat's audio for `owner`. Returns true if the claim succeeded (no
  * other owner currently holds this beat), false if it was already held by a
  * DIFFERENT owner (a no-op for the caller: do not start audio). A repeat
@@ -62,13 +82,21 @@ export function claimBeatAudio(beatId: string, owner: BeatAudioOwnerKind): boole
   const existing = claims.get(beatId);
   if (!existing) {
     claims.set(beatId, { owner, id: nextClaimId++ });
+    // A fresh claim clears any remembered denial: the NEXT time this beat is
+    // contested (even by the same pair) is a genuinely new episode.
+    lastDenialLogged.delete(beatId);
     return true;
   }
   if (existing.owner === owner) return true;
-  // eslint-disable-next-line no-console
-  console.warn(
-    `[beatAudioOwner] "${beatId}" audio already owned by "${existing.owner}"; "${owner}" backed off (no-op). This means two audio paths armed for the same beat - a B40 regression.`,
-  );
+  const last = lastDenialLogged.get(beatId);
+  const isRepeatOfSameOngoingCollision =
+    last && last.existingOwner === existing.owner && last.requester === owner;
+  if (!isRepeatOfSameOngoingCollision) {
+    console.warn(
+      `[beatAudioOwner] "${beatId}" audio already owned by "${existing.owner}"; "${owner}" backed off (no-op). This means two audio paths armed for the same beat - a B40 regression.`,
+    );
+    lastDenialLogged.set(beatId, { existingOwner: existing.owner, requester: owner });
+  }
   return false;
 }
 
@@ -81,6 +109,7 @@ export function releaseBeatAudio(beatId: string, owner: BeatAudioOwnerKind): voi
   const existing = claims.get(beatId);
   if (!existing || existing.owner !== owner) return;
   claims.delete(beatId);
+  lastDenialLogged.delete(beatId);
 }
 
 /** True if `beatId` currently has any claim (any owner). Test/debug only. */
@@ -96,4 +125,5 @@ export function beatAudioOwnerOf(beatId: string): BeatAudioOwnerKind | null {
 /** Clear every claim. Tests only - production code never needs a global reset. */
 export function resetBeatAudioOwnerForTests(): void {
   claims.clear();
+  lastDenialLogged.clear();
 }

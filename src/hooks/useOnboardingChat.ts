@@ -73,6 +73,12 @@ export interface UseOnboardingChatArgs {
   // spoke its opener). Used to suppress a duplicate Direct-LLM opener when this
   // hook takes over a beat mid-flow.
   hasExistingTurn?: (screenId: string) => boolean;
+  // True when BeatView (or the narration driver) already plays this beat's
+  // opener as real audio (an authored MP3 clip, a live Cartesia line, or a
+  // narration script) — see beatOwnsOpenerAudio's header (B58/B40, the
+  // beat-audio double-arm's actual source). When true, this hook must not
+  // independently generate + speak a second opener for the same beat.
+  beatOwnsOpener?: (screenId: string) => boolean;
 }
 
 export interface UseOnboardingChatReturn {
@@ -102,6 +108,7 @@ export function useOnboardingChat({
   chatNative,
   speakReplies = false,
   hasExistingTurn,
+  beatOwnsOpener,
 }: UseOnboardingChatArgs): UseOnboardingChatReturn {
   const qc = useQueryClient();
   const isOnboardingScreen = (screenId ?? '').startsWith('ONBOARD-');
@@ -168,6 +175,8 @@ export function useOnboardingChat({
   speakRepliesRef.current = speakReplies;
   const hasExistingTurnRef = useRef(hasExistingTurn);
   hasExistingTurnRef.current = hasExistingTurn;
+  const beatOwnsOpenerRef = useRef(beatOwnsOpener);
+  beatOwnsOpenerRef.current = beatOwnsOpener;
   const llmRef = useRef(llm);
   llmRef.current = llm;
   const chatSessionIdRef = useRef(chatSessionId);
@@ -355,6 +364,21 @@ export function useOnboardingChat({
       if (hasExistingTurnRef.current?.(screenId)) {
         suppressTrailingRef.current = false;
         openerCardRef.current = null;
+        return;
+      }
+      // B58/B40: this beat already plays its own opener as real audio (an
+      // authored MP3 clip, a live Cartesia line, or a narration script) —
+      // BeatView/NarrationBeatView own that entirely. Generating and speaking
+      // a SECOND opener here is the beat-audio double-arm's actual source
+      // (two real spoken lines for one beat, not just a benign race that
+      // beatAudioOwner's backoff papers over). Register the thread so the
+      // beat's real dialogue (the user's turn, once the authored audio ends)
+      // still lands under the right screenId, but skip seeding/firing an
+      // opener of our own.
+      if (beatOwnsOpenerRef.current?.(screenId)) {
+        suppressTrailingRef.current = false;
+        openerCardRef.current = null;
+        startThread(screenId, [], 'append');
         return;
       }
       if (opener) {
