@@ -978,7 +978,6 @@ function ScheduleCard({
     if (initialTime === lastSyncedTime.current) return;
     lastSyncedTime.current = initialTime;
     setTime(initialTime);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTime]);
 
   const lastSyncedReminder = useRef(initialReminder);
@@ -986,7 +985,6 @@ function ScheduleCard({
     if (initialReminder === lastSyncedReminder.current) return;
     lastSyncedReminder.current = initialReminder;
     setReminder(initialReminder);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialReminder]);
 
   const lastSyncedSchedule = useRef(initialSchedule);
@@ -1174,7 +1172,6 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
     if (savedTime === lastSyncedTime.current) return;
     lastSyncedTime.current = savedTime;
     setTime(savedTime);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedTime]);
 
   const savedReminder = saved?.reminder ?? true;
@@ -1183,7 +1180,6 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
     if (savedReminder === lastSyncedReminder.current) return;
     lastSyncedReminder.current = savedReminder;
     setReminder(savedReminder);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedReminder]);
 
   const savedSchedule = (saved?.schedule as ScheduleOption) ?? 'Weekday';
@@ -1204,7 +1200,6 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
     if (savedMode === lastSyncedMode.current) return;
     lastSyncedMode.current = savedMode;
     setMode(savedMode);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedMode]);
 
   const savedPromptsKey = ((answers.customPrompts as string[]) ?? []).join('\x00');
@@ -1799,13 +1794,52 @@ function AdvancedFrequencyAdapter({ answers, onCapture, readOnly }: BeatAdapterP
       const next = { ...prev };
       for (const name of names) {
         if (saved[name]) {
-          next[name] = { days: [...saved[name].days], time: saved[name].time, reminder: saved[name].reminder };
+          next[name] = {
+            days: [...saved[name].days],
+            time: saved[name].time,
+            reminder: saved[name].reminder,
+          };
         }
       }
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedHabitConfigsKey]);
+
+  // W3 (live path): update_habit is a server-side no-op DURING this beat — the
+  // advanced/braindump lane only ever persists raw brainDumpText, so
+  // habitConfigs does not exist in the row yet (see updateHabit.ts's
+  // "Idempotent on miss... the client voice-action still fires" comment). The
+  // answers-keyed resync above only catches a habitConfigs value that lands
+  // LATER; it never fires for this beat's own live saves. Listen for the
+  // synthetic update_habit voice action directly (same pattern as
+  // ScheduleCard's set_habit_schedule listener) so a per-habit day/time/
+  // reminder/schedule save is reflected without a manual tap.
+  useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (readOnly || result.action !== 'update_habit') return;
+    const p = result.params as { name?: string; patch?: Record<string, unknown> };
+    if (typeof p.name !== 'string' || !p.patch) return;
+    const target = p.name.trim().toLowerCase();
+    const patch = p.patch;
+    setConfigs((prev) => {
+      const matchKey = Object.keys(prev).find((k) => k.toLowerCase() === target);
+      if (!matchKey) return prev;
+      const existing = prev[matchKey] ?? { days: [...WEEKDAYS], time: '09:00', reminder: true };
+      const next = { ...existing };
+      if (Array.isArray(patch.days)) {
+        const ds = (patch.days as unknown[]).filter(
+          (d): d is number => typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6,
+        );
+        if (ds.length > 0) next.days = ds;
+      } else if (typeof patch.schedule === 'string' && patch.schedule in SCHEDULE_DAYS) {
+        next.days = [...SCHEDULE_DAYS[patch.schedule as ScheduleOption]];
+      }
+      if (typeof patch.time === 'string' && /^\d{1,2}:\d{2}$/.test(patch.time))
+        next.time = patch.time;
+      if (typeof patch.reminder === 'boolean') next.reminder = patch.reminder;
+      return { ...prev, [matchKey]: next };
+    });
+  });
 
   const toggleDay = (name: string, day: number) => {
     setConfigs((prev) => {
