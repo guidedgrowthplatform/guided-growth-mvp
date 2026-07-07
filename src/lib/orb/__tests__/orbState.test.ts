@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { orbStateFrom, resolveOrbMic } from '../orbState';
+import { orbStateFrom, resolveActiveRings, resolveOrbMic } from '../orbState';
 import { routeOrbSend } from '../routeOrbSend';
 
 describe('orbStateFrom', () => {
@@ -91,5 +91,80 @@ describe('resolveOrbMic (B51 orb voice-reactivity)', () => {
 
   it('left active with a live coach amp ignores a concurrent user amp (one side owns the ring)', () => {
     expect(resolveOrbMic('left', 0.7, 0.9)).toEqual({ on: true, amp: 0.7 });
+  });
+});
+
+// Bug fix regression tests: the left orb reacted to Cartesia coach playback
+// but stayed dead during an MP3 opener beat. Root cause was here — both
+// FlowVoiceControls and OnboardingChatOverlay derived `activeRings` from
+// Vapi's `isAssistantSpeaking` flag alone, which never flips true while an
+// MP3 opener clip is playing (Vapi isn't talking, the MP3 element is).
+// `coachSpeaking` (useCoachVoiceActivity's own `speaking` field) is the
+// correct signal: it is true whenever the coachAudioBus has ANY registered
+// playing element, MP3 or Cartesia, not just when Vapi's SDK reports speech.
+describe('resolveActiveRings (orb dead during MP3 coach playback, bug fix)', () => {
+  const base = {
+    isVoiceInOnly: false,
+    voiceInListening: false,
+    micSpeaking: false,
+    micRuntimeOn: false,
+    isUserSpeaking: false,
+    voiceChosen: true,
+    coachSpeaking: false,
+    vapiActive: false,
+  };
+
+  it('MP3 opener playing, Vapi not speaking: coachSpeaking alone lights the left ring', () => {
+    // This is the exact reported scenario: Vapi never talks during an
+    // MP3-only opener, so isAssistantSpeaking is false throughout, but the
+    // coachAudioBus (fed by useBeatOpenerMp3) reports real playback.
+    expect(resolveActiveRings({ ...base, coachSpeaking: true })).toBe('left');
+  });
+
+  it('Cartesia/Vapi speaking still lights the left ring (no regression)', () => {
+    expect(resolveActiveRings({ ...base, coachSpeaking: true, vapiActive: true })).toBe('left');
+  });
+
+  it('nothing speaking, voice chosen, Vapi call live: idle', () => {
+    expect(resolveActiveRings({ ...base, vapiActive: true })).toBe('idle');
+  });
+
+  it('nothing speaking, no active call: null', () => {
+    expect(resolveActiveRings(base)).toBe(null);
+  });
+
+  it('voice not chosen (text-only mode): coachSpeaking does not light the ring', () => {
+    expect(resolveActiveRings({ ...base, voiceChosen: false, coachSpeaking: true })).toBe(null);
+  });
+
+  it('user actively speaking wins over a stale coachSpeaking reading', () => {
+    expect(
+      resolveActiveRings({
+        ...base,
+        micRuntimeOn: true,
+        isUserSpeaking: true,
+        coachSpeaking: true,
+      }),
+    ).toBe('right');
+  });
+
+  it('voice-in-only listening mode: mic ring resolves independent of coachSpeaking', () => {
+    expect(
+      resolveActiveRings({
+        ...base,
+        isVoiceInOnly: true,
+        voiceInListening: true,
+        micSpeaking: true,
+        coachSpeaking: true,
+      }),
+    ).toBe('right');
+    expect(
+      resolveActiveRings({
+        ...base,
+        isVoiceInOnly: true,
+        voiceInListening: true,
+        micSpeaking: false,
+      }),
+    ).toBe('ready');
   });
 });
