@@ -42,7 +42,7 @@ describe('ReflectionModeEditor', () => {
     expect(container.textContent).not.toContain('Custom Prompts');
   });
 
-  it('default state shows the three daily questions read-only, no required-prompt demand', () => {
+  it('default state references the daily questions once, no required-prompt demand', () => {
     act(() => {
       root.render(
         <ReflectionModeEditor
@@ -53,14 +53,17 @@ describe('ReflectionModeEditor', () => {
         />,
       );
     });
+    // The questions themselves render once on the beat, in DailyReflectionCard
+    // above this editor; the editor only references them.
+    expect(container.textContent).toContain("You'll answer the three daily questions shown above.");
     for (const q of DEFAULT_REFLECTION_PROMPTS) {
-      expect(container.textContent).toContain(q);
+      expect(container.textContent).not.toContain(q);
     }
     expect(container.textContent).not.toContain('Add at least 1 prompt:');
     expect(container.textContent).toContain('Want your own questions instead?');
   });
 
-  it('custom state keeps the editor demand and drops the default-question display', () => {
+  it('custom state keeps the editor demand and drops the default-question reference', () => {
     act(() => {
       root.render(
         <ReflectionModeEditor
@@ -72,9 +75,9 @@ describe('ReflectionModeEditor', () => {
       );
     });
     expect(container.textContent).toContain('Add at least 1 prompt:');
-    for (const q of DEFAULT_REFLECTION_PROMPTS) {
-      expect(container.textContent).not.toContain(q);
-    }
+    expect(container.textContent).not.toContain(
+      "You'll answer the three daily questions shown above.",
+    );
   });
 
   it('reads as "Custom Prompts" once the user has entered at least one prompt', () => {

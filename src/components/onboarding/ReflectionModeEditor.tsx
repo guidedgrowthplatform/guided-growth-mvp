@@ -1,6 +1,6 @@
 import { Icon } from '@iconify/react';
 import { useState } from 'react';
-import { DEFAULT_REFLECTION_PROMPTS, type ReflectionMode } from '@gg/shared/types';
+import type { ReflectionMode } from '@gg/shared/types';
 
 interface ReflectionModeEditorProps {
   mode: ReflectionMode;
@@ -111,19 +111,14 @@ export function ReflectionModeEditor({
                 Add at least 1 prompt:
               </span>
             ) : (
-              // Default (guided) state: show the three daily questions
-              // read-only. Nothing is required here; the input below is an
-              // opt-in customization affordance, not a blocking field (B57).
-              <div className="flex flex-col gap-[8px]">
-                {DEFAULT_REFLECTION_PROMPTS.map((q) => (
-                  <div
-                    key={q}
-                    className="rounded-[12px] bg-surface-secondary px-[16px] py-[12px] text-[15px] font-medium text-content"
-                  >
-                    {q}
-                  </div>
-                ))}
-              </div>
+              // Default (guided) state: the three daily questions are already
+              // listed by DailyReflectionCard directly above this editor on
+              // the beat, so reference them once instead of repeating them.
+              // Nothing is required here; the input below is an opt-in
+              // customization affordance, not a blocking field (B57).
+              <p className="px-[4px] text-[14px] leading-[20px] text-content-secondary">
+                You'll answer the three daily questions shown above.
+              </p>
             )}
 
             {prompts.map((prompt, i) =>
