@@ -198,7 +198,9 @@ function HomeDateStrip() {
 }
 
 function HomeQuickActions() {
-  return <QuickActionCards onCheckInPress={() => {}} onJournalPress={() => {}} />;
+  return (
+    <QuickActionCards onCheckInPress={() => {}} onJournalPress={() => {}} showMorningCheckin />
+  );
 }
 
 function HomeHabit() {

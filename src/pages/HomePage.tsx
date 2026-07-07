@@ -15,6 +15,7 @@ import {
 } from '@/components/home';
 import { useDisplayName } from '@/hooks/useDisplayName';
 import { useEntries } from '@/hooks/useEntries';
+import { useMorningCheckinConfigured } from '@/hooks/useMorningCheckinConfigured';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useReminderCheckinDeepLink } from '@/hooks/useReminderCheckinDeepLink';
 import { useSessionLog } from '@/hooks/useSessionLog';
@@ -54,6 +55,7 @@ export function HomePage() {
 
   const { entries, load } = useEntries();
   const { unreadCount } = useNotifications();
+  const showMorningCheckin = useMorningCheckinConfigured();
 
   useEffect(() => {
     load(dateRange.start, dateRange.end);
@@ -167,6 +169,7 @@ export function HomePage() {
             onJournalPress={() => {
               navigate('/journal');
             }}
+            showMorningCheckin={showMorningCheckin}
           />
           <div
             className={`grid transition-all duration-300 ease-in-out ${

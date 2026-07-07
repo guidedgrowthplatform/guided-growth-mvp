@@ -45,6 +45,13 @@ export const COACH_HABITS: ScheduledHabit[] = [
   { name: 'Daily reflection', days: [1, 2, 3, 4, 5] },
 ];
 
+// W3-B: the morning row is the only one of the three that the user can
+// explicitly refuse during onboarding (submit_morning_checkin's server-side
+// setup-config guard, B58/!478). Server truth only: the row must not appear
+// unless answers.morningCheckin genuinely exists. Evening habit report and
+// Daily reflection are unconditional per Yair (out of this fix's scope).
+const MORNING_RITUAL_INDEX = 0;
+
 // Sample captured habits for previews / users with none captured yet.
 export const SAMPLE_USER_HABITS: ScheduledHabit[] = [
   { name: 'Meditate', days: [0, 1, 2, 3, 4, 5, 6] },
@@ -240,9 +247,15 @@ export function projectionStats(rows: ProjectionRow[]): {
  * The habit list a projection frame renders: the three rituals, then the
  * user's real captured habits (name + days from the flow answers), falling
  * back to the sample set when nothing is captured yet (previews, QA).
+ *
+ * `morningConfigured` gates the "Morning state check-in" ritual row: absence
+ * (refused or never reached) means the row must not render at all, never a
+ * default-scheduled row implying it was set up. Defaults to true so existing
+ * previews/QA fixtures that don't pass it keep the prior always-on behavior.
  */
 export function projectionHabits(
   habitConfigs: Record<string, { days: number[] | Set<number> }> | null | undefined,
+  morningConfigured = true,
 ): ScheduledHabit[] {
   const captured = Object.entries(habitConfigs ?? {})
     .map(([name, cfg]) => ({
@@ -250,5 +263,8 @@ export function projectionHabits(
       days: Array.isArray(cfg.days) ? cfg.days : [...(cfg.days ?? [])],
     }))
     .slice(0, 5);
-  return [...COACH_HABITS, ...(captured.length > 0 ? captured : SAMPLE_USER_HABITS)];
+  const rituals = morningConfigured
+    ? COACH_HABITS
+    : COACH_HABITS.filter((_, i) => i !== MORNING_RITUAL_INDEX);
+  return [...rituals, ...(captured.length > 0 ? captured : SAMPLE_USER_HABITS)];
 }
