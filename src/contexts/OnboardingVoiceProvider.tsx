@@ -1279,14 +1279,19 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // The Direct-LLM chat path already preferred this id over the route lookup
   // (see chatScreenId); the Vapi cold-start + push paths now do the same, so
   // a stale route→screen entry in the bundle can't silently push the wrong
-  // context to Vapi. Mirror the state into a ref so the ref-based call sites
-  // (onCallStart, buildOverridesForCall, form-snapshot push) can read it.
+  // context to Vapi. The ref is written DIRECTLY inside registerScreen (not
+  // mirrored via a useEffect keyed off the state) so the ref-based call sites
+  // (onCallStart, buildOverridesForCall, form-snapshot push, transcript
+  // tagging) never read a beat that is one commit behind the DOM: a
+  // register(A) then register(B) in the same tick, followed synchronously by
+  // a Vapi event, must see B immediately, not A until the next effect flush.
+  // The state copy is kept only for renders that need registeredScreenId
+  // directly (e.g. chatScreenId, vapiCapableBeat); it still updates on its
+  // own React schedule, only the ref is guaranteed synchronous.
   const [registeredScreenId, setRegisteredScreenId] = useState<string | null>(null);
   const registeredScreenIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    registeredScreenIdRef.current = registeredScreenId;
-  }, [registeredScreenId]);
   const registerScreen = useCallback((screenId: string | null) => {
+    registeredScreenIdRef.current = screenId;
     setRegisteredScreenId((prev) => (prev === screenId ? prev : screenId));
   }, []);
 
