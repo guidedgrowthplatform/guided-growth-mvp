@@ -42,6 +42,7 @@ const { submitMorningCheckin } = await import('../handlers/submitMorningCheckin.
 const { submitBrainDump } = await import('../handlers/submitBrainDump.js');
 const { advanceStep } = await import('../handlers/advanceStep.js');
 const { confirmPlan } = await import('../handlers/confirmPlan.js');
+const { recordCheckin } = await import('../handlers/recordCheckin.js');
 const { checkAdvanceData } = await import('../preconditions.js');
 
 const CTX = { anon_id: '11111111-1111-4111-8111-111111111111' };
@@ -1455,6 +1456,129 @@ describe('advance_step', () => {
     const r = await advanceStep(CTX, { target_step: 3 });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.result.current_step).toBe(3);
+  });
+});
+
+// ─── record_checkin ──────────────────────────────────────────────────
+
+describe('record_checkin', () => {
+  const VALID_ARGS = { sleep: 4, mood: 3, energy: 4, stress: 2 };
+
+  it('rejects an empty payload (no dims)', async () => {
+    const r = await recordCheckin(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects a dim value outside 1-5', async () => {
+    const r = await recordCheckin(CTX, { sleep: 6 });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('accepts a fully grounded turn and persists stateCheck', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { stateCheck: VALID_ARGS }, current_step: 6 }],
+    });
+    const r = await recordCheckin(
+      { ...CTX, user_text: 'slept great, energy was high, mood is solid, stress low' },
+      VALID_ARGS,
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.stateCheck).toEqual(VALID_ARGS);
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    const [sql] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/current_step = GREATEST\(onboarding_states.current_step, 6\)/);
+  });
+
+  // ─── G12 grounding guard: the two observed fabrication shapes ───────
+  describe('grounding guard (G12)', () => {
+    it('rejects the exact "speed this up" bare-skip shape (observed fabrication 1)', async () => {
+      // Round-3 corroboration: "speed this up" produced sleep:5 + other
+      // fabricated values. The guard must reject before any DB write.
+      const r = await recordCheckin(
+        { ...CTX, user_text: 'speed this up' },
+        VALID_ARGS,
+      );
+      expect(r).toEqual({ ok: false, error: 'handler_error', message: 'checkin_not_grounded' });
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('rejects a reminders-only turn (observed fabrication 2)', async () => {
+      // Round-3 corroboration (two personas): a turn about setting reminders
+      // produced 4 fabricated state-check values. No state-check content
+      // here, so the guard blocks.
+      const r = await recordCheckin(
+        { ...CTX, user_text: 'can you set up a reminder for me please' },
+        VALID_ARGS,
+      );
+      expect(r).toEqual({ ok: false, error: 'handler_error', message: 'checkin_not_grounded' });
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('rejects an off-topic clarifying question', async () => {
+      const r = await recordCheckin(
+        { ...CTX, user_text: 'what do you think about the news lately?' },
+        VALID_ARGS,
+      );
+      expect(r).toEqual({ ok: false, error: 'handler_error', message: 'checkin_not_grounded' });
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('accepts a turn with explicit 1-5 ratings', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { stateCheck: VALID_ARGS }, current_step: 6 }],
+      });
+      const r = await recordCheckin(
+        { ...CTX, user_text: 'sleep 4, mood 3, energy 4, stress 2' },
+        VALID_ARGS,
+      );
+      expect(r.ok).toBe(true);
+    });
+
+    it('accepts a turn with state-check vocabulary (no explicit number)', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { stateCheck: VALID_ARGS }, current_step: 6 }],
+      });
+      const r = await recordCheckin(
+        { ...CTX, user_text: "slept well, feeling great, not stressed at all" },
+        VALID_ARGS,
+      );
+      expect(r.ok).toBe(true);
+    });
+
+    it('accepts a bare affirmation of a coach-proposed state assessment', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { stateCheck: VALID_ARGS }, current_step: 6 }],
+      });
+      const r = await recordCheckin(
+        { ...CTX, user_text: 'yes please' },
+        VALID_ARGS,
+      );
+      expect(r.ok).toBe(true);
+    });
+
+    it('does not guard when user_text is absent (backward compatible)', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { stateCheck: VALID_ARGS }, current_step: 6 }],
+      });
+      const r = await recordCheckin(CTX, VALID_ARGS);
+      expect(r.ok).toBe(true);
+    });
+
+    it('does not guard when user_text is empty (backward compatible)', async () => {
+      pool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { stateCheck: VALID_ARGS }, current_step: 6 }],
+      });
+      const r = await recordCheckin({ ...CTX, user_text: '' }, VALID_ARGS);
+      expect(r.ok).toBe(true);
+    });
   });
 });
 
