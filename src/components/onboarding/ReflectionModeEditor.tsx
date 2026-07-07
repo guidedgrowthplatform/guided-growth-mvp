@@ -1,6 +1,6 @@
 import { Icon } from '@iconify/react';
 import { useState } from 'react';
-import type { ReflectionMode } from '@gg/shared/types';
+import { DEFAULT_REFLECTION_PROMPTS, type ReflectionMode } from '@gg/shared/types';
 
 interface ReflectionModeEditorProps {
   mode: ReflectionMode;
@@ -16,8 +16,11 @@ interface ReflectionModeEditorProps {
 // been entered yet) and the custom-prompt editor (once the user actually adds
 // one). B57: 'prompts' is the correct default mode, but the card must read as
 // "Daily Reflection" while it still represents the default, not "Custom
-// Prompts". Labeling it "Custom Prompts" pre-selected with nothing entered
-// reads as the wrong option chosen by default.
+// Prompts". In the default state the body shows the three daily questions
+// read-only (the server falls back to DEFAULT_REFLECTION_PROMPTS when no
+// custom prompts are saved) with an opt-in customize input; nothing is
+// required. Only once the user actually enters a prompt does the card become
+// the "Custom Prompts" editor.
 export function ReflectionModeEditor({
   mode,
   onModeChange,
@@ -103,9 +106,25 @@ export function ReflectionModeEditor({
         {mode === 'prompts' && (
           <div className="mt-[16px] flex flex-col gap-[16px]">
             <div className="border-t border-border" />
-            <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
-              Add at least 1 prompt:
-            </span>
+            {hasCustomPrompts ? (
+              <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
+                Add at least 1 prompt:
+              </span>
+            ) : (
+              // Default (guided) state: show the three daily questions
+              // read-only. Nothing is required here; the input below is an
+              // opt-in customization affordance, not a blocking field (B57).
+              <div className="flex flex-col gap-[8px]">
+                {DEFAULT_REFLECTION_PROMPTS.map((q) => (
+                  <div
+                    key={q}
+                    className="rounded-[12px] bg-surface-secondary px-[16px] py-[12px] text-[15px] font-medium text-content"
+                  >
+                    {q}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {prompts.map((prompt, i) =>
               prompt.trim() ? (
@@ -136,6 +155,11 @@ export function ReflectionModeEditor({
             )}
 
             <div className="flex flex-col gap-[8px]">
+              {!hasCustomPrompts && (
+                <p className="px-[4px] text-[13px] leading-[18px] text-content-secondary">
+                  Want your own questions instead? Type one below to customize.
+                </p>
+              )}
               <input
                 type="text"
                 value={newPrompt}

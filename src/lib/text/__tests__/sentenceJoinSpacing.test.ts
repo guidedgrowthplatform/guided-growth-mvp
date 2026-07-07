@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fixSentenceJoinSpacing, joinSentences } from '../sentenceJoinSpacing';
+import { fixedStreamAppend, fixSentenceJoinSpacing, joinSentences } from '../sentenceJoinSpacing';
 
 describe('joinSentences', () => {
   it('inserts one space when the first part ends in a period', () => {
@@ -78,7 +78,50 @@ describe('fixSentenceJoinSpacing', () => {
     );
   });
 
+  it('does not split an initialism (two-word-char guard)', () => {
+    expect(fixSentenceJoinSpacing('Made in the U.S.A. today.')).toBe('Made in the U.S.A. today.');
+    expect(fixSentenceJoinSpacing('at 9 p.m. tonight')).toBe('at 9 p.m. tonight');
+  });
+
   it('returns empty/falsy input unchanged', () => {
     expect(fixSentenceJoinSpacing('')).toBe('');
+  });
+});
+
+describe('fixedStreamAppend', () => {
+  it('inserts a space when the seam splits exactly at the junction', () => {
+    const prior = 'Your habit is set for weekdays.';
+    expect(fixedStreamAppend(prior, "Now, let's set your time.")).toBe(
+      " Now, let's set your time.",
+    );
+  });
+
+  it('inserts a space when the terminator arrives at the start of the incoming delta', () => {
+    const prior = 'Your habit is set for weekdays';
+    expect(fixedStreamAppend(prior, '.Now, we continue')).toBe('. Now, we continue');
+  });
+
+  it('repairs a seam fully inside one delta', () => {
+    expect(fixedStreamAppend('some prior text ', "ends here.Now, let's go")).toBe(
+      "ends here. Now, let's go",
+    );
+  });
+
+  it('does not insert for a mid-word split across deltas', () => {
+    expect(fixedStreamAppend('for wee', 'kdays only')).toBe('kdays only');
+  });
+
+  it('does not insert for a lowercase continuation after a terminator', () => {
+    expect(fixedStreamAppend('sentence ends.', 'com continues')).toBe('com continues');
+  });
+
+  it('does not double a space when the seam already has one', () => {
+    expect(fixedStreamAppend('sentence ends. ', 'Now more')).toBe('Now more');
+    expect(fixedStreamAppend('sentence ends.', ' Now more')).toBe(' Now more');
+  });
+
+  it('handles empty prior and empty incoming', () => {
+    expect(fixedStreamAppend('', 'Hello.')).toBe('Hello.');
+    expect(fixedStreamAppend('prior.', '')).toBe('');
   });
 });

@@ -9,6 +9,7 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_REFLECTION_PROMPTS } from '@gg/shared/types';
 import { ReflectionModeEditor } from '../ReflectionModeEditor';
 
 let container: HTMLDivElement;
@@ -39,6 +40,41 @@ describe('ReflectionModeEditor', () => {
     });
     expect(container.textContent).toContain('Daily Reflection');
     expect(container.textContent).not.toContain('Custom Prompts');
+  });
+
+  it('default state shows the three daily questions read-only, no required-prompt demand', () => {
+    act(() => {
+      root.render(
+        <ReflectionModeEditor
+          mode="prompts"
+          onModeChange={vi.fn()}
+          prompts={[]}
+          onPromptsChange={vi.fn()}
+        />,
+      );
+    });
+    for (const q of DEFAULT_REFLECTION_PROMPTS) {
+      expect(container.textContent).toContain(q);
+    }
+    expect(container.textContent).not.toContain('Add at least 1 prompt:');
+    expect(container.textContent).toContain('Want your own questions instead?');
+  });
+
+  it('custom state keeps the editor demand and drops the default-question display', () => {
+    act(() => {
+      root.render(
+        <ReflectionModeEditor
+          mode="prompts"
+          onModeChange={vi.fn()}
+          prompts={['What went well today?']}
+          onPromptsChange={vi.fn()}
+        />,
+      );
+    });
+    expect(container.textContent).toContain('Add at least 1 prompt:');
+    for (const q of DEFAULT_REFLECTION_PROMPTS) {
+      expect(container.textContent).not.toContain(q);
+    }
   });
 
   it('reads as "Custom Prompts" once the user has entered at least one prompt', () => {
