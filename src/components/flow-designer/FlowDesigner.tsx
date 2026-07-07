@@ -42,7 +42,9 @@ import onboardingMetadataRaw from './onboardingMetadata.json';
 const TAG_COL_W = 320; // fixed-width left column holding the source-of-truth rail
 const TAG_GAP = 14; // space between the tag and the phone's left edge
 const PHONE_W = 420; // the phone interior width
-const TOTAL_W = TAG_COL_W + TAG_GAP + PHONE_W; // full width of one annotated beat row
+const WORDS_COL_W = 300; // fixed-width right column holding the original words card
+const WORDS_GAP = 20; // space between the phone's right edge and the words card
+const TOTAL_W = TAG_COL_W + TAG_GAP + PHONE_W; // width before the right words column
 
 // The real beat registry, keyed by type. BEAT_DEFS auto-collects every beat
 // file (the same set the flow builder uses). REGISTRY_MAP[type].Comp is the
@@ -670,6 +672,133 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
             <div style={{ fontSize: 12.5, color: '#94a3b8' }}>This beat has no explicit props.</div>
           )}
         </ContextSection>
+      </div>
+    </div>
+  );
+}
+
+function WordsPanel({ screenId }: { screenId?: string }) {
+  const meta = screenId ? METADATA_BY_SCREEN_ID[screenId] : undefined;
+
+  if (!meta) {
+    return (
+      <div
+        style={{
+          background: '#fff',
+          border: '1px dashed #e2e8f0',
+          borderRadius: 14,
+          padding: '14px 16px',
+          fontSize: 12,
+          color: '#94a3b8',
+          fontFamily: 'Urbanist, -apple-system, sans-serif',
+        }}
+      >
+        No words metadata for this beat yet.
+      </div>
+    );
+  }
+
+  const metaElements = sortedElements(meta);
+
+  return (
+    <div
+      style={{
+        background: '#fff',
+        border: '1px solid #e2e8f0',
+        borderRadius: 14,
+        padding: '14px 16px',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+        fontFamily: 'Urbanist, -apple-system, sans-serif',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}
+    >
+      <div>
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: '#94a3b8',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            marginBottom: 4,
+          }}
+        >
+          Opener
+        </div>
+        {meta.opener ? (
+          <div style={{ fontSize: 13, lineHeight: 1.5, color: '#1e293b' }}>{meta.opener}</div>
+        ) : (
+          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: '#94a3b8', fontStyle: 'italic' }}>
+            No opener, the per-element lines lead.
+          </div>
+        )}
+      </div>
+
+      {metaElements.length > 0 && (
+        <div>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: '#94a3b8',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              marginBottom: 6,
+            }}
+          >
+            Per-element
+          </div>
+          <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {metaElements.map((el) => (
+              <li key={el.elementId} style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#c7d2e0',
+                    minWidth: 14,
+                    flexShrink: 0,
+                  }}
+                >
+                  {el.order}
+                </span>
+                <div>
+                  <div style={{ fontSize: 13, lineHeight: 1.45, color: '#1e293b' }}>{el.line}</div>
+                  <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{el.elementId}</div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      <div>
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: '#94a3b8',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            marginBottom: 4,
+          }}
+        >
+          Expected response
+        </div>
+        <div style={{ fontSize: 12.5, lineHeight: 1.45, color: '#475569' }}>{meta.expectedResponse}</div>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 2, borderTop: '1px solid #f1f5f9' }}>
+        <WordsFlagChip label={meta.engine} tone="engine" />
+        {meta.variable && (
+          <WordsFlagChip
+            label={`live${meta.variableNote ? `, ${meta.variableNote.split(',')[0]}` : ', name'}`}
+            tone="live"
+          />
+        )}
+        {meta.openerShowsAsBubble === false && meta.opener && <WordsFlagChip label="no bubble" tone="note" />}
       </div>
     </div>
   );
@@ -1412,7 +1541,7 @@ function FlowPhoneFrame({
   playingId: string | null;
   onRequestPlay: (id: string | null) => void;
 }) {
-  const frameWidth = TOTAL_W;
+  const frameWidth = showWords ? TOTAL_W + WORDS_GAP + WORDS_COL_W : TOTAL_W;
   return (
     <div style={{ width: frameWidth, maxWidth: '100%', margin: '0 auto' }}>
       {/* Per-beat rows. The source-of-truth rail (left) and the phone (right) are
@@ -1453,6 +1582,11 @@ function FlowPhoneFrame({
                   onDone={() => onRequestPlay(null)}
                 />
               </div>
+              {showWords && (
+                <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP, paddingTop: 8 }}>
+                  <WordsPanel screenId={b.screenId} />
+                </div>
+              )}
             </div>
             {showWords && isEnd && <PathBanner path={b.path} edge="end" />}
           </div>
