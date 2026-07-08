@@ -24,33 +24,6 @@ export interface ScriptLine {
   readonly expectedUser?: string;
 }
 
-export interface BeatLegacyMeta {
-  readonly opener: string | null;
-  readonly secondBubble: string | null;
-  readonly closeBubble: string | null;
-  readonly confirmBubble: string | null;
-  readonly buttonLabel: string | null;
-  readonly openerMode: string | null;
-  readonly openerShowsAsBubble: boolean | null;
-  readonly variable: boolean;
-  readonly variableNote: string | null;
-  readonly clipNote: string | null;
-  readonly engine: string;
-  readonly scripted: boolean | null;
-  readonly narration:
-    | readonly { say: string; reveal?: number; clip?: string; bubble?: number; audioSrc?: string }[]
-    | null;
-  readonly elements: readonly {
-    elementId: string;
-    line: string;
-    order: number;
-    showsAsBubble: boolean;
-    clip?: string;
-    defaultValue?: string;
-    engine?: string;
-  }[];
-}
-
 export interface BeatEntry {
   readonly id: string;
   readonly name: string;
@@ -65,7 +38,7 @@ export interface BeatEntry {
   readonly voiceMode: VoiceMode;
   readonly hideOrb: boolean;
   readonly props: Record<string, string> | null;
-  readonly legacy: BeatLegacyMeta | null;
+  readonly elements?: readonly string[];
   readonly script: readonly ScriptLine[];
 }
 
@@ -144,7 +117,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: null,
     hideOrb: false,
     props: null,
-    legacy: null,
     script: [],
   },
   {
@@ -161,7 +133,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: null,
     hideOrb: false,
     props: null,
-    legacy: null,
     script: [],
   },
   {
@@ -179,29 +150,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: true,
     props: null,
-    legacy: {
-      opener:
-        "Hey, I might have startled you. You're probably not used to an app just talking to you. I'm your AI coach here at your service at Guided Growth, and I'm excited to help you improve things in your life that are important to you. So let's get you in, and we'll get started.",
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote: null,
-      engine: 'MP3',
-      scripted: true,
-      narration: [
-        {
-          say: "Hey, I might have startled you. You're probably not used to an app just talking to you. I'm your AI coach here at your service at Guided Growth, and I'm excited to help you improve things in your life that are important to you. So let's get you in, and we'll get started.",
-          bubble: 1,
-          audioSrc: '/voice/splash_welcome.mp3',
-        },
-      ],
-      elements: [],
-    },
     script: [
       {
         seq: 1,
@@ -233,22 +181,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: null,
     hideOrb: true,
     props: null,
-    legacy: {
-      opener: null,
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: false,
-      variable: false,
-      variableNote: null,
-      clipNote: null,
-      engine: 'Silent',
-      scripted: null,
-      narration: null,
-      elements: [],
-    },
     script: [],
   },
   {
@@ -268,22 +200,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     props: {
       heading: 'Allow your microphone',
       sub: 'So you can talk with your coach out loud.',
-    },
-    legacy: {
-      opener: "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: false,
-      variable: false,
-      variableNote: null,
-      clipNote: null,
-      engine: 'MP3',
-      scripted: true,
-      narration: null,
-      elements: [],
     },
     script: [
       {
@@ -316,37 +232,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    legacy: {
-      opener: 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: true,
-      variableNote: 'greeting is live Cartesia (name); the age and gender asks are MP3',
-      clipNote: null,
-      engine: 'Cartesia',
-      scripted: true,
-      narration: null,
-      elements: [
-        {
-          elementId: 'age',
-          line: 'How old are you?',
-          order: 1,
-          showsAsBubble: false,
-          engine: 'MP3',
-        },
-        {
-          elementId: 'gender',
-          line: "What's your gender?",
-          order: 2,
-          showsAsBubble: false,
-          engine: 'MP3',
-        },
-      ],
-    },
+    elements: ['age', 'gender'],
     script: [
       {
         seq: 1,
@@ -401,83 +287,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    legacy: {
-      opener:
-        "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
-      secondBubble:
-        "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        'MERGES the old why-intro and state-check into one beat. The framing shows as TWO coach bubbles, then the four questions are VERBAL ONLY (not in a bubble), each blooming its card as it is asked. Clips: state_sleep..state_stress.',
-      engine: 'MP3',
-      scripted: true,
-      narration: [
-        {
-          say: "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
-          bubble: 1,
-        },
-        {
-          say: "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-          bubble: 2,
-        },
-        {
-          say: "How's your sleep?",
-          reveal: 1,
-          clip: 'state_sleep',
-        },
-        {
-          say: "How's your mood?",
-          reveal: 2,
-          clip: 'state_mood',
-        },
-        {
-          say: "How's your energy?",
-          reveal: 3,
-          clip: 'state_energy',
-        },
-        {
-          say: "How's your stress?",
-          reveal: 4,
-          clip: 'state_stress',
-        },
-      ],
-      elements: [
-        {
-          elementId: 'sleep',
-          line: "How's your sleep?",
-          order: 1,
-          showsAsBubble: false,
-          clip: 'state_sleep',
-        },
-        {
-          elementId: 'mood',
-          line: "How's your mood?",
-          order: 2,
-          showsAsBubble: false,
-          clip: 'state_mood',
-        },
-        {
-          elementId: 'energy',
-          line: "How's your energy?",
-          order: 3,
-          showsAsBubble: false,
-          clip: 'state_energy',
-        },
-        {
-          elementId: 'stress',
-          line: "How's your stress?",
-          order: 4,
-          showsAsBubble: false,
-          clip: 'state_stress',
-        },
-      ],
-    },
     script: [
       {
         seq: 1,
@@ -570,66 +379,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    legacy: {
-      opener:
-        "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
-      secondBubble:
-        "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well.",
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        'The opener frames why the daily check-in matters and asks for the time. The card (days, time, reminder) then blooms in visually; the coach does not read the card labels aloud.',
-      engine: 'MP3',
-      scripted: true,
-      narration: [
-        {
-          say: "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
-          bubble: 1,
-        },
-        {
-          say: "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well.",
-          bubble: 2,
-        },
-        {
-          say: '',
-          reveal: 1,
-        },
-        {
-          say: '',
-          reveal: 2,
-        },
-        {
-          say: '',
-          reveal: 3,
-        },
-      ],
-      elements: [
-        {
-          elementId: 'days',
-          line: 'Weekdays, weekends, or your own days?',
-          order: 1,
-          showsAsBubble: false,
-          defaultValue: 'Weekday preset by locale: Israel Sun to Thu, rest of world Mon to Fri',
-        },
-        {
-          elementId: 'when',
-          line: 'What time?',
-          order: 2,
-          showsAsBubble: false,
-        },
-        {
-          elementId: 'reminder',
-          line: 'Want a reminder?',
-          order: 3,
-          showsAsBubble: false,
-        },
-      ],
-    },
     script: [
       {
         seq: 1,
@@ -710,111 +459,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    legacy: {
-      opener:
-        'One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.',
-      secondBubble: "I'd recommend doing this before bed, maybe 15 minutes before you wind down.",
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        "REORGANIZED. The opener framing is one coach bubble. Then the three questions bloom one at a time, each its OWN clip and its own component (proud, then forgive, then grateful). Then, verbal only, 'Or make your own, or just talk freely' as the make-your-own / freeform switcher appears. Then the schedule blooms in as the coach introduces it: days, then the before-bed time recommendation, then the reminder. The coach does not read the card labels aloud.",
-      engine: 'MP3',
-      scripted: true,
-      narration: [
-        {
-          say: 'One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.',
-          bubble: 1,
-        },
-        {
-          say: 'What am I proud of?',
-          reveal: 1,
-          clip: 'reflect_proud',
-        },
-        {
-          say: 'What do I forgive myself for?',
-          reveal: 2,
-          clip: 'reflect_forgive',
-        },
-        {
-          say: 'What am I grateful for?',
-          reveal: 3,
-          clip: 'reflect_grateful',
-        },
-        {
-          say: 'Or make your own, or just talk freely.',
-          reveal: 4,
-          clip: 'reflect_alt',
-        },
-        {
-          say: '',
-          reveal: 5,
-        },
-        {
-          say: "I'd recommend doing this before bed, maybe 15 minutes before you wind down.",
-          reveal: 6,
-          clip: 'reflect_time',
-        },
-        {
-          say: '',
-          reveal: 7,
-        },
-      ],
-      elements: [
-        {
-          elementId: 'proud',
-          line: 'What am I proud of?',
-          order: 1,
-          showsAsBubble: false,
-          clip: 'reflect_proud',
-        },
-        {
-          elementId: 'forgive',
-          line: 'What do I forgive myself for?',
-          order: 2,
-          showsAsBubble: false,
-          clip: 'reflect_forgive',
-        },
-        {
-          elementId: 'grateful',
-          line: 'What am I grateful for?',
-          order: 3,
-          showsAsBubble: false,
-          clip: 'reflect_grateful',
-        },
-        {
-          elementId: 'alt',
-          line: 'Or make your own, or just talk freely.',
-          order: 4,
-          showsAsBubble: false,
-          clip: 'reflect_alt',
-        },
-        {
-          elementId: 'days',
-          line: 'Which days?',
-          order: 5,
-          showsAsBubble: false,
-          defaultValue: 'Weekday preset by locale: Israel Sun to Thu, rest of world Mon to Fri',
-        },
-        {
-          elementId: 'when',
-          line: "I'd recommend doing this before bed, maybe 15 minutes before you wind down.",
-          order: 6,
-          showsAsBubble: false,
-          clip: 'reflect_time',
-        },
-        {
-          elementId: 'reminder',
-          line: 'Want a reminder?',
-          order: 7,
-          showsAsBubble: false,
-        },
-      ],
-    },
     script: [
       {
         seq: 1,
@@ -930,45 +574,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    legacy: {
-      opener: "For the next part of the process, I'd like to know:",
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        "The framing shows as ONE coach bubble, then the question is VERBAL ONLY (not in a bubble) as the two path cards appear. No 'both are totally fine' line. Clip: fork_question.",
-      engine: 'MP3',
-      scripted: true,
-      narration: [
-        {
-          say: "For the next part of the process, I'd like to know:",
-          bubble: 1,
-        },
-        {
-          say: 'Do you already track habits or is this new to you?',
-          reveal: 1,
-          clip: 'fork_question',
-        },
-        {
-          say: '',
-          reveal: 2,
-        },
-      ],
-      elements: [
-        {
-          elementId: 'question',
-          line: 'Do you already track habits or is this new to you?',
-          order: 1,
-          showsAsBubble: false,
-          clip: 'fork_question',
-        },
-      ],
-    },
     script: [
       {
         seq: 1,
@@ -1023,46 +628,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    legacy: {
-      opener:
-        "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        "The opener shows as a coach bubble, then the category tiles stagger in. When the 'Create your own' option appears at the end, the line 'Or you can create your own' is VERBAL ONLY (not in a bubble). Clip: create_your_own.",
-      engine: 'MP3',
-      scripted: true,
-      narration: [
-        {
-          say: "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-          bubble: 1,
-        },
-        {
-          say: '',
-          reveal: 8,
-        },
-        {
-          say: 'Or you can create your own.',
-          reveal: 9,
-          clip: 'create_your_own',
-        },
-      ],
-      elements: [
-        {
-          elementId: 'createOwn',
-          line: 'Or you can create your own.',
-          order: 1,
-          showsAsBubble: false,
-          clip: 'create_your_own',
-        },
-      ],
-    },
     script: [
       {
         seq: 1,
@@ -1120,46 +685,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     props: {
       variant: 'female',
     },
-    legacy: {
-      opener:
-        "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        "The opener shows as a coach bubble, then the category tiles stagger in. When the 'Create your own' option appears at the end, the line 'Or you can create your own' is VERBAL ONLY (not in a bubble). Clip: create_your_own.",
-      engine: 'MP3',
-      scripted: true,
-      narration: [
-        {
-          say: "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-          bubble: 1,
-        },
-        {
-          say: '',
-          reveal: 8,
-        },
-        {
-          say: 'Or you can create your own.',
-          reveal: 9,
-          clip: 'create_your_own',
-        },
-      ],
-      elements: [
-        {
-          elementId: 'createOwn',
-          line: 'Or you can create your own.',
-          order: 1,
-          showsAsBubble: false,
-          clip: 'create_your_own',
-        },
-      ],
-    },
     script: [
       {
         seq: 1,
@@ -1215,23 +740,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    legacy: {
-      opener: 'So within that, which goals would you like to start with? Pick one or two.',
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        "The list is the user's goals within the chosen category (labeled 'Goals', not 'subcategory'). One or two goals. This choice branches the next beat: two goals means one habit per goal, one goal means one or two habits.",
-      engine: 'MP3',
-      scripted: true,
-      narration: null,
-      elements: [],
-    },
     script: [
       {
         seq: 1,
@@ -1263,23 +771,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     props: {
       kind: 'goal',
     },
-    legacy: {
-      opener: "Tell me the goal you want to add, and I'll set it up.",
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        "Create-your-own-goal screen, reached from 'Create your own goal'. A simple name-your-goal field, then back into the flow.",
-      engine: 'MP3',
-      scripted: true,
-      narration: null,
-      elements: [],
-    },
     script: [
       {
         seq: 1,
@@ -1310,31 +801,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    legacy: {
-      opener:
-        "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        "BRANCHES ON THE GOALS PICKED IN BEAT 12. Two goals: one habit per goal (two total, one each), one panel per goal. One goal: one or two habits for that goal. 'Create your own' is shown as its own element for a custom habit. Less is more: one habit kept beats five dropped.",
-      engine: 'MP3',
-      scripted: true,
-      narration: null,
-      elements: [
-        {
-          elementId: 'createOwn',
-          line: 'Create your own if nothing here fits.',
-          order: 1,
-          showsAsBubble: false,
-        },
-      ],
-    },
+    elements: ['createOwn'],
     script: [
       {
         seq: 1,
@@ -1379,23 +846,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     props: {
       kind: 'habit',
     },
-    legacy: {
-      opener: "Tell me the habit you want to add, and I'll set it up.",
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        "Create-your-own-habit screen, reached from 'Create your own habit'. A simple name-your-habit field, then back into the flow.",
-      engine: 'MP3',
-      scripted: true,
-      narration: null,
-      elements: [],
-    },
     script: [
       {
         seq: 1,
@@ -1426,45 +876,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    legacy: {
-      opener: "Please set the days that you're going to actually do these habits.",
-      secondBubble:
-        'Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.',
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        "Two coach bubbles: 'Please set the days...' then 'Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.' Then lists ALL the habits the user just picked, each as its own card with the habit name and its day picker (the frequency). The daily check-in and the evening reflection are NOT here (they are rituals, not habits). Days default to the weekday preset by locale.",
-      engine: 'MP3',
-      scripted: true,
-      narration: [
-        {
-          say: "Please set the days that you're going to actually do these habits.",
-          bubble: 1,
-        },
-        {
-          say: 'Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.',
-          bubble: 2,
-        },
-        {
-          say: '',
-          reveal: 99,
-        },
-      ],
-      elements: [
-        {
-          elementId: 'days',
-          line: 'Which days for each one?',
-          order: 1,
-          showsAsBubble: false,
-          defaultValue: 'Weekday preset by locale: Israel Sun to Thu, rest of world Mon to Fri',
-        },
-      ],
-    },
     script: [
       {
         seq: 1,
@@ -1520,38 +931,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    legacy: {
-      opener:
-        "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
-      secondBubble: null,
-      closeBubble:
-        "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        "Just the list here, no days yet. Each habit forms live as a card with an auto Build/Break chip. No 'listening/all captured' banner once done. Close line names the build/break read: 'Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.'",
-      engine: 'MP3',
-      scripted: true,
-      narration: [
-        {
-          say: "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
-          bubble: 1,
-        },
-        {
-          say: '',
-          reveal: 99,
-        },
-        {
-          say: "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
-          bubble: 3,
-        },
-      ],
-      elements: [],
-    },
     script: [
       {
         seq: 1,
@@ -1608,41 +987,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    legacy: {
-      opener: "Please set the days that you're going to actually do these habits.",
-      secondBubble:
-        'Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.',
-      closeBubble: null,
-      confirmBubble: 'Your habits are all set, your plan is ready.',
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote:
-        "Advanced path day-setting. Two coach bubbles, then the habit cards' day pickers grow out, then a closing confirm bubble.",
-      engine: 'MP3',
-      scripted: true,
-      narration: [
-        {
-          say: "Please set the days that you're going to actually do these habits.",
-          bubble: 1,
-        },
-        {
-          say: 'Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.',
-          bubble: 2,
-        },
-        {
-          say: '',
-          reveal: 99,
-        },
-        {
-          say: 'Your habits are all set, your plan is ready.',
-          bubble: 4,
-        },
-      ],
-      elements: [],
-    },
     script: [
       {
         seq: 1,
@@ -1709,24 +1053,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceEngine: 'MP3',
     voiceMode: 'Verbatim',
     hideOrb: false,
-    props: null,
-    legacy: {
-      opener:
-        "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: 'Start',
-      openerMode: null,
-      openerShowsAsBubble: true,
-      variable: false,
-      variableNote: null,
-      clipNote: null,
-      engine: 'MP3',
-      scripted: true,
-      narration: null,
-      elements: [],
-    },
+    props: { buttonLabel: 'Start' },
     script: [
       {
         seq: 1,
@@ -1760,22 +1087,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     props: {
       state: 'blank',
     },
-    legacy: {
-      opener: 'This is your week. Blank, starting today.',
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: false,
-      variable: false,
-      variableNote: null,
-      clipNote: null,
-      engine: 'MP3',
-      scripted: true,
-      narration: null,
-      elements: [],
-    },
     script: [
       {
         seq: 1,
@@ -1808,22 +1119,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     props: {
       state: 'full',
     },
-    legacy: {
-      opener: 'Best case, every day green. 100% success. That would be amazing.',
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: false,
-      variable: false,
-      variableNote: null,
-      clipNote: null,
-      engine: 'MP3',
-      scripted: true,
-      narration: null,
-      elements: [],
-    },
     script: [
       {
         seq: 1,
@@ -1855,23 +1150,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: {
       state: 'p78',
-    },
-    legacy: {
-      opener:
-        'Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.',
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: false,
-      variable: false,
-      variableNote: null,
-      clipNote: null,
-      engine: 'MP3',
-      scripted: true,
-      narration: null,
-      elements: [],
     },
     script: [
       {
@@ -1906,23 +1184,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     props: {
       state: 'p36',
     },
-    legacy: {
-      opener:
-        "Some weeks can look like this. And even that's okay, because you're in the process and you're consistent inside the process.",
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: false,
-      variable: false,
-      variableNote: null,
-      clipNote: null,
-      engine: 'MP3',
-      scripted: true,
-      narration: null,
-      elements: [],
-    },
     script: [
       {
         seq: 1,
@@ -1955,23 +1216,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: {
       state: 'gaps',
-    },
-    legacy: {
-      opener:
-        'The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going.',
-      secondBubble: null,
-      closeBubble: null,
-      confirmBubble: null,
-      buttonLabel: null,
-      openerMode: null,
-      openerShowsAsBubble: false,
-      variable: false,
-      variableNote: null,
-      clipNote: null,
-      engine: 'MP3',
-      scripted: true,
-      narration: null,
-      elements: [],
     },
     script: [
       {

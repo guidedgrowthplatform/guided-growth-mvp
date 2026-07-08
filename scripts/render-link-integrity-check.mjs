@@ -74,7 +74,7 @@ const problems = [];
 
 for (const beat of beats) {
   const label = beat.id ?? beat.screenId ?? '(unknown)';
-  const declaredElementIds = new Set((beat.legacy?.elements ?? []).map((e) => e.elementId));
+  const declaredElementIds = new Set(beat.elements ?? []);
 
   for (const line of beat.script ?? []) {
     const el = line.bindsTo?.element ?? '';

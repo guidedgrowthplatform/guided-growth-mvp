@@ -89,12 +89,12 @@ const sourceFile = ts.createSourceFile(
 const beats = findBeatsSource(sourceFile).elements.map(literalValue);
 
 // The opener is the first coach-bubble script line (the words the phone bubble
-// reads), falling back to the legacy opener for the derived source.
+// reads), else the first script line with words. The one source is script[].
 function firstOpener(beat) {
   const bubble = beat.script?.find((line) => line.bindsTo?.kind === 'bubble' && line.words);
   if (bubble) return bubble.words;
   const line = beat.script?.find((l) => l.words);
-  return line ? line.words : (beat.legacy?.opener ?? null);
+  return line ? line.words : null;
 }
 
 const exportBeats = beats.map((beat, index) => ({
