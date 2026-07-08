@@ -1,5 +1,6 @@
 stages:
   - sync
+  - verify
 
 voice-sync:
   stage: sync
@@ -9,8 +10,8 @@ voice-sync:
   resource_group: voice-sync
   timeout: 5 minutes
   variables:
-    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
-    GOOGLE_APPLICATION_CREDENTIALS: "$GCP_SA_KEY"
+    PIP_CACHE_DIR: '$CI_PROJECT_DIR/.pip-cache'
+    GOOGLE_APPLICATION_CREDENTIALS: '$GCP_SA_KEY'
   cache:
     key: voice-sync-pip
     paths:
@@ -20,3 +21,29 @@ voice-sync:
     - pip install --cache-dir "$PIP_CACHE_DIR" -r scripts/voice-sync/requirements.txt
   script:
     - python scripts/voice-sync/seed_contexts.py
+
+# Render guard: runs the render's own consistency + link-integrity checks
+# (npm run check:beats = check:render + check:links, see package.json).
+# REPORT MODE (allow_failure: true) while the render is still being cleaned
+# up (see system-audit / render-parity-gate handoffs) — it will show up on
+# the MR but will NOT block merge. The conductor flips allow_failure to
+# false once the render is confirmed clean (gate step 5), making this a
+# required check.
+render_guards:
+  stage: verify
+  image: node:20
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+  interruptible: true
+  allow_failure: true
+  variables:
+    npm_config_cache: '$CI_PROJECT_DIR/.npm'
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  script:
+    - npm ci --prefer-offline --no-audit --no-fund
+    - npm run check:beats
