@@ -4,7 +4,7 @@ import { COACH_BG } from './beats/_beatStyle';
 import { SpokenWordsCtx } from './beatKit';
 import { Orb } from '@/components/orb/Orb';
 import { orbIdle, orbSpeaking } from '@/components/orb/orbView';
-import { kindOf, sample, runBeatNarration, stopSpeech } from './beatNarration';
+import { runBeatScript, stopSpeech } from './beatNarration';
 import { BEATS, IsolatedBeat, METADATA_BY_SCREEN_ID } from './FlowDesigner';
 
 // Play mode: runs the real onboarding beats in order in a single phone, speaking
@@ -59,17 +59,9 @@ export function FlowPlay() {
 
   async function playBeat(i: number, run: number) {
     const b = BEATS[i];
-    const m = b.screenId ? METADATA_BY_SCREEN_ID[b.screenId] : undefined;
-    const opener = sample(m?.opener ?? b.props?.coachLine ?? b.props?.greeting ?? '');
-    const lines = m?.elements
-      ? [...m.elements].sort((a, c) => a.order - c.order).map((e) => sample(e.line))
-      : [];
-    // The one shared driver (also used by the per-beat Play in the annotated view).
-    await runBeatNarration({
-      narration: m?.narration,
-      kind: kindOf(b.type),
-      opener,
-      lines,
+    // The one shared driver, reading straight off the beat's script[].
+    await runBeatScript({
+      script: b.script ?? [],
       muted: mutedRef.current,
       setStepReveal,
       setElementReveal,

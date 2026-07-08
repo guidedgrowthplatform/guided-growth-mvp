@@ -1,7 +1,6 @@
 {
   "source": {
-    "beats": "src/components/flow-designer/FlowDesigner.tsx#BEATS",
-    "metadata": "src/components/flow-designer/onboardingMetadata.json"
+    "beats": "src/components/flow-designer/beatsSource.ts#BEATS_SOURCE"
   },
   "beats": [
     {

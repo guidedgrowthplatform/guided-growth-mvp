@@ -1,12 +1,19 @@
-import { readdir, readFile } from 'node:fs/promises';
+// Guard 1 of 2: CONSISTENCY.
+// The onboarding render reads exactly ONE authored store: beatsSource.ts. This
+// check asserts (a) that single source is the only hand-authored metadata store
+// (onboardingMetadata.json is retired, and beatsSource is what the render reads),
+// and (b) every beat entry carries the required fields and a well-formed script.
+// Pair with render-link-integrity-check.mjs.
+
+import { readFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import ts from 'typescript';
 
 const root = process.cwd();
+const beatsSourcePath = path.join(root, 'src/components/flow-designer/beatsSource.ts');
 const flowDesignerPath = path.join(root, 'src/components/flow-designer/FlowDesigner.tsx');
-const metadataPath = path.join(root, 'src/components/flow-designer/onboardingMetadata.json');
-const voiceClipsPath = path.join(root, 'src/components/flow-designer/voiceClips.ts');
-const beatsDir = path.join(root, 'src/components/flow-designer/beats');
+const flowPlayPath = path.join(root, 'src/components/flow-designer/FlowPlay.tsx');
+const retiredJsonPath = path.join(root, 'src/components/flow-designer/onboardingMetadata.json');
 
 function literalValue(node) {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
@@ -14,220 +21,122 @@ function literalValue(node) {
   if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
   if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
   if (ts.isNumericLiteral(node)) return Number(node.text);
-  if (ts.isObjectLiteralExpression(node)) return objectValue(node);
+  if (ts.isPrefixUnaryExpression(node) && ts.isNumericLiteral(node.operand)) return -Number(node.operand.text);
+  if (ts.isObjectLiteralExpression(node)) {
+    const out = {};
+    for (const prop of node.properties) {
+      if (!ts.isPropertyAssignment(prop)) continue;
+      const key = ts.isStringLiteral(prop.name) || ts.isNumericLiteral(prop.name) ? prop.name.text : prop.name.getText();
+      out[key] = literalValue(prop.initializer);
+    }
+    return out;
+  }
   if (ts.isArrayLiteralExpression(node)) return node.elements.map(literalValue);
   throw new Error(`Unsupported literal: ${ts.SyntaxKind[node.kind]}`);
 }
 
-function propertyName(name) {
-  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
-    return name.text;
-  }
-  throw new Error(`Unsupported property name: ${ts.SyntaxKind[name.kind]}`);
-}
-
-function objectValue(node) {
-  const out = {};
-  for (const prop of node.properties) {
-    if (!ts.isPropertyAssignment(prop)) {
-      throw new Error(`Unsupported object member: ${ts.SyntaxKind[prop.kind]}`);
-    }
-    out[propertyName(prop.name)] = literalValue(prop.initializer);
-  }
-  return out;
-}
-
-function findBaseBeats(sourceFile) {
-  let beatsArray = null;
-
-  function visit(node) {
+function parseBeatsSource(text) {
+  const sf = ts.createSourceFile('beatsSource.ts', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  let arr = null;
+  (function visit(node) {
     if (
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
-      node.name.text === 'BASE_BEATS' &&
-      node.initializer &&
-      ts.isArrayLiteralExpression(node.initializer)
+      node.name.text === 'BEATS_SOURCE' &&
+      node.initializer
     ) {
-      beatsArray = node.initializer;
+      const init = ts.isAsExpression(node.initializer) ? node.initializer.expression : node.initializer;
+      if (ts.isArrayLiteralExpression(init)) arr = init;
       return;
     }
     ts.forEachChild(node, visit);
+  })(sf);
+  if (!arr) throw new Error('Could not find BEATS_SOURCE in beatsSource.ts');
+  return arr.elements.map(literalValue);
+}
+
+async function exists(p) {
+  try {
+    await access(p);
+    return true;
+  } catch {
+    return false;
   }
-
-  visit(sourceFile);
-
-  if (!beatsArray) {
-    throw new Error(`Could not find BASE_BEATS in ${flowDesignerPath}`);
-  }
-
-  return beatsArray.elements.map(literalValue);
-}
-
-function sortedElements(meta) {
-  return [...(meta?.elements ?? [])].sort((a, b) => a.order - b.order);
-}
-
-function bubbleLines(meta) {
-  return (meta?.narration ?? []).filter((seg) => seg.bubble != null && seg.say).map((seg) => seg.say);
-}
-
-function metadataPropsForBeat(type, meta) {
-  if (!meta) return {};
-
-  const bubbles = bubbleLines(meta);
-  const elements = sortedElements(meta);
-
-  switch (type) {
-    case 'profile-beat':
-      return {
-        greeting: meta.opener ?? '',
-        askAge: elements.find((element) => element.elementId === 'age')?.line ?? elements[0]?.line ?? '',
-        askGender:
-          elements.find((element) => element.elementId === 'gender')?.line ?? elements[1]?.line ?? '',
-      };
-    case 'advanced-capture':
-      return {
-        coachLine: meta.opener ?? '',
-        closeCoachLine: meta.closeBubble ?? bubbles[1] ?? '',
-      };
-    case 'advanced-frequency':
-      return {
-        coachLine: meta.opener ?? '',
-        coachLine2: meta.secondBubble ?? bubbles[1] ?? '',
-        confirmCoachLine: meta.confirmBubble ?? bubbles[bubbles.length - 1] ?? '',
-      };
-    case 'into-app':
-      return {
-        coachLine: meta.opener ?? '',
-        buttonLabel: meta.buttonLabel ?? 'Approve and start',
-      };
-    case 'state-check':
-    case 'morning-checkin-setup':
-    case 'reflection-card':
-    case 'habit-schedule':
-      return {
-        coachLine: meta.opener ?? '',
-        coachLine2: meta.secondBubble ?? bubbles[1] ?? '',
-      };
-    case 'mic-permission':
-    case 'path-selection':
-    case 'category-grid':
-    case 'goals-list':
-    case 'habit-picker':
-    case 'custom-entry':
-    case 'weekly-projection':
-      return { coachLine: meta.opener ?? '' };
-    default:
-      return {};
-  }
-}
-
-function voiceClipMap(source) {
-  const map = new Map();
-  const pairRe = /\[\s*'((?:\\'|[^'])*)'\s*,\s*'((?:\\'|[^'])*)'\s*\]/g;
-  for (const match of source.matchAll(pairRe)) {
-    const text = match[1].replaceAll("\\'", "'");
-    const src = match[2].replaceAll("\\'", "'");
-    map.set(text.trim(), src);
-  }
-  return map;
-}
-
-function stripExt(name) {
-  return name.replace(/\.[^.]+$/, '');
-}
-
-const [flowDesignerSource, metadataSource, voiceClipsSource, beatFiles] = await Promise.all([
-  readFile(flowDesignerPath, 'utf8'),
-  readFile(metadataPath, 'utf8'),
-  readFile(voiceClipsPath, 'utf8'),
-  readdir(beatsDir),
-]);
-
-const flowSourceFile = ts.createSourceFile(
-  flowDesignerPath,
-  flowDesignerSource,
-  ts.ScriptTarget.Latest,
-  true,
-  ts.ScriptKind.TSX,
-);
-const baseBeats = findBaseBeats(flowSourceFile);
-const metadata = JSON.parse(metadataSource);
-const metadataByScreenId = new Map(metadata.beats.map((beat) => [beat.screenId, beat]));
-const textToClip = voiceClipMap(voiceClipsSource);
-
-const registryTypes = new Set();
-for (const file of beatFiles) {
-  if (!file.endsWith('.tsx') || file.startsWith('_')) continue;
-  const source = await readFile(path.join(beatsDir, file), 'utf8');
-  const match = source.match(/type:\s*'([^']+)'/);
-  if (match) registryTypes.add(match[1]);
 }
 
 const problems = [];
 
-for (const beat of baseBeats) {
-  const label = beat.screenId ?? beat.id;
-  const meta = beat.screenId ? metadataByScreenId.get(beat.screenId) : null;
-
-  if (!registryTypes.has(beat.type)) {
-    problems.push(`${label}: beat type "${beat.type}" is not registered in BEAT_DEFS`);
+// (a) exactly one source: the retired json must be gone, and the render files
+// must read beatsSource, not the old json.
+if (await exists(retiredJsonPath)) {
+  problems.push('onboardingMetadata.json still exists: retire it, the one source is beatsSource.ts');
+}
+for (const [name, p] of [
+  ['FlowDesigner.tsx', flowDesignerPath],
+  ['FlowPlay.tsx', flowPlayPath],
+]) {
+  const src = await readFile(p, 'utf8');
+  if (src.includes('onboardingMetadata')) {
+    problems.push(`${name} still references onboardingMetadata (should read beatsSource.ts)`);
   }
+}
 
-  if (!beat.screenId) continue;
-  if (!meta) {
-    problems.push(`${label}: missing metadata entry`);
+// (b) required fields per entry + well-formed script.
+const REQUIRED = ['id', 'name', 'order', 'path', 'type', 'voiceEngine'];
+const PATHS = new Set(['beginner', 'advanced', 'both']);
+const KINDS = new Set(['bubble', 'component']);
+const beats = parseBeatsSource(await readFile(beatsSourcePath, 'utf8'));
+
+const seenIds = new Set();
+const orders = [];
+for (const beat of beats) {
+  const label = beat.id ?? beat.screenId ?? '(unknown)';
+  for (const field of REQUIRED) {
+    if (beat[field] === undefined || beat[field] === null || beat[field] === '') {
+      problems.push(`${label}: missing required field "${field}"`);
+    }
+  }
+  if (beat.id) {
+    if (seenIds.has(beat.id)) problems.push(`${label}: duplicate id`);
+    seenIds.add(beat.id);
+  }
+  if (beat.path && !PATHS.has(beat.path)) problems.push(`${label}: invalid path "${beat.path}"`);
+  if (typeof beat.order === 'number') orders.push(beat.order);
+  if (!Array.isArray(beat.script)) {
+    problems.push(`${label}: script is not an array`);
     continue;
   }
-
-  const expectedProps = metadataPropsForBeat(beat.type, meta);
-  for (const [key, expected] of Object.entries(expectedProps)) {
-    const actual = beat.props?.[key];
-    if (actual != null && actual !== expected) {
-      problems.push(`${label}: BEATS props.${key} disagrees with metadata`);
+  let expectedSeq = 1;
+  for (const line of beat.script) {
+    if (line.seq !== expectedSeq) {
+      problems.push(`${label}: script seq out of order (expected ${expectedSeq}, got ${line.seq})`);
+    }
+    expectedSeq += 1;
+    if (!line.bindsTo || !KINDS.has(line.bindsTo.kind)) {
+      problems.push(`${label}: script line ${line.seq} has invalid bindsTo.kind`);
+    }
+    if (!line.bindsTo?.element) {
+      problems.push(`${label}: script line ${line.seq} missing bindsTo.element`);
+    }
+    if (!line.bindsTo?.screen) {
+      problems.push(`${label}: script line ${line.seq} missing bindsTo.screen`);
     }
   }
+}
 
-  const bubbleCount = [
-    expectedProps.coachLine,
-    expectedProps.coachLine2,
-    expectedProps.closeCoachLine,
-    expectedProps.confirmCoachLine,
-  ].filter(Boolean).length;
-  if (bubbleCount > 1 && (!Array.isArray(meta.narration) || meta.narration.length === 0)) {
-    problems.push(`${label}: multi-bubble beat is missing a narration array`);
-  }
-
-  if (meta.engine !== 'MP3' || meta.variable) continue;
-
-  const coverageTexts = new Set(
-    [
-      expectedProps.greeting,
-      expectedProps.askAge,
-      expectedProps.askGender,
-      expectedProps.coachLine,
-      expectedProps.coachLine2,
-      expectedProps.closeCoachLine,
-      expectedProps.confirmCoachLine,
-      ...((meta.narration ?? []).map((seg) => seg.say)),
-    ].filter((line) => typeof line === 'string' && line.trim()),
-  );
-
-  for (const line of coverageTexts) {
-    const seg = (meta.narration ?? []).find((entry) => entry.say === line);
-    const covered = Boolean(seg?.audioSrc || seg?.clip || textToClip.has(line.trim()));
-    if (!covered) {
-      problems.push(`${label}: recorded line has no clip coverage -> "${line}"`);
-    }
+// order must be a dense 0..n-1 sequence (one ordered source).
+const sortedOrders = [...orders].sort((a, b) => a - b);
+for (let i = 0; i < sortedOrders.length; i++) {
+  if (sortedOrders[i] !== i) {
+    problems.push(`order is not a dense 0..${sortedOrders.length - 1} sequence (found ${sortedOrders.join(',')})`);
+    break;
   }
 }
 
 if (problems.length) {
-  console.error('Render consistency check failed.\n');
-  for (const problem of problems) {
-    console.error(`- ${problem}`);
-  }
+  console.error('Render CONSISTENCY check failed.\n');
+  for (const p of problems) console.error(`- ${p}`);
   process.exit(1);
 }
 
-console.log(`Render consistency check passed for ${baseBeats.length} beats.`);
+console.log(`Render CONSISTENCY check passed: ${beats.length} beats, one source (beatsSource.ts).`);

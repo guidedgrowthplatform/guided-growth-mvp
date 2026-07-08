@@ -40,7 +40,9 @@
     "vapi:sync": "tsx --env-file=.env.local scripts/vapi-sync/sync.ts",
     "beats:sync": "bash scripts/voice-sync/sync_beat_metadata.sh",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "check:links": "node scripts/render-link-integrity-check.mjs",
+    "check:beats": "npm run check:render && npm run check:links"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

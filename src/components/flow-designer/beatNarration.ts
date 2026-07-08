@@ -4,6 +4,7 @@
 // lines, a stand-in for the recorded MP3 / Cartesia clip; the word boundaries it
 // emits drive the on-screen text + card reveals so the sync is visible.
 
+import type { ScriptLine } from './beatsSource';
 import { clipSrc } from './voiceClips';
 
 export type Kind = 'beatplayer' | 'card' | 'grid' | 'coachonly';
@@ -303,4 +304,95 @@ export async function runBeatNarration(opts: {
     await wait(500);
   }
   await wait(400);
+}
+
+// Where a script line reveals to on the phone. `opener` and `opener-line` are the
+// coach's opening bubble (step 1). `bubble-N` is a coach bubble at step N (karaoke
+// in step with the voice). `reveal-N` blooms card row N (verbal-only, no karaoke;
+// 99 shows the whole card). Any other component line just speaks verbal-only after
+// the card/grid is shown.
+function scriptTarget(line: ScriptLine): { bubbleStep: number | null; reveal: number | null } {
+  const el = line.bindsTo.element;
+  if (line.bindsTo.kind === 'bubble') {
+    if (el === 'opener' || el === 'opener-line') return { bubbleStep: 1, reveal: null };
+    const m = /^bubble-(\d+)$/.exec(el);
+    if (m) return { bubbleStep: Number(m[1]), reveal: null };
+    return { bubbleStep: 1, reveal: null };
+  }
+  // component
+  if (el === 'opener' || el === 'opener-line') return { bubbleStep: 1, reveal: null };
+  const r = /^reveal-(\d+)$/.exec(el);
+  if (r) return { bubbleStep: null, reveal: Number(r[1]) };
+  return { bubbleStep: null, reveal: null };
+}
+
+// Play a single line's audio: the recorded clip when the ScriptLine carries one,
+// else the browser stand-in via speak() (which itself checks for a clip by text).
+function playLine(line: ScriptLine, muted: boolean, onWord?: (n: number) => void): Promise<void> {
+  const words = sample(line.words);
+  const clip = line.clipPath;
+  if (clip && (line.voice === 'mp3' || line.voice === 'verbatim' || line.voice === 'cartesia')) {
+    return playClip(clip, words, muted, onWord);
+  }
+  return speak(words, muted, onWord);
+}
+
+// Run ONE beat straight off its script[] (the one-source driver). Iterates lines
+// by seq: a bubble line types into a coach bubble in step with the voice; a
+// component line blooms its card row (verbal-only). Same stepReveal / elementReveal
+// / syncWords seam the annotated render and the recorded clips already drive, so
+// playback reads from script instead of the legacy narration/elements.
+export async function runBeatScript(opts: {
+  script: readonly ScriptLine[];
+  muted: boolean;
+  setStepReveal: (n: number | null) => void;
+  setElementReveal: (n: number | null) => void;
+  setSyncWords: (n: number | null) => void;
+  shouldStop: () => boolean;
+}): Promise<void> {
+  const { script, muted, setStepReveal, setElementReveal, setSyncWords, shouldStop } = opts;
+
+  const lines = [...script].sort((a, b) => a.seq - b.seq);
+
+  setStepReveal(0);
+  setElementReveal(0);
+  setSyncWords(null);
+  await raf();
+  await wait(40);
+  if (shouldStop()) return;
+
+  // No script (splash, get-started, sign-up): show the beat and hold.
+  if (lines.length === 0) {
+    setStepReveal(99);
+    await wait(500);
+    return;
+  }
+
+  let cardShown = false;
+  for (const line of lines) {
+    if (shouldStop()) return;
+    const { bubbleStep, reveal } = scriptTarget(line);
+    if (bubbleStep != null) {
+      setStepReveal(bubbleStep);
+      setSyncWords(0);
+      await playLine(line, muted, (n) => setSyncWords(n));
+      setSyncWords(null);
+    } else {
+      // A card row: reveal the card once, then bloom this row and speak it
+      // verbal-only (no bubble karaoke).
+      if (!cardShown) {
+        setStepReveal(99);
+        setSyncWords(null);
+        cardShown = true;
+        await wait(180);
+      }
+      if (reveal != null) setElementReveal(reveal);
+      if (line.words) await playLine(line, muted);
+      else await wait(220);
+    }
+    await wait(120);
+    if (shouldStop()) return;
+  }
+  setSyncWords(null);
+  await wait(500);
 }

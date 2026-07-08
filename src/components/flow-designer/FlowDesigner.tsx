@@ -10,11 +10,11 @@ import {
 } from './beatKit';
 import { BEAT_DEFS } from './beats';
 import { COACH_BG } from './beats/_beatStyle';
-import { kindOf, raf, runBeatNarration, sample, stopSpeech } from './beatNarration';
+import { kindOf, raf, runBeatNarration, runBeatScript, sample, stopSpeech } from './beatNarration';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 import { Orb } from '@/components/orb/Orb';
 import { orbSpeaking } from '@/components/orb/orbView';
-import onboardingMetadataRaw from './onboardingMetadata.json';
+import { BEATS_SOURCE, BEAT_BY_SCREEN_ID, type BeatEntry, type ScriptLine } from './beatsSource';
 
 /**
  * FlowDesigner -- the chat-native onboarding flow as one continuous scroll,
@@ -54,10 +54,10 @@ const REGISTRY_MAP: Record<string, BeatDef> = Object.fromEntries(
 );
 
 // --- Onboarding words metadata ---
-// Sourced from the App Master Sheet Beats Context + Beat Elements tabs, snapshot
-// at onboardingMetadata.json. Keyed by screenId, looked up per beat via
-// FlowBeat.screenId below. Wording is provisional; the shape (opener, per-element
-// lines, expectedResponse, engine/variable/bubble flags) is what to display.
+// Derived from the ONE source (beatsSource.ts). The render reads that single
+// authored store; this back-compat view exposes the legacy meta shape the play
+// driver (runBeatNarration) and the metadata panels already consume, so the
+// consolidation kept exactly one hand-authored store with no behavior change.
 interface BeatElementMeta {
   elementId: string;
   line: string;
@@ -85,10 +85,38 @@ interface BeatMeta {
   narration?: { say: string; reveal?: number; clip?: string; bubble?: number; audioSrc?: string }[];
   elements: BeatElementMeta[];
 }
-const ONBOARDING_METADATA = onboardingMetadataRaw as { beats: BeatMeta[] };
+
+function legacyMetaOf(entry: BeatEntry): BeatMeta | null {
+  if (!entry.legacy || !entry.screenId) return null;
+  const l = entry.legacy;
+  return {
+    screenId: entry.screenId,
+    engine: l.engine as BeatMeta['engine'],
+    scripted: l.scripted,
+    variable: l.variable,
+    variableNote: l.variableNote ?? undefined,
+    opener: l.opener,
+    secondBubble: l.secondBubble ?? undefined,
+    closeBubble: l.closeBubble ?? undefined,
+    confirmBubble: l.confirmBubble ?? undefined,
+    buttonLabel: l.buttonLabel ?? undefined,
+    openerMode: l.openerMode ?? undefined,
+    openerShowsAsBubble: l.openerShowsAsBubble ?? undefined,
+    expectedResponse: entry.expectedResponse ?? '',
+    clipNote: l.clipNote ?? undefined,
+    narration: l.narration ? l.narration.map((s) => ({ ...s })) : undefined,
+    elements: l.elements.map((e) => ({ ...e })),
+  };
+}
+
 export const METADATA_BY_SCREEN_ID: Record<string, BeatMeta> = Object.fromEntries(
-  ONBOARDING_METADATA.beats.map((b) => [b.screenId, b]),
+  BEATS_SOURCE.map((b) => [b.screenId, legacyMetaOf(b)]).filter(
+    (pair): pair is [string, BeatMeta] => Boolean(pair[0] && pair[1]),
+  ),
 );
+
+// Fast lookup of the full one-source entry (for the script list + context panel).
+const ENTRY_BY_SCREEN_ID = BEAT_BY_SCREEN_ID;
 
 function sortedElements(meta?: BeatMeta): BeatElementMeta[] {
   return meta?.elements ? [...meta.elements].sort((a, b) => a.order - b.order) : [];
@@ -536,6 +564,7 @@ function ContextKeyValue({ label, value }: { label: string; value: string }) {
 
 function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
   const meta = beat.screenId ? METADATA_BY_SCREEN_ID[beat.screenId] : undefined;
+  const entry = beat.screenId ? ENTRY_BY_SCREEN_ID[beat.screenId] : undefined;
   const metaElements = meta ? sortedElements(meta) : [];
   const narration = meta?.narration ?? [];
   const resolvedProps = beat.props ? Object.entries(beat.props) : [];
@@ -607,13 +636,41 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
           {meta.openerShowsAsBubble === false && meta.opener && <WordsFlagChip label="opener hidden" tone="note" />}
         </div>
 
-        <ContextSection title="Beat context" defaultOpen>
+        <ContextSection title="Beat metadata" defaultOpen>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <ContextKeyValue label="Expected response" value={meta.expectedResponse} />
+            {entry?.allowedTools && <ContextKeyValue label="Allowed tools" value={entry.allowedTools} />}
             {meta.clipNote && <ContextKeyValue label="Clip note" value={meta.clipNote} />}
             {meta.variableNote && <ContextKeyValue label="Variable note" value={meta.variableNote} />}
             {meta.openerMode && <ContextKeyValue label="Opener mode" value={meta.openerMode} />}
           </div>
+        </ContextSection>
+
+        <ContextSection title={entry?.context ? 'Coach behavior context' : 'Coach behavior context (none)'}>
+          {entry?.context ? (
+            <pre
+              style={{
+                margin: 0,
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                fontSize: 11,
+                lineHeight: 1.5,
+                color: '#334155',
+                background: '#f8fafc',
+                border: '1px solid #eef2f7',
+                borderRadius: 8,
+                padding: '10px 12px',
+                maxHeight: 260,
+                overflow: 'auto',
+              }}
+            >
+              {entry.context}
+            </pre>
+          ) : (
+            <div style={{ fontSize: 12.5, color: '#94a3b8' }}>
+              No coach behavior context for this beat (structural or newer beat, not yet in screen_contexts).
+            </div>
+          )}
         </ContextSection>
 
         <ContextSection title="Copy">
@@ -689,10 +746,54 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
   );
 }
 
-function WordsPanel({ screenId }: { screenId?: string }) {
-  const meta = screenId ? METADATA_BY_SCREEN_ID[screenId] : undefined;
+// --- Script panel (right column) ---
+// The ordered script list from the ONE source: the exact lines the engine plays
+// and runs, in order. Per line: seq, words, the element + screen it binds to and
+// whether it is a coach bubble or a component reveal, the voice, and the clip.
+// The optional expectedUser sub-row shows under a coach line behind a toggle.
 
-  if (!meta) {
+const BIND_STYLE: Record<'bubble' | 'component', { bg: string; text: string; border: string; label: string }> = {
+  bubble: { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe', label: 'bubble' },
+  component: { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0', label: 'component' },
+};
+
+const VOICE_STYLE: Record<string, { bg: string; text: string; border: string }> = {
+  mp3: { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' },
+  cartesia: { bg: '#ede9fe', text: '#6d28d9', border: '#c4b5fd' },
+  verbatim: { bg: '#ede9fe', text: '#6d28d9', border: '#c4b5fd' },
+};
+
+function TinyChip({ label, s }: { label: string; s: { bg: string; text: string; border: string } }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '1px 7px',
+        borderRadius: 99,
+        border: `1px solid ${s.border}`,
+        background: s.bg,
+        color: s.text,
+        fontSize: 10,
+        fontWeight: 700,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function ScriptPanel({
+  screenId,
+  showExpectedUser,
+}: {
+  screenId?: string;
+  showExpectedUser: boolean;
+}) {
+  const entry = screenId ? ENTRY_BY_SCREEN_ID[screenId] : undefined;
+
+  if (!entry || entry.script.length === 0) {
     return (
       <div
         style={{
@@ -705,12 +806,10 @@ function WordsPanel({ screenId }: { screenId?: string }) {
           fontFamily: 'Urbanist, -apple-system, sans-serif',
         }}
       >
-        No words metadata for this beat yet.
+        No script lines for this beat (silent or structural).
       </div>
     );
   }
-
-  const metaElements = sortedElements(meta);
 
   return (
     <div
@@ -723,94 +822,72 @@ function WordsPanel({ screenId }: { screenId?: string }) {
         fontFamily: 'Urbanist, -apple-system, sans-serif',
         display: 'flex',
         flexDirection: 'column',
-        gap: 12,
+        gap: 10,
       }}
     >
-      <div>
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: '#94a3b8',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            marginBottom: 4,
-          }}
-        >
-          Opener
-        </div>
-        {meta.opener ? (
-          <div style={{ fontSize: 13, lineHeight: 1.5, color: '#1e293b' }}>{meta.opener}</div>
-        ) : (
-          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: '#94a3b8', fontStyle: 'italic' }}>
-            No opener, the per-element lines lead.
-          </div>
-        )}
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: '#94a3b8',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        Script ({entry.script.length})
       </div>
-
-      {metaElements.length > 0 && (
-        <div>
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: '#94a3b8',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              marginBottom: 6,
-            }}
-          >
-            Per-element
-          </div>
-          <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {metaElements.map((el) => (
-              <li key={el.elementId} style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                <span
+      <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {entry.script.map((line: ScriptLine) => {
+          const bind = BIND_STYLE[line.bindsTo.kind];
+          const voiceStyle = line.voice ? VOICE_STYLE[line.voice] : null;
+          return (
+            <li
+              key={line.seq}
+              style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: line.seq === 1 ? 'none' : '1px solid #f1f5f9', paddingTop: line.seq === 1 ? 0 : 8 }}
+            >
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#c7d2e0', minWidth: 14, flexShrink: 0 }}>
+                  {line.seq}
+                </span>
+                <div style={{ fontSize: 13, lineHeight: 1.45, color: '#1e293b', flex: 1 }}>
+                  {line.words || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>(silent reveal)</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingLeft: 22, alignItems: 'center' }}>
+                <TinyChip label={bind.label} s={bind} />
+                <span style={{ fontSize: 10.5, color: '#64748b' }}>{line.bindsTo.element}</span>
+                {voiceStyle && <TinyChip label={line.voice as string} s={voiceStyle} />}
+                {line.clip && (
+                  <span style={{ fontSize: 10.5, color: '#94a3b8' }}>clip: {line.clip}</span>
+                )}
+              </div>
+              {showExpectedUser && line.expectedUser && (
+                <div
                   style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: '#c7d2e0',
-                    minWidth: 14,
-                    flexShrink: 0,
+                    marginLeft: 22,
+                    marginTop: 2,
+                    padding: '5px 9px',
+                    borderRadius: 8,
+                    background: 'rgba(19,91,236,0.06)',
+                    border: '1px solid rgba(19,91,236,0.12)',
+                    fontSize: 11.5,
+                    lineHeight: 1.4,
+                    color: '#1d4ed8',
                   }}
                 >
-                  {el.order}
-                </span>
-                <div>
-                  <div style={{ fontSize: 13, lineHeight: 1.45, color: '#1e293b' }}>{el.line}</div>
-                  <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{el.elementId}</div>
+                  <span style={{ fontWeight: 700 }}>User: </span>
+                  {line.expectedUser}
                 </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-
-      <div>
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: '#94a3b8',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            marginBottom: 4,
-          }}
-        >
-          Expected response
-        </div>
-        <div style={{ fontSize: 12.5, lineHeight: 1.45, color: '#475569' }}>{meta.expectedResponse}</div>
-      </div>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 2, borderTop: '1px solid #f1f5f9' }}>
-        <WordsFlagChip label={meta.engine} tone="engine" />
-        {meta.variable && (
-          <WordsFlagChip
-            label={`live${meta.variableNote ? `, ${meta.variableNote.split(',')[0]}` : ', name'}`}
-            tone="live"
-          />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 4, borderTop: '1px solid #f1f5f9' }}>
+        <WordsFlagChip label={entry.voiceEngine} tone="engine" />
+        {entry.expectedResponse && (
+          <span style={{ fontSize: 10.5, color: '#94a3b8' }}>expects: {entry.expectedResponse}</span>
         )}
-        {meta.openerShowsAsBubble === false && meta.opener && <WordsFlagChip label="no bubble" tone="note" />}
       </div>
     </div>
   );
@@ -832,275 +909,32 @@ interface FlowBeat {
   // Hide the docked orb on this beat. The orb fades out before the account step
   // and fades back in at mic permission, so the account beat shows no orb.
   hideOrb?: boolean;
+  // The ordered lines Play iterates (the one-source playback driver). Present on
+  // onboarding beats (from beatsSource); absent on the hand-authored check-in
+  // beats, which still play through the legacy narration path.
+  script?: readonly ScriptLine[];
 }
 
 // The render starts at the very beginning: splash, get started, the coach
 // greeting, sign-up, and mic permission, then straight into profile and the
 // rest of the onboarding chain, through the beginner and advanced lanes and
 // the five weekly-projection frames.
-export const BASE_BEATS: FlowBeat[] = [
-  // 0a. Splash. Brand alone, no coach voice.
-  {
-    id: 'splash',
-    type: 'splash',
-    engine: 'Silent',
-    mode: null,
-    path: 'both',
-  },
-  // 0b. Get started. Brand + CTA, no coach voice.
-  {
-    id: 'get-started',
-    type: 'get-started',
-    engine: 'Silent',
-    mode: null,
-    path: 'both',
-  },
-  // 0c. Coach greeting. The locked SplashIntro sequence, MP3 verbatim.
-  {
-    id: 'coach-greeting',
-    type: 'splash-intro',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'COACH-GREETING',
-    path: 'both',
-    hideOrb: true,
-  },
-  // 0d. Sign up. Name capture, no coach voice.
-  {
-    id: 'sign-up',
-    type: 'auth-signup',
-    engine: 'Silent',
-    mode: null,
-    screenId: 'ONBOARD-AUTH--FORM',
-    path: 'both',
-    hideOrb: true,
-  },
-  // 0e. Mic permission. MP3 verbatim.
-  {
-    id: 'mic-permission',
-    type: 'mic-permission',
-    props: {
-      heading: 'Allow your microphone',
-      sub: 'So you can talk with your coach out loud.',
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'MIC-PERMISSION',
-    path: 'both',
-    hideOrb: true,
-  },
-  // 1. Profile. Age + gender, greet by name. Cartesia VERBATIM: the opener is a
-  // scripted line, but it carries the {name} token so it is read live, not an MP3.
-  {
-    id: 'profile',
-    type: 'profile-beat',
-    engine: 'Cartesia',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-01--FORM',
-    path: 'both',
-  },
-  // 7 + 8 merged. The framing narration introduces the four check-in cards as it
-  // names them (said once, synced to the reveal), then the SAME cards become the
-  // check-in. No separate why-intro beat, no second set of cards, no double-say.
-  {
-    id: 'state-check',
-    type: 'state-check',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-STATE-CHECK',
-    path: 'both',
-  },
-  // 8b. Morning check-in time. MP3 verbatim opener.
-  {
-    id: 'checkin',
-    type: 'morning-checkin-setup',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-MORNING-SETUP',
-    path: 'both',
-  },
-  // 9. Evening reflection setup, configured only. MP3 verbatim opener, options silent.
-  {
-    id: 'reflection',
-    type: 'reflection-card',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-BEGINNER-07',
-    path: 'both',
-  },
-  // 10. Path fork. MP3 verbatim.
-  {
-    id: 'fork',
-    type: 'path-selection',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-FORK--FORM',
-    path: 'both',
-  },
-  // 11. Beginner, category. MP3 verbatim opener, options silent.
-  {
-    id: 'category',
-    type: 'category-grid',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-BEGINNER-01',
-    path: 'beginner',
-  },
-  // 11b. Women's variant of the category tiles, shown when the user picked Female.
-  // Same categories and copy, female illustrations. The images are placeholders
-  // until real female art is dropped into public/images/onboarding/female/ (same
-  // filenames as the default tiles).
-  {
-    id: 'category-women',
-    type: 'category-grid',
-    props: {
-      variant: 'female',
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-BEGINNER-01',
-    path: 'beginner',
-  },
-  // 12. Beginner, subcategory. MP3 verbatim opener, options silent.
-  {
-    id: 'goals',
-    type: 'goals-list',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-BEGINNER-02',
-    path: 'beginner',
-  },
-  // 12b. Create your own goal. Reached from "Create your own goal" in the goals
-  // beat: a simple name-your-goal screen, then back into the flow.
-  {
-    id: 'goal-custom',
-    type: 'custom-entry',
-    props: {
-      kind: 'goal',
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-BEGINNER-02-CUSTOM',
-    path: 'beginner',
-  },
-  // 13. Beginner, habits. MP3 verbatim opener, options silent.
-  {
-    id: 'habits',
-    type: 'habit-picker',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-BEGINNER-03',
-    path: 'beginner',
-  },
-  // 13b. Create your own habit. Reached from "Create your own habit" in the habit
-  // beat: a simple name-your-habit screen, then back into the flow.
-  {
-    id: 'habit-custom',
-    type: 'custom-entry',
-    props: {
-      kind: 'habit',
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-BEGINNER-03-CUSTOM',
-    path: 'beginner',
-  },
-  // 14. Beginner, per-habit schedule. MP3 scheduler with per-element control lines
-  // (schedule, when, how-often, reminder). Not Vapi; the metadata marks it MP3.
-  {
-    id: 'schedule',
-    type: 'habit-schedule',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-BEGINNER-04',
-    path: 'beginner',
-  },
-  // 15. Advanced lane. Users who already track habits read them out loud,
-  // cards form live, each auto-classified build/break. MP3 verbatim opener.
-  {
-    id: 'advanced-capture',
-    type: 'advanced-capture',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-ADVANCED',
-    path: 'advanced',
-  },
-  // 16. Advanced lane, frequency. Same cards, day circles grow out. MP3 verbatim opener.
-  {
-    id: 'advanced-frequency',
-    type: 'advanced-frequency',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-ADVANCED-FREQUENCY',
-    path: 'advanced',
-  },
-  // 17. Full plan, the one confirm. MP3 verbatim.
-  {
-    id: 'plan',
-    type: 'into-app',
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-COMPLETE',
-    path: 'both',
-  },
-  // 18a-18e. Weekly projection. Five frames, each a different outcome state of
-  // the habit week-grid, shown right after the plan confirm. MP3 verbatim.
-  {
-    id: 'weekly-blank',
-    type: 'weekly-projection',
-    props: {
-      state: 'blank',
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-WEEKLY-PROJECTION-BLANK',
-    path: 'both',
-  },
-  {
-    id: 'weekly-full',
-    type: 'weekly-projection',
-    props: {
-      state: 'full',
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-WEEKLY-PROJECTION-FULL',
-    path: 'both',
-  },
-  {
-    id: 'weekly-p78',
-    type: 'weekly-projection',
-    props: {
-      state: 'p78',
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-WEEKLY-PROJECTION-P78',
-    path: 'both',
-  },
-  {
-    id: 'weekly-p36',
-    type: 'weekly-projection',
-    props: {
-      state: 'p36',
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-WEEKLY-PROJECTION-P36',
-    path: 'both',
-  },
-  {
-    id: 'weekly-gaps',
-    type: 'weekly-projection',
-    props: {
-      state: 'gaps',
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-    screenId: 'ONBOARD-WEEKLY-PROJECTION-GAPS',
-    path: 'both',
-  },
-];
+//
+// Derived from the ONE source (beatsSource.ts). The order, id, type, engine,
+// mode, screenId, path, hideOrb, and structural props all come from there, so
+// the render has a single authored store.
+export const BASE_BEATS: FlowBeat[] = BEATS_SOURCE.map((b) => ({
+  id: b.id,
+  type: b.type,
+  props: b.props ?? undefined,
+  engine: b.voiceEngine,
+  mode: b.voiceMode,
+  screenId: b.screenId ?? undefined,
+  path: b.path,
+  hideOrb: b.hideOrb || undefined,
+  script: b.script,
+}));
+
 
 export const BEATS: FlowBeat[] = BASE_BEATS.map((beat) => ({
   ...beat,
@@ -1478,25 +1312,38 @@ function PlayableBeat({
     if (!active) return;
     const run = ++runRef.current;
     let cancelled = false;
-    const m = beat.screenId ? METADATA_BY_SCREEN_ID[beat.screenId] : undefined;
-    const opener = sample(m?.opener ?? beat.props?.coachLine ?? beat.props?.greeting ?? '');
-    const lines = m?.elements
-      ? [...m.elements].sort((a, c) => a.order - c.order).map((e) => sample(e.line))
-      : [];
     (async () => {
-      // Let the fresh remount settle to an empty state, then run the script.
+      // Let the fresh remount settle to an empty state, then run the beat.
       await raf();
-      await runBeatNarration({
-        narration: m?.narration,
-        kind: kindOf(beat.type),
-        opener,
-        lines,
-        muted: false,
-        setStepReveal,
-        setElementReveal,
-        setSyncWords,
-        shouldStop: () => cancelled || run !== runRef.current,
-      });
+      if (beat.script && beat.script.length) {
+        // Onboarding beats play straight off the one-source script[].
+        await runBeatScript({
+          script: beat.script,
+          muted: false,
+          setStepReveal,
+          setElementReveal,
+          setSyncWords,
+          shouldStop: () => cancelled || run !== runRef.current,
+        });
+      } else {
+        // Hand-authored check-in beats (no script): legacy narration path.
+        const m = beat.screenId ? METADATA_BY_SCREEN_ID[beat.screenId] : undefined;
+        const opener = sample(m?.opener ?? beat.props?.coachLine ?? beat.props?.greeting ?? '');
+        const lines = m?.elements
+          ? [...m.elements].sort((a, c) => a.order - c.order).map((e) => sample(e.line))
+          : [];
+        await runBeatNarration({
+          narration: m?.narration,
+          kind: kindOf(beat.type),
+          opener,
+          lines,
+          muted: false,
+          setStepReveal,
+          setElementReveal,
+          setSyncWords,
+          shouldStop: () => cancelled || run !== runRef.current,
+        });
+      }
       if (!cancelled && run === runRef.current) onDoneRef.current();
     })();
     return () => {
@@ -1538,11 +1385,13 @@ function PlayableBeat({
 function FlowPhoneFrame({
   beats,
   showWords = false,
+  showExpectedUser = false,
   playingId,
   onRequestPlay,
 }: {
   beats: FlowBeat[];
   showWords?: boolean;
+  showExpectedUser?: boolean;
   playingId: string | null;
   onRequestPlay: (id: string | null) => void;
 }) {
@@ -1589,7 +1438,7 @@ function FlowPhoneFrame({
               </div>
               {showWords && (
                 <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP, paddingTop: 8 }}>
-                  <WordsPanel screenId={b.screenId} />
+                  <ScriptPanel screenId={b.screenId} showExpectedUser={showExpectedUser} />
                 </div>
               )}
             </div>
@@ -1606,6 +1455,9 @@ export function FlowDesigner() {
   // The beat currently playing in place (its play button pressed), or null. Only
   // one beat plays at a time; setting this to another id stops the previous one.
   const [playingId, setPlayingId] = useState<string | null>(null);
+  // Show the expected user response as a sub-row under each coach line in the
+  // script panel. Off by default (Yair is still deciding if it belongs here).
+  const [showExpectedUser, setShowExpectedUser] = useState(false);
   const tab = TABS.find((t) => t.id === activeTab) ?? TABS[0];
 
   return (
@@ -1640,12 +1492,33 @@ export function FlowDesigner() {
           }}
         />
         <VoiceLegend />
+        {tab.id === 'onboarding' && (
+          <label
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 12.5,
+              color: '#64748b',
+              cursor: 'pointer',
+              marginBottom: 16,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showExpectedUser}
+              onChange={(e) => setShowExpectedUser(e.target.checked)}
+            />
+            Show expected user response under each coach line
+          </label>
+        )}
       </div>
 
       {/* Main layout */}
       <FlowPhoneFrame
         beats={tab.beats}
         showWords={tab.id === 'onboarding'}
+        showExpectedUser={showExpectedUser}
         playingId={playingId}
         onRequestPlay={setPlayingId}
       />

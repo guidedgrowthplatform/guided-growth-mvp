@@ -3,8 +3,7 @@ import path from 'node:path';
 import ts from 'typescript';
 
 const root = process.cwd();
-const flowDesignerPath = path.join(root, 'src/components/flow-designer/FlowDesigner.tsx');
-const metadataPath = path.join(root, 'src/components/flow-designer/onboardingMetadata.json');
+const beatsSourcePath = path.join(root, 'src/components/flow-designer/beatsSource.ts');
 const outputPath = path.join(root, 'dist-flow/parity.json');
 const headersPath = path.join(root, 'dist-flow/_headers');
 const headers = `/
@@ -49,19 +48,22 @@ function objectValue(node) {
   return out;
 }
 
-function findBeatsArray(sourceFile) {
+function findBeatsSource(sourceFile) {
   let beatsArray = null;
 
   function visit(node) {
     if (
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
-      (node.name.text === 'BASE_BEATS' || node.name.text === 'BEATS') &&
-      node.initializer &&
-      ts.isArrayLiteralExpression(node.initializer)
+      node.name.text === 'BEATS_SOURCE' &&
+      node.initializer
     ) {
-      beatsArray = node.initializer;
-      return;
+      // BEATS_SOURCE = [...] as const
+      const init = ts.isAsExpression(node.initializer) ? node.initializer.expression : node.initializer;
+      if (ts.isArrayLiteralExpression(init)) {
+        beatsArray = init;
+        return;
+      }
     }
     ts.forEachChild(node, visit);
   }
@@ -69,39 +71,38 @@ function findBeatsArray(sourceFile) {
   visit(sourceFile);
 
   if (!beatsArray) {
-    throw new Error(`Could not find exported BEATS array in ${flowDesignerPath}`);
+    throw new Error(`Could not find BEATS_SOURCE array in ${beatsSourcePath}`);
   }
 
   return beatsArray;
 }
 
-const [flowDesignerSource, metadataSource] = await Promise.all([
-  readFile(flowDesignerPath, 'utf8'),
-  readFile(metadataPath, 'utf8'),
-]);
+const beatsSourceText = await readFile(beatsSourcePath, 'utf8');
 
 const sourceFile = ts.createSourceFile(
-  flowDesignerPath,
-  flowDesignerSource,
+  beatsSourcePath,
+  beatsSourceText,
   ts.ScriptTarget.Latest,
   true,
-  ts.ScriptKind.TSX,
+  ts.ScriptKind.TS,
 );
-const beats = findBeatsArray(sourceFile).elements.map(literalValue);
-const metadata = JSON.parse(metadataSource);
-const metadataByScreenId = new Map(metadata.beats.map((beat) => [beat.screenId, beat]));
+const beats = findBeatsSource(sourceFile).elements.map(literalValue);
 
-const exportBeats = beats.map((beat, index) => {
-  const metadataBeat = beat.screenId ? metadataByScreenId.get(beat.screenId) : null;
-  const opener = beat.props?.coachLine ?? metadataBeat?.opener ?? null;
+// The opener is the first coach-bubble script line (the words the phone bubble
+// reads), falling back to the legacy opener for the derived source.
+function firstOpener(beat) {
+  const bubble = beat.script?.find((line) => line.bindsTo?.kind === 'bubble' && line.words);
+  if (bubble) return bubble.words;
+  const line = beat.script?.find((l) => l.words);
+  return line ? line.words : (beat.legacy?.opener ?? null);
+}
 
-  return {
-    index: index + 1,
-    screenId: beat.screenId ?? null,
-    opener,
-    path: beat.path ?? null,
-  };
-});
+const exportBeats = beats.map((beat, index) => ({
+  index: index + 1,
+  screenId: beat.screenId ?? null,
+  opener: firstOpener(beat),
+  path: beat.path ?? null,
+}));
 
 await mkdir(path.dirname(outputPath), { recursive: true });
 await writeFile(
@@ -109,8 +110,7 @@ await writeFile(
   `${JSON.stringify(
     {
       source: {
-        beats: 'src/components/flow-designer/FlowDesigner.tsx#BEATS',
-        metadata: 'src/components/flow-designer/onboardingMetadata.json',
+        beats: 'src/components/flow-designer/beatsSource.ts#BEATS_SOURCE',
       },
       beats: exportBeats,
     },

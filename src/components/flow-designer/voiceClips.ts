@@ -1,45 +1,15 @@
-// Auto-generated: maps each coach line to its recorded Cartesia clip (V1 Pro Clone,
-// slow take). speak() consults this so Play voices the real MP3, not the browser.
-// The greeting plays via its own audioSrc (/voice/splash_welcome.mp3), not here.
-const CLIPS = new Map<string, string>([
-  ['I\'d love to actually talk with you. If you let me use your mic, you can just speak.', '/voice/ob/mic_permission_1.wav'],
-  ['How old are you?', '/voice/ob/onboard_01_form_1.wav'],
-  ['What\'s your gender?', '/voice/ob/onboard_01_form_2.wav'],
-  ['I\'d like to invite you into a coaching process together. And it\'s built on a few components we\'ll go through on the way in. It\'s built light. I believe less is more, especially in the beginning of a process.', '/voice/ob/onboard_state_check_1.wav'],
-  ['Whether you\'ve never done something like this before or you already track a lot, it is built for you. I\'ll explain each part as we go. This is the first part, a quick state check-in. And I\'d like you to do it right now.', '/voice/ob/onboard_state_check_2.wav'],
-  ['How\'s your sleep?', '/voice/ob/state_sleep.wav'],
-  ['How\'s your mood?', '/voice/ob/state_mood.wav'],
-  ['How\'s your energy?', '/voice/ob/state_energy.wav'],
-  ['How\'s your stress?', '/voice/ob/state_stress.wav'],
-  ['Part of the coaching process is doing this each day. It gives us two things. First, it\'s a real quick check-in on how your state is, which is valuable, and people don\'t usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.', '/voice/ob/onboard_morning_setup_1.wav'],
-  ['Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that\'s what I recommend to start. But you\'re welcome to add the weekend as well.', '/voice/ob/onboard_morning_setup_2.wav'],
-  ['For the next part of the process, I\'d like to know:', '/voice/ob/onboard_fork_form_1.wav'],
-  ['Do you already track habits or is this new to you?', '/voice/ob/fork_question.wav'],
-  ['Let\'s choose one area of your life that you\'d like to improve on. Here are our recommended categories.', '/voice/ob/onboard_beginner_01_1.wav'],
-  ['Or you can create your own.', '/voice/ob/create_your_own.wav'],
-  ['So within that, which goals would you like to start with? Pick one or two.', '/voice/ob/onboard_beginner_02_1.wav'],
-  ['Tell me the goal you want to add, and I\'ll set it up.', '/voice/ob/onboard_beginner_02_custom_1.wav'],
-  ['Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don\'t keep. Create your own if nothing here fits.', '/voice/ob/onboard_beginner_03_1.wav'],
-  ['Tell me the habit you want to add, and I\'ll set it up.', '/voice/ob/onboard_beginner_03_custom_1.wav'],
-  ['Please set the days that you\'re going to actually do these habits.', '/voice/ob/onboard_beginner_04_1.wav'],
-  ['Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for specific habits, also great.', '/voice/ob/onboard_beginner_04_2.wav'],
-  ['One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.', '/voice/ob/onboard_beginner_07_1.wav'],
-  ['What am I proud of?', '/voice/ob/reflect_proud.wav'],
-  ['What do I forgive myself for?', '/voice/ob/reflect_forgive.wav'],
-  ['What am I grateful for?', '/voice/ob/reflect_grateful.wav'],
-  ['Or make your own, or just talk freely.', '/voice/ob/reflect_alt.wav'],
-  ['I\'d recommend doing this before bed, maybe 15 minutes before you wind down.', '/voice/ob/reflect_time.wav'],
-  ['Read me the list of the habits that you already track. In the next step we\'ll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.', '/voice/ob/onboard_advanced_1.wav'],
-  ['Those are all in, and I marked each as build or break. Tell me if any look wrong. If they\'re good, we\'ll set the days next.', '/voice/ob/close.wav'],
-  ['Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.', '/voice/ob/onboard_advanced_frequency_1.wav'],
-  ['Your habits are all set, your plan is ready.', '/voice/ob/onboard_advanced_frequency_2.wav'],
-  ['Here\'s your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?', '/voice/ob/onboard_complete_1.wav'],
-  ['This is your week. Blank, starting today.', '/voice/ob/onboard_weekly_projection_blank_1.wav'],
-  ['Best case, every day green. 100% success. That would be amazing.', '/voice/ob/onboard_weekly_projection_full_1.wav'],
-  ['Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.', '/voice/ob/onboard_weekly_projection_p78_1.wav'],
-  ['Some weeks can look like this. And even that\'s okay, because you\'re in the process and you\'re consistent inside the process.', '/voice/ob/onboard_weekly_projection_p36_1.wav'],
-  ['The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going.', '/voice/ob/onboard_weekly_projection_gaps_1.wav'],
-]);
+// Thin re-export derived from the ONE source (beatsSource.ts). The text -> clip
+// path map is built from the script lines' words + clipPath, so there is no
+// second hand-authored clip list to drift. speak() consults clipSrc() so Play
+// voices the real recorded clip, not the browser voice.
+import { BEATS_SOURCE } from './beatsSource';
+
+const CLIPS = new Map<string, string>();
+for (const beat of BEATS_SOURCE) {
+  for (const line of beat.script) {
+    if (line.clipPath && line.words) CLIPS.set(line.words.trim(), line.clipPath);
+  }
+}
 
 export function clipSrc(text: string): string | null {
   return CLIPS.get((text || '').trim()) ?? null;
