@@ -26,12 +26,13 @@ if (!CARTESIA_API_KEY && !OPENAI_API_KEY) {
   process.exit(1);
 }
 
-const CARTESIA_API_VERSION = '2026-03-01';
+const CARTESIA_API_VERSION = '2024-11-13';
 const OUTPUT_DIR = path.resolve('public/voice');
 const MANIFEST_PATH = path.resolve('src/data/voice-manifest.json');
 
-// Katie (female) voice — matches tts-service.ts default
-const VOICE_ID = 'f786b574-daa5-4673-aa0c-cbe3e8534c02';
+// Yair English, Pro Voice Clone V1 — locked "onboarding-mp3" preset
+// (gg-spec/docs/voice-presets.md). Do not swap for a generic/stock voice.
+const VOICE_ID = '104635f9-8991-403c-9988-bc5b70b39939';
 
 // ─── Voice Lines to Generate ────────────────────────────────────────────────
 // Format: { file_id, text, screen, trigger }
@@ -137,10 +138,18 @@ async function generateWithCartesia(text) {
       'Cartesia-Version': CARTESIA_API_VERSION,
     },
     body: JSON.stringify({
-      model_id: 'sonic-3',
+      // Locked "onboarding-mp3" preset (gg-spec/docs/voice-presets.md /
+      // voice-presets.json): pinned dated model id, clean WAV output (no mp3
+      // round-trip). NOTE: the preset also specifies native "slow" speed, but
+      // no request-body field for it is confirmed anywhere in this codebase or
+      // in the team's own reference generation script that produced the
+      // already-delivered clips (Yair-Context/scratch/onboarding-mp3s-2026-06-29/
+      // render_mp3s.py), which omits a speed field entirely. Left unset here
+      // rather than guessing a field name — flag to Yair before relying on it.
+      model_id: 'sonic-3.5-2026-05-04',
       transcript: text.trim(),
       voice: { mode: 'id', id: VOICE_ID },
-      output_format: { container: 'mp3', encoding: 'mp3', sample_rate: 24000 },
+      output_format: { container: 'wav', encoding: 'pcm_s16le', sample_rate: 44100 },
       language: 'en',
     }),
     signal: AbortSignal.timeout(30000),
@@ -167,7 +176,9 @@ async function generateWithOpenAI(text) {
       model: 'tts-1',
       input: text.trim(),
       voice: 'nova',
-      response_format: 'mp3',
+      // wav, not mp3 — the output filename below is now always .wav to match
+      // the Cartesia primary path's clean-WAV output_format.
+      response_format: 'wav',
       speed: 1.0,
     }),
     signal: AbortSignal.timeout(30000),
@@ -215,7 +226,9 @@ async function main() {
   let failed = 0;
 
   for (const line of VOICE_LINES) {
-    const filename = `${line.file_id}.mp3`;
+    // .wav to match the clean-WAV output_format above (was .mp3 when this
+    // wrote real mp3 bytes; kept in sync now that the bytes are WAV).
+    const filename = `${line.file_id}.wav`;
     const filepath = path.join(OUTPUT_DIR, filename);
 
     // Skip if file exists and hash matches (unchanged text)
