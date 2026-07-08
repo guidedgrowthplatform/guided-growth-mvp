@@ -24,7 +24,11 @@ import {
   useTtsPlaybackStore,
 } from '@/lib/services/tts-service';
 import { applyName } from '@/onboarding-flow/renderer/applyName';
-import { claimBeatAudio, releaseBeatAudio } from '@/onboarding-flow/renderer/beatAudioOwner';
+import {
+  claimBeatAudio,
+  peekBeatAudioOwner,
+  releaseBeatAudio,
+} from '@/onboarding-flow/renderer/beatAudioOwner';
 import { resolveOnboardingOpener } from '@/onboarding-flow/renderer/resolveBeatOpener';
 import { detectAffirmation } from '@gg/shared/onboarding/detectAffirmation';
 import type { OnboardingState } from '@gg/shared/types';
@@ -196,10 +200,18 @@ export function useOnboardingChat({
   // sendOpener-driven speech turn (streamed or one-shot). Tracked locally so
   // release is only ever called by the owner that actually claimed.
   const ownsSpeechClaimRef = useRef(false);
+  // B58 (M5): the sid the claim was actually taken against, captured at claim
+  // time - a beat advance mid-turn must release THIS sid, not whatever
+  // screenIdRef has drifted to by release time.
+  const claimedSidRef = useRef<string | null>(null);
+  // B58 (M2): latches a turn that was skipped (peek saw another owner) so the
+  // effect doesn't re-peek/re-warn on every subsequent response chunk.
+  const speechSkippedTurnRef = useRef(false);
   const releaseSpeechClaim = useCallback(() => {
     if (!ownsSpeechClaimRef.current) return;
     ownsSpeechClaimRef.current = false;
-    const sid = screenIdRef.current;
+    const sid = claimedSidRef.current;
+    claimedSidRef.current = null;
     if (sid) releaseBeatAudio(sid, 'send-opener-speech');
   }, []);
   const resetSpeechTurn = useCallback(() => {
@@ -209,6 +221,17 @@ export function useOnboardingChat({
     turnFinalizedRef.current = true;
     releaseSpeechClaim();
   }, [releaseSpeechClaim]);
+  // B58 (M1/M2): peek before claiming so a beat already owned by another
+  // speaker (narration script, legacy opener) is skipped silently - no claim
+  // call, so no warn. Only a genuine race (peek free, claim loses) still warns.
+  const tryClaimSpeech = useCallback((sid: string | null): boolean => {
+    if (!sid) return true;
+    const other = peekBeatAudioOwner(sid);
+    if (other && other !== 'send-opener-speech') return false;
+    const owns = claimBeatAudio(sid, 'send-opener-speech');
+    if (owns) claimedSidRef.current = sid;
+    return owns;
+  }, []);
 
   const startStream = useCallback((text: string) => {
     suppressTrailingRef.current = false;
@@ -447,6 +470,21 @@ export function useOnboardingChat({
     if (!speakReplies || orbState === 'vapi') stopTTS();
   }, [speakReplies, orbState]);
 
+  // B58 (M3): a beat can advance (tool-driven) while this hook's reply speech
+  // is still draining under the OLD beat's claim - stop it here instead of
+  // letting the audio tail bleed into the next beat's opener (mirrors the
+  // barge-in reset above, just keyed off screen change instead of user input).
+  const prevScreenIdForSpeechRef = useRef(screenId);
+  useEffect(() => {
+    const prev = prevScreenIdForSpeechRef.current;
+    prevScreenIdForSpeechRef.current = screenId;
+    if (prev === screenId) return;
+    if (!claimedSidRef.current || claimedSidRef.current === screenId) return;
+    stopTTS();
+    resetSpeechTurn();
+    speechSkippedTurnRef.current = false;
+  }, [screenId, resetSpeechTurn]);
+
   // Flush a held voice-in turn once the session is ready AND the LLM is idle.
   // sendMessage no-ops while a stream is in flight, so a turn that landed
   // mid-reply (barge-in queued it) must wait for the abort to settle.
@@ -485,10 +523,13 @@ export function useOnboardingChat({
       lastSpokenOffsetRef.current = 0;
       streamTurnActiveRef.current = false;
       streamedSomethingRef.current = false;
+      speechSkippedTurnRef.current = false;
     }
     prevStreamingRef.current = llm.isStreaming;
 
     if (!toolActive || !llm.isStreaming || !speakRepliesRef.current || !llm.response) return;
+    // B58 (M2): latched for this turn already - don't re-peek per response chunk.
+    if (speechSkippedTurnRef.current) return;
     const { chunks, nextOffset } = nextSentenceChunks(llm.response, lastSpokenOffsetRef.current);
     if (chunks.length === 0) return;
     if (!streamTurnActiveRef.current) {
@@ -502,13 +543,12 @@ export function useOnboardingChat({
       // NarrationBeatView hasn't mounted yet but narration-driver must win. Bail
       // silently: the narration will play and the user's next turn carries the reply.
       const sid = screenIdRef.current;
-      if (sid && beatOwnsOpenerRef.current?.(sid)) {
-        ownsSpeechClaimRef.current = false;
+      const owns = tryClaimSpeech(sid);
+      ownsSpeechClaimRef.current = owns;
+      if (!owns) {
+        speechSkippedTurnRef.current = true;
         return;
       }
-      const owns = sid ? claimBeatAudio(sid, 'send-opener-speech') : true;
-      ownsSpeechClaimRef.current = owns;
-      if (!owns) return;
       turnSeqRef.current += 1;
       beginSpeechTurn({ onReveal: (t) => emitAssistant(t, 'partial') });
       streamTurnActiveRef.current = true;
@@ -517,7 +557,7 @@ export function useOnboardingChat({
     for (const c of chunks) pushSpeechChunk(c);
     lastSpokenOffsetRef.current = nextOffset;
     streamedSomethingRef.current = true;
-  }, [toolActive, llm.isStreaming, llm.response, emitAssistant]);
+  }, [toolActive, llm.isStreaming, llm.response, emitAssistant, tryClaimSpeech]);
 
   // Mirror LLM messages → shared thread. A voice-out turn that streamed chunks
   // defers its thread append + bubble-clear until playback drains, so the final
@@ -622,13 +662,10 @@ export function useOnboardingChat({
         // B40-2: same beat-owns guard as the streaming path: don't claim
         // send-opener-speech on a narration-owned beat mid-transition.
         if (speakRepliesRef.current) {
-          const sid = screenIdRef.current;
-          if (!sid || !beatOwnsOpenerRef.current?.(sid)) {
-            const owns = sid ? claimBeatAudio(sid, 'send-opener-speech') : true;
-            if (owns) {
-              ownsSpeechClaimRef.current = true;
-              void speak(content).finally(releaseSpeechClaim);
-            }
+          const owns = tryClaimSpeech(screenIdRef.current);
+          if (owns) {
+            ownsSpeechClaimRef.current = true;
+            void speak(content).finally(releaseSpeechClaim);
           }
         }
       }
@@ -641,6 +678,7 @@ export function useOnboardingChat({
     resetSpeechTurn,
     chatNative,
     releaseSpeechClaim,
+    tryClaimSpeech,
   ]);
 
   // Stream ended with no final message (abort/tool-only) — drain the open speech
@@ -752,13 +790,10 @@ export function useOnboardingChat({
         // B40-2: same beat-owns guard — if the beat we just advanced TO already
         // owns its audio, don't speak over its narration opener.
         if (speakRepliesRef.current) {
-          const sid = screenIdRef.current;
-          if (!sid || !beatOwnsOpenerRef.current?.(sid)) {
-            const owns = sid ? claimBeatAudio(sid, 'send-opener-speech') : true;
-            if (owns) {
-              ownsSpeechClaimRef.current = true;
-              void speak('Great — moving on.').finally(releaseSpeechClaim);
-            }
+          const owns = tryClaimSpeech(screenIdRef.current);
+          if (owns) {
+            ownsSpeechClaimRef.current = true;
+            void speak('Great — moving on.').finally(releaseSpeechClaim);
           }
         }
         // Already-complete revisit: no current_step transition for useAgentNavigation,
@@ -807,6 +842,7 @@ export function useOnboardingChat({
       chatNative,
       onVoiceAction,
       releaseSpeechClaim,
+      tryClaimSpeech,
     ],
   );
 

@@ -141,12 +141,17 @@ export interface BeatOpenerMp3State {
  * playing over whatever already owns the beat. Omit `ownership` for callers
  * outside the beat-audio system (none today; kept optional so the existing
  * unit tests that call this hook directly need no change).
+ *
+ * `ownership.releaseOnSettle` (B58, default true): false means an external
+ * holder (useBeatAudioHold) owns the release - this hook still claims per
+ * activation (silent no-op for a repeat same-owner claim) but never releases,
+ * so a multi-segment script's inter-clip gaps stay claimed.
  */
 export function useBeatOpenerMp3(
   src: string | null,
   active: boolean,
   displayWordCount = 0,
-  ownership?: { beatId: string; owner: BeatAudioOwnerKind },
+  ownership?: { beatId: string; owner: BeatAudioOwnerKind; releaseOnSettle?: boolean },
 ): BeatOpenerMp3State {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -294,7 +299,8 @@ export function useBeatOpenerMp3(
       // B40: give up the beat-audio claim on settle so the NEXT beat (or a
       // retry of this one) can claim cleanly. Safe to call unconditionally -
       // releaseBeatAudio() is a no-op unless this owner still holds it.
-      if (ownershipRef.current) {
+      // B58: skip when an external holder owns the release (releaseOnSettle: false).
+      if (ownershipRef.current && ownershipRef.current.releaseOnSettle !== false) {
         releaseBeatAudio(ownershipRef.current.beatId, ownershipRef.current.owner);
       }
       setPlaying(false);
@@ -425,7 +431,7 @@ export function useBeatOpenerMp3(
       // skipped them above.
       unregisterCoachAudioElement(el);
       pooled?.release();
-      if (ownershipRef.current) {
+      if (ownershipRef.current && ownershipRef.current.releaseOnSettle !== false) {
         releaseBeatAudio(ownershipRef.current.beatId, ownershipRef.current.owner);
       }
       if (settleCurrentRef.current === settle) settleCurrentRef.current = null;

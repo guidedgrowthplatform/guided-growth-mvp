@@ -65,13 +65,15 @@ function Probe({
   active,
   beatId,
   owner,
+  releaseOnSettle,
 }: {
   src: string | null;
   active: boolean;
   beatId: string;
   owner: 'narration-driver' | 'opener-mp3';
+  releaseOnSettle?: boolean;
 }) {
-  state = useBeatOpenerMp3(src, active, 0, { beatId, owner });
+  state = useBeatOpenerMp3(src, active, 0, { beatId, owner, releaseOnSettle });
   return null;
 }
 
@@ -89,7 +91,8 @@ beforeEach(() => {
   if (typeof globalThis.requestAnimationFrame === 'undefined') {
     vi.stubGlobal(
       'requestAnimationFrame',
-      (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 16) as unknown as number,
+      (cb: FrameRequestCallback) =>
+        setTimeout(() => cb(performance.now()), 16) as unknown as number,
     );
     vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
   }
@@ -142,7 +145,12 @@ describe('useBeatOpenerMp3 beatAudioOwner integration (B40)', () => {
 
   it('claim granted plays normally (baseline: ownership does not change the happy path)', async () => {
     await render(
-      <Probe src="/voice/ob/onboard_state_check_1.wav" active beatId="ONBOARD-BEGINNER-01" owner="opener-mp3" />,
+      <Probe
+        src="/voice/ob/onboard_state_check_1.wav"
+        active
+        beatId="ONBOARD-BEGINNER-01"
+        owner="opener-mp3"
+      />,
     );
     expect(FakeAudio.instances.length).toBe(1);
     expect(FakeAudio.instances[0].playCalls).toBe(1);
@@ -162,5 +170,56 @@ describe('useBeatOpenerMp3 beatAudioOwner integration (B40)', () => {
 
     // The claim must be gone: a fresh owner on the SAME beat id can now claim.
     expect(claimBeatAudio('ONBOARD-BEGINNER-02', 'narration-driver')).toBe(true);
+  });
+});
+
+describe('useBeatOpenerMp3 releaseOnSettle: false (B58)', () => {
+  it('a clip settling (onended) leaves the claim held - an external holder owns the release', async () => {
+    await render(
+      <Probe
+        src="/voice/segment-1.mp3"
+        active
+        beatId="ONBOARD-BEGINNER-04"
+        owner="narration-driver"
+        releaseOnSettle={false}
+      />,
+    );
+    expect(FakeAudio.instances.length).toBe(1);
+
+    await act(async () => {
+      FakeAudio.instances[0].onended?.();
+    });
+
+    expect(state!.done).toBe(true);
+    // Still held: a different owner racing the same beat is denied + warns.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'opener-mp3')).toBe(false);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('deactivation/unmount cleanup does not release either - claim still held after', async () => {
+    await render(
+      <Probe
+        src="/voice/segment-1.mp3"
+        active
+        beatId="ONBOARD-BEGINNER-04"
+        owner="narration-driver"
+        releaseOnSettle={false}
+      />,
+    );
+    expect(FakeAudio.instances.length).toBe(1);
+
+    await render(
+      <Probe
+        src="/voice/segment-1.mp3"
+        active={false}
+        beatId="ONBOARD-BEGINNER-04"
+        owner="narration-driver"
+        releaseOnSettle={false}
+      />,
+    );
+
+    // A same-owner reclaim (e.g. the external hold) still reads it as held.
+    expect(claimBeatAudio('ONBOARD-BEGINNER-04', 'narration-driver')).toBe(true);
   });
 });
