@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T02:10:36+03:00",
+  "updated": "2026-07-09T02:18:59+03:00",
   "phase": "render-clean",
   "headline": "Building the render to render-ready. Fable QA held until every beat's annotations are fully populated.",
   "gate": [
@@ -72,18 +72,22 @@
       "title": "voicegen preset fix",
       "state": "draft",
       "note": "footgun closed"
+    },
+    {
+      "iid": 521,
+      "title": "render guards in CI",
+      "state": "draft",
+      "note": "report mode, ran green on pipeline 1427"
     }
   ],
   "active": [
-    "finisher building on the render",
-    "cartesia cost research",
-    "screen_contexts retirement map",
-    "check:beats CI wiring"
+    "finisher building on the render (all prep work done, waiting on it)"
   ],
   "waitingOnYair": [
     "render walkthrough and approve (when render-ready)"
   ],
   "recent": [
+    "all prep done: render guards in CI (!521), voicegen fix, TTS stub, cost note, screen_contexts plan",
     "live conductor dashboard deployed at /internal/conductor",
     "epoch rule resolved: render is permanent source of truth",
     "clips (42) done, absorbing into finisher",
