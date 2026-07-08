@@ -16,7 +16,7 @@
 // Richer JSON-schema subset (array items, enums) than tools.ts's four base tools.
 import type { JSONSchema } from './jsonSchemaTypes.js';
 
-export type OnboardingToolName =
+type OnboardingToolName =
   | 'submit_profile'
   | 'submit_path_choice'
   | 'submit_category'
@@ -77,7 +77,6 @@ export interface OnboardingTool {
 
 // Closed enums mirror UI options on ONBOARD-01--FORM.
 export const GENDER_OPTIONS = ['Male', 'Female', 'Other'] as const;
-export type GenderOption = (typeof GENDER_OPTIONS)[number];
 
 export const CATEGORY_OPTIONS = [
   'Sleep better',
@@ -89,7 +88,6 @@ export const CATEGORY_OPTIONS = [
   'Break bad habits',
   'Get more organized',
 ] as const;
-export type CategoryOption = (typeof CATEGORY_OPTIONS)[number];
 
 export const SCHEDULE_OPTIONS = ['Weekday', 'Weekend', 'Every day'] as const;
 export type ScheduleOption = (typeof SCHEDULE_OPTIONS)[number];
@@ -123,7 +121,6 @@ export function inferSchedule(days: readonly number[]): ScheduleOption | null {
 }
 
 export const PATH_OPTIONS = ['simple', 'braindump'] as const;
-export type PathOption = (typeof PATH_OPTIONS)[number];
 
 export const MAX_GOALS = 2;
 export const MAX_HABITS = 2;

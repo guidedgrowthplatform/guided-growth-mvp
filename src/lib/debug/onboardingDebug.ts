@@ -1,6 +1,6 @@
 // Single sink for the onboarding console log — all paths route through logDebugEvent.
 
-export type DebugSource = 'vapi' | 'llm' | 'session';
+type DebugSource = 'vapi' | 'llm' | 'session';
 
 export interface DebugEntry {
   source: DebugSource;
@@ -11,7 +11,7 @@ export interface DebugEntry {
 }
 
 // On in DEV, or any build where localStorage.gg_debug is set (watch live deploy, no rebuild).
-export function debugEnabled(): boolean {
+function debugEnabled(): boolean {
   if (import.meta.env.DEV) return true;
   try {
     return !!localStorage.getItem('gg_debug');

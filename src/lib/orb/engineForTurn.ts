@@ -6,8 +6,8 @@ import type { OrbState } from './orbState';
 // surface), while local-capture beats are left idle for their adapter-owned
 // capture; transient Vapi health gates (anon_id, cap, fatal, cooldown) are
 // applied by the caller when turning intent into `vapiShouldBeLive`.
-export type ChatEngine = 'vapi' | 'direct_llm' | 'idle';
-export type MicSource = 'vapi' | 'soniox' | 'none';
+type ChatEngine = 'vapi' | 'direct_llm' | 'idle';
+type MicSource = 'vapi' | 'soniox' | 'none';
 
 export interface EngineInputs {
   inOnboarding: boolean;

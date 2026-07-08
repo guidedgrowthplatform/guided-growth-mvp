@@ -3,7 +3,7 @@ import { fetchLinearHistory } from '@/api/chat';
 import { useAuthStore } from '@/stores/authStore';
 import type { LLMChatMessage } from '@gg/shared/types/llm';
 
-export type ChatHistoryStatus = 'idle' | 'loading' | 'ready' | 'error';
+type ChatHistoryStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 const PAGE_SIZE = 50;
 

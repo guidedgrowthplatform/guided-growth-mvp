@@ -17,7 +17,7 @@ import type {
 } from '@gg/shared/types/llm';
 import { useSessionLog } from './useSessionLog';
 
-export type LLMStatus = 'idle' | 'streaming' | 'done' | 'error';
+type LLMStatus = 'idle' | 'streaming' | 'done' | 'error';
 
 // Shown when a turn yields neither text nor a tool action — else the UI looks frozen.
 const EMPTY_TURN_FALLBACK = "Sorry, I didn't quite get that — could you say it another way?";
@@ -34,7 +34,7 @@ const DELTA_COALESCE_MS = 40;
 // multi-round turns are unaffected; only a genuinely dead stream trips it.
 const STREAM_IDLE_TIMEOUT_MS = 30_000;
 
-export interface LLMToolFailure {
+interface LLMToolFailure {
   id: string;
   name: string;
   error: string;

@@ -5,15 +5,15 @@ import pool from '../db.js';
 // across habits, state check-ins, and reflections, plus enough of the prior
 // weekly session to let the coach reference it ("last week you said...").
 
-export type HabitDayCellStatus = 'done' | 'missed' | 'pending';
+type HabitDayCellStatus = 'done' | 'missed' | 'pending';
 
-export interface WeekDataHabitDay {
+interface WeekDataHabitDay {
   date: string; // yyyy-MM-dd
   scheduled: boolean;
   status: HabitDayCellStatus;
 }
 
-export interface WeekDataHabit {
+interface WeekDataHabit {
   name: string;
   polarity: 'build' | 'break';
   cadence: string;
@@ -23,7 +23,7 @@ export interface WeekDataHabit {
   scheduledCount: number;
 }
 
-export interface WeekDataState {
+interface WeekDataState {
   sleep: Array<number | null>;
   mood: Array<number | null>;
   energy: Array<number | null>;
@@ -31,12 +31,12 @@ export interface WeekDataState {
   datesLogged: number;
 }
 
-export interface WeekDataReflection {
+interface WeekDataReflection {
   date: string;
   text: string;
 }
 
-export interface WeekDataLastWeek {
+interface WeekDataLastWeek {
   focus: string | null;
   changes: unknown[];
 }
@@ -376,9 +376,9 @@ export function renderWeekDataBlock(week: WeekData): string {
 
 // ─── buildWeekGridPayload ────────────────────────────────────────────────
 
-export type HabitWeekCell = 'done' | 'missed' | 'gap' | 'off';
+type HabitWeekCell = 'done' | 'missed' | 'gap' | 'off';
 
-export interface WeekGridRow {
+interface WeekGridRow {
   name: string;
   cells: HabitWeekCell[];
   done: number;

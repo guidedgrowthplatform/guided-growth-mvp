@@ -20,7 +20,7 @@ import type { HabitWeekCell } from '@/components/habit-detail/WeeklyHabitsSummar
 import type { Habit, HabitCompletion } from '@/lib/services/data-service.interface';
 import { isHabitScheduledOnDate } from './useHabitsForDate';
 
-export interface WeekGridRow {
+interface WeekGridRow {
   name: string;
   cells: HabitWeekCell[];
   done: number;

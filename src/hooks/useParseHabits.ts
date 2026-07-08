@@ -8,7 +8,7 @@ import type { ParsedHabit } from '@gg/shared/types';
 // Above server's 18s so a slow LLM lands instead of aborting early to regex.
 const PARSE_TIMEOUT_MS = 20_000;
 
-export type ParseSource = 'llm' | 'regex_fallback';
+type ParseSource = 'llm' | 'regex_fallback';
 
 export interface ParseResult {
   habits: ParsedHabit[];

@@ -66,24 +66,12 @@ function profileFromEvent(evt: LLMToolEvent): ProfileCardData | null {
   };
 }
 
-// Derive every onboarding card carried by one assistant message's tool events.
-// Mirrors src/lib/chat/coachChatCards.ts — grows one deriver per future beat.
-export function buildOnboardingCards(m: LLMChatMessage): OnboardingCard[] | undefined {
-  const cards: OnboardingCard[] = [];
-  let profile: ProfileCardData | null = null;
-  for (const evt of m.toolEvents ?? []) {
-    const p = profileFromEvent(evt);
-    if (p) profile = p; // last successful submit_profile wins
-  }
-  if (profile) cards.push({ type: 'profile', data: profile });
-  return cards.length ? cards : undefined;
-}
 
 // PROACTIVE path: build the current beat's card from live onboarding state so
 // it renders WITH the coach opener (pre-filled), not only after a tool fires.
 // Re-derived each render, so voice/typed tool-fills (which update
 // onboarding_states.data) flow straight into the card.
-export function buildActiveBeatCard(
+function buildActiveBeatCard(
   cardType: BeatCardType,
   state: OnboardingState | null,
 ): OnboardingCard | null {

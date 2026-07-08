@@ -81,7 +81,7 @@ export function isProvenanceStaleOnEmptyCache(
  * transaction (one coalesced event per tool batch) is the primary fix; this is
  * defense-in-depth for any non-coalesced write.
  */
-export function mergeRealtimeRow(
+function mergeRealtimeRow(
   current: OnboardingState | null | undefined,
   next: OnboardingState,
 ): OnboardingState {

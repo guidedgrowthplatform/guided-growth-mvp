@@ -7,7 +7,7 @@
  */
 import { QA_SCREEN_ENABLED } from '@/onboarding-flow/qaConvoHarness';
 
-export type QaOrbLevelSource = 'coach' | 'user' | 'idle';
+type QaOrbLevelSource = 'coach' | 'user' | 'idle';
 
 export interface QaOrbLevel {
   source: QaOrbLevelSource;

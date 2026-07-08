@@ -15,11 +15,11 @@ export interface ProfileCardData {
 
 // Beat 0 — how the user wants to interact. Persisted into user preferences,
 // not onboarding_states, so the card carries no seed data.
-export type PreferencesCardData = Record<string, never>;
+type PreferencesCardData = Record<string, never>;
 
 // Beat 0 (chat-native) — auth visual shell. Real auth wiring lands later;
 // today the buttons just advance the beat.
-export type AuthCardData = Record<string, never>;
+type AuthCardData = Record<string, never>;
 
 // Serialized habit config (days as number[], matching onboarding_states.data).
 export interface SerializedHabitConfig {

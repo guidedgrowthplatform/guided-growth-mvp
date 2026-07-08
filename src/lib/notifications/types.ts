@@ -2,7 +2,7 @@ import type { PushNotificationCategory } from '@gg/shared/types';
 
 export type NotificationCategory = PushNotificationCategory;
 
-export interface NotificationDetail {
+interface NotificationDetail {
   eyebrow: string;
   heading: string;
   paragraphs: string[];

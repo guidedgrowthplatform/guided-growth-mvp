@@ -3,7 +3,7 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { stopVoice, unlockCartesiaVoice } from '@/lib/services/cartesiaVoice';
 import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
 
-export type MicRequestResult = 'granted' | 'denied' | 'unavailable';
+type MicRequestResult = 'granted' | 'denied' | 'unavailable';
 
 export interface DualButtonControls {
   voiceOn: boolean;

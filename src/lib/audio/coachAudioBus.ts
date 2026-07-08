@@ -34,7 +34,7 @@
  *     followed one, so this does not add a new autoplay-policy risk).
  */
 
-export interface CoachAudioLevel {
+interface CoachAudioLevel {
   /** 0..1 smoothed RMS-ish amplitude of whatever coach audio is playing now. */
   amp: number;
   /** True while a registered element is actually producing audible playback. */

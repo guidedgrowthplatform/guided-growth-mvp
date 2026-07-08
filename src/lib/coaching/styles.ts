@@ -1,5 +1,1 @@
-export {
-  normalizeCoachingStyle,
-  type CoachingStyle,
-  type CoachingStyleConfig,
-} from '@gg/shared/coaching/styles';
+export { normalizeCoachingStyle } from '@gg/shared/coaching/styles';

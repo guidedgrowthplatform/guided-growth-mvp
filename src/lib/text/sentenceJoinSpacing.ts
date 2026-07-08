@@ -33,7 +33,7 @@ export function fixSentenceJoinSpacing(text: string): string {
 
 // Chars of already-accumulated text needed to detect a pattern spanning an
 // append seam: two word chars plus the terminator.
-export const JOIN_SEAM_WINDOW = 3;
+const JOIN_SEAM_WINDOW = 3;
 
 /**
  * Stream-safe append: returns the text to append when `incoming` is added

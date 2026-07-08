@@ -79,7 +79,6 @@ export const VAPI_CAP_DISABLED = import.meta.env.VITE_VOICE_CAP_DISABLED === '1'
 // consumes the daily coach-chat allowance and is never blocked by the cap.
 // The anti-abuse ceiling for exempt onboarding voice is enforced separately
 // (server/infra backstop — see the fix report on this branch).
-export const CAP_EXEMPT_PAYLOAD_KEY = 'cap_exempt';
 
 interface CapPayload {
   voice_vendor?: string;

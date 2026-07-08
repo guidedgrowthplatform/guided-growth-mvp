@@ -9,7 +9,7 @@
  */
 
 /** Same shape as SPLASH_CAPTIONS (src/components/welcome/splashCaptions.ts). */
-export interface CaptionWord {
+interface CaptionWord {
   /** Onset seconds within the clip. */
   t: number;
   w: string;

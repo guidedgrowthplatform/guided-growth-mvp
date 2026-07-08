@@ -43,7 +43,7 @@ interface ManifestEntry {
 
 type ManifestFiles = Record<string, ManifestEntry>;
 
-export type VoicePlayerState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
+type VoicePlayerState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
 interface PlayOptions {
   /** Retry play() on next gesture when blocked by iOS autoplay policy. */

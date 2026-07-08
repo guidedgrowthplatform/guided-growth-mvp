@@ -6,7 +6,7 @@ import { getDataService } from '@/lib/services/service-provider';
 import { useAuthStore } from '@/stores/authStore';
 import type { BarDataPoint, CompletionStats, HabitPerformance } from './useHabitAnalytics.types';
 
-export type { BarDataPoint, CompletionStats, HabitPerformance };
+export type { CompletionStats, HabitPerformance };
 
 function todayStr(): string {
   return new Date().toISOString().split('T')[0];

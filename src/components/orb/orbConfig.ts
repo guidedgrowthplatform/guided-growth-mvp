@@ -4,7 +4,7 @@
 // DEFAULT_PULSE becomes the orb the app ships. This file is app-owned (not under
 // the flow-designer tool) so the app leads and the builder consumes the same orb.
 
-export interface OrbParams {
+interface OrbParams {
   // Orb (the glass button)
   glass: number; // translucency 0..100
   blur: number; // frost blur 0..100

@@ -1,5 +1,5 @@
 // Shared JSON-schema types for LLM tool definitions (onboarding + checkin).
-export interface JSONSchemaProp {
+interface JSONSchemaProp {
   readonly type: 'string' | 'number' | 'boolean' | 'array';
   readonly description?: string;
   readonly enum?: readonly string[];

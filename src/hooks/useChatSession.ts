@@ -3,7 +3,7 @@ import { createOrResumeChatSession } from '@/api/chat';
 import { useAuthStore } from '@/stores/authStore';
 import type { LLMChatMessage } from '@gg/shared/types/llm';
 
-export type ChatSessionStatus = 'idle' | 'loading' | 'ready' | 'error';
+type ChatSessionStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface UseChatSessionReturn {
   chatSessionId: string | null;

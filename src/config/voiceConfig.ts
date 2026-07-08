@@ -1,4 +1,3 @@
-export type VoiceGender = 'male' | 'female';
 
 // Coach Yair cloned voice. "Yair English, Pro Voice Clone, V1". This is the ONE
 // voice across the app: it must match the Vapi assistant's voice exactly so the

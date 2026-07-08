@@ -12,7 +12,6 @@ export const categories = [
 
 export type Category = (typeof categories)[number];
 
-export const CATEGORY_LABELS = categories.map((c) => c.label);
 
 const maleSrc = (c: Category) => `/images/onboarding/male/${c.slug}.webp`;
 const femaleSrc = (c: Category) => `/images/onboarding/female/${c.slug}.webp`;

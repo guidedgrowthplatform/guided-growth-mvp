@@ -29,7 +29,7 @@ import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 //     first. Used by the ONBOARDING_INSTANT_OPENER path so Cartesia speaks the
 //     opener instantly while Vapi connects in the background, and Vapi only
 //     joins the conversation once the user replies.
-export type VapiFirstMessageMode =
+type VapiFirstMessageMode =
   | 'assistant-speaks-first-with-model-generated-message'
   | 'assistant-waits-for-user';
 

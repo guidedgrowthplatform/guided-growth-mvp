@@ -5,12 +5,12 @@ import type { CheckInRecord } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
 import { useAuthStore } from '@/stores/authStore';
 
-export interface CheckInMetric {
+interface CheckInMetric {
   icon: string;
   label: string;
 }
 
-export interface CheckInEntry {
+interface CheckInEntry {
   title: string;
   time: string;
   iconBg: string;
@@ -19,7 +19,7 @@ export interface CheckInEntry {
   notes: string | null;
 }
 
-export interface CheckInDateGroup {
+interface CheckInDateGroup {
   month: string;
   day: number;
   dayName: string;

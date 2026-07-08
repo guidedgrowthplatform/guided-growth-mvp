@@ -12,7 +12,7 @@ import {
 } from '@gg/shared/time/bucketTimeOfDay';
 import { useCheckinDoneToday, useCheckinInitiatedToday } from './useCheckinDoneToday';
 
-export type DedicatedCheckinScreenId = Extract<CheckinScreenId, 'MCHECK-01' | 'ECHECK-01'>;
+type DedicatedCheckinScreenId = Extract<CheckinScreenId, 'MCHECK-01' | 'ECHECK-01'>;
 
 // Check-in windows by LOCAL hour. Morning 05:00–15:59 (runs late so a missed
 // morning isn't lost at noon); evening 17:00–04:59, wrapping past midnight so a

@@ -1,7 +1,7 @@
 // Auto-generated from public/voice/splash_welcome.mp3 via mlx-whisper (word timestamps).
 // Regenerate when the coach clip changes. Edit the word text here if a word is off.
 
-export interface CaptionWord {
+interface CaptionWord {
   /** Start time in seconds within the clip. */
   t: number;
   w: string;

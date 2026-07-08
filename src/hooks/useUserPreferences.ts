@@ -14,7 +14,6 @@ import { supabaseDataService } from '@/lib/services/supabase-data-service';
 import type { UserPreferences as DbUserPreferences } from '@gg/shared/types';
 
 export type { UserPreferences };
-export { DEFAULT_PREFERENCES };
 
 const REMINDER_KEYS = ['morningTime', 'nightTime', 'pushNotifications'] as const;
 

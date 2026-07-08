@@ -16,7 +16,7 @@
  */
 import type { JSONSchema } from './jsonSchemaTypes.js';
 
-export type WeeklyToolName =
+type WeeklyToolName =
   | 'weekly_update_habit'
   | 'weekly_archive_habit'
   | 'weekly_add_habit'
@@ -25,7 +25,6 @@ export type WeeklyToolName =
 
 // Re-export the lifecycle-message shape from the onboarding tools module so
 // both tool sets share one type (they mean the same thing to Vapi).
-export type { ToolLifecycleMessages } from './tools.onboarding.js';
 import type { ToolLifecycleMessages } from './tools.onboarding.js';
 
 export interface WeeklyTool {
@@ -45,7 +44,7 @@ export interface WeeklyTool {
 export const FREQUENCY_OPTIONS = ['daily', 'weekdays', 'weekly', '3x/week'] as const;
 export type FrequencyOption = (typeof FREQUENCY_OPTIONS)[number];
 
-export const HABIT_TYPE_OPTIONS = ['binary_do', 'binary_avoid'] as const;
+const HABIT_TYPE_OPTIONS = ['binary_do', 'binary_avoid'] as const;
 export type HabitTypeOption = (typeof HABIT_TYPE_OPTIONS)[number];
 
 export const HABIT_NAME_MAX_LEN = 100;

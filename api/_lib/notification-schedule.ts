@@ -18,7 +18,7 @@ export interface DueNotification {
 // Vercel cron is best-effort (late/skipped runs, no retries) — a wide window
 // turns "missed" into "late"; the (anon_id, type, local_date) unique index
 // keeps the wide window from double-sending.
-export const DUE_WINDOW_MINUTES = 60;
+const DUE_WINDOW_MINUTES = 60;
 
 const MINUTES_PER_DAY = 24 * 60;
 

@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import { checkInDimensions } from '@/components/home/checkInConfig';
 import type { CheckInDimension } from '@gg/shared/types';
 
-export interface CheckInResultCardData {
+interface CheckInResultCardData {
   sleep: number | null;
   mood: number | null;
   energy: number | null;

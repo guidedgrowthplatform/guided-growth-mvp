@@ -655,18 +655,10 @@ function fnv1a(input: string): string {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-export interface BeatContextMeta {
+interface BeatContextMeta {
   /** The whole-bundle version, bumped on any meaningful change. */
   bundleVersion: number;
   /** Hash of this beat's editable content (context + opener) — changes when copy changes. */
   contentHash: string;
 }
 
-export function getBeatContextMeta(screenId: string): BeatContextMeta | undefined {
-  const b = BEAT_CONTEXTS[screenId];
-  if (!b) return undefined;
-  return {
-    bundleVersion: BEAT_CONTEXT_VERSION,
-    contentHash: fnv1a(`${b.context}\n${b.opener ?? ''}`),
-  };
-}

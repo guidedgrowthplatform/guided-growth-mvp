@@ -82,13 +82,6 @@ export interface FocusSession {
   startedAt: string;
 }
 
-export interface ActionResult {
-  success: boolean;
-  message: string;
-  data?: unknown;
-  uiAction?: 'navigate' | 'refresh' | 'toast' | 'display';
-  navigateTo?: string;
-}
 
 export interface DataService {
   // Habits

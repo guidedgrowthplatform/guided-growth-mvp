@@ -14,7 +14,7 @@ export { PROJECT_REFS };
 // Which project the LIVE connection points at — reads the resolved env
 // (DATABASE_URL / SUPABASE_URL), so it guards the real target regardless of
 // whether it came from .env.local or an inline override.
-export function resolveTargetFromEnv() {
+function resolveTargetFromEnv() {
   return classifyTarget(`${process.env.DATABASE_URL ?? ''} ${process.env.SUPABASE_URL ?? ''}`);
 }
 

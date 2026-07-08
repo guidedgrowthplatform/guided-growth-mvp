@@ -10,7 +10,7 @@ import type { OnboardingState, OnboardingStepData } from '@gg/shared/types';
 // ONBOARD-ADVANCED) had it removed so the flow document's seed/render copy is
 // the single source of truth for those beats (resolveBeatOpener.ts falls
 // through to node.voice.openerText when no locked line exists here).
-export const ONBOARDING_OPENERS: Record<string, string> = {
+const ONBOARDING_OPENERS: Record<string, string> = {
   'ONBOARD-01':
     'OK, let me get to know you a little. First, what should I call you? You can type it here, or fill it in on screen.',
   'ONBOARD-01--FORM':

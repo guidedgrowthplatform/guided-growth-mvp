@@ -23,7 +23,7 @@ import {
   StressZen,
 } from './CheckInIcons';
 
-export interface CheckInOption {
+interface CheckInOption {
   value: number;
   icon: ComponentType<{ color: string }>;
   label: string;

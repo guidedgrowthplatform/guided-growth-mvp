@@ -35,7 +35,7 @@ function errorToMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-export type CoachingStyle = 'warm' | 'direct' | 'reflective';
+type CoachingStyle = 'warm' | 'direct' | 'reflective';
 
 /**
  * Once-per-teardown latch for onEnd. A local stop() tears the call down through
@@ -59,8 +59,8 @@ export function createOnEndLatch(onEnd: () => void): { fire: () => void; arm: ()
   };
 }
 
-export type RealtimeTranscriptRole = 'user' | 'assistant';
-export type RealtimeTranscriptKind = 'partial' | 'final';
+type RealtimeTranscriptRole = 'user' | 'assistant';
+type RealtimeTranscriptKind = 'partial' | 'final';
 
 export interface RealtimeTranscriptEvent {
   role: RealtimeTranscriptRole;
@@ -68,7 +68,7 @@ export interface RealtimeTranscriptEvent {
   text: string;
 }
 
-export interface UseRealtimeVoiceMetadata {
+interface UseRealtimeVoiceMetadata {
   anon_id: string;
   screen?: string;
   coaching_style?: CoachingStyle;

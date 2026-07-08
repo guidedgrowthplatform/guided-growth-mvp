@@ -3,7 +3,7 @@ import type { OrbState } from './orbState';
 // Pure routing decision for the chat overlay's send path.
 export type OrbSendAction = 'vapi' | 'onboarding' | 'checkin' | 'llm' | 'noop';
 
-export type OrbSurface = 'onboarding' | 'checkin' | 'coach';
+type OrbSurface = 'onboarding' | 'checkin' | 'coach';
 
 interface Args {
   orbState: OrbState;

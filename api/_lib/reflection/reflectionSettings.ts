@@ -27,7 +27,7 @@ interface SettingsRow {
 // (Sunday), matching the beat's suggested default.
 const DEFAULT_WEEKLY_DAY = 0;
 
-export const DEFAULT_REFLECTION_SETTINGS: ReflectionSettings = {
+const DEFAULT_REFLECTION_SETTINGS: ReflectionSettings = {
   mode: 'prompts',
   prompts: DEFAULT_REFLECTION_PROMPTS,
   time: null,

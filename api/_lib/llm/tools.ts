@@ -133,7 +133,7 @@ async function checkDedup(ctx: ToolContext): Promise<ToolResult | null> {
   return ctx.dedupLookup(ctx.tool_call_id);
 }
 
-export type ToolError = 'unknown_tool' | 'invalid_args' | 'not_found' | 'handler_error';
+type ToolError = 'unknown_tool' | 'invalid_args' | 'not_found' | 'handler_error';
 export type ToolResult =
   | { ok: true; result: Record<string, unknown> }
   | { ok: false; error: ToolError; message?: string };

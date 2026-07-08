@@ -1,4 +1,1 @@
-export {
-  buildContextMessage,
-  type BuildContextMessageInput,
-} from '@gg/shared/context/buildContextMessage';
+export { buildContextMessage } from '@gg/shared/context/buildContextMessage';

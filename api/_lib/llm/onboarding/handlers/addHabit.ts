@@ -80,7 +80,7 @@ function meaningfulTokens(s: string): string[] {
 // meaning it looks like a substitution or a fabrication rather than a
 // paraphrase of what they said. Names too short to tokenize meaningfully
 // (e.g. "Gym") never trip this, the check needs at least one real token to compare.
-export function looksUngrounded(name: string, userText: string): boolean {
+function looksUngrounded(name: string, userText: string): boolean {
   const nameTokens = meaningfulTokens(name);
   if (nameTokens.length === 0) return false;
   const textTokens = new Set(meaningfulTokens(userText));
@@ -97,7 +97,7 @@ export function looksUngrounded(name: string, userText: string): boolean {
 // entries are dropped first — looksUngrounded('', ...) always passes (no
 // tokens to compare), which would otherwise let one blank entry launder the
 // whole window regardless of what the other entries say.
-export function looksUngroundedInWindow(name: string, userTextWindow: string[]): boolean {
+function looksUngroundedInWindow(name: string, userTextWindow: string[]): boolean {
   const texts = userTextWindow.filter((t) => t.trim().length > 0);
   if (texts.length === 0) return false;
   return texts.every((text) => looksUngrounded(name, text));
@@ -119,7 +119,7 @@ const BARE_AFFIRMATION_RE =
 const AFFIRMATION_WITH_ADD_RE =
   /^((yes|yeah|yep|yup|sure|ok(?:ay)?)[,.]?\s+(please\s+)?|go ahead(?:\s+and)?\s+)(add|do)(?:\s+(?:it|that one|the first one|the second one))?[.!]?$/i;
 
-export function isBareAffirmation(text: string): boolean {
+function isBareAffirmation(text: string): boolean {
   const t = text.trim();
   if (t.length === 0) return false;
   return BARE_AFFIRMATION_RE.test(t) || AFFIRMATION_WITH_ADD_RE.test(t);
@@ -130,7 +130,7 @@ export function isBareAffirmation(text: string): boolean {
 // against what the COACH said rather than what the user said — this is only
 // ever safe to consult when the current user turn is itself a bare
 // affirmation (isBareAffirmation), which the caller in addHabit() enforces.
-export function groundsInAssistantWindow(name: string, assistantTextWindow: string[]): boolean {
+function groundsInAssistantWindow(name: string, assistantTextWindow: string[]): boolean {
   const texts = assistantTextWindow.filter((t) => t.trim().length > 0);
   if (texts.length === 0) return false;
   return texts.some((text) => !looksUngrounded(name, text));
@@ -188,7 +188,7 @@ const EXPLICIT_CORRECTION_RE =
 const DISCARDED_TERM_RE =
   /\b(?:not|didn'?t\s+say|didn'?t\s+mean)\s+(.+?)(?:\s*[,.]|\s+but\b|\s+i\s+(?:said|meant)|$)/i;
 
-export function nameMatchesDiscardedTerm(name: string, userTextWindow: string[]): boolean {
+function nameMatchesDiscardedTerm(name: string, userTextWindow: string[]): boolean {
   const nameTokens = correctionTokens(name);
   if (nameTokens.length === 0) return false;
   for (const text of userTextWindow) {

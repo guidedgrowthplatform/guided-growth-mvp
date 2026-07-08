@@ -21,7 +21,7 @@ export interface SonioxSocket {
   onClose(cb: (code?: number) => void): void;
 }
 
-export interface SonioxConfig {
+interface SonioxConfig {
   model: string;
   sampleRate: number;
   languageHints: string[];
@@ -386,7 +386,7 @@ export interface BrowserSttHandle {
   stop(): void;
 }
 
-export interface ConnectMetrics {
+interface ConnectMetrics {
   mic_ms: number;
   audio_setup_ms: number;
   key_ms: number;

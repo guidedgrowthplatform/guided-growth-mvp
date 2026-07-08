@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
-import { COACH_VOICE_ID, type VoiceGender } from '@/config/voiceConfig';
+import { COACH_VOICE_ID } from '@/config/voiceConfig';
 import { registerCoachAudioElement, unregisterCoachAudioElement } from '@/lib/audio/coachAudioBus';
 import { getAuthHeaders } from '@/lib/services/api-auth';
 import { isVoiceOutEnabled } from './voiceGate';
@@ -21,7 +21,6 @@ export function setTtsSpeaking(value: boolean): void {
 }
 
 // User selects Male or Female on splash screen
-export type { VoiceGender };
 
 // Gender selection unused post-onboarding; coach always speaks as Yair
 function getCartesiaVoiceId(): string {

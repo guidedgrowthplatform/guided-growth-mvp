@@ -27,7 +27,7 @@ export interface ChatMessage {
 
 export type VoiceChatState = 'idle' | 'listening' | 'processing';
 
-export type CreatedItemType = 'habit' | 'reflection';
+type CreatedItemType = 'habit' | 'reflection';
 
 export interface LastCreatedItem {
   type: CreatedItemType;

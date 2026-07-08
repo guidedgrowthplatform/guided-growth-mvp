@@ -7,7 +7,7 @@ import { DayPicker } from '@/components/ui/DayPicker';
 //   'break' <-> habit_type 'binary_break' (stay away from it; legacy 'binary_avoid')
 // Because this component speaks build/break and never imports the data enum,
 // the data rename does not have to touch this file.
-export type HabitPolarity = 'build' | 'break';
+type HabitPolarity = 'build' | 'break';
 
 interface HabitScheduleCardProps {
   habitName: string;

@@ -5,7 +5,7 @@ import type { Habit, HabitCompletion } from '@/lib/services/data-service.interfa
 import { getDataService } from '@/lib/services/service-provider';
 import { useAuthStore } from '@/stores/authStore';
 
-export interface HabitDetailStats {
+interface HabitDetailStats {
   completionRate: number;
   currentStreak: number;
   longestStreak: number;
