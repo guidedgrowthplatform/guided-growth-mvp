@@ -554,7 +554,14 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
             color: '#94a3b8',
           }}
         >
-          No metadata for this beat yet.
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{beat.id}</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+            {beat.type}
+            {beat.path ? ` · ${PATH_STYLE[beat.path].label}` : ''}
+          </div>
+          <div style={{ marginTop: 10, lineHeight: 1.45 }}>
+            No metadata entry. This is a structural silent beat with no coach copy, narration, clip, or expected voice response.
+          </div>
         </div>
       </div>
     );
@@ -576,11 +583,16 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
         }}
       >
         <div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{beat.screenId}</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{beat.id}</div>
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
             {beat.type}
             {beat.path ? ` · ${PATH_STYLE[beat.path].label}` : ''}
           </div>
+          {beat.screenId && (
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+              Screen ID: {beat.screenId}
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
