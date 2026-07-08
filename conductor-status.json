@@ -1,34 +1,90 @@
 {
-  "updated": "2026-07-09T02:55:00+03:00",
+  "updated": "2026-07-09T02:10:36+03:00",
   "phase": "render-clean",
   "headline": "Building the render to render-ready. Fable QA held until every beat's annotations are fully populated.",
   "gate": [
-    {"step": "1. Finisher lands (onboarding copy, logic, clips)", "status": "active"},
-    {"step": "2. Fully populate every beat's annotations (context rules, code rules, accordions, all angles)", "status": "pending"},
-    {"step": "3. Combine all-flows into the trunk", "status": "pending"},
-    {"step": "4. Fable QA the complete annotated render", "status": "pending"},
-    {"step": "5. Yair walks and approves the render", "status": "pending"},
-    {"step": "6. Beat-id rename", "status": "pending"},
-    {"step": "7. App reconcile + flip parity to blocking", "status": "pending"},
-    {"step": "8. Acceptance round + release", "status": "pending"}
+    {
+      "step": "1. Finisher lands (onboarding copy, logic, clips)",
+      "status": "active"
+    },
+    {
+      "step": "2. Fully populate every beat's annotations (context rules, code rules, accordions, all angles)",
+      "status": "pending"
+    },
+    {
+      "step": "3. Combine all-flows into the trunk",
+      "status": "pending"
+    },
+    {
+      "step": "4. Fable QA the complete annotated render",
+      "status": "pending"
+    },
+    {
+      "step": "5. Yair walks and approves the render",
+      "status": "pending"
+    },
+    {
+      "step": "6. Beat-id rename",
+      "status": "pending"
+    },
+    {
+      "step": "7. App reconcile + flip parity to blocking",
+      "status": "pending"
+    },
+    {
+      "step": "8. Acceptance round + release",
+      "status": "pending"
+    }
   ],
   "mrs": [
-    {"iid": 517, "title": "finisher (copy + logic + clips)", "state": "draft", "note": "building L2-L7 + absorb-clips final commit"},
-    {"iid": 518, "title": "42 voice clips", "state": "draft", "note": "done, absorbing into finisher"},
-    {"iid": 514, "title": "source-integrity guards", "state": "draft", "note": "holding, lands after finisher"},
-    {"iid": 515, "title": "all-flows + rules", "state": "draft", "note": "27 new-flow beats in, needs TODO fill + rebase"},
-    {"iid": 519, "title": "QA TTS stub", "state": "draft", "note": "cost guard, off critical path"},
-    {"iid": 520, "title": "voicegen preset fix", "state": "draft", "note": "footgun closed"}
+    {
+      "iid": 517,
+      "title": "finisher (copy + logic + clips)",
+      "state": "draft",
+      "note": "building L2-L7 + absorb-clips final commit"
+    },
+    {
+      "iid": 518,
+      "title": "42 voice clips",
+      "state": "draft",
+      "note": "done, absorbing into finisher"
+    },
+    {
+      "iid": 514,
+      "title": "source-integrity guards",
+      "state": "draft",
+      "note": "holding, lands after finisher"
+    },
+    {
+      "iid": 515,
+      "title": "all-flows + rules",
+      "state": "draft",
+      "note": "27 new-flow beats in, needs TODO fill + rebase"
+    },
+    {
+      "iid": 519,
+      "title": "QA TTS stub",
+      "state": "draft",
+      "note": "cost guard, off critical path"
+    },
+    {
+      "iid": 520,
+      "title": "voicegen preset fix",
+      "state": "draft",
+      "note": "footgun closed"
+    }
   ],
   "active": [
     "finisher building on the render",
     "cartesia cost research",
     "screen_contexts retirement map",
-    "check:beats CI wiring",
-    "live dashboard build"
+    "check:beats CI wiring"
   ],
-  "waitingOnYair": ["render walkthrough and approve (when render-ready)"],
+  "waitingOnYair": [
+    "render walkthrough and approve (when render-ready)"
+  ],
   "recent": [
+    "live conductor dashboard deployed at /internal/conductor",
     "epoch rule resolved: render is permanent source of truth",
     "clips (42) done, absorbing into finisher",
     "qa-fable account re-seeded, round 4 unblocked",
