@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T02:18:59+03:00",
+  "updated": "2026-07-09T02:36:07+03:00",
   "phase": "render-clean",
   "headline": "Building the render to render-ready. Fable QA held until every beat's annotations are fully populated.",
   "gate": [
@@ -78,6 +78,94 @@
       "title": "render guards in CI",
       "state": "draft",
       "note": "report mode, ran green on pipeline 1427"
+    }
+  ],
+  "lanes": [
+    {
+      "name": "Conductor",
+      "cards": [
+        {
+          "title": "Drive render to render-ready",
+          "status": "gating merges, holding rename + execute behind Fable + Yair approval",
+          "state": "in-progress",
+          "driver": "conductor"
+        },
+        {
+          "title": "Release gate",
+          "status": "at step 1 to 3 of the finish-line",
+          "state": "in-progress",
+          "driver": "conductor"
+        }
+      ]
+    },
+    {
+      "name": "Builders",
+      "cards": [
+        {
+          "title": "Finisher (!517)",
+          "status": "building L2/L4c/L3/L5/L7, clips absorb is the last commit",
+          "state": "in-progress",
+          "driver": "render session"
+        },
+        {
+          "title": "All-flows (!515)",
+          "status": "27 other-flow beats in, needs TODO-fill + rebase onto trunk",
+          "state": "pipeline",
+          "driver": "codex lane"
+        },
+        {
+          "title": "Voice clips (!518)",
+          "status": "42 clips done, absorbing into the finisher",
+          "state": "done"
+        },
+        {
+          "title": "Source-integrity guards (!514)",
+          "status": "draft, lands after finisher then rebases",
+          "state": "pipeline"
+        },
+        {
+          "title": "Render guards in CI (!521)",
+          "status": "wired in report mode, ran green on pipeline 1427",
+          "state": "done"
+        },
+        {
+          "title": "QA TTS stub (!519)",
+          "status": "cost guard, off critical path",
+          "state": "done"
+        },
+        {
+          "title": "Voicegen preset fix (!520)",
+          "status": "footgun closed",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "name": "AI QA Fleet",
+      "cards": [
+        {
+          "title": "Fable plan-QA",
+          "status": "held until every beat's annotations are populated, pack ready",
+          "state": "blocked",
+          "driver": "fable session"
+        },
+        {
+          "title": "Round-loop acceptance",
+          "status": "qa-fable account fixed, runs at the acceptance gate",
+          "state": "pipeline"
+        }
+      ]
+    },
+    {
+      "name": "Human & Yair",
+      "cards": [
+        {
+          "title": "Render walkthrough + approve",
+          "status": "the one human handoff, when render-ready",
+          "state": "decision",
+          "driver": "Yair"
+        }
+      ]
     }
   ],
   "active": [
