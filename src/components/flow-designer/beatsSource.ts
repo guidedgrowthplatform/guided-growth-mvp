@@ -13,6 +13,19 @@ export type VoiceEngine = 'MP3' | 'Cartesia' | 'Vapi' | 'Silent';
 export type VoiceMode = 'Verbatim' | 'Improvise' | null;
 export type ScriptVoice = 'verbatim' | 'mp3' | 'cartesia' | null;
 export type BindKind = 'bubble' | 'component';
+export type BeatRuleSeverity = 'must' | 'should';
+
+export interface BeatRule {
+  readonly id: string;
+  readonly rule: string;
+  readonly severity: BeatRuleSeverity;
+  readonly enforcedBy: string | null;
+}
+
+export interface BeatRules {
+  readonly context: readonly BeatRule[];
+  readonly code: readonly BeatRule[];
+}
 
 export interface ScriptLine {
   readonly seq: number;
@@ -58,8 +71,40 @@ export interface BeatEntry {
   readonly hideOrb: boolean;
   readonly props: Record<string, string> | null;
   readonly legacy: BeatLegacyMeta | null;
+  readonly rules?: BeatRules;
   readonly script: readonly ScriptLine[];
 }
+
+export const GLOBAL_RULES: BeatRules = {
+  context: [
+    {
+      id: 'global-context-voice-no-manual-ui',
+      rule: 'Coach voice never tells the user to tap, click, scroll, press, swipe, or long press.',
+      severity: 'must',
+      enforcedBy: 'prose-only-accepted',
+    },
+    {
+      id: 'global-context-guided-growth-name',
+      rule: 'Product copy says Guided Growth.',
+      severity: 'must',
+      enforcedBy: 'parity-walk',
+    },
+  ],
+  code: [
+    {
+      id: 'global-code-one-source',
+      rule: 'The annotated render and play view read beats from BEATS_SOURCE.',
+      severity: 'must',
+      enforcedBy: 'scripts/render-consistency-check.mjs',
+    },
+    {
+      id: 'global-code-bindings-and-clips',
+      rule: 'Every script binding and clip path resolves before the render build is accepted.',
+      severity: 'must',
+      enforcedBy: 'scripts/render-link-integrity-check.mjs',
+    },
+  ],
+};
 
 export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
@@ -1899,7 +1944,43 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "app-tour-context-one-feature",
+          "rule": "Coach explains one home feature per beat, then waits for the next tour beat.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "app-tour-context-no-manual-ui",
+          "rule": "Coach narration does not instruct the user to tap or scroll through the tour.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "app-tour-code-home-tour-stage",
+          "rule": "Each app tour beat renders the home-tour component with a stage prop.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        },
+        {
+          "id": "app-tour-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "app-tour-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "app-tour-evening",
@@ -1948,7 +2029,43 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "app-tour-context-one-feature",
+          "rule": "Coach explains one home feature per beat, then waits for the next tour beat.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "app-tour-context-no-manual-ui",
+          "rule": "Coach narration does not instruct the user to tap or scroll through the tour.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "app-tour-code-home-tour-stage",
+          "rule": "Each app tour beat renders the home-tour component with a stage prop.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        },
+        {
+          "id": "app-tour-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "app-tour-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "app-tour-habits",
@@ -1997,7 +2114,43 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "app-tour-context-one-feature",
+          "rule": "Coach explains one home feature per beat, then waits for the next tour beat.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "app-tour-context-no-manual-ui",
+          "rule": "Coach narration does not instruct the user to tap or scroll through the tour.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "app-tour-code-home-tour-stage",
+          "rule": "Each app tour beat renders the home-tour component with a stage prop.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        },
+        {
+          "id": "app-tour-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "app-tour-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "app-tour-add-habit",
@@ -2046,7 +2199,43 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "app-tour-context-one-feature",
+          "rule": "Coach explains one home feature per beat, then waits for the next tour beat.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "app-tour-context-no-manual-ui",
+          "rule": "Coach narration does not instruct the user to tap or scroll through the tour.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "app-tour-code-home-tour-stage",
+          "rule": "Each app tour beat renders the home-tour component with a stage prop.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        },
+        {
+          "id": "app-tour-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "app-tour-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "app-tour-reflections",
@@ -2095,7 +2284,43 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "app-tour-context-one-feature",
+          "rule": "Coach explains one home feature per beat, then waits for the next tour beat.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "app-tour-context-no-manual-ui",
+          "rule": "Coach narration does not instruct the user to tap or scroll through the tour.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "app-tour-code-home-tour-stage",
+          "rule": "Each app tour beat renders the home-tour component with a stage prop.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        },
+        {
+          "id": "app-tour-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "app-tour-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "app-tour-feedback",
@@ -2144,7 +2369,43 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "app-tour-context-one-feature",
+          "rule": "Coach explains one home feature per beat, then waits for the next tour beat.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "app-tour-context-no-manual-ui",
+          "rule": "Coach narration does not instruct the user to tap or scroll through the tour.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "app-tour-code-home-tour-stage",
+          "rule": "Each app tour beat renders the home-tour component with a stage prop.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        },
+        {
+          "id": "app-tour-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "app-tour-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "app-tour-chat",
@@ -2193,7 +2454,43 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "app-tour-context-one-feature",
+          "rule": "Coach explains one home feature per beat, then waits for the next tour beat.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "app-tour-context-no-manual-ui",
+          "rule": "Coach narration does not instruct the user to tap or scroll through the tour.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "app-tour-code-home-tour-stage",
+          "rule": "Each app tour beat renders the home-tour component with a stage prop.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        },
+        {
+          "id": "app-tour-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "app-tour-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "chat-idle",
@@ -2227,7 +2524,37 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       "narration": null,
       "elements": []
     },
-    "script": []
+    "script": [],
+    "rules": {
+      "context": [
+        {
+          "id": "chat-idle-context-silent",
+          "rule": "The centered idle orb is silent until the user opens chat or starts speaking.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "chat-idle-context-no-opener",
+          "rule": "Do not invent a coach opener on the idle state.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "chat-idle-code-silent-script",
+          "rule": "Idle chat has no script lines and uses voiceEngine Silent.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "chat-idle-code-component",
+          "rule": "The coach-chat-open component renders the idle stage.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        }
+      ]
+    }
   },
   {
     "id": "chat-open",
@@ -2275,7 +2602,43 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "chat-open-context-warm-line",
+          "rule": "Coach opens with one warm line, then waits for the user.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "chat-open-context-voice-open-question",
+          "rule": "Opening copy stays as the specified chat greeting until Yair decides voice versus text-only behavior.",
+          "severity": "should",
+          "enforcedBy": null
+        }
+      ],
+      "code": [
+        {
+          "id": "chat-open-code-scripted-line",
+          "rule": "The chat opener line lives in script and renders through coach-chat-open.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "chat-open-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "chat-open-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "morning-opener",
@@ -2322,7 +2685,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "morning-context-set-script",
+          "rule": "Morning check-in uses fixed Cartesia TTS script, no improvised coach wording.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "morning-context-structured-forward",
+          "rule": "The flow moves forward only: opener, state, partial gate if needed, wrap.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "morning-opener-context-short",
+          "rule": "Greeting is short and hands off to the state check.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "morning-opener-code-script",
+          "rule": "The opener is a single script line.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "morning-opener-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "morning-opener-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "morning-state",
@@ -2442,7 +2847,55 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "morning-context-set-script",
+          "rule": "Morning check-in uses fixed Cartesia TTS script, no improvised coach wording.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "morning-context-structured-forward",
+          "rule": "The flow moves forward only: opener, state, partial gate if needed, wrap.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "morning-state-context-four-items",
+          "rule": "Ask only for mood, energy, sleep, and stress.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "morning-state-code-record-checkin-tool",
+          "rule": "The beat declares record_checkin in allowedTools.",
+          "severity": "must",
+          "enforcedBy": "schema:BeatEntry"
+        },
+        {
+          "id": "morning-state-code-reveal-four-items",
+          "rule": "The state card exposes four component reveal rows.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "morning-state-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "morning-state-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "morning-are-you-done",
@@ -2490,7 +2943,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clipPath": null,
         "expectedUser": "User adds missing state items or says done"
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "morning-context-set-script",
+          "rule": "Morning check-in uses fixed Cartesia TTS script, no improvised coach wording.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "morning-context-structured-forward",
+          "rule": "The flow moves forward only: opener, state, partial gate if needed, wrap.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "morning-done-context-once",
+          "rule": "Ask are you done only once when some bounded state items were skipped.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "morning-done-code-expected-user",
+          "rule": "The script records the expected user continuation or done response.",
+          "severity": "must",
+          "enforcedBy": "schema:ScriptLine"
+        },
+        {
+          "id": "morning-done-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "morning-done-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "morning-wrap",
@@ -2537,7 +3032,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "morning-context-set-script",
+          "rule": "Morning check-in uses fixed Cartesia TTS script, no improvised coach wording.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "morning-context-structured-forward",
+          "rule": "The flow moves forward only: opener, state, partial gate if needed, wrap.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "morning-wrap-context-end",
+          "rule": "Wrap line ends the morning check-in and adds no extra coaching.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "morning-wrap-code-script",
+          "rule": "The wrap is a single script line.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "morning-wrap-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "morning-wrap-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "evening-opener",
@@ -2584,7 +3121,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "evening-context-set-script",
+          "rule": "Evening daily check-in uses fixed Cartesia TTS script, no improvised coach wording.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-context-structured-forward",
+          "rule": "The flow moves forward only: opener, habits, partial gate if needed, reflection, wrap.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-opener-context-habits",
+          "rule": "Greeting frames the habit review and does not start reflection yet.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "evening-opener-code-script",
+          "rule": "The opener is a single script line.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "evening-opener-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "evening-opener-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "evening-habits",
@@ -2616,7 +3195,43 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       "narration": null,
       "elements": []
     },
-    "script": []
+    "script": [],
+    "rules": {
+      "context": [
+        {
+          "id": "evening-context-set-script",
+          "rule": "Evening daily check-in uses fixed Cartesia TTS script, no improvised coach wording.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-context-structured-forward",
+          "rule": "The flow moves forward only: opener, habits, partial gate if needed, reflection, wrap.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-habits-context-three-states",
+          "rule": "Habit review supports done, not done, and pending without shame.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "evening-habits-code-record-tool",
+          "rule": "The beat declares record_habit_review in allowedTools.",
+          "severity": "must",
+          "enforcedBy": "schema:BeatEntry"
+        },
+        {
+          "id": "evening-habits-code-component",
+          "rule": "The habit-review component renders in the flow build.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        }
+      ]
+    }
   },
   {
     "id": "evening-are-you-done",
@@ -2664,7 +3279,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clipPath": null,
         "expectedUser": "User adds missing habit statuses or says done"
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "evening-context-set-script",
+          "rule": "Evening daily check-in uses fixed Cartesia TTS script, no improvised coach wording.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-context-structured-forward",
+          "rule": "The flow moves forward only: opener, habits, partial gate if needed, reflection, wrap.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-done-context-once",
+          "rule": "Ask are you done only once when some habit statuses are skipped.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "evening-done-code-expected-user",
+          "rule": "The script records the expected user continuation or done response.",
+          "severity": "must",
+          "enforcedBy": "schema:ScriptLine"
+        },
+        {
+          "id": "evening-done-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "evening-done-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "evening-reflection-transition",
@@ -2711,7 +3368,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "evening-context-set-script",
+          "rule": "Evening daily check-in uses fixed Cartesia TTS script, no improvised coach wording.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-context-structured-forward",
+          "rule": "The flow moves forward only: opener, habits, partial gate if needed, reflection, wrap.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-reflection-transition-context-bridge",
+          "rule": "Transition moves from habits into reflection and does not summarize the day.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "evening-reflection-transition-code-script",
+          "rule": "The transition is a single script line.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "evening-reflection-transition-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "evening-reflection-transition-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "evening-reflection",
@@ -2790,7 +3489,55 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clipPath": null,
         "expectedUser": "User answers one thing they are grateful for"
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "evening-context-set-script",
+          "rule": "Evening daily check-in uses fixed Cartesia TTS script, no improvised coach wording.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-context-structured-forward",
+          "rule": "The flow moves forward only: opener, habits, partial gate if needed, reflection, wrap.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-reflection-context-three-prompts",
+          "rule": "Reflection asks proud, forgive, and grateful in order.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "evening-reflection-code-record-tool",
+          "rule": "The beat declares record_reflection in allowedTools.",
+          "severity": "must",
+          "enforcedBy": "schema:BeatEntry"
+        },
+        {
+          "id": "evening-reflection-code-three-lines",
+          "rule": "The script carries three reflection prompt lines.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "evening-reflection-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "evening-reflection-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "evening-wrap",
@@ -2837,7 +3584,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "evening-context-set-script",
+          "rule": "Evening daily check-in uses fixed Cartesia TTS script, no improvised coach wording.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-context-structured-forward",
+          "rule": "The flow moves forward only: opener, habits, partial gate if needed, reflection, wrap.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "evening-wrap-context-end",
+          "rule": "Wrap line ends the evening check-in and adds nothing after it.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "evening-wrap-code-script",
+          "rule": "The wrap is a single script line.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "evening-wrap-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "evening-wrap-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "the-weekly-frame",
@@ -2884,7 +3673,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "the-weekly-context-generative",
+          "rule": "The Weekly is generative and grounded in the real week, not a scripted daily check-in.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "the-weekly-context-no-shame",
+          "rule": "Coach never shames missed habits and defaults to fewer, smaller, sustainable changes.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "the-weekly-code-vapi-mode",
+          "rule": "The Weekly beats are tagged Vapi Improvise for the rich coaching session.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "the-weekly-code-tools-on-edit",
+          "rule": "The brainstorm beat declares plan editing tools in allowedTools.",
+          "severity": "must",
+          "enforcedBy": "schema:BeatEntry"
+        },
+        {
+          "id": "the-weekly-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "the-weekly-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "the-weekly-week-shown",
@@ -2932,7 +3763,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "the-weekly-context-generative",
+          "rule": "The Weekly is generative and grounded in the real week, not a scripted daily check-in.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "the-weekly-context-no-shame",
+          "rule": "Coach never shames missed habits and defaults to fewer, smaller, sustainable changes.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "the-weekly-code-vapi-mode",
+          "rule": "The Weekly beats are tagged Vapi Improvise for the rich coaching session.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "the-weekly-code-tools-on-edit",
+          "rule": "The brainstorm beat declares plan editing tools in allowedTools.",
+          "severity": "must",
+          "enforcedBy": "schema:BeatEntry"
+        },
+        {
+          "id": "the-weekly-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "the-weekly-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "the-weekly-insights",
@@ -2979,7 +3852,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "the-weekly-context-generative",
+          "rule": "The Weekly is generative and grounded in the real week, not a scripted daily check-in.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "the-weekly-context-no-shame",
+          "rule": "Coach never shames missed habits and defaults to fewer, smaller, sustainable changes.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "the-weekly-code-vapi-mode",
+          "rule": "The Weekly beats are tagged Vapi Improvise for the rich coaching session.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "the-weekly-code-tools-on-edit",
+          "rule": "The brainstorm beat declares plan editing tools in allowedTools.",
+          "severity": "must",
+          "enforcedBy": "schema:BeatEntry"
+        },
+        {
+          "id": "the-weekly-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "the-weekly-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "the-weekly-brainstorm-edit",
@@ -3027,7 +3942,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clipPath": null,
         "expectedUser": "User discusses plan edits or keeps the plan"
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "the-weekly-context-generative",
+          "rule": "The Weekly is generative and grounded in the real week, not a scripted daily check-in.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "the-weekly-context-no-shame",
+          "rule": "Coach never shames missed habits and defaults to fewer, smaller, sustainable changes.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "the-weekly-code-vapi-mode",
+          "rule": "The Weekly beats are tagged Vapi Improvise for the rich coaching session.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "the-weekly-code-tools-on-edit",
+          "rule": "The brainstorm beat declares plan editing tools in allowedTools.",
+          "severity": "must",
+          "enforcedBy": "schema:BeatEntry"
+        },
+        {
+          "id": "the-weekly-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "the-weekly-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "the-weekly-close",
@@ -3074,7 +4031,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clip": null,
         "clipPath": null
       }
-    ]
+    ],
+    "rules": {
+      "context": [
+        {
+          "id": "the-weekly-context-generative",
+          "rule": "The Weekly is generative and grounded in the real week, not a scripted daily check-in.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        },
+        {
+          "id": "the-weekly-context-no-shame",
+          "rule": "Coach never shames missed habits and defaults to fewer, smaller, sustainable changes.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        }
+      ],
+      "code": [
+        {
+          "id": "the-weekly-code-vapi-mode",
+          "rule": "The Weekly beats are tagged Vapi Improvise for the rich coaching session.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "the-weekly-code-tools-on-edit",
+          "rule": "The brainstorm beat declares plan editing tools in allowedTools.",
+          "severity": "must",
+          "enforcedBy": "schema:BeatEntry"
+        },
+        {
+          "id": "the-weekly-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "the-weekly-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "library-browse",
@@ -3108,7 +4107,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       "narration": null,
       "elements": []
     },
-    "script": []
+    "script": [],
+    "rules": {
+      "context": [
+        {
+          "id": "library-context-structure-only",
+          "rule": "Library beats are structure only until Yair writes coach lines and per-track whatFor copy.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        },
+        {
+          "id": "library-context-reset-not-focus",
+          "rule": "The tab label is Reset and the collection name shown inside the page is The Return.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "library-code-silent-until-copy",
+          "rule": "Library structure beats stay Silent and carry no script lines until copy is approved.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "library-code-component",
+          "rule": "The reset-library component renders browse, player, and nudge stages in the flow build.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        },
+        {
+          "id": "library-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "library-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "library-player",
@@ -3142,7 +4183,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       "narration": null,
       "elements": []
     },
-    "script": []
+    "script": [],
+    "rules": {
+      "context": [
+        {
+          "id": "library-context-structure-only",
+          "rule": "Library beats are structure only until Yair writes coach lines and per-track whatFor copy.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        },
+        {
+          "id": "library-context-reset-not-focus",
+          "rule": "The tab label is Reset and the collection name shown inside the page is The Return.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "library-code-silent-until-copy",
+          "rule": "Library structure beats stay Silent and carry no script lines until copy is approved.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "library-code-component",
+          "rule": "The reset-library component renders browse, player, and nudge stages in the flow build.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        },
+        {
+          "id": "library-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "library-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   },
   {
     "id": "library-nudges",
@@ -3176,7 +4259,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       "narration": null,
       "elements": []
     },
-    "script": []
+    "script": [],
+    "rules": {
+      "context": [
+        {
+          "id": "library-context-structure-only",
+          "rule": "Library beats are structure only until Yair writes coach lines and per-track whatFor copy.",
+          "severity": "must",
+          "enforcedBy": "prose-only-accepted"
+        },
+        {
+          "id": "library-context-reset-not-focus",
+          "rule": "The tab label is Reset and the collection name shown inside the page is The Return.",
+          "severity": "must",
+          "enforcedBy": "parity-walk"
+        }
+      ],
+      "code": [
+        {
+          "id": "library-code-silent-until-copy",
+          "rule": "Library structure beats stay Silent and carry no script lines until copy is approved.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-consistency-check.mjs"
+        },
+        {
+          "id": "library-code-component",
+          "rule": "The reset-library component renders browse, player, and nudge stages in the flow build.",
+          "severity": "must",
+          "enforcedBy": "npm:build:flow"
+        },
+        {
+          "id": "library-code-script-bindings-resolve",
+          "rule": "Script lines bind only to structural tokens or declared component elements.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-link-integrity-check.mjs"
+        },
+        {
+          "id": "library-code-rules-self-audit",
+          "rule": "Every code rule names a real guard, test, schema, or package script.",
+          "severity": "must",
+          "enforcedBy": "scripts/render-rules-check.mjs"
+        }
+      ]
+    }
   }
 ] as const;
 

@@ -14,7 +14,15 @@ import { kindOf, raf, runBeatNarration, runBeatScript, sample, stopSpeech } from
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 import { Orb } from '@/components/orb/Orb';
 import { orbSpeaking } from '@/components/orb/orbView';
-import { BEATS_SOURCE, BEAT_BY_ID, BEAT_BY_SCREEN_ID, type BeatEntry, type ScriptLine } from './beatsSource';
+import {
+  BEATS_SOURCE,
+  BEAT_BY_ID,
+  BEAT_BY_SCREEN_ID,
+  GLOBAL_RULES,
+  type BeatEntry,
+  type BeatRule,
+  type ScriptLine,
+} from './beatsSource';
 
 /**
  * FlowDesigner -- the chat-native onboarding flow as one continuous scroll,
@@ -562,9 +570,111 @@ function ContextKeyValue({ label, value }: { label: string; value: string }) {
   );
 }
 
+function RuleBadge({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'danger' | 'ok' }) {
+  const style =
+    tone === 'danger'
+      ? { bg: '#fef2f2', text: '#b91c1c', border: '#fecaca' }
+      : tone === 'ok'
+        ? { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0' }
+        : { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' };
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '1px 7px',
+        borderRadius: 99,
+        border: `1px solid ${style.border}`,
+        background: style.bg,
+        color: style.text,
+        fontSize: 10,
+        fontWeight: 800,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function RuleRow({ rule }: { rule: BeatRule }) {
+  const unenforced = rule.severity === 'must' && rule.enforcedBy == null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+        <RuleBadge label={rule.severity} tone={rule.severity === 'must' ? 'danger' : 'neutral'} />
+        <div style={{ flex: 1, fontSize: 12.5, lineHeight: 1.45, color: '#1e293b' }}>{rule.rule}</div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingLeft: 54 }}>
+        <RuleBadge label={rule.enforcedBy ?? 'unenforced'} tone={unenforced ? 'danger' : 'ok'} />
+        {unenforced && <RuleBadge label="red flag" tone="danger" />}
+        <span style={{ fontSize: 10.5, color: '#94a3b8' }}>{rule.id}</span>
+      </div>
+    </div>
+  );
+}
+
+function RuleList({ title, rules }: { title: string; rules: readonly BeatRule[] }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 800,
+          color: '#64748b',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {title}
+      </div>
+      {rules.length ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          {rules.map((rule) => (
+            <RuleRow key={rule.id} rule={rule} />
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontSize: 12.5, color: '#94a3b8' }}>No rules in this section.</div>
+      )}
+    </div>
+  );
+}
+
+function RulesPanel({ rules }: { rules?: BeatEntry['rules'] }) {
+  return (
+    <ContextSection title="Rules" defaultOpen>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, color: '#0f172a' }}>
+            Inherited global rules
+          </div>
+          <RuleList title="Context" rules={GLOBAL_RULES.context} />
+          <RuleList title="Code" rules={GLOBAL_RULES.code} />
+        </div>
+        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, color: '#0f172a' }}>
+            Beat rules
+          </div>
+          {rules ? (
+            <>
+              <RuleList title="Context" rules={rules.context} />
+              <RuleList title="Code" rules={rules.code} />
+            </>
+          ) : (
+            <div style={{ fontSize: 12.5, color: '#94a3b8' }}>
+              No beat-specific rules authored on this beat yet.
+            </div>
+          )}
+        </div>
+      </div>
+    </ContextSection>
+  );
+}
+
 function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
   const meta = beat.screenId ? METADATA_BY_SCREEN_ID[beat.screenId] : undefined;
-  const entry = beat.screenId ? ENTRY_BY_SCREEN_ID[beat.screenId] : undefined;
+  const entry = BEAT_BY_ID[beat.id] ?? (beat.screenId ? ENTRY_BY_SCREEN_ID[beat.screenId] : undefined);
   const metaElements = meta ? sortedElements(meta) : [];
   const narration = meta?.narration ?? [];
   const resolvedProps = beat.props ? Object.entries(beat.props) : [];
@@ -590,6 +700,9 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
           </div>
           <div style={{ marginTop: 10, lineHeight: 1.45 }}>
             No metadata entry. This is a structural silent beat with no coach copy, narration, clip, or expected voice response.
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <RulesPanel rules={entry?.rules} />
           </div>
         </div>
       </div>
@@ -645,6 +758,8 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
             {meta.openerMode && <ContextKeyValue label="Opener mode" value={meta.openerMode} />}
           </div>
         </ContextSection>
+
+        <RulesPanel rules={entry?.rules} />
 
         <ContextSection title={entry?.context ? 'Coach behavior context' : 'Coach behavior context (none)'}>
           {entry?.context ? (
