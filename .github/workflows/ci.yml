@@ -33,13 +33,36 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: ['main', 'fix/android-apk-server-access']
+    branches: ['main', 'fix/android-apk-server-access', 'flow-annotated-render']
     tags: ['v*']
   pull_request:
-    branches: ['main']
+    branches: ['main', 'flow-annotated-render']
   workflow_dispatch:
 
 jobs:
+  # Required render guard: the render reads exactly one authored source
+  # (beatsSource.ts). This job fails the build when a non-authoritative source
+  # quietly becomes runtime truth — a fallback flow source, a consumed generated
+  # file, the legacy screen_contexts path, an orphan clip, or a prose-only rule.
+  # Runs alongside render_parity, not inside it.
+  source_integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Render source-of-truth guards (consistency + links + source-integrity)
+        run: npm run check:beats
+
   validate-and-test:
     runs-on: ubuntu-latest
     steps:
