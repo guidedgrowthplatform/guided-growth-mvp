@@ -5,13 +5,19 @@
       "entry": [
         "src/main.tsx",
         "index.html",
+        "flow-standalone/main.tsx",
         "api/**/*.ts!",
         "!api/_lib/**",
         "scripts/*.mjs",
         "e2e/**/*.spec.ts",
         "src/test/setup-storage.ts"
       ],
-      "project": ["src/**/*.{ts,tsx}", "api/**/*.ts", "scripts/**/*.{ts,mjs}"],
+      "project": [
+        "src/**/*.{ts,tsx}",
+        "api/**/*.ts",
+        "scripts/**/*.{ts,mjs}",
+        "flow-standalone/**/*.{ts,tsx}"
+      ],
       "ignore": [
         "src/generated/**",
         "dist/**",
