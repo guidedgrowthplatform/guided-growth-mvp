@@ -14,7 +14,7 @@ import { kindOf, raf, runBeatNarration, runBeatScript, sample, stopSpeech } from
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 import { Orb } from '@/components/orb/Orb';
 import { orbSpeaking } from '@/components/orb/orbView';
-import { BEATS_SOURCE, BEAT_BY_SCREEN_ID, type BeatEntry, type ScriptLine } from './beatsSource';
+import { BEATS_SOURCE, BEAT_BY_ID, BEAT_BY_SCREEN_ID, type BeatEntry, type ScriptLine } from './beatsSource';
 
 /**
  * FlowDesigner -- the chat-native onboarding flow as one continuous scroll,
@@ -785,13 +785,13 @@ function TinyChip({ label, s }: { label: string; s: { bg: string; text: string; 
 }
 
 function ScriptPanel({
-  screenId,
+  beat,
   showExpectedUser,
 }: {
-  screenId?: string;
+  beat: FlowBeat;
   showExpectedUser: boolean;
 }) {
-  const entry = screenId ? ENTRY_BY_SCREEN_ID[screenId] : undefined;
+  const entry = BEAT_BY_ID[beat.id];
 
   if (!entry || entry.script.length === 0) {
     return (
@@ -944,128 +944,8 @@ export const BEATS: FlowBeat[] = BASE_BEATS.map((beat) => ({
   },
 }));
 
-// --- Morning check-in beats ---
-// Source: MORNING_CHECKIN_FLOW in FlowBuilder.tsx.
-// Beat 2 (state-check) gets a Cartesia . Improvise reaction beat injected right
-// after the card, showing where the coach reacts live to the user's morning state.
-// Voice tag assignment:
-//   morning_greeting  -> MP3 . Verbatim  (scripted opener, pre-recorded)
-//   morning_state_prompt -> MP3 . Verbatim (scripted ask, pre-recorded)
-//   state reaction    -> Cartesia . Improvise (live reaction to what they said)
-//   are_you_done      -> MP3 . Verbatim (scripted line, pre-recorded)
-//   morning_wrap      -> MP3 . Verbatim (scripted closer, pre-recorded)
-const MORNING_BEATS: FlowBeat[] = [
-  // One opener clip (morning_opener): the greeting and the state ask are the
-  // same MP3, with the time clip in front. The state card renders under it.
-  // One MP3, not two.
-  {
-    id: 'morning-opener',
-    type: 'state-check',
-    props: {
-      coachLine:
-        "Good morning. How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Just tell me where you're at.",
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-  },
-  {
-    id: 'morning-state-reaction',
-    type: 'coach-bubble',
-    props: { text: "Energy a little low, that makes sense. Sleep was short. Let's keep today light and focused." },
-    engine: 'Cartesia',
-    mode: 'Improvise',
-  },
-  {
-    id: 'morning-are-you-done',
-    type: 'coach-bubble',
-    props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
-    engine: 'MP3',
-    mode: 'Verbatim',
-  },
-  {
-    id: 'morning-wrap',
-    type: 'coach-bubble',
-    props: { text: "That's a good start. Go make it a good one." },
-    engine: 'MP3',
-    mode: 'Verbatim',
-  },
-];
-
-// --- Evening check-in beats ---
-// Source: EVENING_CHECKIN_FLOW in FlowBuilder.tsx.
-// Beat 1 is the greeting that also surfaces the habit list (the greeting happens,
-// then the habit-review card appears). Beat 4 (reflection) renders the full proud /
-// forgive / grateful steps. A Cartesia . Improvise reaction is injected after the
-// habit-review card to show where the coach reacts live to the habits report.
-// Voice tag assignment:
-//   evening_greeting_habits -> MP3 . Verbatim (scripted opener with habit context)
-//   habit-review (card)     -> Silent (user taps done/missed/pending, no coach voice)
-//   habits reaction         -> Cartesia . Improvise (live reaction to the day's habits)
-//   are_you_done            -> MP3 . Verbatim
-//   reflection              -> MP3 . Verbatim (transition + 3 questions are all scripted)
-//   reflection end reaction -> Cartesia . Improvise (live close after grateful)
-//   evening_wrap            -> MP3 . Verbatim
-const EVENING_BEATS: FlowBeat[] = [
-  {
-    id: 'evening-greeting',
-    type: 'coach-bubble',
-    props: { text: 'Hey, good evening. Here are your habits for today. How did the day go?' },
-    engine: 'MP3',
-    mode: 'Verbatim',
-  },
-  {
-    id: 'evening-habit-review',
-    type: 'habit-review',
-    engine: 'Silent',
-    mode: null,
-  },
-  {
-    id: 'evening-habits-reaction',
-    type: 'coach-bubble',
-    props: { text: "Two out of three, that's solid. The screens one is hard. We'll work on that." },
-    engine: 'Cartesia',
-    mode: 'Improvise',
-  },
-  {
-    id: 'evening-are-you-done',
-    type: 'coach-bubble',
-    props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
-    engine: 'MP3',
-    mode: 'Verbatim',
-  },
-  {
-    id: 'evening-reflection',
-    type: 'reflection',
-    props: {
-      transition: "Good. Now let's take a moment to reflect on the day itself.",
-      proud: 'What are you proud of today?',
-      proudAnswer: 'I showed up even though I was tired.',
-      forgive: 'What do you forgive yourself for today?',
-      forgiveAnswer: 'Skipping my afternoon walk.',
-      grateful: 'What are you grateful for today?',
-      gratefulAnswer: 'A good talk with my brother.',
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-  },
-  {
-    id: 'evening-reflection-reaction',
-    type: 'coach-bubble',
-    props: { text: "That's real. Hold onto the gratitude tonight." },
-    engine: 'Cartesia',
-    mode: 'Improvise',
-  },
-  {
-    id: 'evening-wrap',
-    type: 'coach-bubble',
-    props: { text: "That's it for tonight. Sleep well." },
-    engine: 'MP3',
-    mode: 'Verbatim',
-  },
-];
-
 // --- Tab definitions ---
-type TabId = 'onboarding' | 'morning' | 'evening';
+type TabId = 'onboarding' | 'app-tour' | 'chat' | 'morning' | 'evening' | 'weekly' | 'library';
 interface TabDef {
   id: TabId;
   label: string;
@@ -1073,27 +953,73 @@ interface TabDef {
   title: string;
   subtitle: string;
 }
-const TABS: TabDef[] = [
+
+const FLOW_PREFIXES: Record<Exclude<TabId, 'onboarding'>, string[]> = {
+  'app-tour': ['app-tour-'],
+  chat: ['chat-'],
+  morning: ['morning-'],
+  evening: ['evening-'],
+  weekly: ['the-weekly-'],
+  library: ['library-'],
+};
+
+function flowBeats(id: TabId): FlowBeat[] {
+  if (id === 'onboarding') {
+    return BEATS.filter((beat) => !Object.values(FLOW_PREFIXES).flat().some((prefix) => beat.id.startsWith(prefix)));
+  }
+  const prefixes = FLOW_PREFIXES[id];
+  return BEATS.filter((beat) => prefixes.some((prefix) => beat.id.startsWith(prefix)));
+}
+
+export const TABS: TabDef[] = [
   {
     id: 'onboarding',
     label: 'Onboarding',
-    beats: BEATS,
+    beats: flowBeats('onboarding'),
     title: 'Onboarding flow',
     subtitle: 'Real flow-builder components, v3 content. Voice delivery tagged in the left margin.',
   },
   {
+    id: 'app-tour',
+    label: 'App tour',
+    beats: flowBeats('app-tour'),
+    title: 'App tour flow',
+    subtitle: 'The home tour, authored as beats in the one source.',
+  },
+  {
+    id: 'chat',
+    label: 'Chat',
+    beats: flowBeats('chat'),
+    title: 'Coach chat flow',
+    subtitle: 'Idle orb into the open coach chat surface.',
+  },
+  {
     id: 'morning',
     label: 'Morning check-in',
-    beats: MORNING_BEATS,
+    beats: flowBeats('morning'),
     title: 'Morning check-in flow',
-    subtitle: 'Daily morning check-in: greeting, state card, live reaction, wrap.',
+    subtitle: 'Daily morning check-in: greeting, state card, partial gate, wrap.',
   },
   {
     id: 'evening',
     label: 'Evening check-in',
-    beats: EVENING_BEATS,
+    beats: flowBeats('evening'),
     title: 'Evening check-in flow',
-    subtitle: 'Daily evening check-in: greeting, habit review, reflection, wrap.',
+    subtitle: 'Daily evening check-in: greeting, habit review, partial gate, reflection, wrap.',
+  },
+  {
+    id: 'weekly',
+    label: 'The Weekly',
+    beats: flowBeats('weekly'),
+    title: 'The Weekly flow',
+    subtitle: 'Weekly coach discussion beats, using current provisional wording where specified.',
+  },
+  {
+    id: 'library',
+    label: 'Library',
+    beats: flowBeats('library'),
+    title: 'Library flow',
+    subtitle: 'Reset library structure only. Coach lines and per-track copy are pending.',
   },
 ];
 
@@ -1438,7 +1364,7 @@ function FlowPhoneFrame({
               </div>
               {showWords && (
                 <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP, paddingTop: 8 }}>
-                  <ScriptPanel screenId={b.screenId} showExpectedUser={showExpectedUser} />
+                  <ScriptPanel beat={b} showExpectedUser={showExpectedUser} />
                 </div>
               )}
             </div>
@@ -1492,32 +1418,30 @@ export function FlowDesigner() {
           }}
         />
         <VoiceLegend />
-        {tab.id === 'onboarding' && (
-          <label
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 12.5,
-              color: '#64748b',
-              cursor: 'pointer',
-              marginBottom: 16,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={showExpectedUser}
-              onChange={(e) => setShowExpectedUser(e.target.checked)}
-            />
-            Show expected user response under each coach line
-          </label>
-        )}
+        <label
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12.5,
+            color: '#64748b',
+            cursor: 'pointer',
+            marginBottom: 16,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={showExpectedUser}
+            onChange={(e) => setShowExpectedUser(e.target.checked)}
+          />
+          Show expected user response under each coach line
+        </label>
       </div>
 
       {/* Main layout */}
       <FlowPhoneFrame
         beats={tab.beats}
-        showWords={tab.id === 'onboarding'}
+        showWords
         showExpectedUser={showExpectedUser}
         playingId={playingId}
         onRequestPlay={setPlayingId}

@@ -5,7 +5,7 @@ import { SpokenWordsCtx } from './beatKit';
 import { Orb } from '@/components/orb/Orb';
 import { orbIdle, orbSpeaking } from '@/components/orb/orbView';
 import { runBeatScript, stopSpeech } from './beatNarration';
-import { BEATS, IsolatedBeat, METADATA_BY_SCREEN_ID } from './FlowDesigner';
+import { BEATS, IsolatedBeat, METADATA_BY_SCREEN_ID, TABS } from './FlowDesigner';
 
 // Play mode: runs the real onboarding beats in order in a single phone, speaking
 // each opener and per-element line with the browser voice (a stand-in for the
@@ -16,6 +16,7 @@ import { BEATS, IsolatedBeat, METADATA_BY_SCREEN_ID } from './FlowDesigner';
 // element bloom), both fed here off the spoken line.
 
 export function FlowPlay() {
+  const [flowId, setFlowId] = useState(TABS[0].id);
   const [idx, setIdx] = useState(0);
   const [stepReveal, setStepReveal] = useState<number | null>(99);
   const [elementReveal, setElementReveal] = useState<number | null>(null);
@@ -40,8 +41,17 @@ export function FlowPlay() {
   // below the fold.
   const stageRef = useRef<HTMLDivElement>(null);
 
-  const beat = BEATS[idx];
+  const flow = TABS.find((tab) => tab.id === flowId) ?? TABS[0];
+  const playBeats = flow.beats.length ? flow.beats : BEATS;
+  const beat = playBeats[Math.min(idx, playBeats.length - 1)];
   const meta = beat.screenId ? METADATA_BY_SCREEN_ID[beat.screenId] : undefined;
+
+  useEffect(() => {
+    setIdx(0);
+    setPlaying(false);
+    stopSpeech();
+    runRef.current += 1;
+  }, [flowId]);
 
   useEffect(
     () => () => {
@@ -58,7 +68,7 @@ export function FlowPlay() {
   }, [stepReveal, elementReveal, syncWords, idx, nonce]);
 
   async function playBeat(i: number, run: number) {
-    const b = BEATS[i];
+    const b = playBeats[i];
     // The one shared driver, reading straight off the beat's script[].
     await runBeatScript({
       script: b.script ?? [],
@@ -74,7 +84,7 @@ export function FlowPlay() {
     const run = ++runRef.current;
     stopSpeech();
     setPlaying(true);
-    for (let i = start; i < BEATS.length; i++) {
+    for (let i = start; i < playBeats.length; i++) {
       if (run !== runRef.current) return;
       setIdx(i);
       await playBeat(i, run);
@@ -95,7 +105,7 @@ export function FlowPlay() {
     playFrom(Math.max(idx - 1, 0));
   }
   function onNext() {
-    playFrom(Math.min(idx + 1, BEATS.length - 1));
+    playFrom(Math.min(idx + 1, playBeats.length - 1));
   }
   // Replay the current beat from zero: remount it fresh and run its sync again.
   // With autoplay off it holds after; with autoplay on it rolls forward.
@@ -126,7 +136,7 @@ export function FlowPlay() {
     >
       <div style={{ maxWidth: 520, margin: '0 auto 12px', textAlign: 'center' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Guided Growth</div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>Onboarding, played</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>{flow.title}, played</div>
         <div style={{ fontSize: 12.5, color: '#64748b', marginTop: 2, lineHeight: 1.5 }}>
           The real components, played in order. The component appears, then each element blooms as
           its line is spoken. Voice is the browser reading the lines, a stand-in for the recorded
@@ -145,6 +155,26 @@ export function FlowPlay() {
           flexWrap: 'wrap',
         }}
       >
+        <select
+          value={flowId}
+          onChange={(event) => setFlowId(event.target.value as typeof flowId)}
+          style={{
+            border: '1px solid #cbd5e1',
+            borderRadius: 999,
+            padding: '9px 14px',
+            fontSize: 13,
+            fontWeight: 700,
+            background: '#fff',
+            color: '#1A1D29',
+            cursor: 'pointer',
+          }}
+        >
+          {TABS.map((tab) => (
+            <option key={tab.id} value={tab.id}>
+              {tab.label}
+            </option>
+          ))}
+        </select>
         <button style={btn()} onClick={onPrev}>
           ◀ Prev
         </button>
@@ -168,7 +198,7 @@ export function FlowPlay() {
           <input type="checkbox" checked={muted} onChange={(e) => setMuted(e.target.checked)} /> Mute voice
         </label>
         <span style={{ fontSize: 12, color: '#94a3b8' }}>
-          {idx + 1} / {BEATS.length} · {beat.screenId ?? beat.id}
+          {idx + 1} / {playBeats.length} · {beat.screenId ?? beat.id}
         </span>
       </div>
 

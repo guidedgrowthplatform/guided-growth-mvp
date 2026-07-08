@@ -1851,6 +1851,1332 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         "clipPath": "/voice/ob/onboard_weekly_projection_gaps_1.wav"
       }
     ]
+  },
+  {
+    "id": "app-tour-morning",
+    "name": "App tour, morning check-in",
+    "order": 25,
+    "path": "both",
+    "type": "home-tour",
+    "screenId": "APP-TOUR-MORNING",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "Auto-advances through the tour",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "userName": "{name}",
+      "stage": "morning",
+      "coachLine": "Mornings start with a quick check-in, {name}. Just say you're ready, and we'll see how you slept and where you're at."
+    },
+    "legacy": {
+      "opener": "Mornings start with a quick check-in, {name}. Just say you're ready, and we'll see how you slept and where you're at.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": true,
+      "variableNote": "name is live Cartesia",
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Mornings start with a quick check-in, {name}. Just say you're ready, and we'll see how you slept and where you're at.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "APP-TOUR-MORNING"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "app-tour-evening",
+    "name": "App tour, evening reflection",
+    "order": 26,
+    "path": "both",
+    "type": "home-tour",
+    "screenId": "APP-TOUR-EVENING",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "Auto-advances through the tour",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "userName": "{name}",
+      "stage": "evening",
+      "coachLine": "Evenings, you reflect on the day. Just start talking to me, how it went, what's on your mind."
+    },
+    "legacy": {
+      "opener": "Evenings, you reflect on the day. Just start talking to me, how it went, what's on your mind.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Evenings, you reflect on the day. Just start talking to me, how it went, what's on your mind.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "APP-TOUR-EVENING"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "app-tour-habits",
+    "name": "App tour, habits",
+    "order": 27,
+    "path": "both",
+    "type": "home-tour",
+    "screenId": "APP-TOUR-HABITS",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "Auto-advances through the tour",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "userName": "{name}",
+      "stage": "habits",
+      "coachLine": "These are your habits. Tell me the ones you do, and the ones you miss. Either way works."
+    },
+    "legacy": {
+      "opener": "These are your habits. Tell me the ones you do, and the ones you miss. Either way works.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "These are your habits. Tell me the ones you do, and the ones you miss. Either way works.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "APP-TOUR-HABITS"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "app-tour-add-habit",
+    "name": "App tour, add habit",
+    "order": 28,
+    "path": "both",
+    "type": "home-tour",
+    "screenId": "APP-TOUR-ADD-HABIT",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "Auto-advances through the tour",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "userName": "{name}",
+      "stage": "add-habit",
+      "coachLine": "Want to track something new? Just tell me, {name}, and we'll add it together."
+    },
+    "legacy": {
+      "opener": "Want to track something new? Just tell me, {name}, and we'll add it together.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": true,
+      "variableNote": "name is live Cartesia",
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Want to track something new? Just tell me, {name}, and we'll add it together.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "APP-TOUR-ADD-HABIT"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "app-tour-reflections",
+    "name": "App tour, reflections",
+    "order": 29,
+    "path": "both",
+    "type": "home-tour",
+    "screenId": "APP-TOUR-REFLECTIONS",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "Auto-advances through the tour",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "userName": "{name}",
+      "stage": "reflections",
+      "coachLine": "It's empty now, but this is where your reflections will live. After your first evening one, they show up here."
+    },
+    "legacy": {
+      "opener": "It's empty now, but this is where your reflections will live. After your first evening one, they show up here.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "It's empty now, but this is where your reflections will live. After your first evening one, they show up here.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "APP-TOUR-REFLECTIONS"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "app-tour-feedback",
+    "name": "App tour, feedback",
+    "order": 30,
+    "path": "both",
+    "type": "home-tour",
+    "screenId": "APP-TOUR-FEEDBACK",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "Auto-advances through the tour",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "userName": "{name}",
+      "stage": "feedback",
+      "coachLine": "You're one of our 50 founding users, {name}, so your feedback is one of the most meaningful things you can do for us. It shapes where this whole product goes. There's a button here for it, and you can also just tell me, anytime you've got something."
+    },
+    "legacy": {
+      "opener": "You're one of our 50 founding users, {name}, so your feedback is one of the most meaningful things you can do for us. It shapes where this whole product goes. There's a button here for it, and you can also just tell me, anytime you've got something.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": true,
+      "variableNote": "name is live Cartesia",
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "You're one of our 50 founding users, {name}, so your feedback is one of the most meaningful things you can do for us. It shapes where this whole product goes. There's a button here for it, and you can also just tell me, anytime you've got something.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "APP-TOUR-FEEDBACK"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "app-tour-chat",
+    "name": "App tour, open chat",
+    "order": 31,
+    "path": "both",
+    "type": "home-tour",
+    "screenId": "APP-TOUR-CHAT",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "Auto-advances through the tour",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "userName": "{name}",
+      "stage": "chat",
+      "coachLine": "Great job getting here, {name}. This might be the longest you'll ever be in the app, but it was worth it to set up your foundation. The key now is consistency. It doesn't have to be long, just do it twice a day, and we'll do our best to help you improve and stay consistent. I'm right here anytime, just open the chat."
+    },
+    "legacy": {
+      "opener": "Great job getting here, {name}. This might be the longest you'll ever be in the app, but it was worth it to set up your foundation. The key now is consistency. It doesn't have to be long, just do it twice a day, and we'll do our best to help you improve and stay consistent. I'm right here anytime, just open the chat.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": true,
+      "variableNote": "name is live Cartesia",
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Great job getting here, {name}. This might be the longest you'll ever be in the app, but it was worth it to set up your foundation. The key now is consistency. It doesn't have to be long, just do it twice a day, and we'll do our best to help you improve and stay consistent. I'm right here anytime, just open the chat.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "APP-TOUR-CHAT"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "chat-idle",
+    "name": "Chat idle orb",
+    "order": 32,
+    "path": "both",
+    "type": "coach-chat-open",
+    "screenId": "CHAT-IDLE",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "User opens chat or starts speaking",
+    "voiceEngine": "Silent",
+    "voiceMode": null,
+    "hideOrb": false,
+    "props": {
+      "stage": "idle"
+    },
+    "legacy": {
+      "opener": null,
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": false,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Silent",
+      "scripted": null,
+      "narration": null,
+      "elements": []
+    },
+    "script": []
+  },
+  {
+    "id": "chat-open",
+    "name": "Chat opens",
+    "order": 33,
+    "path": "both",
+    "type": "coach-chat-open",
+    "screenId": "CHAT-OPEN",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "User answers in voice or text",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "stage": "open",
+      "coachLine": "Hey, how's your day going?"
+    },
+    "legacy": {
+      "opener": "Hey, how's your day going?",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Hey, how's your day going?",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "CHAT-OPEN"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "morning-opener",
+    "name": "Morning opener",
+    "order": 34,
+    "path": "both",
+    "type": "coach-bubble",
+    "screenId": "morning_opener",
+    "context": "BEAT: Morning opener.\n\nSay the greeting and state ask (the time clip plays in front of it). The mood, energy, sleep, stress card renders on screen.",
+    "allowedTools": null,
+    "expectedResponse": "User starts morning check-in or declines",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "text": "Good morning. Ready to check in?"
+    },
+    "legacy": {
+      "opener": "Good morning. Ready to check in?",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Good morning. Ready to check in?",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "morning_opener"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "morning-state",
+    "name": "Morning state check",
+    "order": 35,
+    "path": "both",
+    "type": "state-check",
+    "screenId": "morning_state",
+    "context": "BEAT: Morning state.\n\nThe user reports mood, energy, sleep, and stress on a 1 to 5 scale, by tapping the card or saying it. Record each with record_checkin. EXPLICIT REACTION: after they report, give ONE short live reaction to what they shared, warm, specific, no advice. If some of the four are still missing when they signal done, the shared are-you-done beat handles it.",
+    "allowedTools": "record_checkin",
+    "expectedResponse": "Reports mood, energy, sleep, and stress by voice or tap",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "coachLine": "How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Just tell me where you're at."
+    },
+    "legacy": {
+      "opener": "How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Just tell me where you're at.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": [
+        {
+          "elementId": "sleep",
+          "line": "Sleep",
+          "order": 1,
+          "showsAsBubble": false
+        },
+        {
+          "elementId": "mood",
+          "line": "Mood",
+          "order": 2,
+          "showsAsBubble": false
+        },
+        {
+          "elementId": "energy",
+          "line": "Energy",
+          "order": 3,
+          "showsAsBubble": false
+        },
+        {
+          "elementId": "stress",
+          "line": "Stress",
+          "order": 4,
+          "showsAsBubble": false
+        }
+      ]
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Just tell me where you're at.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "morning_state"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      },
+      {
+        "seq": 2,
+        "words": "Sleep",
+        "bindsTo": {
+          "kind": "component",
+          "element": "reveal-1",
+          "screen": "morning_state"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      },
+      {
+        "seq": 3,
+        "words": "Mood",
+        "bindsTo": {
+          "kind": "component",
+          "element": "reveal-2",
+          "screen": "morning_state"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      },
+      {
+        "seq": 4,
+        "words": "Energy",
+        "bindsTo": {
+          "kind": "component",
+          "element": "reveal-3",
+          "screen": "morning_state"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      },
+      {
+        "seq": 5,
+        "words": "Stress",
+        "bindsTo": {
+          "kind": "component",
+          "element": "reveal-4",
+          "screen": "morning_state"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "morning-are-you-done",
+    "name": "Morning partial gate",
+    "order": 36,
+    "path": "both",
+    "type": "coach-bubble",
+    "screenId": "are_you_done",
+    "context": "BEAT: Are you done (shared, morning and evening).\n\nOnly when a bounded step (the four morning items, or the evening habit list) is left partial. Say the are-you-done line ONCE. The user adds the rest or says they're done. Either way, move on. Never re-ask, never loop, never block. Governed by the Global are-you-done rule.",
+    "allowedTools": null,
+    "expectedResponse": "Adds remaining items or says done",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "text": "Looks like there are a few items left. Want to add anything, or should we move on?"
+    },
+    "legacy": {
+      "opener": "Looks like there are a few items left. Want to add anything, or should we move on?",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Looks like there are a few items left. Want to add anything, or should we move on?",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "are_you_done"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null,
+        "expectedUser": "User adds missing state items or says done"
+      }
+    ]
+  },
+  {
+    "id": "morning-wrap",
+    "name": "Morning wrap",
+    "order": 37,
+    "path": "both",
+    "type": "coach-bubble",
+    "screenId": "morning_wrap",
+    "context": "BEAT: Morning wrap.\n\nSay the wrap line, then end. Add nothing after, no coaching, no extra line.",
+    "allowedTools": null,
+    "expectedResponse": "Auto-ends morning check-in",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "text": "That's a good start. Go make it a good one."
+    },
+    "legacy": {
+      "opener": "That's a good start. Go make it a good one.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "That's a good start. Go make it a good one.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "morning_wrap"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "evening-opener",
+    "name": "Evening opener and habits",
+    "order": 38,
+    "path": "both",
+    "type": "coach-bubble",
+    "screenId": "evening_opener",
+    "context": "BEAT: Evening opener.\n\nSay the greeting and habits ask (the time clip plays in front). The habit checklist renders on screen.",
+    "allowedTools": null,
+    "expectedResponse": "User starts evening habit review or declines",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "text": "Hey, good evening. Here are your habits for today. How did the day go?"
+    },
+    "legacy": {
+      "opener": "Hey, good evening. Here are your habits for today. How did the day go?",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Hey, good evening. Here are your habits for today. How did the day go?",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "evening_opener"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "evening-habits",
+    "name": "Evening habit review",
+    "order": 39,
+    "path": "both",
+    "type": "habit-review",
+    "screenId": "evening_habits",
+    "context": "BEAT: Evening habits.\n\nThe user marks each habit done, not done, or pending, by tapping or saying it. Record completions with complete_habit, polarity aware: a 'do' habit counts when they did it, an 'avoid' habit counts only when they abstained, a slip is left unmarked, never a failure, never congratulated. If they marked it on the card, do not also call complete_habit. EXPLICIT REACTION: after they report, give ONE short live reaction to the day.",
+    "allowedTools": "record_habit_review",
+    "expectedResponse": "Marks each habit done, not done, or pending by voice or tap",
+    "voiceEngine": "Silent",
+    "voiceMode": null,
+    "hideOrb": false,
+    "props": null,
+    "legacy": {
+      "opener": null,
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": false,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Silent",
+      "scripted": null,
+      "narration": null,
+      "elements": []
+    },
+    "script": []
+  },
+  {
+    "id": "evening-are-you-done",
+    "name": "Evening partial gate",
+    "order": 40,
+    "path": "both",
+    "type": "coach-bubble",
+    "screenId": "are_you_done",
+    "context": "BEAT: Are you done (shared, morning and evening).\n\nOnly when a bounded step (the four morning items, or the evening habit list) is left partial. Say the are-you-done line ONCE. The user adds the rest or says they're done. Either way, move on. Never re-ask, never loop, never block. Governed by the Global are-you-done rule.",
+    "allowedTools": null,
+    "expectedResponse": "Adds remaining habit statuses or says done",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "text": "Looks like there are a few items left. Want to add anything, or should we move on?"
+    },
+    "legacy": {
+      "opener": "Looks like there are a few items left. Want to add anything, or should we move on?",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Looks like there are a few items left. Want to add anything, or should we move on?",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "are_you_done"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null,
+        "expectedUser": "User adds missing habit statuses or says done"
+      }
+    ]
+  },
+  {
+    "id": "evening-reflection-transition",
+    "name": "Evening reflection transition",
+    "order": 41,
+    "path": "both",
+    "type": "coach-bubble",
+    "screenId": "reflection_transition",
+    "context": "BEAT: Reflection transition.\n\nSay the transition line, then begin the reflection in the style the user saved: the three suggested questions, their own saved prompts, or freeform. Match their persisted template, do not assume the three.",
+    "allowedTools": null,
+    "expectedResponse": "Auto-advances into reflection questions",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "text": "Good. Now let's take a moment to reflect on the day itself."
+    },
+    "legacy": {
+      "opener": "Good. Now let's take a moment to reflect on the day itself.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Good. Now let's take a moment to reflect on the day itself.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "reflection_transition"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "evening-reflection",
+    "name": "Evening reflection",
+    "order": 42,
+    "path": "both",
+    "type": "reflection",
+    "screenId": "reflection",
+    "context": "BEAT: Reflection.\n\nThis follows the reflection template the user set up and SAVED in onboarding. Read their persisted reflection settings and go by that, exactly:\n- suggested template: ask the three, one at a time, in order: what am I proud of, what do I forgive myself for, what am I grateful for. Do not reorder.\n- your template: ask the user's own saved prompts, one at a time, in the order they saved them. Never fall back to the suggested three.\n- freeform: no prompts. Invite them to talk freely, then listen.\n\nAfter each answer, call log_reflection(text=the user's words, title=the prompt). Do not react between prompts. EXPLICIT REACTION: after the last answer, give ONE short live reaction to the whole reflection, gentle, reflect back what they shared, do not analyze or try to solve. For freeform, one gentle reaction to what they shared.",
+    "allowedTools": "record_reflection",
+    "expectedResponse": "Answers proud, forgive, and grateful prompts",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "proud": "What are you proud of today?",
+      "proudAnswer": "I showed up even though I was tired.",
+      "forgive": "What do you forgive yourself for today?",
+      "forgiveAnswer": "Skipping my afternoon walk.",
+      "grateful": "What are you grateful for today?",
+      "gratefulAnswer": "A good talk with my brother."
+    },
+    "legacy": {
+      "opener": "What are you proud of today?",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "What are you proud of today?",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "reflection"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null,
+        "expectedUser": "User answers one thing they are proud of"
+      },
+      {
+        "seq": 2,
+        "words": "What do you forgive yourself for today?",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-2",
+          "screen": "reflection"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null,
+        "expectedUser": "User answers one thing they forgive themselves for"
+      },
+      {
+        "seq": 3,
+        "words": "What are you grateful for today?",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-3",
+          "screen": "reflection"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null,
+        "expectedUser": "User answers one thing they are grateful for"
+      }
+    ]
+  },
+  {
+    "id": "evening-wrap",
+    "name": "Evening wrap",
+    "order": 43,
+    "path": "both",
+    "type": "coach-bubble",
+    "screenId": "evening_wrap",
+    "context": "BEAT: Evening wrap.\n\nSay the wrap line, then end. Nothing after.",
+    "allowedTools": null,
+    "expectedResponse": "Auto-ends evening check-in",
+    "voiceEngine": "Cartesia",
+    "voiceMode": "Verbatim",
+    "hideOrb": false,
+    "props": {
+      "text": "That's it for tonight. Sleep well."
+    },
+    "legacy": {
+      "opener": "That's it for tonight. Sleep well.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": null,
+      "engine": "Cartesia",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "That's it for tonight. Sleep well.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "evening_wrap"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "the-weekly-frame",
+    "name": "The Weekly frame",
+    "order": 44,
+    "path": "both",
+    "type": "coach-bubble",
+    "screenId": "WEEKLY-FRAME",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "User enters the weekly session after the daily reflection",
+    "voiceEngine": "Vapi",
+    "voiceMode": "Improvise",
+    "hideOrb": false,
+    "props": {
+      "text": "Let's zoom out. A whole week of you to look at."
+    },
+    "legacy": {
+      "opener": "Let's zoom out. A whole week of you to look at.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": "Provisional wording from the-weekly.md",
+      "engine": "Vapi",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Let's zoom out. A whole week of you to look at.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "WEEKLY-FRAME"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "the-weekly-week-shown",
+    "name": "The week shown",
+    "order": 45,
+    "path": "both",
+    "type": "weekly-projection",
+    "screenId": "WEEKLY-WEEK-SHOWN",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "User reviews the weekly grid and coach highlights",
+    "voiceEngine": "Vapi",
+    "voiceMode": "Improvise",
+    "hideOrb": false,
+    "props": {
+      "state": "p78",
+      "coachLine": "You showed up 5 of 7. Strong middle of the week."
+    },
+    "legacy": {
+      "opener": "You showed up 5 of 7. Strong middle of the week.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": "Example wording from the-weekly.md",
+      "engine": "Vapi",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "You showed up 5 of 7. Strong middle of the week.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "WEEKLY-WEEK-SHOWN"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "the-weekly-insights",
+    "name": "Weekly insights",
+    "order": 46,
+    "path": "both",
+    "type": "live-reaction",
+    "screenId": "WEEKLY-INSIGHTS",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "User hears one or two grounded patterns",
+    "voiceEngine": "Vapi",
+    "voiceMode": "Improvise",
+    "hideOrb": false,
+    "props": {
+      "text": "Your energy tracked your sleep almost exactly. The days you moved, your mood was up."
+    },
+    "legacy": {
+      "opener": "Your energy tracked your sleep almost exactly. The days you moved, your mood was up.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": "Example wording from the-weekly.md",
+      "engine": "Vapi",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Your energy tracked your sleep almost exactly. The days you moved, your mood was up.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "WEEKLY-INSIGHTS"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "the-weekly-brainstorm-edit",
+    "name": "Weekly brainstorm and edit",
+    "order": 47,
+    "path": "both",
+    "type": "coach-bubble",
+    "screenId": "WEEKLY-BRAINSTORM-EDIT",
+    "context": null,
+    "allowedTools": "add_habit, remove_habit, reschedule_habit, update_habit, set_weekly_focus",
+    "expectedResponse": "User decides whether to add, drop, shrink, reschedule, or keep the plan",
+    "voiceEngine": "Vapi",
+    "voiceMode": "Improvise",
+    "hideOrb": false,
+    "props": {
+      "text": "What feels worth changing for next week?"
+    },
+    "legacy": {
+      "opener": "What feels worth changing for next week?",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": "Provisional structure, final weekly copy not locked",
+      "engine": "Vapi",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "What feels worth changing for next week?",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "WEEKLY-BRAINSTORM-EDIT"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null,
+        "expectedUser": "User discusses plan edits or keeps the plan"
+      }
+    ]
+  },
+  {
+    "id": "the-weekly-close",
+    "name": "The Weekly close",
+    "order": 48,
+    "path": "both",
+    "type": "coach-bubble",
+    "screenId": "WEEKLY-CLOSE",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "Auto-ends The Weekly",
+    "voiceEngine": "Vapi",
+    "voiceMode": "Improvise",
+    "hideOrb": false,
+    "props": {
+      "text": "Same plan, one change. Good week."
+    },
+    "legacy": {
+      "opener": "Same plan, one change. Good week.",
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": "Provisional wording from the-weekly.md",
+      "engine": "Vapi",
+      "scripted": true,
+      "narration": null,
+      "elements": []
+    },
+    "script": [
+      {
+        "seq": 1,
+        "words": "Same plan, one change. Good week.",
+        "bindsTo": {
+          "kind": "bubble",
+          "element": "bubble-1",
+          "screen": "WEEKLY-CLOSE"
+        },
+        "voice": "cartesia",
+        "clip": null,
+        "clipPath": null
+      }
+    ]
+  },
+  {
+    "id": "library-browse",
+    "name": "Library browse",
+    "order": 49,
+    "path": "both",
+    "type": "reset-library",
+    "screenId": "LIBRARY-BROWSE",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "User chooses a reset track",
+    "voiceEngine": "Silent",
+    "voiceMode": null,
+    "hideOrb": false,
+    "props": {
+      "stage": "browse"
+    },
+    "legacy": {
+      "opener": null,
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": "Coach lines and per-track whatFor copy pending Yair",
+      "engine": "Silent",
+      "scripted": null,
+      "narration": null,
+      "elements": []
+    },
+    "script": []
+  },
+  {
+    "id": "library-player",
+    "name": "Library player",
+    "order": 50,
+    "path": "both",
+    "type": "reset-library",
+    "screenId": "LIBRARY-PLAYER",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "User starts, pauses, seeks, or exits the selected track",
+    "voiceEngine": "Silent",
+    "voiceMode": null,
+    "hideOrb": false,
+    "props": {
+      "stage": "player"
+    },
+    "legacy": {
+      "opener": null,
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": "Player structure only, coach intro copy pending Yair",
+      "engine": "Silent",
+      "scripted": null,
+      "narration": null,
+      "elements": []
+    },
+    "script": []
+  },
+  {
+    "id": "library-nudges",
+    "name": "Library reset nudges",
+    "order": 51,
+    "path": "both",
+    "type": "reset-library",
+    "screenId": "LIBRARY-NUDGES",
+    "context": null,
+    "allowedTools": null,
+    "expectedResponse": "User configures reset nudge slots and track choice",
+    "voiceEngine": "Silent",
+    "voiceMode": null,
+    "hideOrb": false,
+    "props": {
+      "stage": "nudges"
+    },
+    "legacy": {
+      "opener": null,
+      "secondBubble": null,
+      "closeBubble": null,
+      "confirmBubble": null,
+      "buttonLabel": null,
+      "openerMode": null,
+      "openerShowsAsBubble": true,
+      "variable": false,
+      "variableNote": null,
+      "clipNote": "Notification UI structure only, nudge copy belongs in the Sheet",
+      "engine": "Silent",
+      "scripted": null,
+      "narration": null,
+      "elements": []
+    },
+    "script": []
   }
 ] as const;
 

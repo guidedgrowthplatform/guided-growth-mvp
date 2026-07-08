@@ -6,7 +6,7 @@
 // Usage: node scripts/sync-beat-contexts.mjs
 //
 // - Binds ONLY active beats matched by screenId.
-// - SKIPs known-dead screenIds (see SKIP_SCREEN_IDS) and check-in rows.
+// - SKIPs known-dead screenIds (see SKIP_SCREEN_IDS).
 // - Leaves context untouched (and reports it) for beats with no sheet row.
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -28,19 +28,6 @@ const SKIP_SCREEN_IDS = new Set([
   'ONBOARD-ADVANCED-04',
   'ONBOARD-ADVANCED-05',
   'ONBOARD-ADV-CUSTOM',
-]);
-
-// Check-in rows in the sheet are not onboarding beats.
-const SKIP_SHEET_KEYS = new Set([
-  'morning_opener',
-  'morning_state',
-  'morning_wrap',
-  'evening_opener',
-  'evening_habits',
-  'reflection_transition',
-  'reflection',
-  'evening_wrap',
-  'are_you_done',
 ]);
 
 // Extract the BEATS_SOURCE array literal (string-aware bracket matching so
@@ -90,7 +77,7 @@ for (const beat of beats) {
     gaps.push(`${beat.id} (no screenId)`);
     continue;
   }
-  if (SKIP_SCREEN_IDS.has(sid) || SKIP_SHEET_KEYS.has(sid)) {
+  if (SKIP_SCREEN_IDS.has(sid)) {
     skippedDead.push(`${beat.id} -> ${sid}`);
     continue;
   }
@@ -115,7 +102,7 @@ const hasGlobal = typeof sheet.GLOBAL?.context === 'string';
 
 console.log(`Rebound ${rebound.length} beat context(s), ${changed} changed:`);
 for (const r of rebound) console.log(`  + ${r}`);
-console.log(`\nSkipped dead / check-in (${skippedDead.length}):`);
+console.log(`\nSkipped dead (${skippedDead.length}):`);
 for (const s of skippedDead) console.log(`  - ${s}`);
 console.log(`\nGaps, left unchanged (${gaps.length}):`);
 for (const g of gaps) console.log(`  ? ${g}`);

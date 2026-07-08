@@ -152,6 +152,168 @@
       "screenId": "ONBOARD-WEEKLY-PROJECTION-GAPS",
       "opener": "The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going.",
       "path": "both"
+    },
+    {
+      "index": 26,
+      "screenId": "APP-TOUR-MORNING",
+      "opener": "Mornings start with a quick check-in, {name}. Just say you're ready, and we'll see how you slept and where you're at.",
+      "path": "both"
+    },
+    {
+      "index": 27,
+      "screenId": "APP-TOUR-EVENING",
+      "opener": "Evenings, you reflect on the day. Just start talking to me, how it went, what's on your mind.",
+      "path": "both"
+    },
+    {
+      "index": 28,
+      "screenId": "APP-TOUR-HABITS",
+      "opener": "These are your habits. Tell me the ones you do, and the ones you miss. Either way works.",
+      "path": "both"
+    },
+    {
+      "index": 29,
+      "screenId": "APP-TOUR-ADD-HABIT",
+      "opener": "Want to track something new? Just tell me, {name}, and we'll add it together.",
+      "path": "both"
+    },
+    {
+      "index": 30,
+      "screenId": "APP-TOUR-REFLECTIONS",
+      "opener": "It's empty now, but this is where your reflections will live. After your first evening one, they show up here.",
+      "path": "both"
+    },
+    {
+      "index": 31,
+      "screenId": "APP-TOUR-FEEDBACK",
+      "opener": "You're one of our 50 founding users, {name}, so your feedback is one of the most meaningful things you can do for us. It shapes where this whole product goes. There's a button here for it, and you can also just tell me, anytime you've got something.",
+      "path": "both"
+    },
+    {
+      "index": 32,
+      "screenId": "APP-TOUR-CHAT",
+      "opener": "Great job getting here, {name}. This might be the longest you'll ever be in the app, but it was worth it to set up your foundation. The key now is consistency. It doesn't have to be long, just do it twice a day, and we'll do our best to help you improve and stay consistent. I'm right here anytime, just open the chat.",
+      "path": "both"
+    },
+    {
+      "index": 33,
+      "screenId": "CHAT-IDLE",
+      "opener": null,
+      "path": "both"
+    },
+    {
+      "index": 34,
+      "screenId": "CHAT-OPEN",
+      "opener": "Hey, how's your day going?",
+      "path": "both"
+    },
+    {
+      "index": 35,
+      "screenId": "morning_opener",
+      "opener": "Good morning. Ready to check in?",
+      "path": "both"
+    },
+    {
+      "index": 36,
+      "screenId": "morning_state",
+      "opener": "How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Just tell me where you're at.",
+      "path": "both"
+    },
+    {
+      "index": 37,
+      "screenId": "are_you_done",
+      "opener": "Looks like there are a few items left. Want to add anything, or should we move on?",
+      "path": "both"
+    },
+    {
+      "index": 38,
+      "screenId": "morning_wrap",
+      "opener": "That's a good start. Go make it a good one.",
+      "path": "both"
+    },
+    {
+      "index": 39,
+      "screenId": "evening_opener",
+      "opener": "Hey, good evening. Here are your habits for today. How did the day go?",
+      "path": "both"
+    },
+    {
+      "index": 40,
+      "screenId": "evening_habits",
+      "opener": null,
+      "path": "both"
+    },
+    {
+      "index": 41,
+      "screenId": "are_you_done",
+      "opener": "Looks like there are a few items left. Want to add anything, or should we move on?",
+      "path": "both"
+    },
+    {
+      "index": 42,
+      "screenId": "reflection_transition",
+      "opener": "Good. Now let's take a moment to reflect on the day itself.",
+      "path": "both"
+    },
+    {
+      "index": 43,
+      "screenId": "reflection",
+      "opener": "What are you proud of today?",
+      "path": "both"
+    },
+    {
+      "index": 44,
+      "screenId": "evening_wrap",
+      "opener": "That's it for tonight. Sleep well.",
+      "path": "both"
+    },
+    {
+      "index": 45,
+      "screenId": "WEEKLY-FRAME",
+      "opener": "Let's zoom out. A whole week of you to look at.",
+      "path": "both"
+    },
+    {
+      "index": 46,
+      "screenId": "WEEKLY-WEEK-SHOWN",
+      "opener": "You showed up 5 of 7. Strong middle of the week.",
+      "path": "both"
+    },
+    {
+      "index": 47,
+      "screenId": "WEEKLY-INSIGHTS",
+      "opener": "Your energy tracked your sleep almost exactly. The days you moved, your mood was up.",
+      "path": "both"
+    },
+    {
+      "index": 48,
+      "screenId": "WEEKLY-BRAINSTORM-EDIT",
+      "opener": "What feels worth changing for next week?",
+      "path": "both"
+    },
+    {
+      "index": 49,
+      "screenId": "WEEKLY-CLOSE",
+      "opener": "Same plan, one change. Good week.",
+      "path": "both"
+    },
+    {
+      "index": 50,
+      "screenId": "LIBRARY-BROWSE",
+      "opener": null,
+      "path": "both"
+    },
+    {
+      "index": 51,
+      "screenId": "LIBRARY-PLAYER",
+      "opener": null,
+      "path": "both"
+    },
+    {
+      "index": 52,
+      "screenId": "LIBRARY-NUDGES",
+      "opener": null,
+      "path": "both"
     }
   ]
 }
