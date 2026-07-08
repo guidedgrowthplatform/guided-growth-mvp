@@ -33,8 +33,9 @@ function cartesiaTtsPlugin(apiKey: string): Plugin {
           try {
             const { text, voice_id, format } = JSON.parse(body);
 
-            // Coach Yair cloned voice fallback
-            const resolvedVoiceId = voice_id || '0a974815-0e4d-4dfc-b478-37a7b943da70';
+            // Coach Yair cloned voice fallback (Pro Voice Clone V1) — matches
+            // api/cartesia-tts.ts DEFAULT_VOICE_ID and voice-presets.json.
+            const resolvedVoiceId = voice_id || '104635f9-8991-403c-9988-bc5b70b39939';
 
             console.log(
               `[vite-tts] Cartesia TTS: "${text.substring(0, 50)}..." → voice ${resolvedVoiceId}`,
@@ -48,7 +49,8 @@ function cartesiaTtsPlugin(apiKey: string): Plugin {
                 'Cartesia-Version': '2026-03-01',
               },
               body: JSON.stringify({
-                model_id: 'sonic-3',
+                // Pinned model — matches api/cartesia-tts.ts and voice-presets.json.
+                model_id: 'sonic-3.5-2026-05-04',
                 transcript: text,
                 voice: { mode: 'id', id: resolvedVoiceId },
                 output_format: { container: 'mp3', encoding: 'mp3', sample_rate: 24000 },
