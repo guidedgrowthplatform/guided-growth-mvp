@@ -1,6 +1,6 @@
 // Guard 3 of 3: RULES.
-// Beat rules are now part of the render contract. This check keeps the rules
-// honest:
+// Flow and beat rules are now part of the render contract. This check keeps
+// the rules honest:
 //   1. every rule has the expected shape
 //   2. every "must" rule is enforced, or explicitly marked prose-only-accepted
 //   3. every code rule's enforcedBy points at a real guard, package script, or
@@ -84,6 +84,7 @@ const src = await readFile(beatsSourcePath, 'utf8');
 const pkg = JSON.parse(await readFile(packagePath, 'utf8'));
 const schemas = exportedSchemaNames(src);
 const globalRules = parseExportedValue(src, 'GLOBAL_RULES');
+const flows = parseExportedValue(src, 'FLOWS_SOURCE');
 const beats = parseExportedValue(src, 'BEATS_SOURCE');
 const problems = [];
 
@@ -144,6 +145,46 @@ async function checkRuleset(rules, label) {
 }
 
 await checkRuleset(globalRules, 'GLOBAL_RULES');
+for (const flow of flows) {
+  const label = `flow:${flow.id ?? '(unknown flow)'}`;
+  if (!flow.id || typeof flow.id !== 'string') problems.push(`${label}: missing string id`);
+  if (!flow.name || typeof flow.name !== 'string') problems.push(`${label}: missing string name`);
+  if (!Array.isArray(flow.engines)) problems.push(`${label}: engines must be an array`);
+  if (!flow.systemPrompt || typeof flow.systemPrompt !== 'string') problems.push(`${label}: missing string systemPrompt`);
+  if (!flow.entry || typeof flow.entry !== 'string') problems.push(`${label}: missing string entry`);
+  if (!flow.exit || typeof flow.exit !== 'string') problems.push(`${label}: missing string exit`);
+  if (!Array.isArray(flow.tools)) problems.push(`${label}: tools must be an array`);
+  if (!Array.isArray(flow.data)) problems.push(`${label}: data must be an array`);
+  await checkRuleset(flow.flowRules, `${label}.flowRules`);
+
+  const usesVapi = Array.isArray(flow.engines) && flow.engines.includes('Vapi');
+  if (usesVapi && !flow.vapiAgent) {
+    problems.push(`${label}: engines includes Vapi but vapiAgent is missing`);
+  }
+  if (!usesVapi && flow.vapiAgent) {
+    problems.push(`${label}: vapiAgent is present but engines does not include Vapi`);
+  }
+  if (flow.vapiAgent) {
+    const agent = flow.vapiAgent;
+    for (const field of ['systemPrompt', 'firstMessage', 'model', 'voice', 'serverUrl', 'transcriber']) {
+      if (!agent[field] || typeof agent[field] !== 'string') {
+        problems.push(`${label}.vapiAgent: missing string ${field}`);
+      }
+    }
+    if (!Array.isArray(agent.drivesBeats) || agent.drivesBeats.length === 0) {
+      problems.push(`${label}.vapiAgent: drivesBeats must be a non-empty array`);
+    }
+    if (!Array.isArray(agent.tools) || agent.tools.length === 0) {
+      problems.push(`${label}.vapiAgent: tools must be a non-empty array`);
+    } else {
+      for (const tool of agent.tools) {
+        if (!tool?.name || typeof tool.name !== 'string') problems.push(`${label}.vapiAgent: tool missing name`);
+        if (tool?.id == null || typeof tool.id !== 'string') problems.push(`${label}.vapiAgent: tool ${tool?.name ?? '(unknown)'} missing id`);
+        if (!tool?.screen || typeof tool.screen !== 'string') problems.push(`${label}.vapiAgent: tool ${tool?.name ?? '(unknown)'} missing screen`);
+      }
+    }
+  }
+}
 for (const beat of beats) {
   if (beat.rules !== undefined) await checkRuleset(beat.rules, beat.id ?? beat.screenId ?? '(unknown beat)');
 }
@@ -155,4 +196,4 @@ if (problems.length) {
 }
 
 const ruledBeats = beats.filter((beat) => beat.rules !== undefined).length;
-console.log(`Render RULES check passed: ${ruledBeats} beat(s) with rules, global rules included.`);
+console.log(`Render RULES check passed: ${flows.length} flow(s), ${ruledBeats} beat(s) with rules, global rules included.`);

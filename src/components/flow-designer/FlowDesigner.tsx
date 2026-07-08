@@ -18,9 +18,12 @@ import {
   BEATS_SOURCE,
   BEAT_BY_ID,
   BEAT_BY_SCREEN_ID,
+  FLOWS_SOURCE,
   GLOBAL_RULES,
   type BeatEntry,
   type BeatRule,
+  type BeatRules,
+  type FlowEntry,
   type ScriptLine,
 } from './beatsSource';
 
@@ -416,9 +419,20 @@ function PathBanner({ path, edge }: { path?: BeatPath; edge: 'start' | 'end' }) 
   );
 }
 
-// A thin divider plus the beat number above each beat, so a beat's position in
-// the flow is clear at a glance.
-function BeatDivider({ n }: { n: number }) {
+// A thin divider plus the beat number, name, and play control above each beat.
+// The play control stays outside the rendered phone, so the phone itself remains
+// a clean visual QA mirror of the app screen.
+function BeatHeader({
+  n,
+  beat,
+  playing,
+  onTogglePlay,
+}: {
+  n: number;
+  beat: FlowBeat;
+  playing: boolean;
+  onTogglePlay: () => void;
+}) {
   return (
     <div style={{ marginTop: 28, marginBottom: 10 }}>
       <div style={{ height: 1, background: '#cbd5e1', width: '100%' }} />
@@ -426,15 +440,66 @@ function BeatDivider({ n }: { n: number }) {
         style={{
           marginTop: 6,
           marginLeft: TAG_COL_W + TAG_GAP,
-          fontSize: 12,
-          fontWeight: 800,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          color: '#64748b',
+          width: PHONE_W,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
           fontFamily: 'Urbanist, -apple-system, sans-serif',
         }}
       >
-        Beat {n}
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: '#64748b',
+            }}
+          >
+            Beat {n}
+          </div>
+          <div
+            style={{
+              marginTop: 2,
+              fontSize: 14,
+              fontWeight: 800,
+              color: '#0f172a',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {beat.name}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onTogglePlay}
+          title={playing ? 'Stop' : 'Play this beat'}
+          aria-label={playing ? 'Stop this beat' : 'Play this beat'}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 999,
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: playing ? '#ef4444' : '#135BEB',
+            flexShrink: 0,
+            boxShadow: '0 8px 18px -12px rgba(15,23,42,0.55)',
+          }}
+        >
+          <Icon
+            icon={playing ? 'mdi:stop' : 'mdi:play'}
+            width={17}
+            height={17}
+            style={{ color: '#fff' }}
+          />
+        </button>
       </div>
     </div>
   );
@@ -641,7 +706,7 @@ function RuleList({ title, rules }: { title: string; rules: readonly BeatRule[] 
   );
 }
 
-function RulesPanel({ rules }: { rules?: BeatEntry['rules'] }) {
+function RulesPanel({ rules }: { rules?: BeatRules }) {
   return (
     <ContextSection title="Rules" defaultOpen>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -669,6 +734,199 @@ function RulesPanel({ rules }: { rules?: BeatEntry['rules'] }) {
         </div>
       </div>
     </ContextSection>
+  );
+}
+
+function FlowValue({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 800,
+          color: '#94a3b8',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.5, color: '#1e293b' }}>{children}</div>
+    </div>
+  );
+}
+
+function FlowPre({ text }: { text: string }) {
+  const isTodo = text.includes('TODO:');
+  return (
+    <pre
+      style={{
+        margin: 0,
+        whiteSpace: 'pre-wrap',
+        background: isTodo ? '#fff7ed' : '#f8fafc',
+        border: `1px solid ${isTodo ? '#fed7aa' : '#e2e8f0'}`,
+        borderRadius: 10,
+        padding: '10px 12px',
+        fontSize: 12,
+        lineHeight: 1.5,
+        color: isTodo ? '#9a3412' : '#334155',
+        fontFamily: 'Urbanist, -apple-system, sans-serif',
+      }}
+    >
+      {text}
+    </pre>
+  );
+}
+
+function InlineList({ items }: { items: readonly string[] }) {
+  return items.length ? (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {items.map((item) => (
+        <RuleBadge key={item} label={item} tone={item.startsWith('TODO:') ? 'danger' : 'neutral'} />
+      ))}
+    </div>
+  ) : (
+    <span style={{ color: '#94a3b8' }}>None</span>
+  );
+}
+
+function FlowLayerPanel({ flow }: { flow?: FlowEntry }) {
+  if (!flow) {
+    return (
+      <details
+        style={{
+          maxWidth: 980,
+          margin: '0 auto 20px',
+          background: '#fff',
+          border: '1px solid #e2e8f0',
+          borderRadius: 14,
+          padding: '14px 16px',
+        }}
+      >
+        <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 900, color: '#0f172a' }}>
+          Flow layer
+        </summary>
+        <div style={{ marginTop: 10, fontSize: 12.5, color: '#94a3b8' }}>
+          No flow-layer entry authored for this tab yet.
+        </div>
+      </details>
+    );
+  }
+
+  const todoValues = [
+    flow.systemPrompt,
+    flow.vapiAgent?.firstMessage,
+    flow.vapiAgent?.model,
+    flow.vapiAgent?.voice,
+    flow.vapiAgent?.serverUrl,
+    flow.vapiAgent?.transcriber,
+  ].filter((value): value is string => Boolean(value && value.includes('TODO:')));
+
+  return (
+    <details
+      open
+      style={{
+        maxWidth: 980,
+        margin: '0 auto 20px',
+        background: '#fff',
+        border: '1px solid #e2e8f0',
+        borderRadius: 14,
+        padding: '14px 16px',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+      }}
+    >
+      <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 900, color: '#0f172a' }}>
+        Flow layer: {flow.name}
+      </summary>
+      <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14 }}>
+        {todoValues.length > 0 && (
+          <div
+            style={{
+              padding: '8px 10px',
+              borderRadius: 10,
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              color: '#9a3412',
+              fontSize: 12.5,
+              fontWeight: 800,
+            }}
+          >
+            TODO flagged: final copy or dashboard-only assistant fields are not present in the render yet.
+          </div>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+          <FlowValue label="Identity">
+            {flow.id} · order {flow.order}
+          </FlowValue>
+          <FlowValue label="Engines">
+            <InlineList items={flow.engines} />
+          </FlowValue>
+          <FlowValue label="Entry">{flow.entry}</FlowValue>
+          <FlowValue label="Exit">{flow.exit}</FlowValue>
+        </div>
+        <FlowValue label="Description">{flow.description}</FlowValue>
+        <FlowValue label="System prompt">
+          <FlowPre text={flow.systemPrompt} />
+        </FlowValue>
+        <ContextSection title="Flow rules" defaultOpen>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              <div style={{ fontSize: 11, fontWeight: 900, color: '#0f172a' }}>Inherited global rules</div>
+              <RuleList title="Context" rules={GLOBAL_RULES.context} />
+              <RuleList title="Code" rules={GLOBAL_RULES.code} />
+            </div>
+            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 9 }}>
+              <div style={{ fontSize: 11, fontWeight: 900, color: '#0f172a' }}>Flow rules</div>
+              <RuleList title="Context" rules={flow.flowRules.context} />
+              <RuleList title="Code" rules={flow.flowRules.code} />
+            </div>
+          </div>
+        </ContextSection>
+        {flow.vapiAgent && (
+          <ContextSection title="Vapi agent" defaultOpen>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+              <FlowValue label="First message">{flow.vapiAgent.firstMessage}</FlowValue>
+              <FlowValue label="Model">{flow.vapiAgent.model}</FlowValue>
+              <FlowValue label="Voice">{flow.vapiAgent.voice}</FlowValue>
+              <FlowValue label="Transcriber">{flow.vapiAgent.transcriber}</FlowValue>
+              <FlowValue label="Server URL">{flow.vapiAgent.serverUrl}</FlowValue>
+              <FlowValue label="Drives beats">
+                <InlineList items={flow.vapiAgent.drivesBeats} />
+              </FlowValue>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <FlowValue label="Agent system prompt">
+                <FlowPre text={flow.vapiAgent.systemPrompt} />
+              </FlowValue>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <FlowValue label="Tools">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {flow.vapiAgent.tools.map((tool) => (
+                    <div key={tool.name} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                        <RuleBadge label={tool.name} tone="ok" />
+                        <span style={{ fontSize: 10.5, color: '#94a3b8' }}>{tool.id ?? 'no id'}</span>
+                        <span style={{ fontSize: 10.5, color: '#64748b' }}>{tool.screen}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#475569' }}>{tool.description}</div>
+                    </div>
+                  ))}
+                </div>
+              </FlowValue>
+            </div>
+          </ContextSection>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+          <FlowValue label="Tools">
+            <InlineList items={flow.tools} />
+          </FlowValue>
+          <FlowValue label="Data">
+            <InlineList items={flow.data} />
+          </FlowValue>
+        </div>
+      </div>
+    </details>
   );
 }
 
@@ -1015,6 +1273,7 @@ type BeatPath = 'beginner' | 'advanced' | 'both';
 
 interface FlowBeat {
   id: string;
+  name: string;
   type: string;
   props?: Record<string, string>;
   engine: VoiceEngine;
@@ -1040,6 +1299,7 @@ interface FlowBeat {
 // the render has a single authored store.
 export const BASE_BEATS: FlowBeat[] = BEATS_SOURCE.map((b) => ({
   id: b.id,
+  name: b.name,
   type: b.type,
   props: b.props ?? undefined,
   engine: b.voiceEngine,
@@ -1067,7 +1327,12 @@ interface TabDef {
   beats: FlowBeat[];
   title: string;
   subtitle: string;
+  flow?: FlowEntry | undefined;
 }
+
+const FLOW_BY_ID: Partial<Record<TabId, FlowEntry>> = Object.fromEntries(
+  FLOWS_SOURCE.map((flow) => [flow.id, flow]),
+) as Partial<Record<TabId, FlowEntry>>;
 
 const FLOW_PREFIXES: Record<Exclude<TabId, 'onboarding'>, string[]> = {
   'app-tour': ['app-tour-'],
@@ -1100,6 +1365,7 @@ export const TABS: TabDef[] = [
     beats: flowBeats('app-tour'),
     title: 'App tour flow',
     subtitle: 'The home tour, authored as beats in the one source.',
+    flow: FLOW_BY_ID['app-tour'],
   },
   {
     id: 'chat',
@@ -1107,6 +1373,7 @@ export const TABS: TabDef[] = [
     beats: flowBeats('chat'),
     title: 'Coach chat flow',
     subtitle: 'Idle orb into the open coach chat surface.',
+    flow: FLOW_BY_ID.chat,
   },
   {
     id: 'morning',
@@ -1114,6 +1381,7 @@ export const TABS: TabDef[] = [
     beats: flowBeats('morning'),
     title: 'Morning check-in flow',
     subtitle: 'Daily morning check-in: greeting, state card, partial gate, wrap.',
+    flow: FLOW_BY_ID.morning,
   },
   {
     id: 'evening',
@@ -1121,6 +1389,7 @@ export const TABS: TabDef[] = [
     beats: flowBeats('evening'),
     title: 'Evening check-in flow',
     subtitle: 'Daily evening check-in: greeting, habit review, partial gate, reflection, wrap.',
+    flow: FLOW_BY_ID.evening,
   },
   {
     id: 'weekly',
@@ -1128,6 +1397,7 @@ export const TABS: TabDef[] = [
     beats: flowBeats('weekly'),
     title: 'The Weekly flow',
     subtitle: 'Weekly coach discussion beats, using current provisional wording where specified.',
+    flow: FLOW_BY_ID.weekly,
   },
   {
     id: 'library',
@@ -1135,6 +1405,7 @@ export const TABS: TabDef[] = [
     beats: flowBeats('library'),
     title: 'Library flow',
     subtitle: 'Reset library structure only. Coach lines and per-track copy are pending.',
+    flow: FLOW_BY_ID.library,
   },
 ];
 
@@ -1192,13 +1463,11 @@ function TabSwitcher({
 function PhoneCard({
   engine,
   playing = false,
-  onTogglePlay,
   showOrb = true,
   children,
 }: {
   engine?: string;
   playing?: boolean;
-  onTogglePlay?: () => void;
   showOrb?: boolean;
   children: ReactNode;
 }) {
@@ -1262,33 +1531,6 @@ function PhoneCard({
       >
         <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Coach</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {onTogglePlay && (
-            <button
-              type="button"
-              onClick={onTogglePlay}
-              title={playing ? 'Stop' : 'Play this beat'}
-              aria-label={playing ? 'Stop this beat' : 'Play this beat'}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 999,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: playing ? '#ef4444' : '#135BEB',
-                flexShrink: 0,
-              }}
-            >
-              <Icon
-                icon={playing ? 'mdi:stop' : 'mdi:play'}
-                width={16}
-                height={16}
-                style={{ color: '#fff' }}
-              />
-            </button>
-          )}
           {engine && (
             <span
               style={{
@@ -1334,12 +1576,10 @@ function PhoneCard({
 function PlayableBeat({
   beat,
   active,
-  onRequestPlay,
   onDone,
 }: {
   beat: FlowBeat;
   active: boolean;
-  onRequestPlay: (id: string | null) => void;
   onDone: () => void;
 }) {
   const [stepReveal, setStepReveal] = useState<number | null>(null);
@@ -1404,7 +1644,6 @@ function PlayableBeat({
     <PhoneCard
       engine={beat.engine}
       playing={active}
-      onTogglePlay={() => onRequestPlay(active ? null : beat.id)}
       showOrb={!beat.hideOrb}
     >
       <SpokenWordsCtx.Provider value={active ? syncWords : null}>
@@ -1446,9 +1685,17 @@ function FlowPhoneFrame({
         const branched = b.path === 'beginner' || b.path === 'advanced';
         const isStart = branched && b.path !== beats[i - 1]?.path;
         const isEnd = branched && b.path !== beats[i + 1]?.path;
+        const isPlaying = playingId === b.id;
         return (
           <div key={b.id} data-beat-id={b.id} style={{ marginBottom: 34 }}>
-            {showWords && <BeatDivider n={i + 1} />}
+            {showWords && (
+              <BeatHeader
+                n={i + 1}
+                beat={b}
+                playing={isPlaying}
+                onTogglePlay={() => onRequestPlay(isPlaying ? null : b.id)}
+              />
+            )}
             {showWords && isStart && <PathBanner path={b.path} edge="start" />}
             <div style={{ display: 'flex', alignItems: 'flex-start' }}>
               {/* Left rail: compact voice tag on non-onboarding tabs, full metadata
@@ -1472,8 +1719,7 @@ function FlowPhoneFrame({
               <div style={{ flex: `0 0 ${PHONE_W}px` }}>
                 <PlayableBeat
                   beat={b}
-                  active={playingId === b.id}
-                  onRequestPlay={onRequestPlay}
+                  active={isPlaying}
                   onDone={() => onRequestPlay(null)}
                 />
               </div>
@@ -1552,6 +1798,8 @@ export function FlowDesigner() {
           Show expected user response under each coach line
         </label>
       </div>
+
+      <FlowLayerPanel flow={tab.flow} />
 
       {/* Main layout */}
       <FlowPhoneFrame

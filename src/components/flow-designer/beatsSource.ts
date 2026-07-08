@@ -27,6 +27,41 @@ export interface BeatRules {
   readonly code: readonly BeatRule[];
 }
 
+export type FlowEngine = 'direct-LLM' | 'Vapi' | 'MP3' | 'Cartesia';
+
+export interface FlowVapiTool {
+  readonly name: string;
+  readonly id: string | null;
+  readonly screen: string;
+  readonly description: string;
+}
+
+export interface FlowVapiAgent {
+  readonly systemPrompt: string;
+  readonly firstMessage: string;
+  readonly model: string;
+  readonly voice: string;
+  readonly tools: readonly FlowVapiTool[];
+  readonly serverUrl: string;
+  readonly transcriber: string;
+  readonly drivesBeats: readonly string[];
+}
+
+export interface FlowEntry {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly order: number;
+  readonly engines: readonly FlowEngine[];
+  readonly systemPrompt: string;
+  readonly vapiAgent?: FlowVapiAgent;
+  readonly flowRules: BeatRules;
+  readonly entry: string;
+  readonly exit: string;
+  readonly tools: readonly string[];
+  readonly data: readonly string[];
+}
+
 export interface ScriptLine {
   readonly seq: number;
   readonly words: string;
@@ -105,6 +140,358 @@ export const GLOBAL_RULES: BeatRules = {
     },
   ],
 };
+
+export const FLOWS_SOURCE: readonly FlowEntry[] = [
+  {
+    id: 'app-tour',
+    name: 'App tour',
+    description: 'The post-onboarding home tour over the real home surface.',
+    order: 2,
+    engines: ['Cartesia'],
+    systemPrompt: 'TODO: app tour system prompt is not finalized. Do not invent coach persona or copy here.',
+    flowRules: {
+      context: [
+        {
+          id: 'app-tour-flow-context-todo',
+          rule: 'App tour coach persona and flow-level copy are pending final design.',
+          severity: 'must',
+          enforcedBy: 'prose-only-accepted',
+        },
+        {
+          id: 'app-tour-flow-context-one-feature',
+          rule: 'Coach explains one home feature at a time and then waits for the next tour beat.',
+          severity: 'must',
+          enforcedBy: 'parity-walk',
+        },
+      ],
+      code: [
+        {
+          id: 'app-tour-flow-code-source',
+          rule: 'App tour flow metadata lives in FLOWS_SOURCE and beats live in BEATS_SOURCE.',
+          severity: 'must',
+          enforcedBy: 'schema:FlowEntry',
+        },
+        {
+          id: 'app-tour-flow-code-rules-self-audit',
+          rule: 'Flow code rules name real guards, package scripts, or exported schemas.',
+          severity: 'must',
+          enforcedBy: 'scripts/render-rules-check.mjs',
+        },
+      ],
+    },
+    entry: 'Starts after onboarding completes and the user reaches the home surface.',
+    exit: 'Ends after the chat tour beat. The user remains on the home surface.',
+    tools: [],
+    data: ['home habits', 'reflection setup', 'weekly setup', 'founding user feedback entry point'],
+  },
+  {
+    id: 'chat',
+    name: 'Coach chat',
+    description: 'The floating coach chat surface from closed orb to open conversation.',
+    order: 3,
+    engines: ['Cartesia'],
+    systemPrompt: 'TODO: coach chat system prompt is not finalized. Do not invent open-chat persona or copy here.',
+    flowRules: {
+      context: [
+        {
+          id: 'chat-flow-context-todo',
+          rule: 'Coach chat persona and final open-chat copy are pending.',
+          severity: 'must',
+          enforcedBy: 'prose-only-accepted',
+        },
+        {
+          id: 'chat-flow-context-open-ended',
+          rule: 'When chat is open, the coach invites a real user need instead of narrating interface mechanics.',
+          severity: 'should',
+          enforcedBy: null,
+        },
+      ],
+      code: [
+        {
+          id: 'chat-flow-code-source',
+          rule: 'Chat flow metadata lives in FLOWS_SOURCE and beats live in BEATS_SOURCE.',
+          severity: 'must',
+          enforcedBy: 'schema:FlowEntry',
+        },
+        {
+          id: 'chat-flow-code-rules-self-audit',
+          rule: 'Flow code rules name real guards, package scripts, or exported schemas.',
+          severity: 'must',
+          enforcedBy: 'scripts/render-rules-check.mjs',
+        },
+      ],
+    },
+    entry: 'User opens the coach from the home orb.',
+    exit: 'User closes chat or continues into a live coach conversation.',
+    tools: [],
+    data: ['recent session context', 'home state', 'habit state'],
+  },
+  {
+    id: 'morning',
+    name: 'Morning check-in',
+    description: 'Daily morning check-in for state capture and morning wrap.',
+    order: 4,
+    engines: ['Cartesia', 'direct-LLM'],
+    systemPrompt: 'Morning check-in is tight and scripted. Say the authored Cartesia lines, capture mood, energy, sleep, and stress, ask only the partial follow-up when needed, then close. Do not improvise coaching beyond the authored check-in beats.',
+    flowRules: {
+      context: [
+        {
+          id: 'morning-flow-context-scripted',
+          rule: 'Morning check-in uses fixed scripted coach wording and a short forward-only shape.',
+          severity: 'must',
+          enforcedBy: 'parity-walk',
+        },
+        {
+          id: 'morning-flow-context-one-line-then-wait',
+          rule: 'Coach asks one check-in question at a time, then waits for the user.',
+          severity: 'must',
+          enforcedBy: 'prose-only-accepted',
+        },
+      ],
+      code: [
+        {
+          id: 'morning-flow-code-tools',
+          rule: 'Morning state capture declares record_checkin on the state beat.',
+          severity: 'must',
+          enforcedBy: 'schema:BeatEntry',
+        },
+        {
+          id: 'morning-flow-code-rules-self-audit',
+          rule: 'Flow code rules name real guards, package scripts, or exported schemas.',
+          severity: 'must',
+          enforcedBy: 'scripts/render-rules-check.mjs',
+        },
+      ],
+    },
+    entry: 'Starts at the user configured morning check-in time or manual morning entry.',
+    exit: 'Ends after the morning wrap and returns to home.',
+    tools: ['record_checkin'],
+    data: ['daily state check-in', 'sleep', 'mood', 'energy', 'stress'],
+  },
+  {
+    id: 'evening',
+    name: 'Evening check-in',
+    description: 'Daily evening habit review and reflection capture.',
+    order: 5,
+    engines: ['Cartesia', 'direct-LLM'],
+    systemPrompt: 'Evening check-in is tight and scripted. Review habits, ask the partial follow-up only when needed, capture the configured reflection, then close. Do not turn the daily reflection into a weekly coaching session.',
+    flowRules: {
+      context: [
+        {
+          id: 'evening-flow-context-scripted',
+          rule: 'Evening check-in uses fixed scripted coach wording and a short forward-only shape.',
+          severity: 'must',
+          enforcedBy: 'parity-walk',
+        },
+        {
+          id: 'evening-flow-context-reflection',
+          rule: 'Reflection capture follows the user configured reflection mode and does not add extra prompts after the wrap.',
+          severity: 'must',
+          enforcedBy: 'parity-walk',
+        },
+      ],
+      code: [
+        {
+          id: 'evening-flow-code-tools',
+          rule: 'Evening habit review and reflection beats declare their write tools.',
+          severity: 'must',
+          enforcedBy: 'schema:BeatEntry',
+        },
+        {
+          id: 'evening-flow-code-rules-self-audit',
+          rule: 'Flow code rules name real guards, package scripts, or exported schemas.',
+          severity: 'must',
+          enforcedBy: 'scripts/render-rules-check.mjs',
+        },
+      ],
+    },
+    entry: 'Starts at the user configured evening check-in time or manual evening entry.',
+    exit: 'Ends after evening wrap. If today is the selected weekly day, The Weekly may start after the daily reflection.',
+    tools: ['record_habit_review', 'record_reflection'],
+    data: ['habit completions', 'daily reflection', 'reflection settings'],
+  },
+  {
+    id: 'weekly',
+    name: 'The Weekly',
+    description: 'Once-a-week Vapi coaching session that reads the real week and plans the next one.',
+    order: 6,
+    engines: ['Vapi'],
+    systemPrompt: `You are the user's coach inside Guided Growth, running The Weekly: a once-a-week session where you look back over their whole week together and plan the next one. It runs right after that day's daily reflection, so the day's logging is already done. You receive the user's real week as a WEEK DATA block: habit completions, state check-ins (sleep, mood, energy, stress), and daily reflections, plus last week's focus and changes when they exist.
+
+## The session
+
+It moves in five beats: frame, the week shown, insights, brainstorm and edit, close. Each beat hands you its own instructions. Keep the whole session tight: a few minutes, one or two insights, at most a few plan changes, then lock the plan and close. Nothing has to change; a good week can close with the same plan.
+
+## The rules of this session
+
+1. Ground everything in the data. Every observation, insight, and suggestion must trace to something in WEEK DATA. If the data is thin, say plainly what it can and cannot show. Never invent a pattern or correlation.
+
+2. Split the week: working vs not working. A habit counts as working when the user hit it on most of its scheduled days. Working habits stay untouched. Do not fix what is not broken.
+
+3. For a habit that is not working, diagnose with the user first. Ask what got in the way. Listen. Then land on one of four moves: shrink it, lower the frequency, drop it, or keep it and fix the reason.
+
+4. Use state data to surface real connections, but be honest about one week being a small sample. If state data is missing, nudge daily logging once, gently.
+
+5. The reflections are context. Use what the user wrote when it explains a miss or a win.
+
+6. Adding is the exception. Only if the week went well and a state area is clearly low may you suggest one small habit. One at most.
+
+7. Tone is warm, direct, and on their side. Never shame a miss. A reported miss is still showing up. Default to fewer, smaller, and more sustainable.
+
+8. Say the compounding point exactly once at the close: you know them a little better every week, so this gets sharper every week.
+
+## Thin data
+
+If WEEK DATA is marked thin, run the light version. Acknowledge they are just getting started. Show what is there. Make no pattern claims. Nudge daily logging. Do a light plan check. Keep it under two minutes.
+
+## How you talk
+
+- You are speaking out loud. Short lines, like a person. One thought at a time.
+- Never say tap, scroll, click, press, or swipe. Never explain screen mechanics.
+- Never say the words beat, step, screen, card, tool, or system out loud.
+- React to the exact thing they said.
+- Match the user's language.
+- If something heavy comes up, drop the session. Be human first.
+
+## Tools
+
+- Each beat tells you which tools you may use. Call a tool only once the user has actually agreed to that change, then confirm out loud what changed in one short line.
+- Plan edits are real and immediate. Pass canonical values, not the user's raw words.
+- Never tell the user you are saving or calling anything. It just happens.
+- Closing the session records the week: the focus they set, the changes made. That record is next week's memory.
+
+{{initial_screen_context}}`,
+    vapiAgent: {
+      systemPrompt: `You are the user's coach inside Guided Growth, running The Weekly. This is the dedicated weekly Vapi assistant context managed by api/_lib/weekly/globalContext.ts on the app branch. Use the flow systemPrompt above as the render-owned copy of that source.`,
+      firstMessage: 'TODO: fetch from the dedicated weekly Vapi assistant dashboard. Live Vapi API fetch was blocked with 403 error code 1010 on 2026-07-09.',
+      model: 'TODO: fetch from the dedicated weekly Vapi assistant dashboard.',
+      voice: 'TODO: fetch from the dedicated weekly Vapi assistant dashboard. Voice stack is Soniox STT plus Cartesia Sonic 3.5 using Yair Pro Clone per gg-spec/docs/the-weekly.md.',
+      serverUrl: 'TODO: VAPI_WEBHOOK_BASE_URL is not present in local env. Sync source is scripts/vapi-sync/sync.ts.',
+      transcriber: 'TODO: fetch from the dedicated weekly Vapi assistant dashboard. Expected stack is Soniox STT per gg-spec/docs/the-weekly.md.',
+      drivesBeats: [
+        'the-weekly-frame',
+        'the-weekly-week-shown',
+        'the-weekly-insights',
+        'the-weekly-brainstorm-edit',
+        'the-weekly-close',
+      ],
+      tools: [
+        {
+          name: 'weekly_update_habit',
+          id: '6563c5a4-ec31-4f71-a2f1-f6609261275a',
+          screen: 'WCHECK-EDIT',
+          description: 'Edit an existing habit during The Weekly after the user agrees to the change.',
+        },
+        {
+          name: 'weekly_archive_habit',
+          id: '32503e12-656a-4e7e-a639-075b97d737dd',
+          screen: 'WCHECK-EDIT',
+          description: 'Archive a habit during The Weekly after the user agrees to drop it.',
+        },
+        {
+          name: 'weekly_add_habit',
+          id: '6de54d2c-1cb6-419e-8868-8aa283f3384c',
+          screen: 'WCHECK-EDIT',
+          description: 'Add one small habit only when the week went well and the user agrees.',
+        },
+        {
+          name: 'weekly_complete',
+          id: 'fdf82b23-5a72-4029-afd3-e6c3af07dd2f',
+          screen: 'WCHECK-CLOSE',
+          description: 'Lock next week plan and close The Weekly session.',
+        },
+        {
+          name: 'weekly_advance',
+          id: '8bd8bc43-288b-4865-91c1-97413d044a49',
+          screen: '*',
+          description: 'Advance to the next beat of The Weekly session.',
+        },
+      ],
+    },
+    flowRules: {
+      context: [
+        {
+          id: 'weekly-flow-context-grounded',
+          rule: 'Every observation and suggestion is grounded in the week data or clearly names thin data.',
+          severity: 'must',
+          enforcedBy: 'parity-walk',
+        },
+        {
+          id: 'weekly-flow-context-no-shame',
+          rule: 'Coach never shames missed habits and defaults to fewer, smaller, sustainable changes.',
+          severity: 'must',
+          enforcedBy: 'prose-only-accepted',
+        },
+      ],
+      code: [
+        {
+          id: 'weekly-flow-code-vapi-agent',
+          rule: 'The Weekly flow declares a vapiAgent because its engines include Vapi.',
+          severity: 'must',
+          enforcedBy: 'scripts/render-rules-check.mjs',
+        },
+        {
+          id: 'weekly-flow-code-tool-ids',
+          rule: 'The weekly Vapi tool ids are copied from the weekly assistant lockfile.',
+          severity: 'must',
+          enforcedBy: 'scripts/render-rules-check.mjs',
+        },
+        {
+          id: 'weekly-flow-code-rules-self-audit',
+          rule: 'Flow code rules name real guards, package scripts, or exported schemas.',
+          severity: 'must',
+          enforcedBy: 'scripts/render-rules-check.mjs',
+        },
+      ],
+    },
+    entry: 'Starts after the daily evening reflection on the user selected weekly day.',
+    exit: 'Ends when weekly_complete records the weekly session and the user returns to home.',
+    tools: ['weekly_update_habit', 'weekly_archive_habit', 'weekly_add_habit', 'weekly_complete', 'weekly_advance'],
+    data: ['weekly context endpoint', 'habit completions', 'state check-ins', 'daily reflections', 'weekly_sessions', 'user_habits'],
+  },
+  {
+    id: 'library',
+    name: 'Library',
+    description: 'Reset library structure for browsing, playing, and configuring reset nudges.',
+    order: 7,
+    engines: [],
+    systemPrompt: 'TODO: library coach lines and flow-level system prompt are not written yet. Structure only.',
+    flowRules: {
+      context: [
+        {
+          id: 'library-flow-context-todo',
+          rule: 'Library coach copy is not written yet, so the render stays structure-only.',
+          severity: 'must',
+          enforcedBy: 'prose-only-accepted',
+        },
+        {
+          id: 'library-flow-context-reset',
+          rule: 'Library surface uses Reset and The Return language, not Focus language.',
+          severity: 'must',
+          enforcedBy: 'parity-walk',
+        },
+      ],
+      code: [
+        {
+          id: 'library-flow-code-structure-only',
+          rule: 'Library beats stay silent with no scripts until coach copy exists.',
+          severity: 'must',
+          enforcedBy: 'scripts/render-consistency-check.mjs',
+        },
+        {
+          id: 'library-flow-code-rules-self-audit',
+          rule: 'Flow code rules name real guards, package scripts, or exported schemas.',
+          severity: 'must',
+          enforcedBy: 'scripts/render-rules-check.mjs',
+        },
+      ],
+    },
+    entry: 'User opens the Reset library.',
+    exit: 'User exits browse, player, or nudge setup back to the app shell.',
+    tools: [],
+    data: ['reset track catalog', 'reset nudge settings', 'notification preferences'],
+  },
+];
 
 export const BEATS_SOURCE: readonly BeatEntry[] = [
   {

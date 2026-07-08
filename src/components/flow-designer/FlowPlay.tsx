@@ -113,6 +113,11 @@ export function FlowPlay() {
     setNonce((n) => n + 1);
     playFrom(idx);
   }
+  function onStop() {
+    runRef.current += 1;
+    stopSpeech();
+    setPlaying(false);
+  }
 
   const btn = (primary?: boolean): CSSProperties => ({
     border: 'none',
@@ -181,9 +186,6 @@ export function FlowPlay() {
         <button style={btn(true)} onClick={onNext}>
           Next ▶
         </button>
-        <button style={btn()} onClick={onReplayBeat}>
-          Restart beat
-        </button>
         <button style={btn()} onClick={onPlay}>
           Play from start
         </button>
@@ -200,6 +202,66 @@ export function FlowPlay() {
         <span style={{ fontSize: 12, color: '#94a3b8' }}>
           {idx + 1} / {playBeats.length} · {beat.screenId ?? beat.id}
         </span>
+      </div>
+
+      <div
+        style={{
+          width: 402,
+          maxWidth: '100%',
+          margin: '0 auto 10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: '#64748b',
+            }}
+          >
+            Beat {idx + 1}
+          </div>
+          <div
+            style={{
+              marginTop: 2,
+              fontSize: 15,
+              fontWeight: 800,
+              color: '#0f172a',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {beat.name}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={playing ? onStop : onReplayBeat}
+          title={playing ? 'Stop' : 'Play this beat'}
+          aria-label={playing ? 'Stop this beat' : 'Play this beat'}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 999,
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: playing ? '#ef4444' : '#135BEB',
+            flexShrink: 0,
+            boxShadow: '0 8px 18px -12px rgba(15,23,42,0.55)',
+          }}
+        >
+          <Icon icon={playing ? 'mdi:stop' : 'mdi:play'} width={18} height={18} style={{ color: '#fff' }} />
+        </button>
       </div>
 
       <div
