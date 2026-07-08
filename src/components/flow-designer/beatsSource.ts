@@ -396,7 +396,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       {
         seq: 2,
         words:
-          "Every single day is great. But doing weekdays consistently is better than every day inconsistently. So that's what I recommend to start. But you're welcome to add the weekend as well.",
+          "Every day is great, but weekdays consistently beats every day occasionally. That's what I recommend to start.",
         bindsTo: {
           kind: 'bubble',
           element: 'bubble-2',
@@ -577,7 +577,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     script: [
       {
         seq: 1,
-        words: "For the next part of the process, I'd like to know:",
+        words: 'One more question before we set up your habits.',
         bindsTo: {
           kind: 'bubble',
           element: 'bubble-1',
@@ -774,7 +774,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     script: [
       {
         seq: 1,
-        words: "Tell me the goal you want to add, and I'll set it up.",
+        words: 'What goal do you want to work toward?',
         bindsTo: {
           kind: 'bubble',
           element: 'opener',
@@ -849,7 +849,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     script: [
       {
         seq: 1,
-        words: "Tell me the habit you want to add, and I'll set it up.",
+        words: 'What habit do you want to build?',
         bindsTo: {
           kind: 'bubble',
           element: 'opener',
