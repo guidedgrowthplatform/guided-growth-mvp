@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { COACH_VOICE_ID, type VoiceGender } from '@/config/voiceConfig';
 import { registerCoachAudioElement, unregisterCoachAudioElement } from '@/lib/audio/coachAudioBus';
 import { getAuthHeaders } from '@/lib/services/api-auth';
+import { getQaStubTtsBlob, isQaStubTtsEnabled } from '@/lib/services/qaStubTts';
 import { isVoiceOutEnabled } from './voiceGate';
 
 export const useTtsPlaybackStore = create<{ isSpeaking: boolean }>(() => ({
@@ -404,6 +405,15 @@ async function synthChunk(
   if (!cartesiaTtsAvailable) return null;
   const clean = cleanText(text);
   if (!clean) return null;
+  // QA cost guard: fleet runs never touch live Cartesia (see qaStubTts.ts).
+  if (isQaStubTtsEnabled()) {
+    try {
+      return await getQaStubTtsBlob();
+    } catch (err) {
+      handleTtsError(err, 'Cartesia');
+      return null;
+    }
+  }
   try {
     const voiceId = getCartesiaVoiceId();
     const authHeaders = await getTurnAuthHeaders(generation);
