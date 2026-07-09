@@ -1350,8 +1350,111 @@ function PlayableBeat({
   );
 }
 
+// --- Concept grouping for the annotated render ---
+// The onboarding source authors each category opener (goals-list) and each
+// per-goal habit opener (habit-picker) as its own beat, because each selection
+// has its own screenId, copy, and clip. Flat, that reads as ~62 near-identical
+// screens and looks like mistakes. But those are variations of TWO concepts whose
+// copy and clip resolve at runtime by the picked category / goal. Coalesce each
+// run under ONE collapsible concept header so the render READS as concept beats.
+// The underlying data stays flat and untouched: every variation keeps its own
+// screenId, copy, and clip, still validated by the render guards and still
+// resolved at runtime. Collapsed by default (reads as concepts); expand to
+// inspect every variation exactly as before.
+type ConceptKey = 'goals' | 'habits';
+
+function conceptOf(beat: FlowBeat): ConceptKey | null {
+  if (beat.type === 'goals-list' && beat.id.startsWith('goals-')) return 'goals';
+  if (beat.type === 'habit-picker' && beat.id.startsWith('habits-') && beat.id !== 'habits')
+    return 'habits';
+  return null;
+}
+
+const CONCEPT_META: Record<ConceptKey, { title: string; sub: string }> = {
+  goals: {
+    title: 'Goals — category opener',
+    sub: 'One concept. The opener copy and clip resolve at runtime from the category the user picked.',
+  },
+  habits: {
+    title: 'Habits — per-goal opener',
+    sub: 'One concept. The opener copy and clip resolve at runtime from the goal the user picked.',
+  },
+};
+
+// A run of same-concept variation beats, shown as one collapsible concept card.
+// Collapsed, it reads as a single concept beat; expanded, it shows every
+// variation's phone card and panels unchanged.
+function ConceptGroup({
+  concept,
+  count,
+  children,
+}: {
+  concept: ConceptKey;
+  count: number;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const meta = CONCEPT_META[concept];
+  return (
+    <div style={{ marginBottom: 34 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: '100%',
+          textAlign: 'left',
+          cursor: 'pointer',
+          border: '1px solid #cbd5e1',
+          borderRadius: 16,
+          background: '#eef2f7',
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 16,
+            color: '#475569',
+            transform: open ? 'rotate(90deg)' : 'none',
+            transition: 'transform .15s',
+            lineHeight: 1,
+          }}
+        >
+          {'▸'}
+        </span>
+        <span style={{ flex: 1 }}>
+          <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: '#0f172a' }}>
+            {meta.title}
+          </span>
+          <span style={{ display: 'block', fontSize: 12.5, color: '#64748b', marginTop: 2 }}>
+            {meta.sub}
+          </span>
+        </span>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: '#3730a3',
+            background: 'rgba(99,102,241,0.12)',
+            padding: '4px 11px',
+            borderRadius: 999,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {count} variations {open ? '· hide' : '· show'}
+        </span>
+      </button>
+      {open && <div style={{ marginTop: 20 }}>{children}</div>}
+    </div>
+  );
+}
+
 // Shared phone frame renderer. Each beat renders in its OWN phone card, with the
-// source-of-truth rail in the left margin on the Onboarding tab.
+// source-of-truth rail in the left margin on the Onboarding tab. Runs of
+// same-concept variation beats (the category and per-goal openers) are coalesced
+// under one collapsible concept card so the render reads as concept beats.
 function FlowPhoneFrame({
   beats,
   showWords = false,
@@ -1366,56 +1469,86 @@ function FlowPhoneFrame({
   onRequestPlay: (id: string | null) => void;
 }) {
   const frameWidth = showWords ? TOTAL_W + WORDS_GAP + WORDS_COL_W : TOTAL_W;
+
+  // One beat's row, unchanged. i is the beat's index in the full flow so path
+  // banners and beat numbers stay correct whether the row is standalone or inside
+  // a concept group.
+  const beatRow = (b: FlowBeat, i: number) => {
+    const branched = b.path === 'beginner' || b.path === 'advanced';
+    const isStart = branched && b.path !== beats[i - 1]?.path;
+    const isEnd = branched && b.path !== beats[i + 1]?.path;
+    return (
+      <div key={b.id} data-beat-id={b.id} style={{ marginBottom: 34 }}>
+        {showWords && <BeatDivider n={i + 1} />}
+        {showWords && isStart && <PathBanner path={b.path} edge="start" />}
+        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+          {/* Left rail: compact voice tag on non-onboarding tabs, full metadata
+              panel on the onboarding tab. */}
+          <div
+            style={{
+              flex: `0 0 ${TAG_COL_W}px`,
+              paddingRight: TAG_GAP,
+              paddingTop: showWords ? 8 : 96,
+            }}
+          >
+            {showWords ? (
+              <SourceOfTruthPanel beat={b} />
+            ) : (
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <VoiceTag engine={b.engine} mode={b.mode} />
+              </div>
+            )}
+          </div>
+          {/* Phone column: a self-contained phone with the orb, playable in place. */}
+          <div style={{ flex: `0 0 ${PHONE_W}px` }}>
+            <PlayableBeat
+              beat={b}
+              active={playingId === b.id}
+              onRequestPlay={onRequestPlay}
+              onDone={() => onRequestPlay(null)}
+            />
+          </div>
+          {showWords && (
+            <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP, paddingTop: 8 }}>
+              <ScriptPanel screenId={b.screenId} showExpectedUser={showExpectedUser} />
+            </div>
+          )}
+        </div>
+        {showWords && isEnd && <PathBanner path={b.path} edge="end" />}
+      </div>
+    );
+  };
+
+  // Walk the flow, coalescing each contiguous run of same-concept variation beats
+  // into one collapsible ConceptGroup, leaving every other beat as its own row.
+  const rows: ReactNode[] = [];
+  for (let i = 0; i < beats.length; ) {
+    const concept = conceptOf(beats[i]);
+    if (concept) {
+      const start = i;
+      while (i < beats.length && conceptOf(beats[i]) === concept) i += 1;
+      const groupBeats = beats.slice(start, i);
+      rows.push(
+        <ConceptGroup
+          key={`concept-${concept}-${start}`}
+          concept={concept}
+          count={groupBeats.length}
+        >
+          {groupBeats.map((b, k) => beatRow(b, start + k))}
+        </ConceptGroup>,
+      );
+    } else {
+      rows.push(beatRow(beats[i], i));
+      i += 1;
+    }
+  }
+
   return (
     <div style={{ width: frameWidth, maxWidth: '100%', margin: '0 auto' }}>
-      {/* Per-beat rows. The source-of-truth rail (left) and the phone (right) are
-          top-aligned in one row. A path banner sits above the row when the beat
-          starts a path branch. */}
-      {beats.map((b, i) => {
-        const branched = b.path === 'beginner' || b.path === 'advanced';
-        const isStart = branched && b.path !== beats[i - 1]?.path;
-        const isEnd = branched && b.path !== beats[i + 1]?.path;
-        return (
-          <div key={b.id} data-beat-id={b.id} style={{ marginBottom: 34 }}>
-            {showWords && <BeatDivider n={i + 1} />}
-            {showWords && isStart && <PathBanner path={b.path} edge="start" />}
-            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-              {/* Left rail: compact voice tag on non-onboarding tabs, full metadata
-                  panel on the onboarding tab. */}
-              <div
-                style={{
-                  flex: `0 0 ${TAG_COL_W}px`,
-                  paddingRight: TAG_GAP,
-                  paddingTop: showWords ? 8 : 96,
-                }}
-              >
-                {showWords ? (
-                  <SourceOfTruthPanel beat={b} />
-                ) : (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <VoiceTag engine={b.engine} mode={b.mode} />
-                  </div>
-                )}
-              </div>
-              {/* Phone column: a self-contained phone with the orb, playable in place. */}
-              <div style={{ flex: `0 0 ${PHONE_W}px` }}>
-                <PlayableBeat
-                  beat={b}
-                  active={playingId === b.id}
-                  onRequestPlay={onRequestPlay}
-                  onDone={() => onRequestPlay(null)}
-                />
-              </div>
-              {showWords && (
-                <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP, paddingTop: 8 }}>
-                  <ScriptPanel screenId={b.screenId} showExpectedUser={showExpectedUser} />
-                </div>
-              )}
-            </div>
-            {showWords && isEnd && <PathBanner path={b.path} edge="end" />}
-          </div>
-        );
-      })}
+      {/* Per-beat rows plus coalesced concept groups. The source-of-truth rail
+          (left) and the phone (right) are top-aligned in one row. A path banner
+          sits above the row when the beat starts a path branch. */}
+      {rows}
     </div>
   );
 }
