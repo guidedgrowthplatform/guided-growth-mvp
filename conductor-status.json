@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T12:27:01+03:00",
+  "updated": "2026-07-09T12:36:26+03:00",
   "phase": "render-clean",
   "headline": "Finisher MERGED to trunk (62 beats, all clips wired). Next: populate every beat annotations, then combine all-flows.",
   "gate": [
@@ -109,7 +109,7 @@
         },
         {
           "title": "Play button to header",
-          "status": "Yair: phone render must match the screen exactly, so play control moves out of the beat into the header. Draft MR in flight.",
+          "status": "DONE (draft !524): play control out of the phone Coach header, into the beat header row (Beat N / name / play). Phone matches the real screen. Green + Playwright verified.",
           "state": "in-progress",
           "driver": "conductor"
         },
@@ -173,6 +173,12 @@
           "status": "QA found: greeting clip is old splash stub (regenerate full line); profile-greeting live voice does not match Pro Clone (fix voice config). Fix in flight, draft MR.",
           "state": "in-progress",
           "driver": "conductor"
+        },
+        {
+          "title": "Reveal timing (state-check + goals)",
+          "status": "Yair + Mint converge: component reveals must fire WHILE the coach speaks (synced per line), not silent, not ahead. Investigating the reveal mechanism.",
+          "state": "in-progress",
+          "driver": "conductor"
         }
       ]
     },
@@ -218,6 +224,12 @@
           "status": "the high-involvement track, Yair keeps this; conductor specs it on request",
           "state": "decision",
           "driver": "Yair"
+        },
+        {
+          "title": "State-check copy change",
+          "status": "Yair changing the opener language (invite to a coaching process); conductor confirming the exact line",
+          "state": "decision",
+          "driver": "Yair"
         }
       ]
     }
@@ -229,12 +241,12 @@
     "render walkthrough and approve (when render-ready)"
   ],
   "recent": [
+    "play button moved to header (draft !524); render QA found reveal-timing issue (reveals fire ahead of voice) - Yair + Mint converge",
     "render fixes in flight (draft MRs): variant collapse, voice bugs beat 3/6, play-button-to-header; conductor sequences the merges",
     "CONDUCTOR LOOP WORKED: Mint approved coach-per-beat via the button. Render QA found 2 voice bugs (beat 3/6), fix dispatched.",
     "fired 2 team tasks w/ approval buttons (behavior rules -> ai-yonas, coach-per-beat -> ai-mint); collapse running",
     "7 onboarding behavior decisions locked; reconciling rules schemas before scaling annotations",
     "annotation exemplars done (!522): shape set, rules-check built, 7 behavior calls flagged for Yair",
-    "render trunk deployed (62 beats) at flow-annotated-render.gg-onboarding-render.pages.dev",
-    "finisher merged to trunk: 62 beats, all 42 clips wired (conductor takeover after 3.5h stall)"
+    "render trunk deployed (62 beats) at flow-annotated-render.gg-onboarding-render.pages.dev"
   ]
 }
