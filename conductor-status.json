@@ -1,7 +1,7 @@
 {
-  "updated": "2026-07-09T16:00:03+03:00",
+  "updated": "2026-07-09T16:05:39+03:00",
   "phase": "render-clean",
-  "headline": "Sample shape published as a private link (awaiting Yair sign-off). Building the SAME beat visually INSIDE the annotated render (shape-approval artifact + reusable 12-section schema). Then build all beats without waiting on humans -> Fable + humans final pass. Usage asked of two sessions to allocate build vs Fable.",
+  "headline": "VISUAL-IN-RENDER sample LIVE (category-women, 12 sections in the annotated accordion) at a preview URL - awaiting Yair shape sign-off. Approval = shape locked -> full build across all beats (no human wait) -> Fable + humans final pass.",
   "gate": [
     {
       "step": "1. Finisher lands (onboarding copy, logic, clips)",
