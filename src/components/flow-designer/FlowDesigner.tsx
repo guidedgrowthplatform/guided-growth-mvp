@@ -24,11 +24,28 @@ import {
   BEATS_SOURCE,
   BEAT_BY_SCREEN_ID,
   BEAT_BY_ID,
+  resolveBeatStructure,
   type BeatEntry,
   type ScriptLine,
   type BibleSections,
-  type BibleRule,
+  type BeatIO,
+  type BeatDatum,
 } from './beatsSource';
+import {
+  IMPROVISATION,
+  GLOBAL_RULES,
+  TOOL_FAILURE,
+  CONVERSATION_MODEL,
+  DATA_PASSING,
+  COACH_IDENTITY,
+  CONSUMER_CONTRACT,
+  ENFORCER_REGISTRY,
+  RETIRED_ENFORCER_IDS,
+  CANONICAL_ENUMS,
+  OPEN_DECISIONS,
+  FILES_SYNC_MAP,
+  type FileMapRow,
+} from './flowBible';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 
 /**
@@ -580,10 +597,14 @@ function WordsFlagChip({ label, tone }: { label: string; tone: 'engine' | 'live'
 function ContextSection({
   title,
   defaultOpen = false,
+  badge,
   children,
 }: {
   title: string;
   defaultOpen?: boolean;
+  // Optional inline marker next to the title (e.g. a status chip). Additive,
+  // existing string-only callers are unaffected.
+  badge?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -596,9 +617,13 @@ function ContextSection({
           color: '#475569',
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
         }}
       >
-        {title}
+        <span>{title}</span>
+        {badge}
       </summary>
       <div style={{ marginTop: 8 }}>{children}</div>
     </details>
@@ -675,8 +700,36 @@ function PendingPill() {
   );
 }
 
-function EnforcerRow({ enforcedBy }: { enforcedBy: string }) {
-  const tags = enforcedBy.split(/\s*(?:\+|,)\s*/).filter(Boolean);
+// Amber for anything still in flight, green once built/verified. Covers both
+// SourceStatus (bible sections) and EnforcerStatus (registry rows).
+const GREEN_STATUSES = new Set(['built', 'verified']);
+
+function StatusChip({ status, label }: { status: string; label?: string }) {
+  const green = GREEN_STATUSES.has(status);
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '1px 7px',
+        borderRadius: 99,
+        border: `1px solid ${green ? '#86efac' : '#fcd34d'}`,
+        background: green ? '#dcfce7' : '#fffbeb',
+        color: green ? '#15803d' : '#b45309',
+        fontSize: 9.5,
+        fontWeight: 800,
+        letterSpacing: '0.03em',
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label ?? status}
+    </span>
+  );
+}
+
+function EnforcerRow({ enforcedBy }: { enforcedBy: readonly string[] }) {
+  if (!enforcedBy.length) return null;
   return (
     <div
       style={{
@@ -698,7 +751,7 @@ function EnforcerRow({ enforcedBy }: { enforcedBy: string }) {
       >
         Enforced by
       </span>
-      {tags.map((t) => (
+      {enforcedBy.map((t) => (
         <MonoTag key={t} label={t} />
       ))}
     </div>
@@ -755,7 +808,15 @@ function WatchOut({ text }: { text: string }) {
   );
 }
 
-function RuleRows({ rules }: { rules: readonly BibleRule[] }) {
+interface RuleLike {
+  readonly id: string;
+  readonly rule: string;
+  readonly severity: 'must' | 'should';
+  readonly enforcedBy: readonly string[];
+  readonly status?: string;
+}
+
+function RuleRows({ rules }: { rules: readonly RuleLike[] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {rules.map((r) => (
@@ -797,22 +858,149 @@ function RuleRows({ rules }: { rules: readonly BibleRule[] }) {
             >
               {r.severity}
             </span>
+            {r.status && <StatusChip status={r.status} />}
           </div>
           <div style={{ fontSize: 12, lineHeight: 1.45, color: '#334155' }}>{r.rule}</div>
-          <MonoTag label={r.enforcedBy} />
+          <EnforcerRow enforcedBy={r.enforcedBy} />
         </div>
       ))}
     </div>
   );
 }
 
-function BiblePanel({ beat, bible }: { beat: FlowBeat; bible: BibleSections }) {
+// --- Data in / out (beat.io, flowBible DATA_PASSING) ---
+// Compact tables, not the full watchOut-style card: one row per BeatDatum.
+
+const FIELD_LABEL: Record<'from' | 'writtenBy' | 'persistsTo', string> = {
+  from: 'from',
+  writtenBy: 'writtenBy',
+  persistsTo: 'persistsTo',
+};
+
+function IOTable({
+  title,
+  rows,
+  fields,
+}: {
+  title: string;
+  rows: readonly BeatDatum[];
+  fields: readonly ('from' | 'writtenBy' | 'persistsTo')[];
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: '#94a3b8',
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          marginBottom: 4,
+        }}
+      >
+        {title}
+      </div>
+      {rows.length ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {rows.map((d, i) => (
+            <div
+              key={`${d.key}-${i}`}
+              style={{
+                padding: '6px 8px',
+                borderRadius: 7,
+                background: '#f8fafc',
+                border: '1px solid #eef2f7',
+                fontSize: 11.5,
+                lineHeight: 1.4,
+              }}
+            >
+              <MonoTag label={d.key} />
+              {fields.map((f) =>
+                f === 'from' ? (
+                  <div key={f} style={{ marginTop: 2, color: '#334155' }}>
+                    <span style={{ color: '#94a3b8', fontWeight: 700 }}>{FIELD_LABEL[f]}: </span>
+                    {d.from}
+                  </div>
+                ) : d[f] ? (
+                  <div key={f} style={{ marginTop: 2, color: '#334155' }}>
+                    <span style={{ color: '#94a3b8', fontWeight: 700 }}>{FIELD_LABEL[f]}: </span>
+                    {d[f]}
+                  </div>
+                ) : null,
+              )}
+              {d.note && (
+                <div style={{ marginTop: 2, color: '#64748b', fontStyle: 'italic' }}>{d.note}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontSize: 11, color: '#cbd5e1' }}>none</div>
+      )}
+    </div>
+  );
+}
+
+function IOBlock({ io, inheritedFrom }: { io?: BeatIO; inheritedFrom?: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {inheritedFrom && (
+        <div style={{ fontSize: 10.5, fontWeight: 700, color: '#4338ca' }}>
+          (inherited from {inheritedFrom})
+        </div>
+      )}
+      <IOTable title="Data in" rows={io?.dataIn ?? []} fields={['from', 'writtenBy']} />
+      <IOTable title="Data out" rows={io?.dataOut ?? []} fields={['persistsTo', 'writtenBy']} />
+    </div>
+  );
+}
+
+// Sub-beat marker: shown on the card when a beat inherits from a head beat
+// (Yair 2026-07-09: beat + sub-beat inheritance, no copying across variants).
+function VariantChip({ head }: { head: string }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '1px 8px',
+        borderRadius: 99,
+        border: '1px solid #c7d2fe',
+        background: '#eef2ff',
+        color: '#4338ca',
+        fontSize: 9.5,
+        fontWeight: 800,
+        letterSpacing: '0.03em',
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      inherits from {head}
+    </span>
+  );
+}
+
+function BiblePanel({
+  beat,
+  bible,
+  io,
+  variantOf,
+  inheritedFrom,
+}: {
+  beat: FlowBeat;
+  bible: BibleSections;
+  io?: BeatIO;
+  variantOf?: string;
+  inheritedFrom?: string;
+}) {
+  const rulesContext = bible.rulesContext ?? [];
+  const rulesCode = bible.rulesCode ?? [];
   const mustCount =
-    bible.rulesContext.filter((r) => r.severity === 'must').length +
-    bible.rulesCode.filter((r) => r.severity === 'must').length;
+    rulesContext.filter((r) => r.severity === 'must').length +
+    rulesCode.filter((r) => r.severity === 'must').length;
   const shouldCount =
-    bible.rulesContext.filter((r) => r.severity === 'should').length +
-    bible.rulesCode.filter((r) => r.severity === 'should').length;
+    rulesContext.filter((r) => r.severity === 'should').length +
+    rulesCode.filter((r) => r.severity === 'should').length;
 
   return (
     <div
@@ -839,7 +1027,20 @@ function BiblePanel({ beat, bible }: { beat: FlowBeat; bible: BibleSections }) {
         }}
       >
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{beat.name}</div>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 800,
+              color: '#0f172a',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              flexWrap: 'wrap',
+            }}
+          >
+            {beat.name}
+            {variantOf && <VariantChip head={variantOf} />}
+          </div>
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
             {beat.type}
             {beat.path ? ` · ${PATH_STYLE[beat.path].label}` : ''}
@@ -899,273 +1100,361 @@ function BiblePanel({ beat, bible }: { beat: FlowBeat; bible: BibleSections }) {
         </summary>
         <div style={{ marginTop: 8, fontSize: 12.5, lineHeight: 1.5, color: '#334155' }}>
           {mustCount} must · {shouldCount} should — every rule names a real enforcer.{' '}
-          {bible.rulesContext.length} coach-behavior evals + {bible.rulesCode.length} engine
-          invariants. Nothing prose-only.
+          {rulesContext.length} coach-behavior evals + {rulesCode.length} engine invariants. Nothing
+          prose-only.
         </div>
       </details>
 
       {/* 1. Identity */}
-      <ContextSection title="1 · Identity + aliases">
-        <BibleKVList rows={bible.identity.rows} />
-        <div style={{ marginTop: 10 }}>
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: '#94a3b8',
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              marginBottom: 4,
-            }}
-          >
-            Alias contract
+      {bible.identity && (
+        <ContextSection title="1 · Identity + aliases">
+          <BibleKVList rows={bible.identity.rows} />
+          <div style={{ marginTop: 10 }}>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#94a3b8',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}
+            >
+              Alias contract
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {bible.identity.aliases.map((a) => (
+                <div
+                  key={a.surface}
+                  style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 12 }}
+                >
+                  <span style={{ color: '#64748b', minWidth: 120, flexShrink: 0 }}>
+                    {a.surface}
+                  </span>
+                  <MonoTag label={a.value} />
+                </div>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {bible.identity.aliases.map((a) => (
+          {bible.identity.watchOut && <WatchOut text={bible.identity.watchOut} />}
+          <EnforcerRow enforcedBy={bible.identity.enforcedBy} />
+        </ContextSection>
+      )}
+
+      {/* 2. Script timing (per-line reveal + timing) */}
+      {bible.scriptMeta && (
+        <ContextSection title="2 · Script reveal + timing">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {bible.scriptMeta.rows.map((m) => (
               <div
-                key={a.surface}
-                style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 12 }}
+                key={m.seq}
+                style={{
+                  padding: '7px 9px',
+                  borderRadius: 8,
+                  background: '#f8fafc',
+                  border: '1px solid #eef2f7',
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                  color: '#334155',
+                }}
               >
-                <span style={{ color: '#64748b', minWidth: 120, flexShrink: 0 }}>{a.surface}</span>
-                <MonoTag label={a.value} />
+                <span style={{ fontWeight: 800, color: '#c7d2e0' }}>seq {m.seq}</span>
+                <div style={{ marginTop: 2 }}>
+                  <span style={{ fontWeight: 700, color: '#94a3b8' }}>reveal: </span>
+                  {m.reveal}
+                </div>
+                <div>
+                  <span style={{ fontWeight: 700, color: '#94a3b8' }}>timing: </span>
+                  {m.timing}
+                </div>
               </div>
             ))}
           </div>
-        </div>
-        {bible.identity.watchOut && <WatchOut text={bible.identity.watchOut} />}
-        <EnforcerRow enforcedBy={bible.identity.enforcedBy} />
-      </ContextSection>
-
-      {/* 2. Script timing (per-line reveal + timing) */}
-      <ContextSection title="2 · Script reveal + timing">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {bible.scriptMeta.rows.map((m) => (
-            <div
-              key={m.seq}
-              style={{
-                padding: '7px 9px',
-                borderRadius: 8,
-                background: '#f8fafc',
-                border: '1px solid #eef2f7',
-                fontSize: 12,
-                lineHeight: 1.45,
-                color: '#334155',
-              }}
-            >
-              <span style={{ fontWeight: 800, color: '#c7d2e0' }}>seq {m.seq}</span>
-              <div style={{ marginTop: 2 }}>
-                <span style={{ fontWeight: 700, color: '#94a3b8' }}>reveal: </span>
-                {m.reveal}
-              </div>
-              <div>
-                <span style={{ fontWeight: 700, color: '#94a3b8' }}>timing: </span>
-                {m.timing}
-              </div>
-            </div>
-          ))}
-        </div>
-        <EnforcerRow enforcedBy={bible.scriptMeta.enforcedBy} />
-      </ContextSection>
+          <EnforcerRow enforcedBy={bible.scriptMeta.enforcedBy} />
+        </ContextSection>
+      )}
 
       {/* 3. Components */}
-      <ContextSection title="3 · Components">
-        <BibleKVList rows={bible.components.rows} />
-        {bible.components.watchOut && <WatchOut text={bible.components.watchOut} />}
-        <EnforcerRow enforcedBy={bible.components.enforcedBy} />
-      </ContextSection>
+      {bible.components && (
+        <ContextSection title="3 · Components">
+          <BibleKVList rows={bible.components.rows} />
+          {bible.components.watchOut && <WatchOut text={bible.components.watchOut} />}
+          <EnforcerRow enforcedBy={bible.components.enforcedBy} />
+        </ContextSection>
+      )}
 
       {/* 4. Voice */}
-      <ContextSection title="4 · Voice">
-        <BibleKVList rows={bible.voice.rows} />
-        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {bible.voice.perLine.map((v) => (
-            <div
-              key={v.seq}
-              style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 12 }}
-            >
-              <span style={{ fontWeight: 800, color: '#c7d2e0', minWidth: 44 }}>seq {v.seq}</span>
-              <span style={{ color: '#334155', flex: 1 }}>{v.resolvesTo}</span>
-              <MonoTag label={`live: ${v.liveAllowed}`} />
-            </div>
-          ))}
-        </div>
-        {bible.voice.assertion && (
-          <div style={{ marginTop: 8, fontSize: 11.5, lineHeight: 1.45, color: '#64748b' }}>
-            {bible.voice.assertion}
+      {bible.voice && (
+        <ContextSection title="4 · Voice">
+          <BibleKVList rows={bible.voice.rows} />
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {bible.voice.perLine.map((v) => (
+              <div
+                key={v.seq}
+                style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 12 }}
+              >
+                <span style={{ fontWeight: 800, color: '#c7d2e0', minWidth: 44 }}>seq {v.seq}</span>
+                <span style={{ color: '#334155', flex: 1 }}>{v.resolvesTo}</span>
+                <MonoTag label={`live: ${v.liveAllowed}`} />
+              </div>
+            ))}
           </div>
-        )}
-        <EnforcerRow enforcedBy={bible.voice.enforcedBy} />
-      </ContextSection>
+          {bible.voice.assertion && (
+            <div style={{ marginTop: 8, fontSize: 11.5, lineHeight: 1.45, color: '#64748b' }}>
+              {bible.voice.assertion}
+            </div>
+          )}
+          <EnforcerRow enforcedBy={bible.voice.enforcedBy} />
+        </ContextSection>
+      )}
 
       {/* 5. Rules · coach behavior */}
-      <ContextSection title={`5 · Rules · coach behavior (${bible.rulesContext.length})`}>
-        <RuleRows rules={bible.rulesContext} />
-      </ContextSection>
+      {rulesContext.length > 0 && (
+        <ContextSection title={`5 · Rules · coach behavior (${rulesContext.length})`}>
+          <RuleRows rules={rulesContext} />
+        </ContextSection>
+      )}
 
       {/* 6. Rules · engine invariants */}
-      <ContextSection title={`6 · Rules · engine invariants (${bible.rulesCode.length})`}>
-        <RuleRows rules={bible.rulesCode} />
-      </ContextSection>
+      {rulesCode.length > 0 && (
+        <ContextSection title={`6 · Rules · engine invariants (${rulesCode.length})`}>
+          <RuleRows rules={rulesCode} />
+        </ContextSection>
+      )}
 
       {/* 7. Context (coach prose) */}
-      <ContextSection title="7 · Context (coach prose)">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-          {bible.contextProse.pending && <PendingPill />}
-        </div>
-        <div
-          style={{
-            fontSize: 12.5,
-            lineHeight: 1.55,
-            color: '#334155',
-            fontStyle: 'italic',
-            borderLeft: '3px solid #e2e8f0',
-            paddingLeft: 10,
-          }}
-        >
-          {bible.contextProse.prose}
-        </div>
-        <EnforcerRow enforcedBy={bible.contextProse.enforcedBy} />
-      </ContextSection>
+      {bible.contextProse && (
+        <ContextSection title="7 · Context (coach prose)">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            {bible.contextProse.pending && <PendingPill />}
+          </div>
+          <div
+            style={{
+              fontSize: 12.5,
+              lineHeight: 1.55,
+              color: '#334155',
+              fontStyle: 'italic',
+              borderLeft: '3px solid #e2e8f0',
+              paddingLeft: 10,
+            }}
+          >
+            {bible.contextProse.prose}
+          </div>
+          <EnforcerRow enforcedBy={bible.contextProse.enforcedBy} />
+        </ContextSection>
+      )}
 
       {/* 8. Allowed tools */}
-      <ContextSection title="8 · Allowed tools">
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          {bible.allowedTools.tools.map((t) => (
-            <MonoTag key={t} label={t} />
-          ))}
-        </div>
-        <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#64748b', marginBottom: 8 }}>
-          {bible.allowedTools.callRules}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {bible.allowedTools.specs.map((s) => (
-            <div
-              key={s.tool}
-              style={{
-                padding: '7px 9px',
-                borderRadius: 8,
-                background: '#f8fafc',
-                border: '1px solid #eef2f7',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <MonoTag label={s.tool} />
-                {s.pending && <PendingPill />}
-              </div>
-              <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#334155', marginTop: 4 }}>
-                <span style={{ fontWeight: 700, color: '#94a3b8' }}>args: </span>
-                {s.args}
-              </div>
-              <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}>
-                <span style={{ fontWeight: 700, color: '#94a3b8' }}>when: </span>
-                {s.when}
-              </div>
-            </div>
-          ))}
-        </div>
-        {bible.allowedTools.note && (
-          <div style={{ marginTop: 8, fontSize: 11.5, lineHeight: 1.45, color: '#64748b' }}>
-            {bible.allowedTools.note}
+      {bible.allowedTools && (
+        <ContextSection title="8 · Allowed tools">
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+            {bible.allowedTools.tools.map((t) => (
+              <MonoTag key={t} label={t} />
+            ))}
           </div>
-        )}
-        <EnforcerRow enforcedBy={bible.allowedTools.enforcedBy} />
-      </ContextSection>
+          <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#64748b', marginBottom: 8 }}>
+            {bible.allowedTools.callRules}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {bible.allowedTools.specs.map((s) => (
+              <div
+                key={s.tool}
+                style={{
+                  padding: '7px 9px',
+                  borderRadius: 8,
+                  background: '#f8fafc',
+                  border: '1px solid #eef2f7',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <MonoTag label={s.tool} />
+                  {s.pending && <PendingPill />}
+                </div>
+                <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#334155', marginTop: 4 }}>
+                  <span style={{ fontWeight: 700, color: '#94a3b8' }}>args: </span>
+                  {s.args}
+                </div>
+                <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}>
+                  <span style={{ fontWeight: 700, color: '#94a3b8' }}>when: </span>
+                  {s.when}
+                </div>
+              </div>
+            ))}
+          </div>
+          {bible.allowedTools.note && (
+            <div style={{ marginTop: 8, fontSize: 11.5, lineHeight: 1.45, color: '#64748b' }}>
+              {bible.allowedTools.note}
+            </div>
+          )}
+          <EnforcerRow enforcedBy={bible.allowedTools.enforcedBy} />
+        </ContextSection>
+      )}
 
       {/* 9. Persistence */}
-      <ContextSection title="9 · Persistence">
-        <BibleKVList rows={bible.persistence.rows} />
-        {bible.persistence.watchOut && <WatchOut text={bible.persistence.watchOut} />}
-        <EnforcerRow enforcedBy={bible.persistence.enforcedBy} />
-      </ContextSection>
+      {bible.persistence && (
+        <ContextSection title="9 · Persistence">
+          <BibleKVList rows={bible.persistence.rows} />
+          {bible.persistence.watchOut && <WatchOut text={bible.persistence.watchOut} />}
+          <EnforcerRow enforcedBy={bible.persistence.enforcedBy} />
+        </ContextSection>
+      )}
 
       {/* 10. Flow */}
-      <ContextSection title="10 · Flow (advance + branch)">
-        <BibleKVList rows={bible.flow.rows} />
-        <EnforcerRow enforcedBy={bible.flow.enforcedBy} />
-      </ContextSection>
+      {bible.flow && (
+        <ContextSection title="10 · Flow (advance + branch)">
+          <BibleKVList rows={bible.flow.rows} />
+          <EnforcerRow enforcedBy={bible.flow.enforcedBy} />
+        </ContextSection>
+      )}
 
       {/* 11. Edges */}
-      <ContextSection title={`11 · Edges (${bible.edges.rows.length})`}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {bible.edges.rows.map((e) => (
-            <div key={e.edge} style={{ fontSize: 12, lineHeight: 1.45 }}>
-              <span style={{ fontWeight: 700, color: '#0f172a' }}>{e.edge}: </span>
-              <span style={{ color: '#334155' }}>{e.behavior}</span>
-            </div>
-          ))}
-        </div>
-        <EnforcerRow enforcedBy={bible.edges.enforcedBy} />
-      </ContextSection>
+      {bible.edges && (
+        <ContextSection title={`11 · Edges (${bible.edges.rows.length})`}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {bible.edges.rows.map((e) => (
+              <div key={e.edge} style={{ fontSize: 12, lineHeight: 1.45 }}>
+                <span style={{ fontWeight: 700, color: '#0f172a' }}>{e.edge}: </span>
+                <span style={{ color: '#334155' }}>{e.behavior}</span>
+              </div>
+            ))}
+          </div>
+          <EnforcerRow enforcedBy={bible.edges.enforcedBy} />
+        </ContextSection>
+      )}
 
       {/* 12. Acceptance */}
-      <ContextSection title={`12 · Acceptance (${bible.acceptance.rows.length})`}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {bible.acceptance.rows.map((a) => (
-            <div key={a.criterion} style={{ fontSize: 12, lineHeight: 1.45 }}>
-              <div style={{ fontWeight: 700, color: '#0f172a' }}>{a.criterion}</div>
-              <div style={{ color: '#334155' }}>{a.check}</div>
-            </div>
-          ))}
-        </div>
-        <EnforcerRow enforcedBy={bible.acceptance.enforcedBy} />
+      {bible.acceptance && (
+        <ContextSection title={`12 · Acceptance (${bible.acceptance.rows.length})`}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {bible.acceptance.rows.map((a) => (
+              <div key={a.criterion} style={{ fontSize: 12, lineHeight: 1.45 }}>
+                <div style={{ fontWeight: 700, color: '#0f172a' }}>{a.criterion}</div>
+                <div style={{ color: '#334155' }}>{a.check}</div>
+              </div>
+            ))}
+          </div>
+          <EnforcerRow enforcedBy={bible.acceptance.enforcedBy} />
+        </ContextSection>
+      )}
+
+      {/* 13. Multi-turn conversation (Yair 2026-07-09: own section, not a section-5 sub-block) */}
+      {bible.conversation && (
+        <ContextSection title="13 · Multi-turn conversation">
+          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: '#334155', marginBottom: 8 }}>
+            <span style={{ fontWeight: 700, color: '#94a3b8' }}>opens: </span>
+            {bible.conversation.opens}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {bible.conversation.branches.map((b, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: '7px 9px',
+                  borderRadius: 8,
+                  background: '#f8fafc',
+                  border: '1px solid #eef2f7',
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                }}
+              >
+                <div>
+                  <span style={{ fontWeight: 700, color: '#94a3b8' }}>on: </span>
+                  {b.on}
+                </div>
+                <div>
+                  <span style={{ fontWeight: 700, color: '#94a3b8' }}>reply: </span>
+                  {b.reply}
+                </div>
+                <div style={{ marginTop: 2 }}>
+                  <span style={{ fontWeight: 700, color: '#94a3b8' }}>then: </span>
+                  <MonoTag label={b.then} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 8, fontSize: 11.5, lineHeight: 1.45, color: '#64748b' }}>
+            maxTurns {bible.conversation.maxTurns} · onMaxTurns: {bible.conversation.onMaxTurns}
+          </div>
+        </ContextSection>
+      )}
+
+      {/* Data in / out (beat.io, top-level; resolved through variantOf inheritance) */}
+      <ContextSection title="Data in / out">
+        <IOBlock io={io} inheritedFrom={inheritedFrom} />
       </ContextSection>
 
-      {/* Applicable decisions */}
-      <ContextSection title="Applicable decisions">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {bible.applicableDecisions.map((d) => (
-            <div
-              key={d.decision}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 3,
-                padding: '7px 9px',
-                borderRadius: 8,
-                background: d.binds ? '#f0fdf4' : '#f8fafc',
-                border: `1px solid ${d.binds ? '#bbf7d0' : '#eef2f7'}`,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span
-                  style={{
-                    padding: '0px 6px',
-                    borderRadius: 99,
-                    fontSize: 9.5,
-                    fontWeight: 800,
-                    letterSpacing: '0.03em',
-                    textTransform: 'uppercase',
-                    border: d.binds ? '1px solid #86efac' : '1px solid #cbd5e1',
-                    background: d.binds ? '#dcfce7' : '#f1f5f9',
-                    color: d.binds ? '#15803d' : '#64748b',
-                  }}
-                >
-                  {d.binds ? 'binds' : 'none'}
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{d.decision}</span>
+      {/* Applicable decisions (14th key, unnumbered) */}
+      {bible.applicableDecisions && (
+        <ContextSection title="Applicable decisions">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {bible.applicableDecisions.rows.map((d) => (
+              <div
+                key={d.decision}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 3,
+                  padding: '7px 9px',
+                  borderRadius: 8,
+                  background: d.binds ? '#f0fdf4' : '#f8fafc',
+                  border: `1px solid ${d.binds ? '#bbf7d0' : '#eef2f7'}`,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span
+                    style={{
+                      padding: '0px 6px',
+                      borderRadius: 99,
+                      fontSize: 9.5,
+                      fontWeight: 800,
+                      letterSpacing: '0.03em',
+                      textTransform: 'uppercase',
+                      border: d.binds ? '1px solid #86efac' : '1px solid #cbd5e1',
+                      background: d.binds ? '#dcfce7' : '#f1f5f9',
+                      color: d.binds ? '#15803d' : '#64748b',
+                    }}
+                  >
+                    {d.binds ? 'binds' : 'none'}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
+                    {d.decision}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}>{d.how}</div>
               </div>
-              <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}>{d.how}</div>
-            </div>
-          ))}
-        </div>
-      </ContextSection>
+            ))}
+          </div>
+          <EnforcerRow enforcedBy={bible.applicableDecisions.enforcedBy} />
+        </ContextSection>
+      )}
     </div>
   );
 }
 
 function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
   const entry = beat.screenId ? ENTRY_BY_SCREEN_ID[beat.screenId] : undefined;
-  // The Bible fill is keyed by beatId (category and category-women SHARE a
-  // screenId, so a screenId lookup would collide). Resolve it by id.
-  const bible = BEAT_BY_ID[beat.id]?.bible;
-  const resolvedProps = beat.props ? Object.entries(beat.props) : [];
+  // The one-source entry keyed by beatId (not screenId: category and
+  // category-women SHARE a screenId, so a screenId lookup would collide).
+  // io/bible/variantOf all live here.
+  const entryFull = BEAT_BY_ID[beat.id];
+  const resolved = resolveBeatStructure(beat.id);
 
   // When the beat carries a Bible fill, the Bible card IS the single card. Its
   // identity section (1) already carries beatId/name/order/path/type/screenId, so
   // rendering the separate metadata panel above it would duplicate that block.
-  if (bible) {
-    return <BiblePanel beat={beat} bible={bible} />;
+  if (resolved.bible) {
+    return (
+      <BiblePanel
+        beat={beat}
+        bible={resolved.bible}
+        io={resolved.io}
+        variantOf={entryFull?.variantOf}
+        inheritedFrom={resolved.inheritedFrom}
+      />
+    );
   }
+
+  const resolvedProps = beat.props ? Object.entries(beat.props) : [];
 
   if (!entry) {
     return (
@@ -1188,7 +1477,20 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
             color: '#94a3b8',
           }}
         >
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{beat.id}</div>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 800,
+              color: '#0f172a',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              flexWrap: 'wrap',
+            }}
+          >
+            {beat.id}
+            {entryFull?.variantOf && <VariantChip head={entryFull.variantOf} />}
+          </div>
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
             {beat.type}
             {beat.path ? ` · ${PATH_STYLE[beat.path].label}` : ''}
@@ -1196,6 +1498,11 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
           <div style={{ marginTop: 10, lineHeight: 1.45 }}>
             No metadata entry. This is a structural silent beat with no coach copy, script, clip, or
             expected voice response.
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <ContextSection title="Data in / out">
+              <IOBlock io={resolved.io} inheritedFrom={resolved.inheritedFrom} />
+            </ContextSection>
           </div>
         </div>
       </div>
@@ -1225,7 +1532,20 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
         }}
       >
         <div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{beat.id}</div>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 800,
+              color: '#0f172a',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              flexWrap: 'wrap',
+            }}
+          >
+            {beat.id}
+            {entryFull?.variantOf && <VariantChip head={entryFull.variantOf} />}
+          </div>
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
             {beat.type}
             {beat.path ? ` · ${PATH_STYLE[beat.path].label}` : ''}
@@ -1295,6 +1615,10 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
           ) : (
             <div style={{ fontSize: 12.5, color: '#94a3b8' }}>This beat has no explicit props.</div>
           )}
+        </ContextSection>
+
+        <ContextSection title="Data in / out">
+          <IOBlock io={resolved.io} inheritedFrom={resolved.inheritedFrom} />
         </ContextSection>
       </div>
     </div>
@@ -2241,6 +2565,432 @@ function ConceptGroup({
   );
 }
 
+// --- Global bible panel: the flow-level GLOBAL layer every beat inherits ---
+// One card, mounted once above the first beat on the annotated (onboarding) tab.
+// All 11 sections collapsed by default; only the summary header is always visible.
+
+function GlobalBiblePanel() {
+  const filesByArea = FILES_SYNC_MAP.reduce<Record<string, FileMapRow[]>>((acc, row) => {
+    (acc[row.area] ??= []).push(row);
+    return acc;
+  }, {});
+
+  return (
+    <div
+      style={{
+        background: '#fff',
+        border: '1px solid #e2e8f0',
+        borderRadius: 14,
+        padding: '14px 16px',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        marginBottom: 34,
+        maxWidth: TOTAL_W,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 8,
+          justifyContent: 'space-between',
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>
+            Global layer (applies to every beat)
+          </div>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+            flowBible.ts — laws, global rules, contracts, the enforcer registry, canonical enums,
+            files/save/sync map
+          </div>
+        </div>
+        <span
+          style={{
+            fontSize: 9.5,
+            fontWeight: 800,
+            padding: '1px 7px',
+            borderRadius: 99,
+            background: '#eaf1ff',
+            color: '#135bec',
+            border: '1px solid #c7d8ff',
+            letterSpacing: '0.03em',
+            textTransform: 'uppercase',
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          flow-level
+        </span>
+      </div>
+
+      {/* 1. Improvisation law + windows */}
+      <ContextSection
+        title="1 · Improvisation law + windows"
+        badge={<StatusChip status="needs-yair" label="boundaries PENDING Yair discussion" />}
+      >
+        <div style={{ fontSize: 12.5, lineHeight: 1.55, color: '#334155' }}>
+          {IMPROVISATION.law}
+        </div>
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {IMPROVISATION.windows.map((w) => (
+            <div
+              key={w.id}
+              style={{
+                padding: '7px 9px',
+                borderRadius: 8,
+                background: '#f8fafc',
+                border: '1px solid #eef2f7',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <MonoTag label={w.id} />
+                <span style={{ fontSize: 11, color: '#94a3b8' }}>{w.where}</span>
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.45, color: '#334155', marginTop: 4 }}>
+                <span style={{ fontWeight: 700, color: '#94a3b8' }}>opens: </span>
+                {w.opens}
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.45, color: '#334155' }}>
+                <span style={{ fontWeight: 700, color: '#94a3b8' }}>bounds: </span>
+                {w.bounds}
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.45, color: '#334155' }}>
+                <span style={{ fontWeight: 700, color: '#94a3b8' }}>must not: </span>
+                {w.mustNot}
+              </div>
+            </div>
+          ))}
+        </div>
+        <EnforcerRow enforcedBy={IMPROVISATION.enforcedBy} />
+      </ContextSection>
+
+      {/* 2. Global rules */}
+      <ContextSection title={`2 · Global rules (${GLOBAL_RULES.rules.length})`}>
+        <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#64748b', marginBottom: 8 }}>
+          {GLOBAL_RULES.precedence}
+        </div>
+        <RuleRows rules={GLOBAL_RULES.rules} />
+      </ContextSection>
+
+      {/* 3. Tool failure contract */}
+      <ContextSection
+        title="3 · Tool failure contract"
+        badge={<StatusChip status={TOOL_FAILURE.status} />}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <ContextKeyValue label="Retry" value={TOOL_FAILURE.retry} />
+          <ContextKeyValue label="Voice" value={TOOL_FAILURE.voice} />
+          <ContextKeyValue label="Text / tap" value={TOOL_FAILURE.textOrTap} />
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#94a3b8',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}
+            >
+              Never
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {TOOL_FAILURE.never.map((n) => (
+                <div key={n} style={{ fontSize: 12, lineHeight: 1.45, color: '#334155' }}>
+                  · {n}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <EnforcerRow enforcedBy={TOOL_FAILURE.enforcedBy} />
+      </ContextSection>
+
+      {/* 4. Multi-turn model (global defaults; per-beat detail is section 13 on the beat) */}
+      <ContextSection title="4 · Multi-turn model (global defaults)">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <ContextKeyValue label="Placement" value={CONVERSATION_MODEL.placement} />
+          <ContextKeyValue label="Loop" value={CONVERSATION_MODEL.loop} />
+          <ContextKeyValue
+            label="Defaults"
+            value={`maxTurns ${CONVERSATION_MODEL.defaults.maxTurns} · onMaxTurns: ${CONVERSATION_MODEL.defaults.onMaxTurns}`}
+          />
+        </div>
+      </ContextSection>
+
+      {/* 5. Data passing contract */}
+      <ContextSection
+        title="5 · Data passing contract"
+        badge={<StatusChip status={DATA_PASSING.status} />}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <ContextKeyValue label="Rule" value={DATA_PASSING.rule} />
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#94a3b8',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}
+            >
+              Transport
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {DATA_PASSING.transport.map((t) => (
+                <div key={t} style={{ fontSize: 12, lineHeight: 1.45, color: '#334155' }}>
+                  · {t}
+                </div>
+              ))}
+            </div>
+          </div>
+          <ContextKeyValue label="Forbidden" value={DATA_PASSING.forbidden} />
+          <ContextKeyValue label="Cold resume" value={DATA_PASSING.coldResume} />
+        </div>
+        <EnforcerRow enforcedBy={DATA_PASSING.enforcedBy} />
+      </ContextSection>
+
+      {/* 6. Coach = the LLM */}
+      <ContextSection title="6 · Coach = the LLM">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <ContextKeyValue label="Is" value={COACH_IDENTITY.is} />
+          <ContextKeyValue label="Governed by" value={COACH_IDENTITY.governedBy} />
+          <ContextKeyValue label="Backend boundary" value={COACH_IDENTITY.backendBoundary} />
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#94a3b8',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}
+            >
+              Paths
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {COACH_IDENTITY.paths.map((p) => (
+                <div key={p} style={{ fontSize: 12, lineHeight: 1.45, color: '#334155' }}>
+                  · {p}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </ContextSection>
+
+      {/* 7. Consumer contract */}
+      <ContextSection title={`7 · Consumer contract (${CONSUMER_CONTRACT.length})`}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {CONSUMER_CONTRACT.map((row) => {
+            const warn = row.today.startsWith('NOT WIRED');
+            return (
+              <div
+                key={row.surface}
+                style={{
+                  padding: '7px 9px',
+                  borderRadius: 8,
+                  background: '#f8fafc',
+                  border: '1px solid #eef2f7',
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{row.surface}</div>
+                <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#334155', marginTop: 2 }}>
+                  {row.mustRead}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    lineHeight: 1.45,
+                    marginTop: 4,
+                    color: warn ? '#b45309' : '#64748b',
+                    fontWeight: warn ? 700 : 400,
+                  }}
+                >
+                  {row.today}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </ContextSection>
+
+      {/* 8. Enforcer registry */}
+      <ContextSection title={`8 · Enforcer registry (${ENFORCER_REGISTRY.length})`}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {ENFORCER_REGISTRY.map((e) => (
+            <div
+              key={e.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+                padding: '5px 0',
+                borderBottom: '1px solid #f1f5f9',
+              }}
+            >
+              <MonoTag label={e.id} />
+              <span style={{ fontSize: 10, color: '#94a3b8' }}>{e.kind}</span>
+              <StatusChip status={e.status} />
+              <span style={{ fontSize: 11.5, color: '#334155', flex: 1, minWidth: 160 }}>
+                {e.meaning}
+              </span>
+              <span style={{ fontSize: 10.5, color: '#94a3b8' }}>{e.owner}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 10, fontSize: 10.5, lineHeight: 1.6, color: '#94a3b8' }}>
+          <span style={{ fontWeight: 700 }}>Retired ids: </span>
+          {Object.entries(RETIRED_ENFORCER_IDS)
+            .map(([from, to]) => `${from} → ${to}`)
+            .join(', ')}
+        </div>
+      </ContextSection>
+
+      {/* 9. Canonical enums */}
+      <ContextSection title="9 · Canonical enums">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>gender</span>
+              <StatusChip status={CANONICAL_ENUMS.gender.status} />
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+              {CANONICAL_ENUMS.gender.values.map((v) => (
+                <MonoTag key={v} label={v} />
+              ))}
+            </div>
+            <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}>
+              {CANONICAL_ENUMS.gender.womenArtSelector}
+            </div>
+            <div style={{ fontSize: 11, lineHeight: 1.45, color: '#64748b', marginTop: 2 }}>
+              {CANONICAL_ENUMS.gender.note}
+            </div>
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>categories</span>
+              <StatusChip status={CANONICAL_ENUMS.categories.status} />
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+              {CANONICAL_ENUMS.categories.values.map((v) => (
+                <MonoTag key={v} label={v} />
+              ))}
+            </div>
+            <div style={{ fontSize: 11, lineHeight: 1.45, color: '#64748b' }}>
+              {CANONICAL_ENUMS.categories.note}
+            </div>
+          </div>
+        </div>
+      </ContextSection>
+
+      {/* 10. Open decisions */}
+      <ContextSection title={`10 · Open decisions (${OPEN_DECISIONS.length})`}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {OPEN_DECISIONS.map((d) => (
+            <div
+              key={d.id}
+              style={{
+                padding: '7px 9px',
+                borderRadius: 8,
+                background: d.decided ? '#f0fdf4' : '#f8fafc',
+                border: `1px solid ${d.decided ? '#bbf7d0' : '#eef2f7'}`,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <MonoTag label={d.id} />
+                {d.decided ? (
+                  <StatusChip status="verified" label="DECIDED" />
+                ) : (
+                  <StatusChip status="needs-yair" label={d.decider} />
+                )}
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
+                {d.question}
+              </div>
+              <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#334155', marginTop: 2 }}>
+                {d.decided ?? d.proposal}
+              </div>
+            </div>
+          ))}
+        </div>
+      </ContextSection>
+
+      {/* 11. Files + save + sync map */}
+      <ContextSection title={`11 · Files + save + sync map (${FILES_SYNC_MAP.length})`}>
+        {FILES_SYNC_MAP.length ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {Object.entries(filesByArea).map(([area, rows]) => (
+              <details key={area} style={{ borderTop: '1px solid #f1f5f9', paddingTop: 8 }}>
+                <summary
+                  style={{
+                    cursor: 'pointer',
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: '#64748b',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  {area} ({rows.length})
+                </summary>
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {rows.map((row) => (
+                    <div
+                      key={row.file}
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: 7,
+                        background: '#f8fafc',
+                        border: '1px solid #eef2f7',
+                        fontSize: 11.5,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      <div
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}
+                      >
+                        <MonoTag label={row.file} />
+                        <span style={{ fontSize: 10, color: '#94a3b8' }}>{row.authored}</span>
+                      </div>
+                      <div style={{ color: '#334155', marginTop: 2 }}>{row.role}</div>
+                      <div style={{ color: '#64748b', marginTop: 2 }}>
+                        <span style={{ fontWeight: 700 }}>saves to: </span>
+                        {row.savesTo}
+                      </div>
+                      <div style={{ color: '#64748b' }}>
+                        <span style={{ fontWeight: 700 }}>sync: </span>
+                        {row.syncEdge}
+                      </div>
+                      {row.staleRisk !== 'low' && (
+                        <div style={{ color: '#9a3412', marginTop: 2 }}>
+                          <span style={{ fontWeight: 700 }}>stale risk: </span>
+                          {row.staleRisk}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: '#94a3b8' }}>
+            Not yet populated (files-sync-inventory sweep pending).
+          </div>
+        )}
+      </ContextSection>
+    </div>
+  );
+}
+
 // Shared phone frame renderer. Each beat renders in its OWN phone card, with the
 // source-of-truth rail in the left margin on the Onboarding tab. Runs of
 // same-concept variation beats (the category and per-goal openers) are coalesced
@@ -2331,6 +3081,9 @@ function FlowPhoneFrame({
 
   return (
     <div style={{ width: frameWidth, maxWidth: '100%', margin: '0 auto' }}>
+      {/* Global layer (flowBible.ts), once, above the first beat -- only on the
+          annotated (source-of-truth) view. */}
+      {showWords && <GlobalBiblePanel />}
       {/* Per-beat rows plus coalesced concept groups. The source-of-truth rail
           (left) and the phone (right) are top-aligned in one row. A path banner
           sits above the row when the beat starts a path branch. */}
