@@ -1,7 +1,7 @@
 {
-  "updated": "2026-07-09T15:47:09+03:00",
+  "updated": "2026-07-09T15:52:08+03:00",
   "phase": "render-clean",
-  "headline": "NEW conductor live (single-conductor gate confirmed). Bible 12-section kept, moving to FILL. Next: Yair eyeballs !523 -> merge -> combine all-flows -> FILL -> Opus review -> human review.",
+  "headline": "Sample shape published as a private link (awaiting Yair sign-off). Building the SAME beat visually INSIDE the annotated render (shape-approval artifact + reusable 12-section schema). Then build all beats without waiting on humans -> Fable + humans final pass. Usage asked of two sessions to allocate build vs Fable.",
   "gate": [
     {
       "step": "1. Finisher lands (onboarding copy, logic, clips)",
