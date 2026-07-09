@@ -63,11 +63,14 @@ export function speak(text: string, muted: boolean, onWord?: (n: number) => void
         onWord?.(i);
         if (i >= total) window.clearInterval(id);
       }, 240);
-      window.setTimeout(() => {
-        window.clearInterval(id);
-        onWord?.(total);
-        res();
-      }, Math.max(700, total * 240 + 200));
+      window.setTimeout(
+        () => {
+          window.clearInterval(id);
+          onWord?.(total);
+          res();
+        },
+        Math.max(700, total * 240 + 200),
+      );
       return;
     }
     try {
@@ -326,14 +329,14 @@ function scriptTarget(line: ScriptLine): { bubbleStep: number | null; reveal: nu
   return { bubbleStep: null, reveal: null };
 }
 
-// Play a single line's audio: the recorded clip when the ScriptLine carries one,
-// else the browser stand-in via speak() (which itself checks for a clip by text).
+// Play a single line's audio. L8: clip-by-text is the default resolve. The line's
+// words are looked up in the text -> clip map first (derived from every line's
+// words + clipPath), falling back to its own clipPath, so a broken or missing
+// clipPath can never silently drop a recorded line to the browser voice.
 function playLine(line: ScriptLine, muted: boolean, onWord?: (n: number) => void): Promise<void> {
   const words = sample(line.words);
-  const clip = line.clipPath;
-  if (clip && (line.voice === 'mp3' || line.voice === 'verbatim' || line.voice === 'cartesia')) {
-    return playClip(clip, words, muted, onWord);
-  }
+  const src = line.voice !== null ? (clipSrc(line.words) ?? line.clipPath) : null;
+  if (src) return playClip(src, words, muted, onWord);
   return speak(words, muted, onWord);
 }
 

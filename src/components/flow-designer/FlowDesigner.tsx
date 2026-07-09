@@ -1,5 +1,7 @@
 import { Icon } from '@iconify/react';
 import { createElement, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Orb } from '@/components/orb/Orb';
+import { orbSpeaking } from '@/components/orb/orbView';
 import {
   AnimationsCtx,
   PlayingCtx,
@@ -8,13 +10,11 @@ import {
   StepRevealCtx,
   type BeatDef,
 } from './beatKit';
+import { kindOf, raf, runBeatNarration, runBeatScript, sample, stopSpeech } from './beatNarration';
 import { BEAT_DEFS } from './beats';
 import { COACH_BG } from './beats/_beatStyle';
-import { kindOf, raf, runBeatNarration, runBeatScript, sample, stopSpeech } from './beatNarration';
-import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
-import { Orb } from '@/components/orb/Orb';
-import { orbSpeaking } from '@/components/orb/orbView';
 import { BEATS_SOURCE, BEAT_BY_SCREEN_ID, type BeatEntry, type ScriptLine } from './beatsSource';
+import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 
 /**
  * FlowDesigner -- the chat-native onboarding flow as one continuous scroll,
@@ -49,125 +49,80 @@ const TOTAL_W = TAG_COL_W + TAG_GAP + PHONE_W; // width before the right words c
 // The real beat registry, keyed by type. BEAT_DEFS auto-collects every beat
 // file (the same set the flow builder uses). REGISTRY_MAP[type].Comp is the
 // real component for that beat.
-const REGISTRY_MAP: Record<string, BeatDef> = Object.fromEntries(
-  BEAT_DEFS.map((d) => [d.type, d]),
-);
+const REGISTRY_MAP: Record<string, BeatDef> = Object.fromEntries(BEAT_DEFS.map((d) => [d.type, d]));
 
-// --- Onboarding words metadata ---
-// Derived from the ONE source (beatsSource.ts). The render reads that single
-// authored store; this back-compat view exposes the legacy meta shape the play
-// driver (runBeatNarration) and the metadata panels already consume, so the
-// consolidation kept exactly one hand-authored store with no behavior change.
-interface BeatElementMeta {
-  elementId: string;
-  line: string;
-  order: number;
-  showsAsBubble: boolean;
-}
-interface BeatMeta {
-  screenId: string;
-  engine: 'MP3' | 'Cartesia' | 'Vapi' | 'Silent';
-  scripted: boolean | null;
-  variable: boolean;
-  variableNote?: string;
-  opener: string | null;
-  secondBubble?: string | null;
-  closeBubble?: string | null;
-  confirmBubble?: string | null;
-  buttonLabel?: string | null;
-  openerMode?: string;
-  openerShowsAsBubble?: boolean;
-  expectedResponse: string;
-  clipReuse?: string;
-  clipNote?: string;
-  // Optional segmented narration: one flowing read where some segments reveal a
-  // card row as they are spoken (the meshed clips), so nothing is said twice.
-  narration?: { say: string; reveal?: number; clip?: string; bubble?: number; audioSrc?: string }[];
-  elements: BeatElementMeta[];
-}
-
-function legacyMetaOf(entry: BeatEntry): BeatMeta | null {
-  if (!entry.legacy || !entry.screenId) return null;
-  const l = entry.legacy;
-  return {
-    screenId: entry.screenId,
-    engine: l.engine as BeatMeta['engine'],
-    scripted: l.scripted,
-    variable: l.variable,
-    variableNote: l.variableNote ?? undefined,
-    opener: l.opener,
-    secondBubble: l.secondBubble ?? undefined,
-    closeBubble: l.closeBubble ?? undefined,
-    confirmBubble: l.confirmBubble ?? undefined,
-    buttonLabel: l.buttonLabel ?? undefined,
-    openerMode: l.openerMode ?? undefined,
-    openerShowsAsBubble: l.openerShowsAsBubble ?? undefined,
-    expectedResponse: entry.expectedResponse ?? '',
-    clipNote: l.clipNote ?? undefined,
-    narration: l.narration ? l.narration.map((s) => ({ ...s })) : undefined,
-    elements: l.elements.map((e) => ({ ...e })),
-  };
-}
-
-export const METADATA_BY_SCREEN_ID: Record<string, BeatMeta> = Object.fromEntries(
-  BEATS_SOURCE.map((b) => [b.screenId, legacyMetaOf(b)]).filter(
-    (pair): pair is [string, BeatMeta] => Boolean(pair[0] && pair[1]),
-  ),
-);
-
-// Fast lookup of the full one-source entry (for the script list + context panel).
+// --- Onboarding copy, derived from the ONE source (beatsSource.ts) ---
+// The annotated view and the rendered beat components read their coach copy from
+// each beat's script[]. There is no second metadata store: these helpers pull the
+// opener, the coach bubbles, and a named component element's line straight off the
+// script, keyed by screenId, so the words the component shows are the words the
+// engine speaks.
 const ENTRY_BY_SCREEN_ID = BEAT_BY_SCREEN_ID;
 
-function sortedElements(meta?: BeatMeta): BeatElementMeta[] {
-  return meta?.elements ? [...meta.elements].sort((a, b) => a.order - b.order) : [];
+function entryFor(screenId?: string): BeatEntry | undefined {
+  return screenId ? ENTRY_BY_SCREEN_ID[screenId] : undefined;
 }
 
-function bubbleLines(meta?: BeatMeta): string[] {
-  return (meta?.narration ?? [])
-    .filter((seg) => seg.bubble != null && seg.say)
-    .map((seg) => seg.say);
+// The opening coach line: the script line bound to opener/opener-line, else the
+// first coach bubble with words.
+function scriptOpener(entry?: BeatEntry): string {
+  const s = entry?.script ?? [];
+  const op = s.find((l) => l.bindsTo.element === 'opener' || l.bindsTo.element === 'opener-line');
+  if (op?.words) return op.words;
+  return s.find((l) => l.bindsTo.kind === 'bubble' && l.words)?.words ?? '';
 }
 
+// Every coach bubble line, in seq order (opener + bubble-N).
+function scriptBubbles(entry?: BeatEntry): string[] {
+  return (entry?.script ?? [])
+    .filter((l) => l.bindsTo.kind === 'bubble' && l.words)
+    .map((l) => l.words);
+}
+
+// A named component element's spoken line (e.g. age, gender).
+function scriptElementLine(entry: BeatEntry | undefined, elementId: string): string {
+  return (
+    (entry?.script ?? []).find(
+      (l) => l.bindsTo.kind === 'component' && l.bindsTo.element === elementId,
+    )?.words ?? ''
+  );
+}
+
+// The coach-copy props each beat component needs, derived from script[]. Merged
+// into the beat's props so the rendered component shows the same words the engine
+// speaks.
 function metadataPropsForBeat(type: string, screenId?: string): Record<string, string> {
-  if (!screenId) return {};
-  const meta = METADATA_BY_SCREEN_ID[screenId];
-  if (!meta) return {};
-
-  const bubbles = bubbleLines(meta);
-  const elements = sortedElements(meta);
+  const entry = entryFor(screenId);
+  if (!entry) return {};
+  const opener = scriptOpener(entry);
+  const bubbles = scriptBubbles(entry);
 
   switch (type) {
     case 'profile-beat':
       return {
-        greeting: meta.opener ?? '',
-        askAge: elements.find((element) => element.elementId === 'age')?.line ?? elements[0]?.line ?? '',
-        askGender:
-          elements.find((element) => element.elementId === 'gender')?.line ?? elements[1]?.line ?? '',
+        greeting: opener,
+        askAge: scriptElementLine(entry, 'age'),
+        askGender: scriptElementLine(entry, 'gender'),
       };
     case 'advanced-capture':
-      return {
-        coachLine: meta.opener ?? '',
-        closeCoachLine: meta.closeBubble ?? bubbles[1] ?? '',
-      };
+      return { coachLine: opener, closeCoachLine: bubbles[1] ?? '' };
     case 'advanced-frequency':
       return {
-        coachLine: meta.opener ?? '',
-        coachLine2: meta.secondBubble ?? bubbles[1] ?? '',
-        confirmCoachLine: meta.confirmBubble ?? bubbles[bubbles.length - 1] ?? '',
+        coachLine: opener,
+        coachLine2: bubbles[1] ?? '',
+        confirmCoachLine: bubbles[bubbles.length - 1] ?? '',
       };
     case 'into-app':
       return {
-        coachLine: meta.opener ?? '',
-        buttonLabel: meta.buttonLabel ?? 'Approve and start',
+        coachLine: opener,
+        buttonLabel: entry.props?.buttonLabel ?? 'Approve and start',
+        buttonEditLabel: entry.props?.buttonEditLabel ?? 'I want to change something',
       };
     case 'state-check':
     case 'morning-checkin-setup':
     case 'reflection-card':
     case 'habit-schedule':
-      return {
-        coachLine: meta.opener ?? '',
-        coachLine2: meta.secondBubble ?? bubbles[1] ?? '',
-      };
+      return { coachLine: opener, coachLine2: bubbles[1] ?? '' };
     case 'mic-permission':
     case 'path-selection':
     case 'category-grid':
@@ -175,7 +130,7 @@ function metadataPropsForBeat(type: string, screenId?: string): Record<string, s
     case 'habit-picker':
     case 'custom-entry':
     case 'weekly-projection':
-      return { coachLine: meta.opener ?? '' };
+      return { coachLine: opener };
     default:
       return {};
   }
@@ -330,13 +285,15 @@ export function IsolatedBeat({
 type VoiceEngine = 'MP3' | 'Cartesia' | 'Vapi' | 'Silent';
 type VoiceMode = 'Verbatim' | 'Improvise' | null;
 
-const ENGINE_STYLE: Record<VoiceEngine, { bg: string; text: string; border: string; icon: string }> =
-  {
-    MP3: { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd', icon: 'mdi:play-circle-outline' },
-    Cartesia: { bg: '#ede9fe', text: '#6d28d9', border: '#c4b5fd', icon: 'mdi:waveform' },
-    Vapi: { bg: '#dcfce7', text: '#15803d', border: '#86efac', icon: 'mdi:microphone-outline' },
-    Silent: { bg: '#f1f5f9', text: '#64748b', border: '#cbd5e1', icon: 'mdi:volume-off' },
-  };
+const ENGINE_STYLE: Record<
+  VoiceEngine,
+  { bg: string; text: string; border: string; icon: string }
+> = {
+  MP3: { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd', icon: 'mdi:play-circle-outline' },
+  Cartesia: { bg: '#ede9fe', text: '#6d28d9', border: '#c4b5fd', icon: 'mdi:waveform' },
+  Vapi: { bg: '#dcfce7', text: '#15803d', border: '#86efac', icon: 'mdi:microphone-outline' },
+  Silent: { bg: '#f1f5f9', text: '#64748b', border: '#cbd5e1', icon: 'mdi:volume-off' },
+};
 
 function tagLabel(engine: VoiceEngine, mode: VoiceMode): string {
   return mode ? `${engine} · ${mode}` : engine;
@@ -563,15 +520,19 @@ function ContextKeyValue({ label, value }: { label: string; value: string }) {
 }
 
 function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
-  const meta = beat.screenId ? METADATA_BY_SCREEN_ID[beat.screenId] : undefined;
   const entry = beat.screenId ? ENTRY_BY_SCREEN_ID[beat.screenId] : undefined;
-  const metaElements = meta ? sortedElements(meta) : [];
-  const narration = meta?.narration ?? [];
   const resolvedProps = beat.props ? Object.entries(beat.props) : [];
 
-  if (!meta) {
+  if (!entry) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontFamily: 'Urbanist, -apple-system, sans-serif' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          fontFamily: 'Urbanist, -apple-system, sans-serif',
+        }}
+      >
         <VoiceTag engine={beat.engine} mode={beat.mode} />
         <div
           style={{
@@ -589,7 +550,8 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
             {beat.path ? ` · ${PATH_STYLE[beat.path].label}` : ''}
           </div>
           <div style={{ marginTop: 10, lineHeight: 1.45 }}>
-            No metadata entry. This is a structural silent beat with no coach copy, narration, clip, or expected voice response.
+            No metadata entry. This is a structural silent beat with no coach copy, script, clip, or
+            expected voice response.
           </div>
         </div>
       </div>
@@ -597,7 +559,14 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontFamily: 'Urbanist, -apple-system, sans-serif' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        fontFamily: 'Urbanist, -apple-system, sans-serif',
+      }}
+    >
       <VoiceTag engine={beat.engine} mode={beat.mode} />
       <div
         style={{
@@ -625,29 +594,26 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          <WordsFlagChip label={meta.engine} tone="engine" />
+          <WordsFlagChip label={beat.engine} tone="engine" />
           {beat.mode && <WordsFlagChip label={beat.mode} tone="note" />}
-          {meta.variable && (
-            <WordsFlagChip
-              label={`live${meta.variableNote ? `, ${meta.variableNote.split(',')[0]}` : ', name'}`}
-              tone="live"
-            />
-          )}
-          {meta.openerShowsAsBubble === false && meta.opener && <WordsFlagChip label="opener hidden" tone="note" />}
+          {beat.engine === 'Cartesia' && <WordsFlagChip label="live, name" tone="live" />}
         </div>
 
         <ContextSection title="Beat metadata" defaultOpen>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <ContextKeyValue label="Expected response" value={meta.expectedResponse} />
-            {entry?.allowedTools && <ContextKeyValue label="Allowed tools" value={entry.allowedTools} />}
-            {meta.clipNote && <ContextKeyValue label="Clip note" value={meta.clipNote} />}
-            {meta.variableNote && <ContextKeyValue label="Variable note" value={meta.variableNote} />}
-            {meta.openerMode && <ContextKeyValue label="Opener mode" value={meta.openerMode} />}
+            {entry.expectedResponse && (
+              <ContextKeyValue label="Expected response" value={entry.expectedResponse} />
+            )}
+            {entry.allowedTools && (
+              <ContextKeyValue label="Allowed tools" value={entry.allowedTools} />
+            )}
           </div>
         </ContextSection>
 
-        <ContextSection title={entry?.context ? 'Coach behavior context' : 'Coach behavior context (none)'}>
-          {entry?.context ? (
+        <ContextSection
+          title={entry.context ? 'Coach behavior context' : 'Coach behavior context (none)'}
+        >
+          {entry.context ? (
             <pre
               style={{
                 margin: 0,
@@ -668,69 +634,14 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
             </pre>
           ) : (
             <div style={{ fontSize: 12.5, color: '#94a3b8' }}>
-              No coach behavior context for this beat (structural or newer beat, not yet in screen_contexts).
+              No coach behavior context for this beat (structural or newer beat).
             </div>
           )}
         </ContextSection>
 
-        <ContextSection title="Copy">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <ContextKeyValue
-              label="Opener"
-              value={meta.opener || 'No opener, this beat starts with rendered elements.'}
-            />
-            {meta.secondBubble && <ContextKeyValue label="Second bubble" value={meta.secondBubble} />}
-            {meta.closeBubble && <ContextKeyValue label="Close bubble" value={meta.closeBubble} />}
-            {meta.confirmBubble && <ContextKeyValue label="Confirm bubble" value={meta.confirmBubble} />}
-            {meta.buttonLabel && <ContextKeyValue label="Button label" value={meta.buttonLabel} />}
-          </div>
-        </ContextSection>
-
-        <ContextSection title={`Narration${narration.length ? ` (${narration.length})` : ''}`}>
-          {narration.length ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {narration.map((seg, idx) => {
-                const metaBits = [
-                  seg.bubble != null ? `bubble ${seg.bubble}` : null,
-                  seg.reveal != null ? `reveal ${seg.reveal}` : null,
-                  seg.clip ? `clip ${seg.clip}` : null,
-                  seg.audioSrc ?? null,
-                ].filter(Boolean);
-                return (
-                  <div key={`${beat.id}-seg-${idx}`} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>
-                      {idx + 1}. {metaBits.join(' · ') || 'timing only'}
-                    </div>
-                    <div style={{ fontSize: 12.5, lineHeight: 1.45, color: '#1e293b' }}>
-                      {seg.say || '(silent reveal)'}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div style={{ fontSize: 12.5, color: '#94a3b8' }}>No narration array on this beat.</div>
-          )}
-        </ContextSection>
-
-        <ContextSection title={`Beat elements${metaElements.length ? ` (${metaElements.length})` : ''}`}>
-          {metaElements.length ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {metaElements.map((el) => (
-                <div key={el.elementId} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>
-                    {el.order}. {el.elementId}
-                  </div>
-                  <div style={{ fontSize: 12.5, lineHeight: 1.45, color: '#1e293b' }}>{el.line}</div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ fontSize: 12.5, color: '#94a3b8' }}>No beat elements on this beat.</div>
-          )}
-        </ContextSection>
-
-        <ContextSection title={`Resolved props${resolvedProps.length ? ` (${resolvedProps.length})` : ''}`}>
+        <ContextSection
+          title={`Resolved props${resolvedProps.length ? ` (${resolvedProps.length})` : ''}`}
+        >
           {resolvedProps.length ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {resolvedProps.map(([key, value]) => (
@@ -752,7 +663,10 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
 // whether it is a coach bubble or a component reveal, the voice, and the clip.
 // The optional expectedUser sub-row shows under a coach line behind a toggle.
 
-const BIND_STYLE: Record<'bubble' | 'component', { bg: string; text: string; border: string; label: string }> = {
+const BIND_STYLE: Record<
+  'bubble' | 'component',
+  { bg: string; text: string; border: string; label: string }
+> = {
   bubble: { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe', label: 'bubble' },
   component: { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0', label: 'component' },
 };
@@ -763,7 +677,13 @@ const VOICE_STYLE: Record<string, { bg: string; text: string; border: string }> 
   verbatim: { bg: '#ede9fe', text: '#6d28d9', border: '#c4b5fd' },
 };
 
-function TinyChip({ label, s }: { label: string; s: { bg: string; text: string; border: string } }) {
+function TinyChip({
+  label,
+  s,
+}: {
+  label: string;
+  s: { bg: string; text: string; border: string };
+}) {
   return (
     <span
       style={{
@@ -836,24 +756,57 @@ function ScriptPanel({
       >
         Script ({entry.script.length})
       </div>
-      <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <ol
+        style={{
+          margin: 0,
+          padding: 0,
+          listStyle: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
         {entry.script.map((line: ScriptLine) => {
           const bind = BIND_STYLE[line.bindsTo.kind];
           const voiceStyle = line.voice ? VOICE_STYLE[line.voice] : null;
           return (
             <li
               key={line.seq}
-              style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: line.seq === 1 ? 'none' : '1px solid #f1f5f9', paddingTop: line.seq === 1 ? 0 : 8 }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                borderTop: line.seq === 1 ? 'none' : '1px solid #f1f5f9',
+                paddingTop: line.seq === 1 ? 0 : 8,
+              }}
             >
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: '#c7d2e0', minWidth: 14, flexShrink: 0 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: '#c7d2e0',
+                    minWidth: 14,
+                    flexShrink: 0,
+                  }}
+                >
                   {line.seq}
                 </span>
                 <div style={{ fontSize: 13, lineHeight: 1.45, color: '#1e293b', flex: 1 }}>
-                  {line.words || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>(silent reveal)</span>}
+                  {line.words || (
+                    <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>(silent reveal)</span>
+                  )}
                 </div>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingLeft: 22, alignItems: 'center' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 6,
+                  paddingLeft: 22,
+                  alignItems: 'center',
+                }}
+              >
                 <TinyChip label={bind.label} s={bind} />
                 <span style={{ fontSize: 10.5, color: '#64748b' }}>{line.bindsTo.element}</span>
                 {voiceStyle && <TinyChip label={line.voice as string} s={voiceStyle} />}
@@ -883,10 +836,20 @@ function ScriptPanel({
           );
         })}
       </ol>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 4, borderTop: '1px solid #f1f5f9' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 6,
+          paddingTop: 4,
+          borderTop: '1px solid #f1f5f9',
+        }}
+      >
         <WordsFlagChip label={entry.voiceEngine} tone="engine" />
         {entry.expectedResponse && (
-          <span style={{ fontSize: 10.5, color: '#94a3b8' }}>expects: {entry.expectedResponse}</span>
+          <span style={{ fontSize: 10.5, color: '#94a3b8' }}>
+            expects: {entry.expectedResponse}
+          </span>
         )}
       </div>
     </div>
@@ -935,7 +898,6 @@ export const BASE_BEATS: FlowBeat[] = BEATS_SOURCE.map((b) => ({
   script: b.script,
 }));
 
-
 export const BEATS: FlowBeat[] = BASE_BEATS.map((beat) => ({
   ...beat,
   props: {
@@ -971,14 +933,18 @@ const MORNING_BEATS: FlowBeat[] = [
   {
     id: 'morning-state-reaction',
     type: 'coach-bubble',
-    props: { text: "Energy a little low, that makes sense. Sleep was short. Let's keep today light and focused." },
+    props: {
+      text: "Energy a little low, that makes sense. Sleep was short. Let's keep today light and focused.",
+    },
     engine: 'Cartesia',
     mode: 'Improvise',
   },
   {
     id: 'morning-are-you-done',
     type: 'coach-bubble',
-    props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
+    props: {
+      text: 'Looks like there are a few items left. Want to add anything, or should we move on?',
+    },
     engine: 'MP3',
     mode: 'Verbatim',
   },
@@ -1029,7 +995,9 @@ const EVENING_BEATS: FlowBeat[] = [
   {
     id: 'evening-are-you-done',
     type: 'coach-bubble',
-    props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
+    props: {
+      text: 'Looks like there are a few items left. Want to add anything, or should we move on?',
+    },
     engine: 'MP3',
     mode: 'Verbatim',
   },
@@ -1098,13 +1066,7 @@ const TABS: TabDef[] = [
 ];
 
 // Pill tab switcher rendered above the legend.
-function TabSwitcher({
-  active,
-  onChange,
-}: {
-  active: TabId;
-  onChange: (id: TabId) => void;
-}) {
+function TabSwitcher({ active, onChange }: { active: TabId; onChange: (id: TabId) => void }) {
   return (
     <div
       style={{
@@ -1268,12 +1230,23 @@ function PhoneCard({
           the same gradient (no white bar). The min height makes every phone at
           least a full real-phone screen; tall beats grow past it (longer than a
           phone) so nothing is ever clipped or shrunk below a phone. */}
-      <div style={{ background: COACH_BG, display: 'flex', flexDirection: 'column', minHeight: 700 }}>
-        <div style={{ flex: 1, padding: '18px 14px 8px', display: 'flex', flexDirection: 'column' }}>
+      <div
+        style={{ background: COACH_BG, display: 'flex', flexDirection: 'column', minHeight: 700 }}
+      >
+        <div
+          style={{ flex: 1, padding: '18px 14px 8px', display: 'flex', flexDirection: 'column' }}
+        >
           {children}
         </div>
         {showOrb && (
-          <div style={{ flexShrink: 0, padding: '8px 0 20px', display: 'flex', justifyContent: 'center' }}>
+          <div
+            style={{
+              flexShrink: 0,
+              padding: '8px 0 20px',
+              display: 'flex',
+              justifyContent: 'center',
+            }}
+          >
             {/* The orb animates live while this beat is playing, and settles to a
                 frozen bloom otherwise so a stack of them stays cheap. Hidden on
                 beats where the orb has faded out (the account step). */}
@@ -1326,17 +1299,14 @@ function PlayableBeat({
           shouldStop: () => cancelled || run !== runRef.current,
         });
       } else {
-        // Hand-authored check-in beats (no script): legacy narration path.
-        const m = beat.screenId ? METADATA_BY_SCREEN_ID[beat.screenId] : undefined;
-        const opener = sample(m?.opener ?? beat.props?.coachLine ?? beat.props?.greeting ?? '');
-        const lines = m?.elements
-          ? [...m.elements].sort((a, c) => a.order - c.order).map((e) => sample(e.line))
-          : [];
+        // Beats without a script[] (hand-authored check-in beats): drive the
+        // opener off the resolved coach-copy props. No legacy metadata store.
+        const opener = sample(beat.props?.coachLine ?? beat.props?.greeting ?? '');
         await runBeatNarration({
-          narration: m?.narration,
+          narration: undefined,
           kind: kindOf(beat.type),
           opener,
-          lines,
+          lines: [],
           muted: false,
           setStepReveal,
           setElementReveal,
@@ -1477,9 +1447,7 @@ export function FlowDesigner() {
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b', margin: 0, marginBottom: 4 }}>
           {tab.title}
         </h1>
-        <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-          {tab.subtitle}
-        </p>
+        <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>{tab.subtitle}</p>
       </div>
 
       {/* Tab switcher + Legend */}

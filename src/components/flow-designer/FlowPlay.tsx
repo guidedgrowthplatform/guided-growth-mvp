@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from '@iconify/react';
-import { COACH_BG } from './beats/_beatStyle';
-import { SpokenWordsCtx } from './beatKit';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Orb } from '@/components/orb/Orb';
 import { orbIdle, orbSpeaking } from '@/components/orb/orbView';
+import { SpokenWordsCtx } from './beatKit';
 import { runBeatScript, stopSpeech } from './beatNarration';
-import { BEATS, IsolatedBeat, METADATA_BY_SCREEN_ID } from './FlowDesigner';
+import { COACH_BG } from './beats/_beatStyle';
+import { BEATS, IsolatedBeat } from './FlowDesigner';
 
 // Play mode: runs the real onboarding beats in order in a single phone, speaking
 // each opener and per-element line with the browser voice (a stand-in for the
@@ -41,7 +41,6 @@ export function FlowPlay() {
   const stageRef = useRef<HTMLDivElement>(null);
 
   const beat = BEATS[idx];
-  const meta = beat.screenId ? METADATA_BY_SCREEN_ID[beat.screenId] : undefined;
 
   useEffect(
     () => () => {
@@ -158,14 +157,34 @@ export function FlowPlay() {
           Play from start
         </button>
         <label
-          style={{ fontSize: 12.5, color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+          style={{
+            fontSize: 12.5,
+            color: '#64748b',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            cursor: 'pointer',
+          }}
         >
-          <input type="checkbox" checked={autoplay} onChange={(e) => setAutoplay(e.target.checked)} /> Autoplay
+          <input
+            type="checkbox"
+            checked={autoplay}
+            onChange={(e) => setAutoplay(e.target.checked)}
+          />{' '}
+          Autoplay
         </label>
         <label
-          style={{ fontSize: 12.5, color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+          style={{
+            fontSize: 12.5,
+            color: '#64748b',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            cursor: 'pointer',
+          }}
         >
-          <input type="checkbox" checked={muted} onChange={(e) => setMuted(e.target.checked)} /> Mute voice
+          <input type="checkbox" checked={muted} onChange={(e) => setMuted(e.target.checked)} />{' '}
+          Mute voice
         </label>
         <span style={{ fontSize: 12, color: '#94a3b8' }}>
           {idx + 1} / {BEATS.length} · {beat.screenId ?? beat.id}
@@ -232,7 +251,7 @@ export function FlowPlay() {
           }}
         >
           <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Coach</span>
-          {meta?.engine && (
+          {beat.engine && (
             <span
               style={{
                 marginLeft: 'auto',
@@ -244,7 +263,7 @@ export function FlowPlay() {
                 borderRadius: 999,
               }}
             >
-              {meta.engine}
+              {beat.engine}
             </span>
           )}
         </div>
@@ -284,7 +303,14 @@ export function FlowPlay() {
           {/* The docked orb. Hidden on beats that draw their own orb (the greeting
               and mic-permission), so there is never a second orb. */}
           {!beat.hideOrb && (
-            <div style={{ flexShrink: 0, padding: '6px 0 18px', display: 'flex', justifyContent: 'center' }}>
+            <div
+              style={{
+                flexShrink: 0,
+                padding: '6px 0 18px',
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
               {playing ? (
                 <Orb {...orbSpeaking(84, 'coach')} />
               ) : (

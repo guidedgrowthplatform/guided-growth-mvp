@@ -1,4 +1,4 @@
-// Auto-generated from public/voice/splash_welcome.mp3 via mlx-whisper (word timestamps).
+// Auto-generated from public/voice/coach_greeting.mp3 via mlx-whisper (word timestamps).
 // Regenerate when the coach clip changes. Edit the word text here if a word is off.
 
 export interface CaptionWord {
