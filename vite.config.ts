@@ -33,8 +33,10 @@ function cartesiaTtsPlugin(apiKey: string): Plugin {
           try {
             const { text, voice_id } = JSON.parse(body);
 
-            // Default to Katie (warm female) if no voice ID provided
-            const resolvedVoiceId = voice_id || 'f786b574-daa5-4673-aa0c-cbe3e8534c02';
+            // Default to Pro Voice Clone V1 (Yair's clone, matches the recorded
+            // onboarding MP3 clips) if no voice ID provided. Was Katie, a generic
+            // sonic-3 voice that didn't match the recorded clips.
+            const resolvedVoiceId = voice_id || '104635f9-8991-403c-9988-bc5b70b39939';
 
             console.log(
               `[vite-tts] Cartesia TTS: "${text.substring(0, 50)}..." → voice ${resolvedVoiceId}`,
@@ -48,7 +50,7 @@ function cartesiaTtsPlugin(apiKey: string): Plugin {
                 'Cartesia-Version': '2026-03-01',
               },
               body: JSON.stringify({
-                model_id: 'sonic-3',
+                model_id: 'sonic-3.5-2026-05-04',
                 transcript: text,
                 voice: { mode: 'id', id: resolvedVoiceId },
                 output_format: { container: 'mp3', encoding: 'mp3', sample_rate: 24000 },

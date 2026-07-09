@@ -3,8 +3,11 @@ import { requireUser, setUserContext, handlePreflight } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 import { getClientIp } from './_lib/validation.js';
 
-// Katie (female) — same voice used for MP3 generation
-const DEFAULT_VOICE_ID = 'f786b574-daa5-4673-aa0c-cbe3e8534c02';
+// Pro Voice Clone V1 — Yair's clone, the same voice used for the recorded
+// onboarding MP3 clips (locked 2026-07-06, gg-spec/docs/voice-presets.json
+// "live-coach" preset). Was Katie (generic sonic-3 female), which is why the
+// live coach sounded different from the recorded clips.
+const DEFAULT_VOICE_ID = '104635f9-8991-403c-9988-bc5b70b39939';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -64,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Cartesia-Version': '2026-03-01',
       },
       body: JSON.stringify({
-        model_id: 'sonic-3',
+        model_id: 'sonic-3.5-2026-05-04',
         transcript: text.trim(),
         voice: { mode: 'id', id: resolvedVoiceId },
         output_format: { container: 'mp3', encoding: 'mp3', sample_rate: 24000 },

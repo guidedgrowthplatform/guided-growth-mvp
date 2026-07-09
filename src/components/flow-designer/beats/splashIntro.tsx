@@ -9,8 +9,15 @@ import { useIsPlaying, type BeatDef } from '../beatKit';
 // filling into the bubble synced to the clip, then the orb settles into its dock.
 // It brings its own orb, so the shared canvas orb is hidden on this beat (see
 // orbConfigForType in BeatOrb). In Play it plays the real recording; on the static
-// canvas it renders settled and silent. Audio is owned by the shared narration
-// driver, so this visual component never starts the MP3 by itself.
+// canvas it renders settled and silent. The AUDIBLE clip is owned by the shared
+// narration driver (a separate Audio object in beatNarration.ts), so audioSrc here
+// is muted. It still has to be wired to the real clip though: without it, this
+// component's own orb/caption timeline runs on a hardcoded ~2.6s fallback instead
+// of the clip's real ~13s length, so the caption bubble freezes on the first word
+// ("Hey,") and the orb visually settles/fades out long before the narration driver
+// finishes speaking the full line. Passing the (muted) audioSrc lets this
+// component's own <audio> track the real duration via onended/currentTime, so the
+// orb pulse, caption karaoke, and settle timing all match what is actually playing.
 function CoachGreetingBeat() {
   const playing = useIsPlaying();
   return (
@@ -19,6 +26,8 @@ function CoachGreetingBeat() {
         autoPlay={playing}
         loop={!playing}
         skipSplash
+        audioSrc="/voice/coach_greeting.mp3"
+        muted
       />
     </div>
   );
