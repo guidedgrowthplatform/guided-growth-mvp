@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
-import { DayPicker } from '@/components/ui/DayPicker';
+import { useEffect, useState } from 'react';
 import { WEEKDAYS, toggleSetItem } from '@/components/onboarding/constants';
+import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker, formatTime12 } from '@/components/ui/TimePicker';
 import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
@@ -119,7 +119,9 @@ function MorningCard({
               height={18}
               style={{ color: SUBTLE, flexShrink: 0 }}
             />
-            <span style={{ fontSize: 15, fontWeight: 600, color: 'rgb(51,65,85)' }}>Check-in time</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: 'rgb(51,65,85)' }}>
+              Check-in time
+            </span>
           </div>
           <TimePicker value={time} onChange={onTimeChange} />
         </div>
@@ -127,69 +129,75 @@ function MorningCard({
 
       {/* Remind me row + hint */}
       <Bloom show={reveal > 2}>
-      <div
-        style={{
-          padding: '14px 20px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Icon
-            icon="ph:bell-simple-light"
-            width={18}
-            height={18}
-            style={{ color: SUBTLE, flexShrink: 0 }}
-          />
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'rgb(51,65,85)' /* SUBTLE_DARK */, lineHeight: 1.2 }}>
-              Remind me
-            </div>
-            <div style={{ fontSize: 12.5, fontWeight: 500, color: 'rgb(148,163,184)', marginTop: 1 }}>
-              {remind
-                ? `Notification at ${formatTime12(time)}`
-                : 'Notifications off'}
-            </div>
-          </div>
-        </div>
-
-        {/* Inline toggle, amber accent to match morning theme */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={remind}
-          onClick={() => onToggleRemind(!remind)}
+        <div
           style={{
-            position: 'relative',
-            width: 44,
-            height: 26,
-            borderRadius: 13,
-            border: 'none',
-            cursor: 'pointer',
-            background: remind ? AMBER : 'rgba(203,213,225,0.8)',
-            transition: 'background 200ms ease-out',
-            flexShrink: 0,
-            padding: 0,
+            padding: '14px 20px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
-          <span
-            style={{
-              position: 'absolute',
-              top: 3,
-              left: 3,
-              width: 20,
-              height: 20,
-              borderRadius: '50%',
-              background: '#fff',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
-              transition: 'transform 200ms ease-out',
-              transform: remind ? 'translateX(18px)' : 'translateX(0)',
-            }}
-          />
-        </button>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon
+              icon="ph:bell-simple-light"
+              width={18}
+              height={18}
+              style={{ color: SUBTLE, flexShrink: 0 }}
+            />
+            <div>
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: 'rgb(51,65,85)' /* SUBTLE_DARK */,
+                  lineHeight: 1.2,
+                }}
+              >
+                Remind me
+              </div>
+              <div
+                style={{ fontSize: 12.5, fontWeight: 500, color: 'rgb(148,163,184)', marginTop: 1 }}
+              >
+                {remind ? `Notification at ${formatTime12(time)}` : 'Notifications off'}
+              </div>
+            </div>
+          </div>
 
+          {/* Inline toggle, amber accent to match morning theme */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={remind}
+            onClick={() => onToggleRemind(!remind)}
+            style={{
+              position: 'relative',
+              width: 44,
+              height: 26,
+              borderRadius: 13,
+              border: 'none',
+              cursor: 'pointer',
+              background: remind ? AMBER : 'rgba(203,213,225,0.8)',
+              transition: 'background 200ms ease-out',
+              flexShrink: 0,
+              padding: 0,
+            }}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                top: 3,
+                left: 3,
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                background: '#fff',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+                transition: 'transform 200ms ease-out',
+                transform: remind ? 'translateX(18px)' : 'translateX(0)',
+              }}
+            />
+          </button>
+        </div>
       </Bloom>
     </div>
   );
@@ -219,10 +227,9 @@ function MorningCheckinSetupBeat(props?: Record<string, string>) {
         "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
     },
   ];
-  // Optional second coach bubble (the days recommendation).
-  if (props?.coachLine2) {
-    steps.push({ id: 'ask2', speaker: 'coach', say: props.coachLine2 });
-  }
+  // L5: the picker renders between the two bubbles. The first bubble sets up
+  // the pick, the picker appears, then the consistency nudge (bubble 2) lands
+  // once the user has the picker in front of them.
   steps.push({
     id: 'card',
     speaker: 'coach',
@@ -237,6 +244,10 @@ function MorningCheckinSetupBeat(props?: Record<string, string>) {
       />
     ),
   });
+  // Optional second coach bubble (the days recommendation), after the picker.
+  if (props?.coachLine2) {
+    steps.push({ id: 'ask2', speaker: 'coach', say: props.coachLine2 });
+  }
 
   return <BeatPlayer steps={steps} />;
 }

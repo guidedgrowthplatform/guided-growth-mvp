@@ -400,6 +400,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
+    // L5: morning reorder. Bubble 1 sets up the pick, then the picker reveals,
+    // then bubble 2 (the shorter consistency nudge, R4) lands after the picker.
     script: [
       {
         seq: 1,
@@ -416,19 +418,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       },
       {
         seq: 2,
-        words:
-          "Every day is great, but weekdays consistently beats every day occasionally. That's what I recommend to start.",
-        bindsTo: {
-          kind: 'bubble',
-          element: 'bubble-2',
-          screen: 'ONBOARD-MORNING-SETUP',
-        },
-        voice: 'mp3',
-        clip: 'onboard_morning_setup_2',
-        clipPath: '/voice/ob/onboard_morning_setup_2.wav',
-      },
-      {
-        seq: 3,
         words: '',
         bindsTo: {
           kind: 'component',
@@ -440,7 +429,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: null,
       },
       {
-        seq: 4,
+        seq: 3,
         words: '',
         bindsTo: {
           kind: 'component',
@@ -452,7 +441,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: null,
       },
       {
-        seq: 5,
+        seq: 4,
         words: '',
         bindsTo: {
           kind: 'component',
@@ -462,6 +451,19 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         voice: 'mp3',
         clip: null,
         clipPath: null,
+      },
+      {
+        seq: 5,
+        words:
+          "Every day is great, but weekdays consistently beats every day occasionally. That's what I recommend to start.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'bubble-2',
+          screen: 'ONBOARD-MORNING-SETUP',
+        },
+        voice: 'mp3',
+        clip: 'onboard_morning_setup_2',
+        clipPath: '/voice/ob/onboard_morning_setup_2.wav',
       },
     ],
   },
