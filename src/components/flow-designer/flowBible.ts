@@ -271,7 +271,16 @@ export const CONSUMER_CONTRACT: readonly ConsumerContractRow[] = [
 export interface EnforcerEntry {
   readonly id: string;
   readonly kind: EnforcerKind;
+  // status is the built-vs-planned truth (explicit, machine-read by the gate):
+  //  - 'built': a static checker that runs today, OR a qa-eval that is configured
+  //    and runnable on the fleet (see `runnable`).
+  //  - 'planned': named but not yet enforceable.
   readonly status: EnforcerStatus;
+  // For a qa-eval only: true once the fleet eval is configured and actually
+  // runnable with an evidence artifact. A qa-eval counts as enforceable in
+  // scale/release mode only when status === 'built' AND runnable === true.
+  // A static check is enforceable in release mode when status === 'built'.
+  readonly runnable?: boolean;
   readonly meaning: string;
   readonly owner: string;
 }
@@ -296,6 +305,14 @@ export const ENFORCER_REGISTRY: readonly EnforcerEntry[] = [
     owner: 'render',
   },
   { id: 'type-check', kind: 'static', status: 'built', meaning: 'tsc --noEmit', owner: 'repo' },
+  {
+    id: 'bible-registry-check',
+    kind: 'static',
+    status: 'built',
+    meaning:
+      'resolves every enforcedBy id against this registry, validates each bible sectionManifest (14 keys, legal statuses, filled => non-empty), enforces per-variant inheritance (no head category label / clip id / rule-id prefix leaks, no filled claim on a non-owned section), and total coverage across every onboarding beat; supports authoring vs release mode',
+    owner: 'render guards lane',
+  },
   // static checks named by the model, not yet built
   {
     id: 'render-rules-check',

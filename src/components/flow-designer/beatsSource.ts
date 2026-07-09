@@ -8,6 +8,7 @@
 // read this single store. Do NOT re-add a second hand-authored metadata store;
 // edit this file. (Pass 2 applies the screenId -> beatId rename.)
 
+import { goalsByCategory } from '@gg/shared/data/onboardingGoals';
 import type { BeatConversation, SourceStatus } from './flowBible';
 
 export type BeatPath = 'beginner' | 'advanced' | 'both';
@@ -115,7 +116,16 @@ export type BibleSectionKey =
   | 'acceptance'
   | 'applicableDecisions';
 // na = short reason a section does not apply to this beat's type.
-export type SectionFillStatus = 'filled' | 'pending-app-reconcile' | { readonly na: string };
+// - filled: this beat OWNS the section (authored here, non-empty).
+// - derived: the resolver produces this section per-variant from the beat's own
+//   props/script + a head Bible (variants only; never a claim of authorship).
+// - pending-app-reconcile: legitimately not yet contracted; may be absent.
+// - { na }: does not apply to this beat's type; reason required.
+export type SectionFillStatus =
+  | 'filled'
+  | 'derived'
+  | 'pending-app-reconcile'
+  | { readonly na: string };
 
 export interface BibleSections {
   readonly identity?: {
@@ -331,6 +341,160 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: true,
     props: null,
+    // EXEMPLAR (pre-fill, archetype = non-conversational MP3 beat): proves the
+    // uniform manifest for a beat that speaks one recorded line then auto-advances,
+    // with no interactive component, no user turn, and no data write. components /
+    // conversation / allowedTools / persistence are legitimately { na }.
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: { na: 'no interactive component — a single coach bubble that auto-advances' },
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: { na: 'single-turn — the beat auto-advances; the user has no turn here' },
+        contextProse: 'filled',
+        allowedTools: { na: 'no tools — nothing is captured or saved on this beat' },
+        persistence: { na: 'writes nothing — this beat captures no user data' },
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'coach-greeting' },
+          { label: 'name', value: 'Coach greeting' },
+          { label: 'order', value: '2' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'splash-intro' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'COACH-GREETING' },
+          { surface: 'route', value: '/onboarding/coach-greeting' },
+          { surface: 'persisted current_step', value: 'coach-greeting' },
+          { surface: 'session_log value', value: 'coach-greeting' },
+          { surface: 'data-beat-id', value: 'coach-greeting' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'opener bubble on entry; no gate (this is the first spoken line)',
+            timing: 'karaoke per-word on the bubble; the flow auto-advances on clip end',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [{ seq: 1, resolvesTo: 'recorded clip coach_greeting', liveAllowed: 'NO' }],
+        assertion:
+          'The greeting carries no live slot like {name}, so the one spoken line MUST resolve to the recorded clip coach_greeting. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'greet-verbatim-opener',
+          rule: 'Speaks the recorded greeting verbatim, no improvised lead-in or addition',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'greet-no-machinery',
+          rule: 'Never names the machinery (beat / step / screen / tool) in the greeting',
+          severity: 'must',
+          enforcedBy: ['eval:no-machinery-words'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'greet-audio-ownership',
+          rule: 'The greeting resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'greet-clip-resolves',
+          rule: 'coach_greeting resolves to a real asset',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'greet-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'First hello. The orb blooms and the coach speaks for the first time: one warm recorded line that lands the surprise of a real voice and invites the user in. Then the flow auto-advances. No component, no user turn, nothing saved.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      flow: {
+        rows: [
+          { label: 'advance condition', value: 'auto-advances when the greeting clip ends' },
+          { label: 'upstream branch (into this beat)', value: 'get-started leads here' },
+          { label: 'downstream branch (out of this beat)', value: 'proceeds to sign-up' },
+          { label: 'gate', value: 'none — this beat always auto-advances' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'audio fails to play',
+            behavior:
+              'show the greeting as text and still auto-advance; never strand the user on a silent screen',
+          },
+          {
+            edge: 'user speaks over the greeting',
+            behavior:
+              'there is no capture here; ignore input and let the greeting finish, then advance',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'says the right thing',
+            check: 'the recorded greeting plays verbatim from coach_greeting',
+          },
+          {
+            criterion: 'shows the right thing',
+            check: 'a single coach bubble renders; no interactive tiles or inputs appear',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'the flow auto-advances to sign-up when the clip ends, with no user action',
+          },
+        ],
+        enforcedBy: [
+          'render-link-integrity-check',
+          'audio-ownership-check',
+          'advance-gate-check',
+          'eval:edge-walk',
+        ],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'this beat captures nothing and gates nothing; no decision binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -366,6 +530,188 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: null,
     hideOrb: true,
     props: null,
+    // EXEMPLAR (pre-fill, archetype = SILENT structural beat): proves the uniform
+    // manifest for a beat that shows a component and captures data but has no coach
+    // audio and no coach turn. scriptMeta / voice / conversation / allowedTools are
+    // legitimately { na }, the rest are owner-filled.
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: { na: 'silent beat — no spoken script lines to gate or time' },
+        components: 'filled',
+        voice: { na: 'silent beat — the coach does not speak here' },
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: { na: 'no multi-turn — taps only, the coach takes no turn' },
+        contextProse: 'filled',
+        allowedTools: {
+          na: 'no coach tools — auth is handled by the provider SDK, not a tool call',
+        },
+        persistence: 'filled',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'sign-up' },
+          { label: 'name', value: 'Sign up' },
+          { label: 'order', value: '3' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'auth-signup' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-AUTH--FORM' },
+          { surface: 'route', value: '/onboarding/auth' },
+          { surface: 'persisted current_step', value: 'sign-up' },
+          { surface: 'session_log value', value: 'sign-up' },
+          { surface: 'data-beat-id', value: 'sign-up' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'auth-signup' },
+          {
+            label: 'on-screen controls',
+            value:
+              'three sign-in affordances: Continue with Apple, Continue with Google, email sign-in',
+          },
+          { label: 'selection mode', value: 'single action (one provider), no preselection' },
+          {
+            label: 'exact state',
+            value: 'nothing selected on entry; the name is captured by the chosen provider',
+          },
+        ],
+        watchOut:
+          'The auth UI is provider-driven; the exact provider button set may be reconciled with the native auth screen.',
+        enforcedBy: ['component-registry-check'],
+        status: 'app-reconcile-pending',
+      },
+      rulesContext: [
+        {
+          id: 'signup-stay-silent',
+          rule: 'Stay silent through auth: do not greet, narrate, or comment while the user signs in',
+          severity: 'must',
+          enforcedBy: ['eval:no-machinery-words'],
+        },
+        {
+          id: 'signup-no-read-account',
+          rule: 'Never read the email or account details back to the user',
+          severity: 'must',
+          enforcedBy: ['eval:no-machinery-words'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'signup-no-tools',
+          rule: 'No coach tool is callable on this beat; the flow advances on an authenticated session',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'signup-advance-on-auth',
+          rule: 'advance fires only once auth returns a valid session with the captured name',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'signup-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Auth. The user signs up or logs in by tapping Apple, Google, or email; this is also where their name is captured. The coach stays silent: no greeting, no narration, no tool call. The flow advances on its own once the user is authenticated.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      persistence: {
+        rows: [
+          { label: 'writes', value: 'the user name and the authenticated session' },
+          {
+            label: 'never re-ask',
+            value:
+              'the name, once captured at sign-up, is carried forward; later beats greet by it, never re-ask',
+          },
+          {
+            label: 'resume key',
+            value: 'an authenticated session past sign-up proves this beat is done on refresh',
+          },
+        ],
+        watchOut: 'Name and session live in the auth account (provider), not an onboarding table.',
+        enforcedBy: ['persistence-contract-check'],
+      },
+      flow: {
+        rows: [
+          { label: 'advance condition', value: 'a valid authenticated session is established' },
+          { label: 'upstream branch (into this beat)', value: 'coach-greeting auto-advances here' },
+          { label: 'downstream branch (out of this beat)', value: 'proceeds to mic-permission' },
+          { label: 'gate', value: 'authentication must succeed before advancing' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'auth cancelled',
+            behavior:
+              'user backs out of the provider sheet: stay on the beat, do not advance, no coach line',
+          },
+          {
+            edge: 'auth error',
+            behavior:
+              'provider returns an error: keep the sign-in options visible for a retry; never advance on failure',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders the auth-signup screen with Apple / Google / email options, nothing preselected',
+          },
+          {
+            criterion: 'stays silent',
+            check: 'no coach audio or bubble plays during auth (silent-beat check)',
+          },
+          {
+            criterion: 'advances correctly',
+            check:
+              'advance fires only after a valid session is established and the name is captured',
+          },
+          {
+            criterion: 'survives a refresh',
+            check: 'an authenticated session resumes past sign-up; the beat is not re-shown',
+          },
+        ],
+        enforcedBy: [
+          'component-registry-check',
+          'advance-gate-check',
+          'persistence-contract-check',
+          'eval:edge-walk',
+        ],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1, 2 (profile gates: name is captured here, age/gender later)',
+            binds: false,
+            how: 'name capture happens on this beat; the profile gates are enforced on the profile beats, not here',
+          },
+          {
+            decision: '3 (women-art), 4/5 (habit caps), 6, 7 (reflection)',
+            binds: false,
+            how: 'not this beat',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [],
     io: {
       dataIn: [],
@@ -478,6 +824,269 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: null,
     elements: ['age', 'gender'],
+    // EXEMPLAR (pre-fill, archetype = pending-app-reconcile data beat): a multi-turn
+    // beat that captures data and calls a tool, but whose persistence write target
+    // is not yet confirmed against the handler. It proves the manifest-level
+    // 'pending-app-reconcile' status: persistence is declared pending and its
+    // section is legitimately absent until app-reconcile.
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: 'filled',
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'pending-app-reconcile',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'profile-asks' },
+          { label: 'name', value: 'Profile asks (age + gender)' },
+          { label: 'order', value: '6' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'profile-beat' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-01--FORM--ASKS' },
+          { surface: 'route', value: '/onboarding/profile-asks' },
+          { surface: 'persisted current_step', value: 'profile-asks' },
+          { surface: 'session_log value', value: 'profile-asks' },
+          { surface: 'data-beat-id', value: 'profile-asks' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'age input revealed on entry',
+            timing: 'karaoke per-word on the age prompt',
+          },
+          {
+            seq: 2,
+            reveal: 'gender selector revealed after the age prompt',
+            timing: 'karaoke per-word on the gender prompt',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'profile-beat' },
+          {
+            label: 'on-screen controls',
+            value: 'an age input and a gender selector (Male / Female / Other)',
+          },
+          {
+            label: 'selection mode',
+            value: 'age free entry; gender single-select, nothing preselected',
+          },
+          { label: 'exact state', value: 'both required before advancing; neither is preselected' },
+        ],
+        watchOut:
+          'The gender enum is the canonical Male / Female / Other (CANONICAL_ENUMS.gender); Other never propagates past capture.',
+        enforcedBy: ['component-registry-check'],
+        status: 'app-reconcile-pending',
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_01_form_1', liveAllowed: 'NO' },
+          { seq: 2, resolvesTo: 'recorded clip onboard_01_form_2', liveAllowed: 'NO' },
+        ],
+        assertion:
+          'Neither prompt carries a live slot like {name}, so both spoken lines MUST resolve to recorded clips. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'profile-ask-both',
+          rule: 'Collect both age and gender; if the user gives one, ask for the other',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+        {
+          id: 'profile-no-skip-gender',
+          rule: 'Never let the user skip or decline gender; both are required before moving on',
+          severity: 'must',
+          enforcedBy: ['eval:invalid-value-redirect'],
+        },
+        {
+          id: 'profile-nothing-else',
+          rule: 'Ask for nothing beyond age and gender on this beat',
+          severity: 'must',
+          enforcedBy: ['eval:no-machinery-words'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'profile-tools-only',
+          rule: 'Only submit_profile and advance_step are callable on this beat',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'profile-canonical-gender',
+          rule: 'submit_profile passes the canonical gender enum (Male / Female / Other), not the raw words',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'profile-advance-on-tool',
+          rule: 'advance_step fires only after submit_profile captured both age and gender',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'profile-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      conversation: {
+        opens: 'after the age prompt ("How old are you?")',
+        branches: [
+          {
+            on: 'gives age only',
+            reply: 'scripted: "And your gender?" (the second required ask)',
+            then: 'wait',
+          },
+          {
+            on: 'gives both age and gender',
+            reply: 'none (silent after capture); map gender to the canonical enum',
+            then: 'tool:submit_profile',
+          },
+          {
+            on: 'tries to skip or decline gender',
+            reply: 'scripted: plainly re-ask gender; never store a skip, never advance',
+            then: 'wait',
+          },
+          {
+            on: 'off-topic or world question',
+            reply:
+              'global rule glob-out-of-scope: one brief acknowledgement, steer back to the age/gender asks',
+            then: 'wait',
+          },
+        ],
+        maxTurns: 4,
+        onMaxTurns: 'plain one-line re-ask of the missing field and point to the tap path',
+      },
+      contextProse: {
+        prose:
+          'Profile. Collect two things: age and gender. Ask gender plainly and never let the user skip or decline it. Accept voice or taps. If they give one, ask for the other. Both are required before moving on, gender included. Ask for nothing else.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      allowedTools: {
+        tools: ['submit_profile', 'advance_step'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: call once both age and gender are captured; only this beat tools; pass the canonical gender enum, not the user raw words.',
+        specs: [
+          {
+            tool: 'submit_profile',
+            args: '{ age: number, gender: "Male" | "Female" | "Other" }',
+            when: 'once both age and gender are captured',
+            pending: true,
+          },
+          { tool: 'advance_step', args: '{}', when: 'immediately after submit_profile returns' },
+        ],
+        note: 'No category, goal, or habit tools on this beat; profile capture uses submit_profile only.',
+        enforcedBy: ['tool-contract-check'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'submit_profile fired with both age and gender, then advance_step',
+          },
+          {
+            label: 'upstream branch (into this beat)',
+            value: 'profile-greeting auto-advances here',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value:
+              'gender selects the category art variant downstream (Female -> women-art category)',
+          },
+          { label: 'gate', value: 'both age and gender required; gender cannot be skipped' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'submit_profile errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" with entries retained. Voice path: one short coach line "That didn\'t go through, let me try again."',
+          },
+          {
+            edge: 'invalid age',
+            behavior: 'nonsense age: one light redirect, do not store, re-ask plainly once',
+          },
+          {
+            edge: 'declines gender',
+            behavior: 'do not accept a skip; re-ask gender plainly; never advance without it',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk', 'eval:invalid-value-redirect'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders the age input and the Male / Female / Other gender selector, nothing preselected',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'both prompts spoken verbatim; gender is never skippable (rules.context evals)',
+          },
+          {
+            criterion: 'advances correctly',
+            check:
+              'both fields captured via submit_profile with a canonical gender, then advance_step',
+          },
+          {
+            criterion: 'survives a refresh',
+            check:
+              'age + gender persist, the beat is not re-asked, current_step resumes past profile-asks',
+          },
+        ],
+        enforcedBy: [
+          'component-registry-check',
+          'advance-gate-check',
+          'persistence-contract-check',
+          'eval:edge-walk',
+        ],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1, 2 (profile gates: age + gender required, gender not skippable)',
+            binds: true,
+            how: 'this beat IS the render side of the profile gates; encoded as rules.context profile-no-skip-gender + the flow gate',
+          },
+          {
+            decision: '3 (women-art)',
+            binds: false,
+            how: 'this beat captures the gender that decision 3 reads downstream; it is the input, not the women-art gate',
+          },
+          { decision: '4/5 (habit caps), 6, 7 (reflection)', binds: false, how: 'not this beat' },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -3812,18 +4421,189 @@ export function deriveVariantIdentity(beat: BeatEntry): NonNullable<BibleSection
   };
 }
 
-// Display-only resolver for variantOf inheritance (Yair 2026-07-09: beat + sub-beat,
-// no copying). One level, no chains: a sub-beat's own fields win per SECTION —
-// this is a per-key merge, not "sub-beat's bible or the head's bible" as a whole
-// (that older shape silently inherited the WRONG beatId/order/aliases/tiles/clip
-// on every filled variant). Identity is never taken from the head; it is always
-// either the sub-beat's own or freshly derived (deriveVariantIdentity). Pure
-// function, no side effects.
+// The 14 uniform section keys, in canonical order (mirrors BibleSectionKey).
+const BIBLE_SECTION_KEYS: readonly BibleSectionKey[] = [
+  'identity',
+  'scriptMeta',
+  'components',
+  'voice',
+  'rulesContext',
+  'rulesCode',
+  'conversation',
+  'contextProse',
+  'allowedTools',
+  'persistence',
+  'flow',
+  'edges',
+  'acceptance',
+  'applicableDecisions',
+];
+
+// A short, per-beat rule-id prefix. goals-sleep -> 'gsleep', goals-move -> 'gmove'.
+// Head rules use the head's prefix; substituting head->variant prefix keeps every
+// variant's rule ids unique (a per-rule scorecard requires unique ids).
+export function rulePrefix(id: string): string {
+  const parts = id.split('-');
+  return parts[0].charAt(0) + parts.slice(1).join('');
+}
+
+// Ordered literal string substitutions that rewrite every head-owned token to the
+// variant's own. Applied to inherited (non-fresh) sections so NO head category
+// label, clip id, screenId, beatId, or rule-id prefix ever survives onto a variant.
+export function variantSubstitutions(
+  beat: BeatEntry,
+  head: BeatEntry,
+): readonly (readonly [string, string])[] {
+  const subs: [string, string][] = [];
+  const headCat = head.props?.category;
+  const varCat = beat.props?.category;
+  if (headCat && varCat && headCat !== varCat) subs.push([headCat, varCat]);
+  // tile-count phrase ("4 tiles" -> "3 tiles"), anchored by the " tiles" suffix so
+  // a bare digit is never globally rewritten; keeps substituted prose accurate to
+  // the variant's own tile set even in sections that are not freshly derived.
+  const headTiles = headCat ? goalsByCategory[headCat] : undefined;
+  const varTiles = varCat ? goalsByCategory[varCat] : undefined;
+  if (headTiles && varTiles && headTiles.length !== varTiles.length)
+    subs.push([`${headTiles.length} tiles`, `${varTiles.length} tiles`]);
+  // clip ids, pairwise by position (each head opener clip -> the variant's own clip)
+  const n = Math.min(head.script.length, beat.script.length);
+  for (let i = 0; i < n; i += 1) {
+    const hc = head.script[i]?.clip;
+    const vc = beat.script[i]?.clip;
+    if (hc && vc && hc !== vc) subs.push([hc, vc]);
+  }
+  if (head.screenId && beat.screenId && head.screenId !== beat.screenId)
+    subs.push([head.screenId, beat.screenId]);
+  const hp = rulePrefix(head.id);
+  const vp = rulePrefix(beat.id);
+  if (hp !== vp) subs.push([hp, vp]);
+  if (head.id !== beat.id) subs.push([head.id, beat.id]);
+  return subs;
+}
+
+function applySubs(value: string, subs: readonly (readonly [string, string])[]): string {
+  let out = value;
+  for (const [from, to] of subs) out = out.split(from).join(to);
+  return out;
+}
+
+// Deep literal-substitution over an arbitrary JSON-like section value.
+function substituteDeep<T>(value: T, subs: readonly (readonly [string, string])[]): T {
+  if (typeof value === 'string') return applySubs(value, subs) as unknown as T;
+  if (Array.isArray(value)) return value.map((v) => substituteDeep(v, subs)) as unknown as T;
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = substituteDeep(v, subs);
+    return out as unknown as T;
+  }
+  return value;
+}
+
+// components (section 3) is DERIVED fresh for a goals-list variant: the on-screen
+// tiles come from goalsByCategory[props.category], never the head's tile set.
+function deriveVariantComponents(
+  beat: BeatEntry,
+  head: BeatEntry,
+  subs: readonly (readonly [string, string])[],
+): NonNullable<BibleSections['components']> | undefined {
+  const headSection = head.bible?.components;
+  const category = beat.props?.category;
+  if (beat.type === 'goals-list' && category && goalsByCategory[category]) {
+    const tiles = goalsByCategory[category];
+    return {
+      rows: [
+        { label: 'component (registry key)', value: 'goals-list' },
+        {
+          label: 'variant',
+          value: `category = ${category} (from source props.category: '${category}')`,
+        },
+        {
+          label: 'on-screen tiles',
+          value: `${tiles.length} goal tiles for ${category}: ${tiles.join(', ')} (verbatim from GOAL OPTIONS BY CATEGORY), plus a "Create your own" custom-add affordance`,
+        },
+        { label: 'selection mode', value: 'multi-select, 1 to 2 max, nothing preselected' },
+        {
+          label: 'exact state',
+          value:
+            'nothing selected on entry; the "Goals" section label renders above the tiles; a running "n of 2 selected" reflects taps; the Continue affordance advances once 1 to 2 goals are picked',
+        },
+        {
+          label: 'derived (debug, generated never authored)',
+          value: `resolved props: { category: '${category}', tileCount: ${tiles.length}, min: 1, max: 2, allowsCustom: true }`,
+        },
+      ],
+      watchOut: `DERIVED per-variant from goalsByCategory['${category}']. The ONLY structural difference across the goals-* beats is the category and its tile set; ${category} carries exactly these ${tiles.length} labels. The "n of 2 selected" counter and Continue affordance are ASSERTED SPEC the render component does not implement yet.`,
+      enforcedBy: ['component-registry-check'],
+      status: 'app-reconcile-pending',
+    };
+  }
+  // fallback (non-goals-list variant): substitute the head section so no head
+  // token leaks; still not a verbatim copy.
+  return headSection ? substituteDeep(headSection, subs) : undefined;
+}
+
+// voice (section 4) is DERIVED fresh for a variant: perLine clip ids come from the
+// beat's OWN script, never the head's clip.
+function deriveVariantVoice(
+  beat: BeatEntry,
+  head: BeatEntry,
+  subs: readonly (readonly [string, string])[],
+): NonNullable<BibleSections['voice']> | undefined {
+  const headSection = head.bible?.voice;
+  if (!headSection) return undefined;
+  const perLine = beat.script.map((line) => {
+    const headLine = headSection.perLine.find((p) => p.seq === line.seq);
+    const liveAllowed = headLine?.liveAllowed ?? (line.voice === 'cartesia' ? 'YES' : 'NO');
+    const resolvesTo = line.clip
+      ? `recorded clip ${line.clip}`
+      : line.voice === 'cartesia'
+        ? 'live Cartesia (has a {name} slot)'
+        : 'silent reveal (no audio)';
+    return { seq: line.seq, resolvesTo, liveAllowed };
+  });
+  return {
+    rows: substituteDeep(headSection.rows, subs),
+    perLine,
+    enforcedBy: headSection.enforcedBy,
+    ...(headSection.assertion !== undefined
+      ? { assertion: applySubs(headSection.assertion, subs) }
+      : {}),
+    ...(headSection.status !== undefined ? { status: headSection.status } : {}),
+  };
+}
+
+// A variant's manifest is its OWN, never inherited: a section the variant AUTHORS
+// keeps the child's declared status; every section the resolver derives is
+// 'derived'. A variant therefore never claims 'filled' for a non-owned section.
+function deriveVariantManifest(
+  beat: BeatEntry,
+): Readonly<Record<BibleSectionKey, SectionFillStatus>> {
+  const childManifest = beat.bible?.sectionManifest;
+  const out = {} as Record<BibleSectionKey, SectionFillStatus>;
+  for (const key of BIBLE_SECTION_KEYS) {
+    const ownsSection = Boolean(beat.bible && key in beat.bible);
+    out[key] = ownsSection ? (childManifest?.[key] ?? 'filled') : 'derived';
+  }
+  return out;
+}
+
+// Display resolver for variantOf inheritance (Yair 2026-07-09: beat + sub-beat,
+// no copying). One level, no chains. A sub-beat's own AUTHORED section wins
+// verbatim. Everything else is DERIVED per-variant, never shallow-copied from the
+// head: identity from the beat's own fields, components tiles from
+// goalsByCategory[props.category], voice clips from the beat's own script, and
+// every remaining inherited section run through variantSubstitutions so no head
+// category label / clip id / rule-id prefix / screenId / beatId survives. Only the
+// reviewed safe sections (shared rules, tool schemas, generic edges, persistence,
+// conversation, applicable decisions, scriptMeta) pass through as substituted
+// inheritance. The manifest is per-variant (deriveVariantManifest), so a variant
+// never claims authorship it does not have. Pure function, no side effects.
 export function resolveBeatStructure(id: string): {
   readonly io?: BeatIO;
   readonly bible?: BibleSections;
   readonly inheritedFrom?: string;
   readonly inheritedSections?: readonly string[];
+  readonly derivedSections?: readonly string[];
 } {
   const beat = BEAT_BY_ID[id];
   if (!beat) return {};
@@ -3835,22 +4615,58 @@ export function resolveBeatStructure(id: string): {
   const ioInherited = !beat.io && Boolean(head.io);
 
   let bible: BibleSections | undefined;
-  let inheritedSections: readonly string[] = [];
+  const inheritedSections: string[] = [];
+  const derivedSections: string[] = [];
+
   if (head.bible || beat.bible) {
-    // Cast: at least one side is defined here (the `if` guard), so the spread
-    // always yields a complete BibleSections at runtime even though TS can't
-    // narrow that fact through the `||` check on two independently-optional values.
-    bible = {
-      ...head.bible,
-      ...beat.bible,
-      identity: beat.bible?.identity ?? deriveVariantIdentity(beat),
-    } as BibleSections;
-    inheritedSections = Object.keys(head.bible ?? {}).filter(
-      (key) => key !== 'identity' && !(beat.bible && key in beat.bible),
-    );
+    const subs = variantSubstitutions(beat, head);
+    const headBible = head.bible as Record<string, unknown> | undefined;
+    const childBible = beat.bible as Record<string, unknown> | undefined;
+    const resolved: Record<string, unknown> = {};
+
+    for (const key of BIBLE_SECTION_KEYS) {
+      // 1. child-authored section wins verbatim
+      if (childBible && key in childBible) {
+        resolved[key] = childBible[key];
+        continue;
+      }
+      // 2. identity is always generated from the beat's own fields
+      if (key === 'identity') {
+        resolved[key] = deriveVariantIdentity(beat);
+        derivedSections.push(key);
+        continue;
+      }
+      // 3. components + voice are derived fresh (tiles / clips are per-variant facts)
+      if (key === 'components') {
+        const c = deriveVariantComponents(beat, head, subs);
+        if (c) {
+          resolved[key] = c;
+          derivedSections.push(key);
+        }
+        continue;
+      }
+      if (key === 'voice') {
+        const v = deriveVariantVoice(beat, head, subs);
+        if (v) {
+          resolved[key] = v;
+          derivedSections.push(key);
+        }
+        continue;
+      }
+      // 4. every other inherited section: substitute head tokens out (safe allowlist)
+      const headSection = headBible ? headBible[key] : undefined;
+      if (headSection === undefined) continue;
+      resolved[key] = substituteDeep(headSection, subs);
+      derivedSections.push(key);
+      inheritedSections.push(key);
+    }
+
+    // manifest is per-variant, never inherited
+    resolved.sectionManifest = deriveVariantManifest(beat);
+    bible = resolved as unknown as BibleSections;
   }
 
-  const inheritedFrom = ioInherited || inheritedSections.length > 0 ? beat.variantOf : undefined;
+  const inheritedFrom = ioInherited || derivedSections.length > 0 ? beat.variantOf : undefined;
 
-  return { io, bible, inheritedFrom, inheritedSections };
+  return { io, bible, inheritedFrom, inheritedSections, derivedSections };
 }
