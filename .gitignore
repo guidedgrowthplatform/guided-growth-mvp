@@ -80,7 +80,7 @@ workbox-*.js
 next-env.d.ts
 
 # iOS (Capacitor - fully auto-generated)
-ios/
+# ios/ is COMMITTED (Screen Time extension targets live here; see scripts/patch-ios-screentime.mjs)
 
 # Capacitor / Cordova plugins (auto-generated)
 capacitor-cordova-ios-plugins/
