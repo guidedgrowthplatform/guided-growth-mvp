@@ -10,7 +10,7 @@ PLEASE INJECT IN THE YONAS BUILD SESSION (AI): 12-section Bible fill, all onboar
 - The schema already exists: `BeatEntry.bible?: BibleSections` plus the type tree (BibleKV, BibleAlias, BibleScriptMeta, BibleRule, BibleToolSpec, BibleEdge, BibleAcceptance, BibleDecision). The annotated UI (`FlowDesigner.tsx`, BiblePanel) already renders it. Live sample: https://bfec93c4.gg-onboarding-render.pages.dev (category-women, order 12).
 
 **Task.** Populate the `bible` field for EVERY onboarding beat in beatsSource.ts on this branch (the collapsed concept beats), each to all 12 sections plus applicable-decisions, so each renders in the BiblePanel like category-women. Also:
-- Wire the NEW per-habit-acknowledgment beat layer: fires after a habit is picked (tapped or spoken), once per picked habit up to 2, before the schedule beat. Engine resolves the clip by picked habit id to `onboard_habit_ack_<slug>`; shared-habit ids map to one shared clip; custom or freeform habit falls to `onboard_habit_ack_custom_fallback.wav`.
+- CREATE the NEW per-habit-acknowledgment beat first (it does NOT exist in beatsSource.ts yet, only its copy and clips do). Add the beat entry (identity, script from the ack doc + the !527 clips, flow: after a habit is picked, once per picked habit up to 2, before the schedule beat), THEN fill its 12 sections. Engine resolves the clip by picked habit id to `onboard_habit_ack_<slug>`; shared-habit ids map to one shared clip; custom or freeform habit falls to `onboard_habit_ack_custom_fallback.wav`.
 - Land the 4 re-record script edits in beatsSource `script[]` (rows 14, 67, 68, 71).
 
 **Ground every section in (read these).**
@@ -26,6 +26,8 @@ PLEASE INJECT IN THE YONAS BUILD SESSION (AI): 12-section Bible fill, all onboar
 - App-side unknowns (which table a write lands in, the gender-routing code path) get FLAGGED for app-reconcile, not invented.
 - The sample's 6 watch-outs apply everywhere: beatId is the unique key so look up bible by beat.id, not screenId (category and category-women share ONBOARD-BEGINNER-01); a clip bound from two beats is valid, not a duplicate error; confirm the submit_category enum against beat_contexts.json; confirm eval:parity-walk and eval:edge-walk are registered in the fleet or flag them.
 - Scope is the beats on this branch (onboarding). The other-flow beats arrive via the combine (all-flows). Fill those after the combine, and note them.
+
+**Where each section's data comes from (read this first).** A data-accessibility audit mapped every section to its real source: gg-status/scratch/fill-data-source-map.md . Use it as your pull guide. Confidence is MOSTLY: most sections fill directly (identity, script, voice, context prose, rules.context from the coach-per-beat doc, applicable-decisions, weekly acceptance numbers) or derive cleanly (rules.code from the 7 decisions, flow from the context "BRANCH THIS SETS UP" lines, edges from global + per-beat DO-NOTs, reveal/timing from bindsTo). The genuinely NOT-accessible items are all app-side and get `pending:true` / app-reconcile flags, NEVER invented, exactly as the category-women template does: persistence table+columns, per-tool arg schemas (incl the submit_category 8-label enum, beat_contexts.json is names-only), enforcer registration reality, exact on-screen tile state, vapiAgent layer, persisted alias values. If in doubt, flag it, do not fabricate.
 
 **Output.**
 - Work on a branch off annotate/sample-category-women (for example annotate/bible-fill-all). Fill all beats.
