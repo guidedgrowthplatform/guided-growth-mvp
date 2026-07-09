@@ -51,6 +51,7 @@ import { DualButton } from '@/components/ui/DualButton';
 import { BeatOrb, orbConfigForType, type OrbConfig } from './BeatOrb';
 import { clipsForStage } from './beatAudio';
 import { BEAT_METADATA, type BeatContextMeta } from './beatMetadata';
+import { BEAT_BY_SCREEN_ID } from './beatsSource';
 import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
@@ -1210,17 +1211,52 @@ function beatMetaScreenId(sheetStage?: string, type?: string): string | undefine
   return type ? BEAT_META_TYPE_TO_SCREEN[type] : undefined;
 }
 
+// beatsSource.ts's VoiceEngine/VoiceMode vocabulary -> this builder's own
+// vocabulary (VOICE_ENGINES / VOICE_MODES below). Values already spelled the
+// same way pass through unchanged via the `?? ` fallback.
+const RENDER_ENGINE_TO_BUILDER: Record<string, string> = { Silent: 'None' };
+const RENDER_MODE_TO_BUILDER: Record<string, string> = { Improvise: 'Generative' };
+
+// voiceEngine, voiceMode, allowedTools, and expectedResponse are render-owned
+// facts: beatsSource.ts (the render, "THE ONE SOURCE") already states them per
+// beat (BeatEntry, looked up here via BEAT_BY_SCREEN_ID). This reads them live
+// instead of from a second Sheet-synced copy, so the builder can't silently
+// diverge from the render on what a beat's engine/mode/tools/expected response
+// actually is (gg-spec/docs/whole-system-onboarding-qa-2026-07-10.md, finding
+// B5). beatMetadata.ts no longer carries these four fields at all; see its
+// header comment and scripts/beat-metadata-reconcile-check.mjs, which fails the
+// build if either regresses.
+function withRenderFacts(
+  screenId: string | undefined,
+  seed: BeatContextMeta | undefined,
+):
+  | (BeatContextMeta &
+      Pick<BeatMeta, 'voiceEngine' | 'voiceMode' | 'allowedTools' | 'expectedResponse'>)
+  | undefined {
+  const beat = screenId ? BEAT_BY_SCREEN_ID[screenId] : undefined;
+  if (!beat) return seed;
+  return {
+    ...seed,
+    voiceEngine: RENDER_ENGINE_TO_BUILDER[beat.voiceEngine] ?? beat.voiceEngine,
+    ...(beat.voiceMode
+      ? { voiceMode: RENDER_MODE_TO_BUILDER[beat.voiceMode] ?? beat.voiceMode }
+      : {}),
+    ...(beat.allowedTools ? { allowedTools: beat.allowedTools } : {}),
+    ...(beat.expectedResponse ? { expectedResponse: beat.expectedResponse } : {}),
+  };
+}
+
 // Fill a beat's voice authoring fields (engine, mode, opener, tools, per-element lines,
-// bubble/variable flags) from the Beats Context sheet map, keyed by screen_id. Same
-// contract as withEngineDefaults: anything already authored on the beat wins. This is how
-// the Sheet's engine + per-element narration land on each beat without hand-authoring.
+// bubble/variable flags) from beatsSource.ts (render-owned facts) plus the Beats
+// Context sheet map for the fields the render doesn't model, keyed by screen_id.
+// Same contract as withEngineDefaults: anything already authored on the beat wins.
 function withBeatMeta(
   meta: BeatMeta | undefined,
   sheetStage?: string,
   type?: string,
 ): BeatMeta | undefined {
   const sid = beatMetaScreenId(sheetStage, type);
-  const seed = sid ? (BEAT_METADATA[sid] as BeatContextMeta | undefined) : undefined;
+  const seed = withRenderFacts(sid, sid ? (BEAT_METADATA[sid] as BeatContextMeta | undefined) : undefined);
   if (!seed) return meta;
   return { ...seed, ...(meta ?? {}) };
 }
@@ -1324,26 +1360,32 @@ interface Mp3Clip {
 }
 
 interface BeatMeta {
-  voiceEngine?: string; // Vapi | Cartesia | MP3 | None     (Sheet: voice_engine)
-  voiceMode?: string; // Verbatim | Generative              (Sheet: voice_mode)
+  // voiceEngine, voiceMode, allowedTools, and expectedResponse are render-owned
+  // facts: for any beat whose screen_id resolves in beatsSource.ts, these are
+  // read live from there (withRenderFacts), not authored a second time here or
+  // in beatMetadata.ts. See withBeatMeta / withRenderFacts and
+  // scripts/beat-metadata-reconcile-check.mjs.
+  voiceEngine?: string; // Vapi | Cartesia | MP3 | None (beatsSource.ts: voiceEngine)
+  voiceMode?: string; // Verbatim | Generative          (beatsSource.ts: voiceMode)
   voiceId?: string;
   mp3Assets?: Mp3Clip[];
   spokenContent?: string; //                                (Sheet: voice_content)
   path?: string; // Path 1 (Vapi) | Path 2 (Async) | Path 3 (Direct-LLM)
   llmActive?: boolean;
-  allowedTools?: string;
+  allowedTools?: string; //                             (beatsSource.ts: allowedTools)
   feedbackConfig?: string; //                               (Sheet: feedback_config)
   animation?: string;
   orb?: { voiceOn?: boolean; micOn?: boolean; micAsking?: boolean; bloomed?: boolean };
   figmaNode?: string;
   status?: string; // draft | ready | locked
   voiceNotes?: string; //                                   (Sheet: voice_notes)
-  // Beats-session authoring fields, generated into beatMetadata.ts from the
-  // "Beats Context" + "Beat Elements" tabs and merged on hydrate (withBeatMeta).
+  // Beats-session authoring fields with no beatsSource.ts equivalent, generated
+  // into beatMetadata.ts from the "Beats Context" + "Beat Elements" tabs and
+  // merged on hydrate (withBeatMeta).
   variable?: boolean; //           references {name}/a prior answer (Beats Context: Variable?)
   openerMode?: 'A' | 'B'; //       A = no framing opener (control lines lead); B = keep it
   openerShowsAsBubble?: boolean; // opener prints a chat bubble vs component-carried
-  expectedResponse?: string; //    (Beats Context: Expected User Response)
+  expectedResponse?: string; //                         (beatsSource.ts: expectedResponse)
   perElement?: BeatContextMeta['perElement']; // one micro-line per element, in fade order
   // The runtime engine spec for this beat. The engine keys on these; today it
   // derives them from the beat type, surfaced here so each beat describes itself
