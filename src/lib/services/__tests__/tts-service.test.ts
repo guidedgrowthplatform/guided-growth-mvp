@@ -243,3 +243,60 @@ describe('tts-service: speak() Promise lifecycle (PR-0b)', () => {
     expect(audioInstances).toHaveLength(0);
   });
 });
+
+describe('tts-service: QA cost guard (VITE_QA_STUB_TTS)', () => {
+  let originalAudio: typeof Audio;
+  let originalFetch: typeof fetch;
+  let originalCreateObjectURL: typeof URL.createObjectURL;
+  let originalRevokeObjectURL: typeof URL.revokeObjectURL;
+
+  beforeEach(() => {
+    vi.mocked(isVoiceOutEnabled).mockReturnValue(true);
+    originalCreateObjectURL = URL.createObjectURL;
+    originalRevokeObjectURL = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn(() => 'blob:fake');
+    URL.revokeObjectURL = vi.fn();
+
+    originalAudio = global.Audio;
+    const RealAudio = originalAudio;
+    global.Audio = vi.fn().mockImplementation((src?: string) => {
+      const a = new RealAudio(src);
+      vi.spyOn(a, 'play').mockResolvedValue();
+      Object.defineProperty(a, 'pause', { value: vi.fn(), configurable: true });
+      return a;
+    }) as unknown as typeof Audio;
+
+    originalFetch = global.fetch;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    global.Audio = originalAudio;
+    URL.createObjectURL = originalCreateObjectURL;
+    URL.revokeObjectURL = originalRevokeObjectURL;
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('fetches the local canned clip instead of the live Cartesia proxy', async () => {
+    vi.stubEnv('VITE_QA_STUB_TTS', 'true');
+    const fetchSpy = vi.fn(async (_url: string) => {
+      return { ok: true, status: 200, blob: async () => new Blob([new Uint8Array(8)]) } as Response;
+    });
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const { speak } = await import('../tts-service');
+    // Fire-and-forget: playback never ends in this test (no onended fired),
+    // so the returned promise would hang — only the fetch call matters here.
+    speak('hello');
+    await flush();
+    await flush();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledWith('/voice/qa-stub.mp3');
+    // Never hits the live proxy route.
+    expect(fetchSpy.mock.calls.every(([url]) => !String(url).includes('/api/cartesia-tts'))).toBe(
+      true,
+    );
+  });
+});

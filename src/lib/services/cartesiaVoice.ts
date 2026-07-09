@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { COACH_VOICE_ID } from '@/config/voiceConfig';
 import { getApiBase, getAuthHeaders } from '@/lib/services/api-auth';
+import { isQaStubTtsEnabled } from '@/lib/services/qaStubTts';
 import { cleanText, setTtsSpeaking } from '@/lib/services/tts-service';
 import { isVoiceOutEnabled } from '@/lib/services/voiceGate';
 import { countWords } from '@/lib/text/words';
@@ -274,7 +275,20 @@ interface DecodedChunk {
   starts: number[];
 }
 
-async function synthChunk(text: string, gen: number): Promise<DecodedChunk | null> {
+// QA cost guard: same-shape silent placeholder chunk (drives the existing
+// speaking/reveal logic normally) with zero network call, so fleet runs
+// never touch live Cartesia. See qaStubTts.ts.
+const QA_STUB_CHUNK_DURATION_S = 0.3;
+function buildQaStubChunk(): DecodedChunk {
+  return {
+    samples: new Float32Array(Math.round(QA_STUB_CHUNK_DURATION_S * SSE_SAMPLE_RATE)),
+    words: [],
+    starts: [],
+  };
+}
+
+export async function synthChunk(text: string, gen: number): Promise<DecodedChunk | null> {
+  if (isQaStubTtsEnabled()) return buildQaStubChunk();
   const res = await fetch(`${getApiBase()}/api/cartesia-tts-sse`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders },
