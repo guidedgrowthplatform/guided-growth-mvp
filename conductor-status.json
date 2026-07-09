@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T04:13:34+03:00",
+  "updated": "2026-07-09T11:56:14+03:00",
   "phase": "render-clean",
   "headline": "Finisher MERGED to trunk (62 beats, all clips wired). Next: populate every beat annotations, then combine all-flows.",
   "gate": [
@@ -86,7 +86,7 @@
       "cards": [
         {
           "title": "Drive render to render-ready",
-          "status": "finisher merged + render deployed (62 beats); exemplar annotation pass running for shape approval",
+          "status": "behavior rules locked; reconciling rules schemas, then scale annotations -> combine -> Fable -> walk",
           "state": "in-progress",
           "driver": "conductor"
         },
@@ -109,8 +109,8 @@
         },
         {
           "title": "Annotation exemplars (!522)",
-          "status": "4 beats fully annotated + a rules-check built (check:rules). Awaiting Yair shape approval before scaling to 62. Found: NO rules structure existed on trunk; Codex all-flows has its own = reconcile to one schema.",
-          "state": "decision",
+          "status": "7 rules locked. Reconciling the two rules schemas (Codex all-flows vs exemplar), then scale annotations to all 62.",
+          "state": "in-progress",
           "driver": "conductor"
         },
         {
@@ -166,15 +166,15 @@
       "name": "Human & Yair",
       "cards": [
         {
-          "title": "Approve annotation shape + 7 behavior calls",
-          "status": "exemplar shape ready (!522); 7 behavior rules flagged needs-Yair (gender-art map, habit caps, persistence)",
+          "title": "Render walkthrough + approve",
+          "status": "the one human handoff, when render-ready",
           "state": "decision",
           "driver": "Yair"
         },
         {
-          "title": "Render walkthrough + approve",
-          "status": "the one human handoff, when render-ready",
-          "state": "decision",
+          "title": "Annotation shape + 7 behavior calls",
+          "status": "DONE: shape approved, all 7 behavior rules locked (profile gates, women-art, habit caps, reflection persistence + verbatim)",
+          "state": "done",
           "driver": "Yair"
         }
       ]
@@ -187,12 +187,12 @@
     "render walkthrough and approve (when render-ready)"
   ],
   "recent": [
+    "7 onboarding behavior decisions locked; reconciling rules schemas before scaling annotations",
     "annotation exemplars done (!522): shape set, rules-check built, 7 behavior calls flagged for Yair",
     "render trunk deployed (62 beats) at flow-annotated-render.gg-onboarding-render.pages.dev",
     "finisher merged to trunk: 62 beats, all 42 clips wired (conductor takeover after 3.5h stall)",
     "all prep done: render guards in CI (!521), voicegen fix, TTS stub, cost note, screen_contexts plan",
     "live conductor dashboard deployed at /internal/conductor",
-    "epoch rule resolved: render is permanent source of truth",
-    "clips (42) done, absorbing into finisher"
+    "epoch rule resolved: render is permanent source of truth"
   ]
 }
