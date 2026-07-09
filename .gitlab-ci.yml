@@ -1,5 +1,27 @@
 stages:
+  - test
   - sync
+
+# Render guards (check:render + check:links + check:rules-registry incl. the
+# variant leak-check) on any flow-designer or guard-script change.
+render_guards:
+  stage: test
+  image: node:20
+  rules:
+    - changes:
+        - src/components/flow-designer/**/*
+        - scripts/*.mjs
+  allow_failure: false
+  timeout: 10 minutes
+  variables:
+    npm_config_cache: '$CI_PROJECT_DIR/.npm-cache'
+  cache:
+    key: render-guards-npm
+    paths:
+      - .npm-cache/
+  script:
+    - npm ci
+    - npm run check:beats
 
 voice-sync:
   stage: sync
@@ -9,8 +31,8 @@ voice-sync:
   resource_group: voice-sync
   timeout: 5 minutes
   variables:
-    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
-    GOOGLE_APPLICATION_CREDENTIALS: "$GCP_SA_KEY"
+    PIP_CACHE_DIR: '$CI_PROJECT_DIR/.pip-cache'
+    GOOGLE_APPLICATION_CREDENTIALS: '$GCP_SA_KEY'
   cache:
     key: voice-sync-pip
     paths:

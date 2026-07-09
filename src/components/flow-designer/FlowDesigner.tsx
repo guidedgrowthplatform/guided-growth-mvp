@@ -657,7 +657,7 @@ function ContextKeyValue({ label, value }: { label: string; value: string }) {
   );
 }
 
-// --- Bible panel: the 12-section per-beat contract as accordion panels ---
+// --- Bible panel: the 14-key per-beat contract as accordion panels ---
 // Rendered inside SourceOfTruthPanel when the beat carries a `bible` fill. Script
 // stays in the right column (ScriptPanel); here the other sections live. A
 // one-line rules summary stays open; every full section collapses. Enforcers show
@@ -988,9 +988,9 @@ function VariantChip({ head }: { head: string }) {
   );
 }
 
-// Section-level inheritance marker (Yair 2026-07-09: per-section merge, not a
-// whole-bible copy). Shown on a section header when that section's content came
-// from the variantOf head, not this beat's own fill.
+// Section-level derivation marker (Yair 2026-07-09: per-section merge, not a
+// whole-bible copy). Shown when the section was derived from the head template
+// via resolveBeatStructure parameterization, not this beat's own fill.
 function InheritedSectionChip({ head }: { head: string }) {
   return (
     <span
@@ -1008,7 +1008,7 @@ function InheritedSectionChip({ head }: { head: string }) {
         whiteSpace: 'nowrap',
       }}
     >
-      inherited from {head} · verify per-variant facts
+      derived from {head} template
     </span>
   );
 }
@@ -1166,6 +1166,19 @@ function BiblePanel({
   const inheritedBadge = (key: BibleSectionKey) =>
     variantOf && isInherited(key) ? <InheritedSectionChip head={variantOf} /> : undefined;
 
+  // Header badge is manifest-driven, never a hardcoded count: 14-key scheme,
+  // filled / N-A / pending tallied from sectionManifest.
+  const manifestStatuses: SectionFillStatus[] = manifest ? Object.values(manifest) : [];
+  const filledCount = manifestStatuses.filter((s) => s === 'filled').length;
+  const naCount = manifestStatuses.filter((s) => typeof s === 'object').length;
+  const pendingCount = manifestStatuses.filter((s) => s === 'pending-app-reconcile').length;
+  const sectionSummary = [
+    `${manifestStatuses.length} sections`,
+    `${filledCount} filled`,
+    ...(naCount > 0 ? [`${naCount} N-A`] : []),
+    ...(pendingCount > 0 ? [`${pendingCount} pending`] : []),
+  ].join(' · ');
+
   return (
     <div
       style={{
@@ -1228,23 +1241,25 @@ function BiblePanel({
               textTransform: 'uppercase',
             }}
           >
-            Bible fill · 12 sections
+            Bible fill
           </span>
-          <span
-            style={{
-              fontSize: 9.5,
-              fontWeight: 800,
-              padding: '1px 7px',
-              borderRadius: 99,
-              background: '#eaf1ff',
-              color: '#135bec',
-              border: '1px solid #c7d8ff',
-              letterSpacing: '0.03em',
-              textTransform: 'uppercase',
-            }}
-          >
-            full contract
-          </span>
+          {manifestStatuses.length > 0 && (
+            <span
+              style={{
+                fontSize: 9.5,
+                fontWeight: 800,
+                padding: '1px 7px',
+                borderRadius: 99,
+                background: '#eaf1ff',
+                color: '#135bec',
+                border: '1px solid #c7d8ff',
+                letterSpacing: '0.03em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {sectionSummary}
+            </span>
+          )}
         </div>
       </div>
 

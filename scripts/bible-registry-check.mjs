@@ -11,19 +11,26 @@
 // 'filled' (section present + non-empty), { na: reason } (section may be
 // absent, reason required), or 'pending-app-reconcile' (section may be absent).
 //
+// Also runs the VARIANT CONTENT LEAK-CHECK (re-QA B1): every variantOf beat is
+// resolved the way resolveBeatStructure resolves it (parameterized substitution,
+// replicated below because the source is TS), then every resolved string is
+// scanned for head-only facts — the head's props.category value and any head
+// script clip id/path the variant replaces. A hit FAILS the check. This is what
+// makes a head fact leaking into a sibling card impossible at the x36 fill.
+//
 // Mirrors the TypeScript-compiler-API parsing approach of render-consistency-check.mjs.
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
 const root = process.cwd();
 const flowBiblePath = path.join(root, 'src/components/flow-designer/flowBible.ts');
 const beatsSourcePath = path.join(root, 'src/components/flow-designer/beatsSource.ts');
+const goalsModulePath = path.join(root, 'packages/shared/dist/data/onboardingGoals.js');
 
-// TODO(app-reconcile): per-archetype legality table for which sections a given
-// beat `type` may legitimately mark { na } vs must fill. For now the guard only
-// enforces manifest COMPLETENESS + shape, not per-type policy.
+// TODO(fill-lane): per-archetype section-legality table (which sections may be N-A per beat type)
 const SECTION_KEYS = [
   'identity',
   'scriptMeta',
@@ -76,7 +83,9 @@ function findExportedArray(sourceFile, name) {
       node.name.text === name &&
       node.initializer
     ) {
-      const init = ts.isAsExpression(node.initializer) ? node.initializer.expression : node.initializer;
+      const init = ts.isAsExpression(node.initializer)
+        ? node.initializer.expression
+        : node.initializer;
       if (ts.isArrayLiteralExpression(init)) arr = init;
       return;
     }
@@ -92,7 +101,11 @@ function findExportedArray(sourceFile, name) {
 function collectEnforcedBy(root, sourceFile, label) {
   const found = [];
   (function visit(node) {
-    if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && node.name.text === 'enforcedBy') {
+    if (
+      ts.isPropertyAssignment(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === 'enforcedBy'
+    ) {
       const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
       found.push({ initializer: node.initializer, line: line + 1, label });
       return;
@@ -105,7 +118,9 @@ function collectEnforcedBy(root, sourceFile, label) {
 function validateEnforcedByEntries(entries, registryIds, problems) {
   for (const { initializer, line, label } of entries) {
     if (!ts.isArrayLiteralExpression(initializer)) {
-      problems.push(`${label} (line ${line}): enforcedBy is not an array (must be readonly string[])`);
+      problems.push(
+        `${label} (line ${line}): enforcedBy is not an array (must be readonly string[])`,
+      );
       continue;
     }
     for (const el of initializer.elements) {
@@ -114,7 +129,9 @@ function validateEnforcedByEntries(entries, registryIds, problems) {
         continue;
       }
       if (!registryIds.has(el.text)) {
-        problems.push(`${label} (line ${line}): enforcedBy references unknown id "${el.text}" (not in ENFORCER_REGISTRY)`);
+        problems.push(
+          `${label} (line ${line}): enforcedBy references unknown id "${el.text}" (not in ENFORCER_REGISTRY)`,
+        );
       }
     }
   }
@@ -151,7 +168,9 @@ function sectionNonEmpty(key, bible) {
 function validateSectionManifest(beatId, bible, problems) {
   const manifest = bible.sectionManifest;
   if (!manifest || typeof manifest !== 'object') {
-    problems.push(`${beatId}: bible is missing sectionManifest (required, all ${SECTION_KEYS.length} keys)`);
+    problems.push(
+      `${beatId}: bible is missing sectionManifest (required, all ${SECTION_KEYS.length} keys)`,
+    );
     return;
   }
   for (const key of SECTION_KEYS) {
@@ -162,7 +181,9 @@ function validateSectionManifest(beatId, bible, problems) {
     const status = manifest[key];
     if (status === 'filled') {
       if (!sectionNonEmpty(key, bible)) {
-        problems.push(`${beatId}: sectionManifest.${key} is "filled" but bible.${key} is absent/empty`);
+        problems.push(
+          `${beatId}: sectionManifest.${key} is "filled" but bible.${key} is absent/empty`,
+        );
       }
       continue;
     }
@@ -215,33 +236,215 @@ const beatsSf = ts.createSourceFile(
 );
 const beatsArrayNode = findExportedArray(beatsSf, 'BEATS_SOURCE');
 
+function propInitializer(objNode, name) {
+  const prop = objNode.properties.find(
+    (p) => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === name,
+  );
+  return prop && ts.isPropertyAssignment(prop) ? prop.initializer : undefined;
+}
+
 let beatsWithBible = 0;
 let beatsEnforcedByCount = 0;
+const beats = [];
 
 for (const beatNode of beatsArrayNode.elements) {
   if (!ts.isObjectLiteralExpression(beatNode)) continue;
-  const idProp = beatNode.properties.find(
-    (p) => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === 'id',
-  );
-  const beatId =
-    idProp && ts.isPropertyAssignment(idProp) && ts.isStringLiteral(idProp.initializer)
-      ? idProp.initializer.text
-      : '(unknown beat)';
+  const idInit = propInitializer(beatNode, 'id');
+  const beatId = idInit && ts.isStringLiteral(idInit) ? idInit.text : '(unknown beat)';
 
-  const bibleProp = beatNode.properties.find(
-    (p) => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === 'bible',
-  );
-  if (!bibleProp || !ts.isPropertyAssignment(bibleProp) || !ts.isObjectLiteralExpression(bibleProp.initializer)) {
+  const beat = {
+    id: beatId,
+    variantOf: undefined,
+    screenId: null,
+    props: null,
+    script: [],
+    bible: null,
+  };
+  for (const field of ['variantOf', 'screenId', 'props', 'script']) {
+    const init = propInitializer(beatNode, field);
+    if (init) beat[field] = literalValue(init);
+  }
+  beats.push(beat);
+
+  const bibleInit = propInitializer(beatNode, 'bible');
+  if (!bibleInit || !ts.isObjectLiteralExpression(bibleInit)) {
     continue; // no bible fill on this beat: nothing to cross-check
   }
   beatsWithBible += 1;
 
-  const entries = collectEnforcedBy(bibleProp.initializer, beatsSf, beatId);
+  const entries = collectEnforcedBy(bibleInit, beatsSf, beatId);
   beatsEnforcedByCount += entries.length;
   validateEnforcedByEntries(entries, registryIds, problems);
 
-  const bibleValue = literalValue(bibleProp.initializer);
-  validateSectionManifest(beatId, bibleValue, problems);
+  beat.bible = literalValue(bibleInit);
+  validateSectionManifest(beatId, beat.bible, problems);
+}
+
+// --- Variant content leak-check (replica of beatsSource.ts resolveBeatStructure
+// parameterization; keep the two in lockstep) ---
+
+let goalsByCategory = {};
+try {
+  ({ goalsByCategory } = await import(pathToFileURL(goalsModulePath).href));
+} catch {
+  problems.push(
+    `leak-check: cannot import ${path.relative(root, goalsModulePath)} (run \`npm run build:shared\`)`,
+  );
+}
+
+function ruleIdToken(beatId) {
+  const dash = beatId.indexOf('-');
+  if (dash < 0) return null;
+  return beatId[0] + beatId.slice(dash + 1);
+}
+
+function buildSubstitutions(head, variant) {
+  const subs = [];
+  for (const headLine of head.script ?? []) {
+    if (!headLine.clip) continue;
+    const matched =
+      (variant.script ?? []).find((l) => l.seq === headLine.seq) ?? (variant.script ?? [])[0];
+    if (matched?.clip && matched.clip !== headLine.clip) {
+      subs.push({ from: headLine.clip, to: matched.clip });
+    }
+    if (headLine.clipPath && matched?.clipPath && matched.clipPath !== headLine.clipPath) {
+      subs.push({ from: headLine.clipPath, to: matched.clipPath });
+    }
+  }
+  const headCategory = head.props?.category;
+  const variantCategory = variant.props?.category;
+  if (headCategory && variantCategory && headCategory !== variantCategory) {
+    subs.push({ from: headCategory, to: variantCategory });
+  }
+  const headToken = ruleIdToken(head.id);
+  const variantToken = ruleIdToken(variant.id);
+  if (headToken && variantToken && headToken !== variantToken) {
+    subs.push({ from: `${headToken}-`, to: `${variantToken}-` });
+  }
+  if (head.screenId && variant.screenId && head.screenId !== variant.screenId) {
+    subs.push({ from: head.screenId, to: variant.screenId });
+  }
+  if (head.id !== variant.id) {
+    subs.push({ from: head.id, to: variant.id });
+  }
+  return subs;
+}
+
+function applySubstitutions(value, subs) {
+  let out = value;
+  for (const { from, to } of subs) {
+    if (from) out = out.split(from).join(to);
+  }
+  return out;
+}
+
+function parameterizeValue(value, subs) {
+  if (typeof value === 'string') return applySubstitutions(value, subs);
+  if (Array.isArray(value)) return value.map((v) => parameterizeValue(v, subs));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = parameterizeValue(v, subs);
+    return out;
+  }
+  return value;
+}
+
+function parameterizeComponentsSection(components, variant, subs) {
+  const category = variant.props?.category;
+  const tiles = category ? goalsByCategory[category] : undefined;
+  const rows = (components.rows ?? []).map((row) => {
+    if (row.label !== 'on-screen tiles') return parameterizeValue(row, subs);
+    if (tiles && tiles.length > 0) {
+      return {
+        label: row.label,
+        value: `${tiles.length} subcategory tile${tiles.length === 1 ? '' : 's'}: ${tiles.join(', ')}, plus a "Create your own goal" tile`,
+      };
+    }
+    const substituted = parameterizeValue(row, subs);
+    return {
+      ...substituted,
+      pending: true,
+      value: `${substituted.value} (derive tile labels at fill)`,
+    };
+  });
+  return { ...parameterizeValue(components, subs), rows };
+}
+
+function resolveVariantBible(head, variant) {
+  const own = variant.bible;
+  const headBible = head.bible;
+  if (!headBible && !own) return null;
+  const merged = { ...headBible, ...own };
+  if (headBible) {
+    const subs = buildSubstitutions(head, variant);
+    for (const key of Object.keys(headBible)) {
+      if (key === 'identity' || key === 'sectionManifest') continue;
+      if (own && key in own) continue;
+      merged[key] =
+        key === 'components'
+          ? parameterizeComponentsSection(headBible[key], variant, subs)
+          : parameterizeValue(headBible[key], subs);
+    }
+    if (!own?.sectionManifest) {
+      merged.sectionManifest = parameterizeValue(headBible.sectionManifest, subs);
+    }
+  }
+  delete merged.identity; // always derived from the variant's own fields, cannot leak
+  return merged;
+}
+
+function collectStrings(value, out) {
+  if (typeof value === 'string') out.push(value);
+  else if (Array.isArray(value)) for (const v of value) collectStrings(v, out);
+  else if (value && typeof value === 'object')
+    for (const v of Object.values(value)) collectStrings(v, out);
+  return out;
+}
+
+const beatById = new Map(beats.map((b) => [b.id, b]));
+let variantsLeakChecked = 0;
+let variantsWithInheritedContent = 0;
+
+for (const variant of beats) {
+  if (!variant.variantOf) continue;
+  const head = beatById.get(variant.variantOf);
+  if (!head) {
+    problems.push(`${variant.id}: variantOf "${variant.variantOf}" does not resolve to a beat`);
+    continue;
+  }
+  variantsLeakChecked += 1;
+
+  // Leak tokens = head facts the substitution must have replaced: the head's
+  // props.category and every head script clip id/path the variant replaces.
+  const leakTokens = [];
+  const headCategory = head.props?.category;
+  if (headCategory && variant.props?.category && headCategory !== variant.props.category) {
+    leakTokens.push(headCategory);
+  }
+  for (const headLine of head.script ?? []) {
+    if (!headLine.clip) continue;
+    const matched =
+      (variant.script ?? []).find((l) => l.seq === headLine.seq) ?? (variant.script ?? [])[0];
+    if (matched?.clip && matched.clip !== headLine.clip) leakTokens.push(headLine.clip);
+    if (headLine.clipPath && matched?.clipPath && matched.clipPath !== headLine.clipPath) {
+      leakTokens.push(headLine.clipPath);
+    }
+  }
+
+  const resolved = resolveVariantBible(head, variant);
+  if (!resolved) continue; // head has no bible fill yet: nothing inherited to leak
+  if (head.bible) variantsWithInheritedContent += 1;
+  if (leakTokens.length === 0) continue;
+
+  const strings = collectStrings(resolved, []);
+  for (const token of leakTokens) {
+    const hit = strings.find((s) => s.includes(token));
+    if (hit) {
+      problems.push(
+        `${variant.id}: resolved bible leaks head fact "${token}" from ${head.id} (in: "${hit.slice(0, 120)}")`,
+      );
+    }
+  }
 }
 
 if (problems.length) {
@@ -254,5 +457,7 @@ console.log(
   `Bible REGISTRY cross-check passed: ${registryIds.size} registry ids, ` +
     `${flowBibleEnforcedBy.length} enforcedBy refs in flowBible.ts, ` +
     `${beatsWithBible} beat(s) with a bible fill, ${beatsEnforcedByCount} enforcedBy refs in beatsSource.ts, ` +
-    `all resolved; sectionManifest validated (${SECTION_KEYS.length} keys) on every bible-bearing beat.`,
+    `all resolved; sectionManifest validated (${SECTION_KEYS.length} keys) on every bible-bearing beat; ` +
+    `variant leak-check: ${variantsLeakChecked} variantOf beat(s) checked ` +
+    `(${variantsWithInheritedContent} with inherited bible content), 0 head-fact leaks.`,
 );

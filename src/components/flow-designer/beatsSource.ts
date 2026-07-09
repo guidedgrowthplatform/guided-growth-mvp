@@ -8,6 +8,7 @@
 // read this single store. Do NOT re-add a second hand-authored metadata store;
 // edit this file. (Pass 2 applies the screenId -> beatId rename.)
 
+import { goalsByCategory } from '@gg/shared/data/onboardingGoals';
 import type { BeatConversation, SourceStatus } from './flowBible';
 
 export type BeatPath = 'beginner' | 'advanced' | 'both';
@@ -40,7 +41,7 @@ export interface BeatIO {
   readonly dataOut: readonly BeatDatum[];
 }
 
-// --- Bible sections (the 12-section per-beat contract) ---
+// --- Bible sections (the 14-key per-beat contract) ---
 // The full-fill schema the annotated render displays as accordion panels. This
 // is the reusable foundation for the annotation-scale fill: 6 of these sections
 // (rules, persistence, flow, edges, acceptance, applicable-decisions) were ABSENT
@@ -210,7 +211,7 @@ export interface BeatEntry {
   readonly script: readonly ScriptLine[];
   // beat-to-beat data passing contract (flowBible DATA_PASSING); dataIn from flow state, never DB re-fetch
   readonly io?: BeatIO;
-  // The full 12-section fill for this beat, shown as accordion panels in the
+  // The full 14-key fill for this beat, shown as accordion panels in the
   // annotated render. Optional: present only on fully-filled beats.
   readonly bible?: BibleSections;
 }
@@ -1155,7 +1156,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
         {
           id: 'catw-women-variant',
-          rule: 'This variant renders ONLY when gender == woman; men, non-binary, undisclosed get the default category render',
+          rule: 'This variant renders ONLY when gender == Female; Male and Other get the default category render (canonical enum, Yair 2026-07-09)',
           severity: 'must',
           enforcedBy: ['component-registry-check'],
         },
@@ -1274,7 +1275,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'upstream branch (into this beat)',
             value:
-              'gender == woman selects this women-art variant; all other genders route to the default category beat',
+              'gender == Female selects this women-art variant; Male and Other route to the default category beat',
           },
           {
             label: 'downstream branch (out of this beat)',
@@ -1294,7 +1295,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             edge: 'tool failure',
             behavior:
-              'submit_category errors: stay on the beat, do not narrate the failure, let the user pick again',
+              'submit_category errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" and the picked tile stays selected for the retry. Voice path: one short coach line "That didn\'t go through, let me try again." (Yair-approved tool-failure contract, 2026-07-09.)',
           },
           {
             edge: 'off-topic input',
@@ -1347,7 +1348,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             criterion: 'variant is correct',
             check:
-              'gender == woman renders this beat; any other gender renders default category (catw-women-variant)',
+              'gender == Female renders this beat; Male and Other render default category (catw-women-variant)',
           },
         ],
         enforcedBy: [
@@ -1363,7 +1364,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         rows: [
           {
             decision:
-              "3. Women's art variant (gender == woman is the ONLY selector; men / non-binary / undisclosed get default)",
+              "3. Women's art variant: renders ONLY when gender == Female; Male and Other get the default category render (canonical enum, Yair 2026-07-09)",
             binds: true,
             how: 'this beat IS the render side of decision 3; encoded as rules.code catw-women-variant with component-registry-check',
           },
@@ -1468,6 +1469,369 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: {
       category: 'Sleep better',
+    },
+    // HEAD TEMPLATE for the goals-* family: 7 siblings derive every section via
+    // resolveBeatStructure parameterization; exact canonical strings required.
+    bible: {
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'goals-sleep' },
+          { label: 'name', value: 'Goals (Sleep better)' },
+          { label: 'order', value: '13' },
+          { label: 'path', value: 'beginner' },
+          { label: 'type', value: 'goals-list' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-BEGINNER-02--SLEEP' },
+          { surface: 'route', value: 'generated at app-reconcile (alias map)' },
+          { surface: 'persisted current_step', value: 'goals-sleep' },
+          { surface: 'session_log value', value: 'goals-sleep' },
+          { surface: 'data-beat-id', value: 'goals-sleep' },
+        ],
+        watchOut:
+          'Identity is per-beat: the goals-* variants never inherit these rows; each derives its own (deriveVariantIdentity).',
+        enforcedBy: ['id-alias-check'],
+        status: 'verified',
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal:
+              'opener bubble; the goal tiles bloom after the clip ends, GATED on clip end, never a fixed timer',
+            timing: 'karaoke per-word on the bubble',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'goals-list' },
+          { label: 'category', value: 'Sleep better (from source props.category)' },
+          {
+            label: 'on-screen tiles',
+            value:
+              '4 subcategory tiles: Fall asleep earlier, Wake up earlier, Sleep more consistently, Sleep more deeply, plus a "Create your own goal" tile',
+          },
+          { label: 'selection mode', value: 'multi-select, max 2, no preselection' },
+          {
+            label: 'exact state',
+            value:
+              'nothing selected on entry; tiles bloom after the opener clip; the create-your-own-goal tile renders last',
+          },
+        ],
+        watchOut:
+          'Tile list comes from goalsByCategory["Sleep better"]; variants derive their list from the same map, never inherit these labels.',
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim' },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_beginner_02_sleep', liveAllowed: 'NO' },
+        ],
+        assertion:
+          'No line here carries a live slot like {name}, so EVERY spoken line MUST resolve to a recorded clip id. None may resolve to live Cartesia.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'gsleep-verbatim-opener',
+          rule: 'Speaks the recorded opener verbatim, no improvised lead-in',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'gsleep-no-read-options',
+          rule: 'Never reads the goal tiles aloud, not in full, not one as an example',
+          severity: 'must',
+          enforcedBy: ['eval:no-read-options'],
+        },
+        {
+          id: 'gsleep-selection-cap',
+          rule: 'Allows one or two goals; on three or more, asks which two matter most',
+          severity: 'must',
+          enforcedBy: ['eval:selection-cap'],
+        },
+        {
+          id: 'gsleep-exact-labels',
+          rule: 'Maps what the user says to the exact goal label; never invents, renames, or shortens one',
+          severity: 'must',
+          enforcedBy: ['eval:parity-walk'],
+        },
+        {
+          id: 'gsleep-silent-after-pick',
+          rule: 'Silent after the pick: no praise, no per-goal coaching, nothing except submit_goals and advance_step',
+          severity: 'must',
+          enforcedBy: ['eval:silent-after-pick'],
+        },
+        {
+          id: 'gsleep-stay-open',
+          rule: 'If the user is unsure, helps them land on one or two via the scripted help-you-decide prompts, no lecture',
+          severity: 'must',
+          enforcedBy: ['eval:brainstorm-then-yield'],
+        },
+        {
+          id: 'gsleep-one-line-wait',
+          rule: 'After the opener, asks one short pointer question then waits',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'gsleep-tools-only',
+          rule: 'Only submit_goals and advance_step are callable on this beat',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'gsleep-advance-on-tool',
+          rule: 'advance_step fires only after submit_goals captured one or two valid goals',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'gsleep-goal-count-branch',
+          rule: 'The goal count is saved to flow state; the habit beat branches on it (two goals -> one habit each, one goal -> one or two habits)',
+          severity: 'must',
+          enforcedBy: ['persistence-contract-check'],
+        },
+        {
+          id: 'gsleep-reveal-gates',
+          rule: 'The goal tiles bloom gates on the opener clip end, never a fixed timer',
+          severity: 'must',
+          enforcedBy: ['reveal-timing-check'],
+        },
+        {
+          id: 'gsleep-audio-ownership',
+          rule: 'Every spoken line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'gsleep-clips-resolve',
+          rule: 'onboard_beginner_02_sleep resolves to a real asset',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'gsleep-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      conversation: {
+        opens:
+          'after the opener bubble and the goal tiles reveal (ask which of these they would like to start with)',
+        branches: [
+          {
+            on: 'names or taps one or two valid goals',
+            reply: 'none (silent after pick); map to the exact labels',
+            then: 'tool:submit_goals',
+          },
+          {
+            on: 'names three or more',
+            reply: 'scripted: "Which two matter most right now?"',
+            then: 'wait',
+          },
+          {
+            on: 'speaks generally or names something off-list',
+            reply:
+              'map to the closest goal label, or one short clarifying question; off-list routes to the create-your-own-goal tile',
+            then: 'wait',
+          },
+          {
+            on: 'unsure / cannot decide',
+            reply:
+              'scripted help-you-decide prompt set; yields the instant they lean toward one or two',
+            then: 'wait',
+          },
+          {
+            on: 'off-topic or world question',
+            reply:
+              'global rule glob-out-of-scope: one brief acknowledgement, steer back with the goals question',
+            then: 'wait',
+          },
+        ],
+        maxTurns: 4,
+        onMaxTurns: 'plain one-line re-ask of the goals question and point to the tap path',
+      },
+      contextProse: {
+        prose:
+          'Goals inside the chosen category (Sleep better). The opener reacts to the pick and asks which of these to start with; the goal tiles are on the screen and in the reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two goals, no more; save the count so the habit beat can branch. Never read the tiles out loud, never coach per goal.',
+        pending: true,
+        enforcedBy: ['eval:parity-walk'],
+      },
+      allowedTools: {
+        tools: ['submit_goals', 'advance_step'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: call once one or two goals are captured; only this beat tools; pass the canonical goal labels, not the user raw words.',
+        specs: [
+          {
+            tool: 'submit_goals',
+            args: '{ goals: string[] } where each entry is one of the category canonical goal labels (goalsByCategory) OR a custom string from the create-your-own-goal tile; length 1-2',
+            when: 'once the user has settled on one or two goals',
+          },
+          {
+            tool: 'advance_step',
+            args: '{}',
+            when: 'immediately after submit_goals returns',
+          },
+        ],
+        note: 'There is NO submit_category or submit_habits on this beat. Goals use submit_goals only.',
+        enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'the chosen goals (one or two values) and the goal count for the habit-beat branch',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'the goals, once captured, are carried forward; downstream habit beats read them, never re-prompt',
+          },
+          {
+            label: 'resume key',
+            value: 'current_step advanced past goals-sleep proves this beat is done on refresh',
+          },
+        ],
+        watchOut:
+          'Exact table + column for the goals write is NOT in the render source or the docs read. Flagged for app-reconcile; do not invent a table name.',
+        enforcedBy: ['persistence-contract-check'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'submit_goals fired with one or two valid goals, then advance_step',
+          },
+          {
+            label: 'upstream branch (into this beat)',
+            value:
+              'onboarding.category == Sleep better routes here from the category beat (submit_category)',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value:
+              'two goals -> the habit beat gives one habit per goal (one each); one goal -> the habit beat allows one or two habits (gsleep-goal-count-branch)',
+          },
+          {
+            label: 'gate',
+            value:
+              'at most two goals; if the user names three, the coach resolves to two before the tool fires (gsleep-selection-cap)',
+          },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'submit_goals errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" and the picked tiles stay selected for the retry. Voice path: one short coach line "That didn\'t go through, let me try again." (Yair-approved tool-failure contract, 2026-07-09.)',
+          },
+          {
+            edge: 'off-topic input',
+            behavior:
+              'acknowledge briefly, steer back with one short pointer question, do not advance',
+          },
+          {
+            edge: 'skip / decline',
+            behavior:
+              'user will not choose: stay open, help them think it through (gsleep-stay-open), never force',
+          },
+          {
+            edge: 'empty state',
+            behavior:
+              'no tiles appeared for the user: ask one neutral question ("Is anything coming up for you to pick from?"), do NOT recite the goal list to fill the silence',
+          },
+          {
+            edge: 'names three or more',
+            behavior: 'ask which two matter most, then take those',
+          },
+          {
+            edge: 'names something off-list',
+            behavior: 'route to the create-your-own-goal tile / custom goal',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders goals-list for the Sleep better category, its subcategory tiles + create-your-own-goal, max two selectable, nothing preselected (diff phone vs components)',
+          },
+          {
+            criterion: 'says the right thing',
+            check:
+              'opener spoken verbatim, no tile read / praise / per-goal coaching (rules.context evals)',
+          },
+          {
+            criterion: 'advances correctly',
+            check:
+              'one or two goals captured via submit_goals, then advance_step; a three-goal attempt resolves to two first (flow gate)',
+          },
+          {
+            criterion: 'survives a refresh',
+            check:
+              'goals persist, beat not re-asked, current_step resumes past goals-sleep (persistence resume key)',
+          },
+          {
+            criterion: 'branch is set up',
+            check:
+              'the goal count reaches flow state and the habit beat branches on it (gsleep-goal-count-branch)',
+          },
+        ],
+        enforcedBy: [
+          'component-registry-check',
+          'advance-gate-check',
+          'persistence-contract-check',
+          'render-link-integrity-check',
+          'eval:parity-walk',
+          'eval:edge-walk',
+        ],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision:
+              '4/5 (habit caps): the one-or-two goal count captured here drives the habit-beat cap branch',
+            binds: true,
+            how: 'flow rows encode the branch; persistence saves the count (gsleep-goal-count-branch)',
+          },
+          {
+            decision: "1, 2 (profile gates), 3 (women's art variant), 6, 7 (reflection)",
+            binds: false,
+            how: 'not this beat',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: 'filled',
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'filled',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
     },
     script: [
       {
@@ -3412,13 +3776,159 @@ export function deriveVariantIdentity(beat: BeatEntry): NonNullable<BibleSection
   };
 }
 
+// --- Parameterized derivation for inherited sections (Yair re-QA 2026-07-10,
+// BLOCKER B1) ---
+// The old merge below (`{...head.bible, ...beat.bible}`) copied inherited
+// section CONTENT from the head verbatim: a goals-move card showed goals-sleep's
+// tiles, clip id, "Sleep better" prose, and gsleep- rule ids. These helpers
+// replace the copy with a per-section string substitution keyed off real
+// head-vs-variant facts, so one head fill derives every sibling correctly
+// instead of leaking the head's own facts.
+
+interface Substitution {
+  readonly from: string;
+  readonly to: string;
+}
+
+function scriptLineBySeq(script: readonly ScriptLine[], seq: number): ScriptLine | undefined {
+  return script.find((l) => l.seq === seq);
+}
+
+// 'goals-sleep' -> 'gsleep', 'goals-move' -> 'gmove': first letter of the family
+// token + the variant token, the rule-id prefix convention across the goals-*
+// (and future family-*) variants.
+function ruleIdToken(beatId: string): string | null {
+  const dash = beatId.indexOf('-');
+  if (dash < 0) return null;
+  return beatId[0] + beatId.slice(dash + 1);
+}
+
+// Head-vs-variant fact pairs to swap across every string field of an inherited
+// section: script clip ids/paths (matched by seq, falling back to the variant's
+// first line), the category label, the rule-id prefix, and the whole beatId.
+function buildSubstitutions(head: BeatEntry, variant: BeatEntry): readonly Substitution[] {
+  const subs: Substitution[] = [];
+
+  for (const headLine of head.script) {
+    if (!headLine.clip) continue;
+    const matched = scriptLineBySeq(variant.script, headLine.seq) ?? variant.script[0];
+    if (matched?.clip && matched.clip !== headLine.clip) {
+      subs.push({ from: headLine.clip, to: matched.clip });
+    }
+    if (headLine.clipPath && matched?.clipPath && matched.clipPath !== headLine.clipPath) {
+      subs.push({ from: headLine.clipPath, to: matched.clipPath });
+    }
+  }
+
+  const headCategory = head.props?.category;
+  const variantCategory = variant.props?.category;
+  if (headCategory && variantCategory && headCategory !== variantCategory) {
+    subs.push({ from: headCategory, to: variantCategory });
+  }
+
+  const headToken = ruleIdToken(head.id);
+  const variantToken = ruleIdToken(variant.id);
+  if (headToken && variantToken && headToken !== variantToken) {
+    subs.push({ from: `${headToken}-`, to: `${variantToken}-` });
+  }
+
+  if (head.screenId && variant.screenId && head.screenId !== variant.screenId) {
+    subs.push({ from: head.screenId, to: variant.screenId });
+  }
+
+  if (head.id !== variant.id) {
+    subs.push({ from: head.id, to: variant.id });
+  }
+
+  return subs;
+}
+
+function applySubstitutions(value: string, subs: readonly Substitution[]): string {
+  let out = value;
+  for (const { from, to } of subs) {
+    if (from) out = out.split(from).join(to);
+  }
+  return out;
+}
+
+// Recursive string substitution over every string field of an inherited section
+// value (rows, rule text + ids, prose, edges, acceptance, perLine, watchOut,
+// ...). Pure, never mutates the input.
+function parameterizeValue<T>(value: T, subs: readonly Substitution[]): T {
+  if (typeof value === 'string') return applySubstitutions(value, subs) as unknown as T;
+  if (Array.isArray(value)) {
+    return value.map((v) => parameterizeValue(v, subs)) as unknown as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = parameterizeValue(v, subs);
+    }
+    return out as T;
+  }
+  return value;
+}
+
+// components 'on-screen tiles' special case: the head's tile list is a
+// different DATA SET per category (Sleep better's 4 goals vs Move more's 3),
+// not something a string swap can produce. Derive it from goalsByCategory when
+// the variant's category resolves there; otherwise leave the row
+// correct-but-unverified (pending, flagged) rather than the head's tile names.
+function parameterizeComponentsSection(
+  components: NonNullable<BibleSections['components']>,
+  variant: BeatEntry,
+  subs: readonly Substitution[],
+): NonNullable<BibleSections['components']> {
+  const category = variant.props?.category;
+  const tiles = category ? goalsByCategory[category] : undefined;
+  const rows = components.rows.map((row) => {
+    if (row.label !== 'on-screen tiles') return parameterizeValue(row, subs);
+    if (tiles && tiles.length > 0) {
+      return {
+        label: row.label,
+        value: `${tiles.length} subcategory tile${tiles.length === 1 ? '' : 's'}: ${tiles.join(', ')}, plus a "Create your own goal" tile`,
+      };
+    }
+    const substituted = parameterizeValue(row, subs);
+    return {
+      ...substituted,
+      pending: true,
+      value: `${substituted.value} (derive tile labels at fill)`,
+    };
+  });
+  return {
+    rows,
+    watchOut: components.watchOut ? applySubstitutions(components.watchOut, subs) : undefined,
+    enforcedBy: components.enforcedBy,
+    status: components.status,
+  };
+}
+
+function parameterizeInheritedSection(
+  key: Exclude<BibleSectionKey, 'identity'>,
+  value: unknown,
+  variant: BeatEntry,
+  subs: readonly Substitution[],
+): unknown {
+  if (key === 'components') {
+    return parameterizeComponentsSection(
+      value as NonNullable<BibleSections['components']>,
+      variant,
+      subs,
+    );
+  }
+  return parameterizeValue(value, subs);
+}
+
 // Display-only resolver for variantOf inheritance (Yair 2026-07-09: beat + sub-beat,
 // no copying). One level, no chains: a sub-beat's own fields win per SECTION —
 // this is a per-key merge, not "sub-beat's bible or the head's bible" as a whole
 // (that older shape silently inherited the WRONG beatId/order/aliases/tiles/clip
 // on every filled variant). Identity is never taken from the head; it is always
-// either the sub-beat's own or freshly derived (deriveVariantIdentity). Pure
-// function, no side effects.
+// either the sub-beat's own or freshly derived (deriveVariantIdentity). Every
+// OTHER inherited section is run through parameterizeInheritedSection above, so
+// the head's own facts (category, clip ids, rule-id prefix) never leak into a
+// sibling's card. Pure function, no side effects.
 export function resolveBeatStructure(id: string): {
   readonly io?: BeatIO;
   readonly bible?: BibleSections;
@@ -3437,17 +3947,36 @@ export function resolveBeatStructure(id: string): {
   let bible: BibleSections | undefined;
   let inheritedSections: readonly string[] = [];
   if (head.bible || beat.bible) {
-    // Cast: at least one side is defined here (the `if` guard), so the spread
-    // always yields a complete BibleSections at runtime even though TS can't
-    // narrow that fact through the `||` check on two independently-optional values.
-    bible = {
-      ...head.bible,
-      ...beat.bible,
-      identity: beat.bible?.identity ?? deriveVariantIdentity(beat),
-    } as BibleSections;
-    inheritedSections = Object.keys(head.bible ?? {}).filter(
-      (key) => key !== 'identity' && !(beat.bible && key in beat.bible),
-    );
+    const own = beat.bible;
+    const headBible = head.bible;
+    const merged: Record<string, unknown> = { ...headBible, ...own };
+    const inherited: string[] = [];
+
+    if (headBible) {
+      const subs = buildSubstitutions(head, beat);
+      const headKeys = Object.keys(headBible) as (keyof BibleSections)[];
+      for (const key of headKeys) {
+        if (key === 'identity' || key === 'sectionManifest') continue;
+        if (own && key in own) continue; // own fill wins - not inherited
+        const headValue = headBible[key];
+        if (headValue === undefined) continue;
+        merged[key] = parameterizeInheritedSection(
+          key as Exclude<BibleSectionKey, 'identity'>,
+          headValue,
+          beat,
+          subs,
+        );
+        inherited.push(key);
+      }
+      if (!own?.sectionManifest) {
+        merged.sectionManifest = parameterizeValue(headBible.sectionManifest, subs);
+      }
+    }
+
+    merged.identity = own?.identity ?? deriveVariantIdentity(beat);
+    // dynamic-key loop defeats TS correlation; every key populated above
+    bible = merged as unknown as BibleSections;
+    inheritedSections = inherited;
   }
 
   const inheritedFrom = ioInherited || inheritedSections.length > 0 ? beat.variantOf : undefined;

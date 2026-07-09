@@ -256,7 +256,8 @@ export const CONSUMER_CONTRACT: readonly ConsumerContractRow[] = [
     surface: 'guards (check:rules and successors)',
     mustRead:
       'every bible section enforcedBy against the ENFORCER_REGISTRY below; reject unknown ids',
-    today: 'NOT WIRED: the only guard parses the retired annotation schema and cannot see bible.*',
+    today:
+      'PARTIAL: bible-registry-check (built) validates enforcedBy ids + sectionManifest + variant leak-check locally via check:beats; not yet in CI',
   },
   {
     surface: 'QA fleet (walks)',
@@ -296,6 +297,14 @@ export const ENFORCER_REGISTRY: readonly EnforcerEntry[] = [
     owner: 'render',
   },
   { id: 'type-check', kind: 'static', status: 'built', meaning: 'tsc --noEmit', owner: 'repo' },
+  {
+    id: 'bible-registry-check',
+    kind: 'static',
+    status: 'built',
+    meaning:
+      'enforcedBy ids resolve against this registry + sectionManifest completeness + variant content leak-check',
+    owner: 'render guards lane',
+  },
   // static checks named by the model, not yet built
   {
     id: 'render-rules-check',
