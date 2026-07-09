@@ -27,5 +27,33 @@ export const FLOW_CATEGORIES: FlowCategory[] = [
   { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
 ];
 
+// Women's art variant (Yair-ruled 2026-07-06): a render-time asset swap on the
+// SAME category screen when the user's gender answer is 'Female'. Men, non-binary
+// ('Other') and undisclosed (null/undefined) all keep the default art. Keyed by
+// category label; slugs mirror the female webp set in public/images/onboarding/female.
+const FEMALE_CATEGORY_ART: Record<string, string> = {
+  'Sleep better': '/images/onboarding/female/sleep-better.webp',
+  'Move more': '/images/onboarding/female/move-more.webp',
+  'Eat better': '/images/onboarding/female/eat-better.webp',
+  'Feel more energized': '/images/onboarding/female/feel-more-energized.webp',
+  'Reduce stress': '/images/onboarding/female/reduce-stress.webp',
+  'Improve focus': '/images/onboarding/female/improve-focus.webp',
+  'Break bad habits': '/images/onboarding/female/break-bad-habits.webp',
+  'Get more organized': '/images/onboarding/female/get-more-organized.webp',
+};
+
+// Rule 3: pick the category art for the user's gender. Women get the female
+// variant IFF gender === 'Female' AND a variant asset exists for that category;
+// every other/undisclosed value falls back to the default art.
+export function categoryArtForGender(
+  category: FlowCategory,
+  gender: string | null | undefined,
+): string {
+  if (gender === 'Female') {
+    return FEMALE_CATEGORY_ART[category.label] ?? category.image;
+  }
+  return category.image;
+}
+
 export const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 export const REFERRAL_OPTIONS = ['Founder Invite', 'Webinar', 'Friend', 'Other'];

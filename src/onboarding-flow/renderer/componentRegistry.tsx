@@ -49,6 +49,7 @@ import { recommendedWeekdayPreset, recommendedWeeklyDay } from '@/utils/weeklyDa
 import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
 import { BrainDumpCapture } from '../BrainDumpCapture';
 import {
+  categoryArtForGender,
   FLOW_CATEGORIES,
   GENDER_OPTIONS,
   goalsByCategory,
@@ -797,7 +798,7 @@ function CategoryAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
         {FLOW_CATEGORIES.map((c) => (
           <CategoryCard
             key={c.label}
-            image={c.image}
+            image={categoryArtForGender(c, answers.gender as string | null | undefined)}
             label={c.label}
             selected={selected === c.label}
             onSelect={() => setSelected(c.label)}
