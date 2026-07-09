@@ -747,12 +747,14 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'goals',
-    name: 'Goals',
+    // L4c: merged category-reaction + goals-ask opener. Resolves by the category
+    // picked upstream (Sleep better). Named once, one fewer beat than a separate reaction.
+    id: 'goals-sleep',
+    name: 'Goals (Sleep better)',
     order: 13,
     path: 'beginner',
     type: 'goals-list',
-    screenId: 'ONBOARD-BEGINNER-02',
+    screenId: 'ONBOARD-BEGINNER-02--SLEEP',
     context:
       'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
     allowedTools: 'submit_goals, advance_step',
@@ -760,26 +762,274 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceEngine: 'MP3',
     voiceMode: 'Verbatim',
     hideOrb: false,
-    props: null,
+    props: {
+      category: 'Sleep better',
+    },
     script: [
       {
         seq: 1,
-        words: 'So within that, which goals would you like to start with? Pick one or two.',
+        words:
+          "Awesome that you started with sleep. When your sleep is solid, almost everything else gets easier, your mood, your patience, your focus. Strong place to begin, and I'm glad you did. Which of these would you like to start with? Pick one or two.",
         bindsTo: {
           kind: 'bubble',
           element: 'opener',
-          screen: 'ONBOARD-BEGINNER-02',
+          screen: 'ONBOARD-BEGINNER-02--SLEEP',
         },
         voice: 'mp3',
-        clip: 'onboard_beginner_02_1',
-        clipPath: '/voice/ob/onboard_beginner_02_1.wav',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L4c: merged category-reaction + goals-ask opener. Resolves by the category
+    // picked upstream (Move more). Named once, one fewer beat than a separate reaction.
+    id: 'goals-move',
+    name: 'Goals (Move more)',
+    order: 14,
+    path: 'beginner',
+    type: 'goals-list',
+    screenId: 'ONBOARD-BEGINNER-02--MOVE',
+    context:
+      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
+    allowedTools: 'submit_goals, advance_step',
+    expectedResponse: 'Names or picks 1 to 2 goals',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      category: 'Move more',
+    },
+    script: [
+      {
+        seq: 1,
+        words:
+          "Love that you chose this. Movement is one of those things where a little goes a long way, and I think you're going to feel the difference faster than you'd expect. Which of these would you like to start with? Pick one or two.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-02--MOVE',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L4c: merged category-reaction + goals-ask opener. Resolves by the category
+    // picked upstream (Eat better). Named once, one fewer beat than a separate reaction.
+    id: 'goals-eat',
+    name: 'Goals (Eat better)',
+    order: 15,
+    path: 'beginner',
+    type: 'goals-list',
+    screenId: 'ONBOARD-BEGINNER-02--EAT',
+    context:
+      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
+    allowedTools: 'submit_goals, advance_step',
+    expectedResponse: 'Names or picks 1 to 2 goals',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      category: 'Eat better',
+    },
+    script: [
+      {
+        seq: 1,
+        words:
+          "I'm happy you went with this one. Food is something you touch every single day, so it's a place where small changes really add up, and I'm excited to help you find yours. Which of these would you like to start with? Pick one or two.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-02--EAT',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L4c: merged category-reaction + goals-ask opener. Resolves by the category
+    // picked upstream (Feel more energized). Named once, one fewer beat than a separate reaction.
+    id: 'goals-energy',
+    name: 'Goals (Feel more energized)',
+    order: 16,
+    path: 'beginner',
+    type: 'goals-list',
+    screenId: 'ONBOARD-BEGINNER-02--ENERGY',
+    context:
+      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
+    allowedTools: 'submit_goals, advance_step',
+    expectedResponse: 'Names or picks 1 to 2 goals',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      category: 'Feel more energized',
+    },
+    script: [
+      {
+        seq: 1,
+        words:
+          "This is a great one to choose. More energy changes how every part of your day feels, and I'm excited for what that could open up for you. Which of these would you like to start with? Pick one or two.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-02--ENERGY',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L4c: merged category-reaction + goals-ask opener. Resolves by the category
+    // picked upstream (Reduce stress). Named once, one fewer beat than a separate reaction.
+    id: 'goals-stress',
+    name: 'Goals (Reduce stress)',
+    order: 17,
+    path: 'beginner',
+    type: 'goals-list',
+    screenId: 'ONBOARD-BEGINNER-02--STRESS',
+    context:
+      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
+    allowedTools: 'submit_goals, advance_step',
+    expectedResponse: 'Names or picks 1 to 2 goals',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      category: 'Reduce stress',
+    },
+    script: [
+      {
+        seq: 1,
+        words:
+          "I'm really glad you chose this. Giving your stress somewhere to go is one of the kindest things you can do for yourself, and I'd love to help you build that. Which of these would you like to start with? Pick one or two.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-02--STRESS',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L4c: merged category-reaction + goals-ask opener. Resolves by the category
+    // picked upstream (Improve focus). Named once, one fewer beat than a separate reaction.
+    id: 'goals-focus',
+    name: 'Goals (Improve focus)',
+    order: 18,
+    path: 'beginner',
+    type: 'goals-list',
+    screenId: 'ONBOARD-BEGINNER-02--FOCUS',
+    context:
+      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
+    allowedTools: 'submit_goals, advance_step',
+    expectedResponse: 'Names or picks 1 to 2 goals',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      category: 'Improve focus',
+    },
+    script: [
+      {
+        seq: 1,
+        words:
+          "I'm happy you went with focus. There's a specific kind of good that comes from finishing something without your attention scattering everywhere, and I'd love to help you get more of that. Which of these would you like to start with? Pick one or two.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-02--FOCUS',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L4c: merged category-reaction + goals-ask opener. Resolves by the category
+    // picked upstream (Break bad habits). Named once, one fewer beat than a separate reaction.
+    id: 'goals-break',
+    name: 'Goals (Break bad habits)',
+    order: 19,
+    path: 'beginner',
+    type: 'goals-list',
+    screenId: 'ONBOARD-BEGINNER-02--BREAK',
+    context:
+      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
+    allowedTools: 'submit_goals, advance_step',
+    expectedResponse: 'Names or picks 1 to 2 goals',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      category: 'Break bad habits',
+    },
+    script: [
+      {
+        seq: 1,
+        words:
+          "Love that you're taking this on. These are the changes that actually free up something in your life, and I think you'll be surprised how good it feels to loosen the grip. Which of these would you like to start with? Pick one or two.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-02--BREAK',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L4c: merged category-reaction + goals-ask opener. Resolves by the category
+    // picked upstream (Get more organized). Named once, one fewer beat than a separate reaction.
+    id: 'goals-organize',
+    name: 'Goals (Get more organized)',
+    order: 20,
+    path: 'beginner',
+    type: 'goals-list',
+    screenId: 'ONBOARD-BEGINNER-02--ORGANIZE',
+    context:
+      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
+    allowedTools: 'submit_goals, advance_step',
+    expectedResponse: 'Names or picks 1 to 2 goals',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      category: 'Get more organized',
+    },
+    script: [
+      {
+        seq: 1,
+        words:
+          "I'm happy you picked this. There's something really good about clearing the mental clutter, and I think you're going to feel lighter as we go. Which of these would you like to start with? Pick one or two.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-02--ORGANIZE',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
       },
     ],
   },
   {
     id: 'goal-custom',
     name: 'Create your own goal',
-    order: 14,
+    order: 21,
     path: 'beginner',
     type: 'custom-entry',
     screenId: 'ONBOARD-BEGINNER-02-CUSTOM',
@@ -810,7 +1060,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'habits',
     name: 'Habits',
-    order: 15,
+    order: 22,
     path: 'beginner',
     type: 'habit-picker',
     screenId: 'ONBOARD-BEGINNER-03',
@@ -854,7 +1104,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'habit-custom',
     name: 'Create your own habit',
-    order: 16,
+    order: 23,
     path: 'beginner',
     type: 'custom-entry',
     screenId: 'ONBOARD-BEGINNER-03-CUSTOM',
@@ -885,7 +1135,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'schedule',
     name: 'Habit schedule',
-    order: 17,
+    order: 24,
     path: 'beginner',
     type: 'habit-schedule',
     screenId: 'ONBOARD-BEGINNER-04',
@@ -940,7 +1190,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'advanced-capture',
     name: 'Advanced capture',
-    order: 18,
+    order: 25,
     path: 'advanced',
     type: 'advanced-capture',
     screenId: 'ONBOARD-ADVANCED',
@@ -996,7 +1246,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'advanced-frequency',
     name: 'Advanced frequency',
-    order: 19,
+    order: 26,
     path: 'advanced',
     type: 'advanced-frequency',
     screenId: 'ONBOARD-ADVANCED-FREQUENCY',
@@ -1063,7 +1313,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'plan',
     name: 'Plan confirm',
-    order: 20,
+    order: 27,
     path: 'both',
     type: 'into-app',
     screenId: 'ONBOARD-COMPLETE',
@@ -1094,7 +1344,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-blank',
     name: 'Weekly projection (blank)',
-    order: 21,
+    order: 28,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-BLANK',
@@ -1126,7 +1376,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-full',
     name: 'Weekly projection (full)',
-    order: 22,
+    order: 29,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-FULL',
@@ -1158,7 +1408,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-p78',
     name: 'Weekly projection (78%)',
-    order: 23,
+    order: 30,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-P78',
@@ -1191,7 +1441,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-p36',
     name: 'Weekly projection (36%)',
-    order: 24,
+    order: 31,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-P36',
@@ -1224,7 +1474,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-gaps',
     name: 'Weekly projection (gaps)',
-    order: 25,
+    order: 32,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-GAPS',
