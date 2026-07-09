@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T14:23:52+03:00",
+  "updated": "2026-07-09T14:26:58+03:00",
   "phase": "render-clean",
   "headline": "NEW conductor live (single-conductor gate confirmed). Bible 12-section kept, moving to FILL. Next: Yair eyeballs !523 -> merge -> combine all-flows -> FILL -> Opus review -> human review.",
   "gate": [
@@ -143,8 +143,8 @@
         },
         {
           "title": "Render guards in CI (!521)",
-          "status": "wired in report mode, ran green on pipeline 1427",
-          "state": "done"
+          "status": "GAP found: .gitlab-ci.yml is NOT on flow-annotated-render, so render MRs get NO pipeline (1427 was a pre-MR push). Render gate = preview + behavioral walk. Guards do not yet protect render MRs.",
+          "state": "in-progress"
         },
         {
           "title": "QA TTS stub (!519)",
