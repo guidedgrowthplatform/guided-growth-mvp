@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "flow-render",
+      "name": "gg-annotate-sample",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--config", "vite.flow.config.ts", "--base=/", "--port", "7350", "--strictPort"],
-      "port": 7350
+      "runtimeArgs": ["vite", "--config", "vite.flow.config.ts", "--base=/", "--port", "7351", "--strictPort"],
+      "port": 7351
     }
   ]
 }

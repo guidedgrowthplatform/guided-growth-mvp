@@ -24,6 +24,117 @@ export interface ScriptLine {
   readonly expectedUser?: string;
 }
 
+// --- Bible sections (the 12-section per-beat contract) ---
+// The full-fill schema the annotated render displays as accordion panels. This
+// is the reusable foundation for the annotation-scale fill: 6 of these sections
+// (rules, persistence, flow, edges, acceptance, applicable-decisions) were ABSENT
+// from the beat shape before; the rest (identity aliases, per-line reveal/timing,
+// component detail, per-line voice, coach prose, tool arg schemas) formalize what
+// was previously only prose. `bible` is optional; only fully-filled beats carry
+// it. Enforcer strings are real static-check / eval ids so `check:rules` can
+// resolve them. `pending` marks a value that is COPY-PENDING (Yair's final copy).
+export interface BibleKV {
+  readonly label: string;
+  readonly value: string;
+  readonly pending?: boolean;
+}
+export interface BibleAlias {
+  readonly surface: string;
+  readonly value: string;
+}
+export interface BibleScriptMeta {
+  // Overlays onto the matching script[] line by seq: the two per-line fields the
+  // Bible requires that ScriptLine does not carry (reveal gating + timing).
+  readonly seq: number;
+  readonly reveal: string;
+  readonly timing: string;
+}
+export interface BibleVoiceLine {
+  readonly seq: number;
+  readonly resolvesTo: string;
+  readonly liveAllowed: string;
+}
+export interface BibleRule {
+  readonly id: string;
+  readonly rule: string;
+  readonly severity: 'must' | 'should';
+  readonly enforcedBy: string;
+}
+export interface BibleToolSpec {
+  readonly tool: string;
+  readonly args: string;
+  readonly when: string;
+  readonly pending?: boolean;
+}
+export interface BibleEdge {
+  readonly edge: string;
+  readonly behavior: string;
+}
+export interface BibleAcceptance {
+  readonly criterion: string;
+  readonly check: string;
+}
+export interface BibleDecision {
+  readonly decision: string;
+  readonly binds: boolean;
+  readonly how: string;
+}
+export interface BibleSections {
+  readonly identity: {
+    readonly rows: readonly BibleKV[];
+    readonly aliases: readonly BibleAlias[];
+    readonly watchOut?: string;
+    readonly enforcedBy: string;
+  };
+  readonly scriptMeta: {
+    readonly rows: readonly BibleScriptMeta[];
+    readonly enforcedBy: string;
+  };
+  readonly components: {
+    readonly rows: readonly BibleKV[];
+    readonly watchOut?: string;
+    readonly enforcedBy: string;
+  };
+  readonly voice: {
+    readonly rows: readonly BibleKV[];
+    readonly perLine: readonly BibleVoiceLine[];
+    readonly assertion?: string;
+    readonly enforcedBy: string;
+  };
+  readonly rulesContext: readonly BibleRule[];
+  readonly rulesCode: readonly BibleRule[];
+  readonly contextProse: {
+    readonly prose: string;
+    readonly pending?: boolean;
+    readonly enforcedBy: string;
+  };
+  readonly allowedTools: {
+    readonly tools: readonly string[];
+    readonly callRules: string;
+    readonly specs: readonly BibleToolSpec[];
+    readonly note?: string;
+    readonly enforcedBy: string;
+  };
+  readonly persistence: {
+    readonly rows: readonly BibleKV[];
+    readonly watchOut?: string;
+    readonly enforcedBy: string;
+  };
+  readonly flow: {
+    readonly rows: readonly BibleKV[];
+    readonly enforcedBy: string;
+  };
+  readonly edges: {
+    readonly rows: readonly BibleEdge[];
+    readonly enforcedBy: string;
+  };
+  readonly acceptance: {
+    readonly rows: readonly BibleAcceptance[];
+    readonly enforcedBy: string;
+  };
+  readonly applicableDecisions: readonly BibleDecision[];
+}
+
 export interface BeatEntry {
   readonly id: string;
   readonly name: string;
@@ -40,6 +151,9 @@ export interface BeatEntry {
   readonly props: Record<string, string> | null;
   readonly elements?: readonly string[];
   readonly script: readonly ScriptLine[];
+  // The full 12-section fill for this beat, shown as accordion panels in the
+  // annotated render. Optional: present only on fully-filled beats.
+  readonly bible?: BibleSections;
 }
 
 // The coach persona sent every turn, shared by every flow. Sourced from the
@@ -707,6 +821,332 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: {
       variant: 'female',
+    },
+    bible: {
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'category-women' },
+          { label: 'name', value: "Category (women's art)" },
+          { label: 'order', value: '12' },
+          { label: 'path', value: 'beginner' },
+          { label: 'type', value: 'category-grid' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-BEGINNER-01' },
+          { surface: 'route', value: '/onboarding/beginner-01 (women-art variant)' },
+          { surface: 'persisted current_step', value: 'category-women' },
+          { surface: 'session_log value', value: 'category-women' },
+          { surface: 'data-beat-id', value: 'category-women' },
+        ],
+        watchOut:
+          'category and category-women SHARE screenId ONBOARD-BEGINNER-01. The beatId is the only unique key, so the render selects the variant by gender (code rule), not by screenId. The alias-check must allow two beatIds on one screenId while keeping each beatId other aliases unique.',
+        enforcedBy: 'id-alias-check',
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'opener bubble; no gate',
+            timing: 'karaoke per-word on the bubble',
+          },
+          {
+            seq: 2,
+            reveal: 'the category tiles bloom, GATED on seq 1 clip end',
+            timing: 'n/a (silent reveal)',
+          },
+          {
+            seq: 3,
+            reveal:
+              'the create-your-own tile blooms, GATED on seq 2 reveal; this clip is VERBAL ONLY (not a bubble)',
+            timing: 'karaoke per-word, no bubble',
+          },
+        ],
+        enforcedBy: 'render-link-integrity-check + reveal-timing-check',
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'category-grid' },
+          { label: 'variant', value: "female (from source props.variant: 'female')" },
+          {
+            label: 'on-screen tiles',
+            value:
+              '8 category tiles: Sleep better, Move more, Eat better, Feel more energized, Reduce stress, Improve focus, Break bad habits, Get more organized (confirm label set + order), plus a "Create your own" tile',
+            pending: true,
+          },
+          { label: 'selection mode', value: 'single-select, no preselection' },
+          {
+            label: 'exact state',
+            value:
+              'nothing selected on entry; tiles render with the women-art illustration set; create-your-own tile appears last (reveal-9)',
+          },
+          {
+            label: 'derived (debug, generated never authored)',
+            value: "resolved props: { variant: 'female', tileCount: 8, allowsCustom: true }",
+          },
+        ],
+        watchOut:
+          'The ONLY structural difference from category is variant: female. The tile labels, count, and single-select behavior are identical.',
+        enforcedBy: 'component-registry-check',
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          {
+            label: 'mode',
+            value: 'Verbatim (reconciled from source Verbatim; enum is Verbatim / Generative)',
+          },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_beginner_01_1', liveAllowed: 'NO' },
+          { seq: 2, resolvesTo: 'silent reveal (no audio)', liveAllowed: 'n/a' },
+          { seq: 3, resolvesTo: 'recorded clip create_your_own', liveAllowed: 'NO' },
+        ],
+        assertion:
+          'No line here carries a live slot like {name}, so EVERY spoken line MUST resolve to a recorded clip id. None may resolve to live Cartesia.',
+        enforcedBy: 'audio-ownership-check',
+      },
+      rulesContext: [
+        {
+          id: 'catw-verbatim-opener',
+          rule: 'Speaks the recorded opener and the create-your-own line verbatim, no improvised lead-in',
+          severity: 'must',
+          enforcedBy: 'eval:verbatim-opener',
+        },
+        {
+          id: 'catw-no-read-options',
+          rule: 'Never reads the category tiles aloud, not in full, not one as an example',
+          severity: 'must',
+          enforcedBy: 'eval:no-read-options',
+        },
+        {
+          id: 'catw-no-praise-pick',
+          rule: 'No praise after the pick ("great choice", "love that")',
+          severity: 'must',
+          enforcedBy: 'eval:no-praise-pick',
+        },
+        {
+          id: 'catw-no-contrarian',
+          rule: 'No reframe that undercuts the pick ("sleep isn\'t really the issue")',
+          severity: 'must',
+          enforcedBy: 'eval:no-contrarian-turn',
+        },
+        {
+          id: 'catw-no-platitudes',
+          rule: 'No per-category commentary or filler ("sleep is the foundation", "genuinely")',
+          severity: 'must',
+          enforcedBy: 'eval:no-platitudes',
+        },
+        {
+          id: 'catw-one-line-wait',
+          rule: 'After the opener, asks one short pointer question then waits',
+          severity: 'must',
+          enforcedBy: 'eval:one-line-then-wait',
+        },
+        {
+          id: 'catw-single-select',
+          rule: 'Allows exactly one category; on two, asks which feels most urgent',
+          severity: 'must',
+          enforcedBy: 'eval:single-select',
+        },
+        {
+          id: 'catw-stay-open',
+          rule: 'If the user is unsure, stays open and helps them land on one, no lecture',
+          severity: 'should',
+          enforcedBy: 'eval:stay-open-unsure',
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'catw-tools-only',
+          rule: 'Only submit_category and advance_step are callable on this beat',
+          severity: 'must',
+          enforcedBy: 'tool-contract-check',
+        },
+        {
+          id: 'catw-advance-on-tool',
+          rule: 'advance_step fires only after submit_category captured a valid category',
+          severity: 'must',
+          enforcedBy: 'advance-gate-check',
+        },
+        {
+          id: 'catw-women-variant',
+          rule: 'This variant renders ONLY when gender == woman; men, non-binary, undisclosed get the default category render',
+          severity: 'must',
+          enforcedBy: 'component-registry-check',
+        },
+        {
+          id: 'catw-reveal-gates',
+          rule: 'reveal-8 and reveal-9 gate on the prior line clip end, never a fixed timer',
+          severity: 'must',
+          enforcedBy: 'reveal-timing-check',
+        },
+        {
+          id: 'catw-audio-ownership',
+          rule: 'Every spoken line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: 'audio-ownership-check',
+        },
+        {
+          id: 'catw-clips-resolve',
+          rule: 'onboard_beginner_01_1 and create_your_own resolve to real assets',
+          severity: 'must',
+          enforcedBy: 'render-link-integrity-check',
+        },
+        {
+          id: 'catw-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: 'id-alias-check',
+        },
+      ],
+      contextProse: {
+        prose:
+          'Focus area. Collect one category. The opener shows as a coach bubble, then the category tiles appear (women-art illustration set). When the create-your-own option appears at the end, "Or you can create your own" is spoken verbal only. Ask what they most want to work on, then wait. If they are unsure, you can talk it through with them and help them land on one. If they name several, ask which feels most urgent. Keep the response specific to their pick.',
+        pending: true,
+        enforcedBy: 'eval:parity-walk',
+      },
+      allowedTools: {
+        tools: ['submit_category', 'advance_step'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: call once the category is captured; only this beat tools; pass the canonical category value, not the user raw words.',
+        specs: [
+          {
+            tool: 'submit_category',
+            args: '{ category: string } where category is one of the 8 canonical labels OR a custom string from the create-your-own tile (confirm canonical enum)',
+            when: 'once the user has settled on exactly one category',
+            pending: true,
+          },
+          {
+            tool: 'advance_step',
+            args: '{}',
+            when: 'immediately after submit_category returns',
+          },
+        ],
+        note: 'There is NO submit_habits or submit_goals on this beat. Category uses submit_category only (per coach-per-beat tool correction).',
+        enforcedBy: 'tool-contract-check',
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value: 'the chosen category (one value) + the gender-derived variant flag',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'the category, once captured, is carried forward; downstream goal/habit beats read it, never re-prompt',
+          },
+          {
+            label: 'resume key',
+            value:
+              'current_step advanced past category-women proves this beat is done on refresh',
+          },
+        ],
+        watchOut:
+          'Exact table + column for the category write is NOT in the render source or the docs read. Flagged for app-reconcile; do not invent a table name. The carry-forward contract (never re-ask category) is from GLOBAL_CONTEXT and is real.',
+        enforcedBy: 'persistence-contract-check',
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'submit_category fired with a valid single category, then advance_step',
+          },
+          {
+            label: 'upstream branch (into this beat)',
+            value:
+              'gender == woman selects this women-art variant; all other genders route to the default category beat',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value:
+              'create-your-own tile -> goal-custom (order 21); any of the 8 canonical categories -> the matching goals-* beat by category (e.g. Sleep better -> goals-sleep, order 13)',
+          },
+          {
+            label: 'gate',
+            value:
+              'exactly one category; if the user names two, the coach resolves to one before the tool fires (catw-single-select)',
+          },
+        ],
+        enforcedBy: 'advance-gate-check',
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'submit_category errors: stay on the beat, do not narrate the failure, let the user pick again',
+          },
+          {
+            edge: 'off-topic input',
+            behavior:
+              'acknowledge briefly, steer back with one short pointer question, do not advance',
+          },
+          {
+            edge: 'skip / decline',
+            behavior:
+              'user will not choose: stay open, help them think it through (catw-stay-open), never force',
+          },
+          {
+            edge: 'empty state',
+            behavior:
+              'no tiles appeared for the user: ask one neutral question ("Is anything coming up for you to pick from?"), do NOT recite the category list to fill the silence',
+          },
+          {
+            edge: 'names two',
+            behavior: 'ask which feels most urgent, then take the one',
+          },
+          {
+            edge: 'names something off-list',
+            behavior: 'route to the create-your-own tile / custom category',
+          },
+        ],
+        enforcedBy: 'eval:edge-walk',
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders category-grid variant female, 8 tiles + create-your-own, single-select, nothing preselected (diff phone vs components)',
+          },
+          {
+            criterion: 'says the right thing',
+            check:
+              'opener spoken verbatim, create-your-own verbal-only, no read / praise / contrarian / platitude (rules.context evals)',
+          },
+          {
+            criterion: 'advances correctly',
+            check:
+              'exactly one category captured via submit_category, then advance_step; two-category attempt resolves to one first (flow gate)',
+          },
+          {
+            criterion: 'survives a refresh',
+            check:
+              'category persists, beat not re-asked, current_step resumes past category-women (persistence resume key)',
+          },
+          {
+            criterion: 'variant is correct',
+            check:
+              'gender == woman renders this beat; any other gender renders default category (catw-women-variant)',
+          },
+        ],
+        enforcedBy:
+          'composite: component-registry-check, advance-gate-check, persistence-contract-check, render-link-integrity-check + eval:parity-walk + eval:edge-walk',
+      },
+      applicableDecisions: [
+        {
+          decision:
+            '3. Women\'s art variant (gender == woman is the ONLY selector; men / non-binary / undisclosed get default)',
+          binds: true,
+          how: 'this beat IS the render side of decision 3; encoded as rules.code catw-women-variant with component-registry-check',
+        },
+        {
+          decision: '1, 2 (profile gates), 4/5 (habit caps), 6, 7 (reflection)',
+          binds: false,
+          how: 'not this beat',
+        },
+      ],
     },
     script: [
       {
