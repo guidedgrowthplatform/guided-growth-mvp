@@ -1,5 +1,5 @@
-import OpenAI from 'openai';
-import { getOpenAIKey, OpenAIError } from './openai.js';
+import OpenAI, { AzureOpenAI } from 'openai';
+import { getOpenAIKey, getAzureConfig, getLLMProvider, OpenAIError } from './openai.js';
 
 export type ResponseInputItem =
   | { type: 'message'; role: 'user' | 'assistant'; content: string }
@@ -37,9 +37,49 @@ export interface OpenResponsesStreamOpts {
 let cachedClient: OpenAI | null = null;
 function client(): OpenAI {
   if (!cachedClient) {
-    cachedClient = new OpenAI({ apiKey: getOpenAIKey() });
+    if (getLLMProvider() === 'azure') {
+      const cfg = getAzureConfig();
+      // IMPORTANT, two live-validated gotchas:
+      // 1. Do NOT pass `deployment` — the SDK rewrites the base URL to
+      //    /openai/deployments/{deployment}/... for a fixed list of legacy
+      //    endpoints, which 404s for Responses. Deployment is selected
+      //    per-request via `model` in the body instead (see resolveModel).
+      // 2. The SDK's default AzureOpenAI `endpoint` option builds baseURL as
+      //    `{endpoint}/openai`, which hits `{endpoint}/openai/responses` —
+      //    confirmed 404 even with apiVersion 'preview'. The Responses API
+      //    only lives on the unified v1 surface, `{endpoint}/openai/v1/...`.
+      //    Pass `baseURL` directly (not `endpoint`) to land on that path.
+      cachedClient = new AzureOpenAI({
+        baseURL: `${cfg.endpoint.replace(/\/$/, '')}/openai/v1`,
+        apiKey: cfg.apiKey,
+        apiVersion: cfg.apiVersion,
+      });
+    } else {
+      cachedClient = new OpenAI({ apiKey: getOpenAIKey() });
+    }
   }
   return cachedClient;
+}
+
+// Model selection ([...path].ts) is untouched by this flag — it still picks
+// the logical model name ('gpt-4o' for onboarding, 'gpt-4o-mini' default).
+// Under Azure, that logical name is remapped here to the actual deployment
+// name, so the flag composes cleanly with any future model-tier policy
+// change upstream (it never sees a deployment name, only 'gpt-4o'/'gpt-4o-mini').
+function resolveModel(logicalModel: string): string {
+  if (getLLMProvider() !== 'azure') return logicalModel;
+  const cfg = getAzureConfig();
+  if (logicalModel === 'gpt-4o') return cfg.onboardingDeployment;
+  return cfg.defaultDeployment;
+}
+
+// Reasoning-tier model families (gpt-5*, o1*, o3*) reject `temperature` as an
+// unsupported parameter. Only the classic chat-tier gpt-4o family accepts it.
+// Matched by prefix against the deployment name since Azure deployment names
+// are opaque strings, not the model catalog name.
+const NO_TEMPERATURE_PREFIXES = ['gpt-5', 'o1', 'o3', 'o4'];
+function modelRejectsTemperature(resolvedModel: string): boolean {
+  return NO_TEMPERATURE_PREFIXES.some((p) => resolvedModel.startsWith(p));
 }
 
 // SDK APIError isn't an OpenAIError, so callers collapse it to a generic 500
@@ -82,15 +122,18 @@ function toResponsesTools(tools: readonly ToolSchema[]): Array<{
 export async function openResponsesStream(
   opts: OpenResponsesStreamOpts,
 ): Promise<AsyncIterable<ResponsesStreamEvent>> {
+  const model = resolveModel(opts.model ?? 'gpt-4o-mini');
   const body: Record<string, unknown> = {
-    model: opts.model ?? 'gpt-4o-mini',
+    model,
     instructions: opts.instructions,
     input: opts.input,
     stream: true,
     store: opts.store ?? true,
-    temperature: opts.temperature ?? 0.6,
     max_output_tokens: opts.maxOutputTokens ?? 600,
   };
+  if (!modelRejectsTemperature(model)) {
+    body.temperature = opts.temperature ?? 0.6;
+  }
   if (opts.previousResponseId) {
     body.previous_response_id = opts.previousResponseId;
   }
@@ -125,17 +168,20 @@ export interface OpenResponsesJSONOpts {
 export async function openResponsesJSON<T>(
   opts: OpenResponsesJSONOpts,
 ): Promise<{ data: T; totalTokens: number; responseId: string | null }> {
+  const model = resolveModel(opts.model ?? 'gpt-4o-mini');
   const body: Record<string, unknown> = {
-    model: opts.model ?? 'gpt-4o-mini',
+    model,
     instructions: opts.instructions,
     input: opts.input,
     stream: false,
     store: false,
-    temperature: opts.temperature ?? 0.2,
     max_output_tokens: opts.maxOutputTokens ?? 800,
     tools: toResponsesTools([opts.tool]),
     tool_choice: { type: 'function', name: opts.tool.name },
   };
+  if (!modelRejectsTemperature(model)) {
+    body.temperature = opts.temperature ?? 0.2;
+  }
 
   let response: {
     id?: unknown;
