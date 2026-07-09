@@ -655,6 +655,36 @@ describe('add_habit', () => {
     Array.from({ length: MAX_HABITS }, (_, i) => [`Existing${i}`, {}]),
   );
 
+  // ─── Rule 4/5: beginner habit cap of 2 is enforced ───
+  // MAX_HABITS is the beginner product cap. Proves the boundary directly: with
+  // one existing beginner habit the 2nd is accepted; with two the 3rd is rejected.
+  describe('rule 4/5 — beginner cap of 2 (MAX_HABITS)', () => {
+    it('the 2nd beginner habit is allowed (one existing, under cap)', async () => {
+      expect(MAX_HABITS).toBe(2);
+      const client = habitClient({ hc: { Existing0: {} }, path: 'simple' });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(CTX, { ...validHabit, name: 'SecondHabit' });
+      expect(r.ok).toBe(true);
+      const sqls = client.query.mock.calls.map((c) => c[0] as string);
+      expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(true);
+      expect(sqls.some((s) => /ROLLBACK/.test(s))).toBe(false);
+    });
+
+    it('the 3rd beginner habit is rejected with max_habits_reached (two existing, at cap)', async () => {
+      const client = habitClient({ hc: atCap, path: 'simple' });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(CTX, { ...validHabit, name: 'ThirdHabit' });
+      expect(r).toEqual({
+        ok: false,
+        error: 'handler_error',
+        message: 'max_habits_reached',
+      });
+      const sqls = client.query.mock.calls.map((c) => c[0] as string);
+      expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(false);
+      expect(sqls.some((s) => /ROLLBACK/.test(s))).toBe(true);
+    });
+  });
+
   it('returns max_habits_reached when at cap with new name', async () => {
     const client = habitClient({ hc: atCap });
     pool.connect.mockResolvedValue(client);
