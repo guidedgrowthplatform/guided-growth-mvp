@@ -764,11 +764,11 @@ export const FILES_SYNC_MAP: readonly FileMapRow[] = [
   {
     area: 'render',
     file: 'src/components/flow-designer/beatMetadata.ts',
-    role: 'per-beat authoring metadata (voiceEngine/mode/copy/tools) merged onto beats',
+    role: "per-beat FlowBuilder authoring copy (opener seed text, per-element micro-lines, opener flags) merged onto beats; voiceEngine/voiceMode/allowedTools/expectedResponse are retired from this file (2026-07-10) and now read live from beatsSource.ts via BEAT_BY_SCREEN_ID (FlowBuilder.tsx withRenderFacts), so they can't diverge from the render",
     authored: 'generated',
     savesTo: 'none',
     syncEdge: 'edge 9 (Sheet -> gen_beat_metadata.py)',
-    staleRisk: 'generator script only exists on the render branch; wording marked provisional',
+    staleRisk: 'scripts/beat-metadata-reconcile-check.mjs fails the build if a retired field reappears or a screen_id no longer resolves in beatsSource.ts; wording marked provisional',
   },
   {
     area: 'render',
@@ -1812,12 +1812,12 @@ export const FILES_SYNC_MAP: readonly FileMapRow[] = [
   {
     area: 'sync edges',
     file: 'edge 9: Master Sheet Beats Context + Beat Elements tabs -> gen_beat_metadata.py -> beatMetadata.ts',
-    role: 'manual, render branch only (script absent on main)',
+    role: 'manual, render branch only (script absent on main); as of 2026-07-10 emits only spokenContent/variable/openerMode/openerShowsAsBubble/perElement -- voiceEngine/voiceMode/allowedTools/expectedResponse are retired from this edge and read live from beatsSource.ts instead (see edge 12)',
     authored: 'generated',
     savesTo: 'src/components/flow-designer/beatMetadata.ts',
     syncEdge: 'manual',
     staleRisk:
-      'wording marked provisional; Sheet edits after last run silently diverge from what the builder shows',
+      'wording marked provisional; Sheet edits after last run silently diverge from what the builder shows for the fields this edge still owns (behavioral fields can no longer diverge, they are no longer authored here)',
   },
   {
     area: 'sync edges',
@@ -1839,13 +1839,13 @@ export const FILES_SYNC_MAP: readonly FileMapRow[] = [
   },
   {
     area: 'sync edges',
-    file: 'edge 12: beatsSource.ts (single-store invariant) -> render-consistency-check.mjs + render-link-integrity-check.mjs',
+    file: 'edge 12: beatsSource.ts (single-store invariant) -> render-consistency-check.mjs + render-link-integrity-check.mjs + beat-metadata-reconcile-check.mjs',
     role: 'manual/CI guard on the render branch',
     authored: 'hand',
     savesTo: 'none',
     syncEdge: 'manual/CI',
     staleRisk:
-      "enforces the beatsSource header claim but doesn't know beatMetadata.ts (edge 9) is a second Sheet-generated store feeding the builder",
+      'beat-metadata-reconcile-check.mjs (added 2026-07-10) now also fails the build if beatMetadata.ts (edge 9) reintroduces a retired behavioral field or carries a screen_id beatsSource.ts no longer has, and if FlowBuilder.tsx stops reading those fields from beatsSource.ts; still does not check every other onboarding consumer (e.g. a future one) for the same class of drift',
   },
   {
     area: 'sync edges',

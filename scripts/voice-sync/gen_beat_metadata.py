@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
 """Pull the onboarding beat metadata from the Master Sheet into the flow builder.
 
-Reads the "Beats Context" tab (beat-level: engine, mode, opener, tools, flags) and the
-"Beat Elements" tab (per-element micro-lines), and emits a committed TS map
+Reads the "Beats Context" tab (beat-level: opener, flags) and the "Beat Elements"
+tab (per-element micro-lines), and emits a committed TS map
 (src/components/flow-designer/beatMetadata.ts) keyed by screen_id. The builder merges
 this into each beat's `meta` on hydrate (withBeatMeta), the same way voiceScriptsAudio.ts
 feeds mp3Assets. Re-run to refresh after the beats session edits the sheet.
 
 Only live beats are emitted: rows whose Engine column is non-empty. Deprecated beats
 (BEGINNER-05/06, ADVANCED-02/04, ADV-CUSTOM, ADVANCED-05) have blank Engine and are skipped.
+The Engine column is still read to decide liveness, but its VALUE (and Scripted?,
+Allowed Tools, Expected User Response) are no longer emitted into beatMetadata.ts:
+those four are behavioral facts beatsSource.ts (the render, "THE ONE SOURCE") already
+owns per beat, and FlowBuilder.tsx now reads them from there instead (see
+withRenderFacts in FlowBuilder.tsx and gg-spec/docs/whole-system-onboarding-qa-2026-07-10.md
+finding B5). Keeping a second Sheet-synced copy of those fields here let them
+silently diverge from the render's. Emitting only the fields the render doesn't
+model (spokenContent, variable, openerMode, openerShowsAsBubble, perElement) closes
+that gap: this file can no longer disagree with beatsSource.ts on engine, mode,
+tools, or expected response, because it no longer states them.
 
 Opener handling: the "Shows as bubble?" text encodes Option A / Option B. Option A beats
 (scheduler beats whose per-element control lines lead) get NO framing opener even though
@@ -28,9 +38,6 @@ from lib.sheets import get_sheet_header, get_sheet_rows  # noqa: E402
 CONTEXT_TAB = os.environ.get("BEATS_CONTEXT_TAB") or "Beats Context"
 ELEMENTS_TAB = os.environ.get("BEAT_ELEMENTS_TAB") or "Beat Elements"
 OUT = PROJECT_ROOT / "src/components/flow-designer/beatMetadata.ts"
-
-# Sheet Engine -> builder voiceEngine enum (Vapi | Cartesia | MP3 | None).
-ENGINE_MAP = {"silent": "None", "mp3": "MP3", "cartesia": "Cartesia", "vapi": "Vapi", "none": "None"}
 
 # Beats Context columns we consume (by header name).
 C_SCREEN = "Screen ID"
@@ -101,10 +108,14 @@ def main() -> int:
         option_a = "option a" in bubble_text.lower()
         option_b = "option b" in bubble_text.lower()
 
-        meta: dict = {"voiceEngine": ENGINE_MAP.get(engine_raw.lower(), engine_raw)}
-
-        if (r.get(C_SCRIPTED) or "").strip().lower() == "scripted":
-            meta["voiceMode"] = "Verbatim"
+        # NOTE: Engine, Scripted?, Allowed Tools, and Expected User Response are
+        # read above only to decide liveness / opener suppression; their VALUES
+        # are deliberately not emitted. beatsSource.ts (the render) already owns
+        # voiceEngine/voiceMode/allowedTools/expectedResponse per beat, and
+        # FlowBuilder.tsx reads them from there (withRenderFacts), not from this
+        # file. Emitting them here too let this file silently disagree with the
+        # render (whole-system-onboarding-qa-2026-07-10.md, finding B5).
+        meta: dict = {}
 
         # Opener: suppressed for Option A (control lines lead), kept otherwise.
         opener = "" if option_a else clean(r.get(C_OPENER) or "")
@@ -115,19 +126,11 @@ def main() -> int:
         elif option_b:
             meta["openerMode"] = "B"
 
-        tools = clean(r.get(C_TOOLS) or "")
-        if tools:
-            meta["allowedTools"] = tools
-
         if truthy_yes(r.get(C_VARIABLE) or ""):
             meta["variable"] = True
 
         # openerShowsAsBubble: Option A never, Option B always, else parse the text.
         meta["openerShowsAsBubble"] = False if option_a else (True if option_b else truthy_yes(bubble_text))
-
-        expected = clean(r.get(C_EXPECTED) or "")
-        if expected:
-            meta["expectedResponse"] = expected
 
         if sid in elements:
             meta["perElement"] = elements[sid]
@@ -135,13 +138,35 @@ def main() -> int:
         beats[sid] = meta
 
     lines = [
-        '// GENERATED from the Master Sheet "Beats Context" + "Beat Elements" tabs.',
+        '// GENERATED from the Master Sheet "Beats Context" + "Beat Elements" tabs, for',
+        "// fields the render (beatsSource.ts) does not yet model at this granularity.",
         "// Regenerate: python3 scripts/voice-sync/gen_beat_metadata.py",
-        "// Per-onboarding-beat authoring metadata, keyed by screen_id. Merged into each",
-        "// beat's meta on hydrate (withBeatMeta). Wording is provisional; wire against the",
-        "// engine, flags, elementIds, and order. showsAsBubble false = spoken, component",
-        "// carries the words (no chat bubble). openerMode A = no framing opener (control",
-        "// lines lead); B = keep the framing opener then the control lines.",
+        "//",
+        "// This file used to also carry voiceEngine, voiceMode, allowedTools, and",
+        "// expectedResponse. Those are BEHAVIORAL facts that beatsSource.ts (the render,",
+        '// "THE ONE SOURCE") already owns per beat (BeatEntry.voiceEngine/voiceMode/',
+        "// allowedTools/expectedResponse, looked up via BEAT_BY_SCREEN_ID). A live audit",
+        "// (gg-spec/docs/whole-system-onboarding-qa-2026-07-10.md, finding B5) found this",
+        "// file's Sheet-synced copies of those fields could silently diverge from the",
+        "// render's, since no check compared them. FlowBuilder.tsx (withBeatMeta) now",
+        "// reads those four fields directly from beatsSource.ts instead of from this",
+        "// file, so they can no longer be a second source: see withRenderFacts in",
+        "// FlowBuilder.tsx. gen_beat_metadata.py no longer emits them (2026-07-10).",
+        "//",
+        "// What's left here is authoring content the render does not carry at all: the",
+        "// FlowBuilder tool's per-instance opener seed text (spokenContent), the",
+        "// per-form-field micro-lines (perElement, at finer grain than beatsSource's",
+        "// script[]), and two presentation flags (openerMode, openerShowsAsBubble) with",
+        "// no beatsSource equivalent. Per-onboarding-beat authoring metadata, keyed by",
+        "// screen_id. Merged into each beat's meta on hydrate (withBeatMeta). Wording is",
+        "// provisional; wire against the flags, elementIds, and order. showsAsBubble",
+        "// false = spoken, component carries the words (no chat bubble). openerMode A =",
+        "// no framing opener (control lines lead); B = keep the framing opener then the",
+        "// control lines.",
+        "//",
+        "// scripts/beat-metadata-reconcile-check.mjs (wired into check:beats) fails if",
+        "// this file's screen_ids drift from beatsSource.ts's, or if a retired",
+        "// behavioral field listed above reappears here.",
         "export interface BeatElementLine {",
         "  readonly elementId: string;",
         "  readonly line: string;",
@@ -149,14 +174,10 @@ def main() -> int:
         "  readonly showsAsBubble: boolean;",
         "}",
         "export interface BeatContextMeta {",
-        "  readonly voiceEngine?: string;",
-        "  readonly voiceMode?: string;",
         "  readonly spokenContent?: string;",
-        "  readonly allowedTools?: string;",
         "  readonly variable?: boolean;",
         "  readonly openerMode?: 'A' | 'B';",
         "  readonly openerShowsAsBubble?: boolean;",
-        "  readonly expectedResponse?: string;",
         "  readonly perElement?: readonly BeatElementLine[];",
         "}",
         "export const BEAT_METADATA: Record<string, BeatContextMeta> = {",

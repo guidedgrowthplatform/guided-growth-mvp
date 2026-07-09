@@ -43,7 +43,8 @@
     "build-storybook": "storybook build",
     "check:links": "node scripts/render-link-integrity-check.mjs",
     "check:rules-registry": "node scripts/bible-registry-check.mjs",
-    "check:beats": "npm run check:render && npm run check:links && npm run check:rules-registry"
+    "check:beat-metadata": "node scripts/beat-metadata-reconcile-check.mjs",
+    "check:beats": "npm run check:render && npm run check:links && npm run check:rules-registry && npm run check:beat-metadata"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
