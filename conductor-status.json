@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T03:59:20+03:00",
+  "updated": "2026-07-09T04:04:49+03:00",
   "phase": "render-clean",
   "headline": "Finisher MERGED to trunk (62 beats, all clips wired). Next: populate every beat annotations, then combine all-flows.",
   "gate": [
@@ -86,7 +86,7 @@
       "cards": [
         {
           "title": "Drive render to render-ready",
-          "status": "finisher merged; next = annotation population + all-flows combine",
+          "status": "finisher merged + render deployed (62 beats); exemplar annotation pass running for shape approval",
           "state": "in-progress",
           "driver": "conductor"
         },
@@ -106,6 +106,12 @@
           "status": "merged to trunk 6fbd9fdd; 62 beats, L2/L4c/L3/L5/L7 + all clips wired, checks green",
           "state": "done",
           "driver": "conductor takeover"
+        },
+        {
+          "title": "Annotation exemplars",
+          "status": "4 representative beats fully annotated to set the shape, draft MR, for Yair approval before scaling to all 62",
+          "state": "in-progress",
+          "driver": "conductor"
         },
         {
           "title": "All-flows (!515)",
@@ -175,12 +181,12 @@
     "render walkthrough and approve (when render-ready)"
   ],
   "recent": [
+    "render trunk deployed (62 beats) at flow-annotated-render.gg-onboarding-render.pages.dev",
     "finisher merged to trunk: 62 beats, all 42 clips wired (conductor takeover after 3.5h stall)",
     "all prep done: render guards in CI (!521), voicegen fix, TTS stub, cost note, screen_contexts plan",
     "live conductor dashboard deployed at /internal/conductor",
     "epoch rule resolved: render is permanent source of truth",
     "clips (42) done, absorbing into finisher",
-    "qa-fable account re-seeded, round 4 unblocked",
-    "Mattermost bus live: every session self-connects"
+    "qa-fable account re-seeded, round 4 unblocked"
   ]
 }
