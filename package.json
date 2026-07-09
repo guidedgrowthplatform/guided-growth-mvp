@@ -42,7 +42,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "check:links": "node scripts/render-link-integrity-check.mjs",
-    "check:beats": "npm run check:render && npm run check:links"
+    "check:rules-registry": "node scripts/bible-registry-check.mjs",
+    "check:beats": "npm run check:render && npm run check:links && npm run check:rules-registry"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

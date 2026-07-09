@@ -504,6 +504,14 @@ export const ENFORCER_REGISTRY: readonly EnforcerEntry[] = [
     meaning: 'per-beat edge behaviors on a live walk',
     owner: 'fleet',
   },
+  {
+    id: 'eval:selection-cap',
+    kind: 'qa-eval',
+    status: 'planned',
+    meaning:
+      'enforces the beat declared selection min/max (e.g. 1-2 goals); on overflow the coach asks which matter most',
+    owner: 'fleet',
+  },
 ];
 
 // RETIRED ids (unification; do not use): eval:no-contrarian-turn -> eval:no-contrarian,
@@ -631,6 +639,14 @@ export const OPEN_DECISIONS: readonly OpenDecision[] = [
     decider: 'Yair',
     decided:
       'OFF for onboarding (Yair 2026-07-09, LOCKED). No per-beat improvise windows at all; off-topic input is handled by the GLOBAL off-topic rule (acknowledge briefly, steer back with the beat own question, never chase, never advance). Windows removed from IMPROVISATION. Follow-up resolved: stay-open runs on SCRIPTED PROMPTS (pre-written help-you-decide lines per picker beat), no generative exception.',
+  },
+  {
+    id: 'uniform-sections',
+    question: 'Can a beat type drop non-applicable sections?',
+    proposal: 'Optional sections per beat',
+    decider: 'Yair',
+    decided:
+      'NO - uniform shape (conductor decided under Yair delegation, 2026-07-09): every beat declares ALL sections; each is filled / N-A-for-this-type (with reason) / pending-app-reconcile; guard validates.',
   },
 ];
 
