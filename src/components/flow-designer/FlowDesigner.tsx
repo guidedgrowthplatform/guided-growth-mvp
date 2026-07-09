@@ -2751,6 +2751,7 @@ function GlobalBiblePanel() {
           </div>
           <ContextKeyValue label="Forbidden" value={DATA_PASSING.forbidden} />
           <ContextKeyValue label="Cold resume" value={DATA_PASSING.coldResume} />
+          <ContextKeyValue label="Reference" value={DATA_PASSING.reference} />
         </div>
         <EnforcerRow enforcedBy={DATA_PASSING.enforcedBy} />
       </ContextSection>
