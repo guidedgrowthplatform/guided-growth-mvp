@@ -1,7 +1,7 @@
 {
-  "updated": "2026-07-09T21:12:19+03:00",
+  "updated": "2026-07-09T21:33:22+03:00",
   "phase": "render-clean",
-  "headline": "VISUAL-IN-RENDER sample LIVE (category-women, 12 sections in the annotated accordion) at a preview URL - awaiting Yair shape sign-off. Approval = shape locked -> full build across all beats (no human wait) -> Fable + humans final pass.",
+  "headline": "NEW conductor live on fresh usage. BUILD UNDERWAY: beat 13 (goals-sleep) filled, draft MR !531 (beat-13 = goals-sleep confirmed). Reviewers validate beat 13. Next: full fill continues, then combine -> app-reconcile -> Fable+humans -> release.",
   "gate": [
     {
       "step": "1. Finisher lands (onboarding copy, logic, clips)",
