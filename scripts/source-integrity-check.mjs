@@ -40,7 +40,7 @@ const GENERATED_IMPORT =
   /(generated\/(screen_contexts|icon-bundle)|screenContextsBundle|getScreenContext|screen_contexts)/;
 
 // Only the variable name greeting may speak a live (clip-less) Cartesia line.
-const NAME_GREETING_BEAT_IDS = new Set(['profile']);
+const NAME_GREETING_BEAT_IDS = new Set(['profile-greeting']);
 const NAME_GREETING_SCREEN_IDS = new Set(['ONBOARD-01--FORM']);
 
 // ONBOARD beats that legitimately inherit context from a parent beat rather than
