@@ -806,7 +806,7 @@ function RuleRows({ rules }: { rules: readonly BibleRule[] }) {
   );
 }
 
-function BiblePanel({ bible }: { bible: BibleSections }) {
+function BiblePanel({ beat, bible }: { beat: FlowBeat; bible: BibleSections }) {
   const mustCount =
     bible.rulesContext.filter((r) => r.severity === 'must').length +
     bible.rulesCode.filter((r) => r.severity === 'must').length;
@@ -827,40 +827,60 @@ function BiblePanel({ bible }: { bible: BibleSections }) {
         gap: 10,
       }}
     >
+      {/* Card header: the beat's name + type ARE the header. Identity (section 1)
+          sits directly below and carries beatId/order/path/screenId/route, so the
+          old separate metadata panel above this card is redundant and removed. */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           gap: 8,
           justifyContent: 'space-between',
         }}
       >
-        <span
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{beat.name}</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+            {beat.type}
+            {beat.path ? ` · ${PATH_STYLE[beat.path].label}` : ''}
+          </div>
+        </div>
+        <div
           style={{
-            fontSize: 10,
-            fontWeight: 800,
-            color: '#135bec',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: 4,
+            flexShrink: 0,
           }}
         >
-          Bible fill · 12 sections
-        </span>
-        <span
-          style={{
-            fontSize: 9.5,
-            fontWeight: 800,
-            padding: '1px 7px',
-            borderRadius: 99,
-            background: '#eaf1ff',
-            color: '#135bec',
-            border: '1px solid #c7d8ff',
-            letterSpacing: '0.03em',
-            textTransform: 'uppercase',
-          }}
-        >
-          full contract
-        </span>
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              color: '#135bec',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Bible fill · 12 sections
+          </span>
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 800,
+              padding: '1px 7px',
+              borderRadius: 99,
+              background: '#eaf1ff',
+              color: '#135bec',
+              border: '1px solid #c7d8ff',
+              letterSpacing: '0.03em',
+              textTransform: 'uppercase',
+            }}
+          >
+            full contract
+          </span>
+        </div>
       </div>
 
       {/* One-line rules summary, default open */}
@@ -1140,6 +1160,13 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
   const bible = BEAT_BY_ID[beat.id]?.bible;
   const resolvedProps = beat.props ? Object.entries(beat.props) : [];
 
+  // When the beat carries a Bible fill, the Bible card IS the single card. Its
+  // identity section (1) already carries beatId/name/order/path/type/screenId, so
+  // rendering the separate metadata panel above it would duplicate that block.
+  if (bible) {
+    return <BiblePanel beat={beat} bible={bible} />;
+  }
+
   if (!entry) {
     return (
       <div
@@ -1270,7 +1297,6 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
           )}
         </ContextSection>
       </div>
-      {bible && <BiblePanel bible={bible} />}
     </div>
   );
 }

@@ -41,33 +41,33 @@
     },
     {
       "index": 7,
+      "screenId": "ONBOARD-01--FORM--ASKS",
+      "opener": "How old are you?",
+      "path": "both"
+    },
+    {
+      "index": 8,
       "screenId": "ONBOARD-STATE-CHECK",
       "opener": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
       "path": "both"
     },
     {
-      "index": 8,
+      "index": 9,
       "screenId": "ONBOARD-MORNING-SETUP",
       "opener": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
       "path": "both"
     },
     {
-      "index": 9,
+      "index": 10,
       "screenId": "ONBOARD-BEGINNER-07",
       "opener": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
       "path": "both"
     },
     {
-      "index": 10,
-      "screenId": "ONBOARD-FORK--FORM",
-      "opener": "For the next part of the process, I'd like to know:",
-      "path": "both"
-    },
-    {
       "index": 11,
-      "screenId": "ONBOARD-BEGINNER-01",
-      "opener": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
-      "path": "beginner"
+      "screenId": "ONBOARD-FORK--FORM",
+      "opener": "One more question before we set up your habits.",
+      "path": "both"
     },
     {
       "index": 12,
@@ -77,78 +77,300 @@
     },
     {
       "index": 13,
-      "screenId": "ONBOARD-BEGINNER-02",
-      "opener": "So within that, which goals would you like to start with? Pick one or two.",
+      "screenId": "ONBOARD-BEGINNER-01",
+      "opener": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
       "path": "beginner"
     },
     {
       "index": 14,
-      "screenId": "ONBOARD-BEGINNER-02-CUSTOM",
-      "opener": "Tell me the goal you want to add, and I'll set it up.",
+      "screenId": "ONBOARD-BEGINNER-02--SLEEP",
+      "opener": "Awesome that you started with sleep. When your sleep is solid, almost everything else gets easier, your mood, your patience, your focus. Strong place to begin, and I'm glad you did. Which of these would you like to start with? Pick one or two.",
       "path": "beginner"
     },
     {
       "index": 15,
+      "screenId": "ONBOARD-BEGINNER-02--MOVE",
+      "opener": "Love that you chose this. Movement is one of those things where a little goes a long way, and I think you're going to feel the difference faster than you'd expect. Which of these would you like to start with? Pick one or two.",
+      "path": "beginner"
+    },
+    {
+      "index": 16,
+      "screenId": "ONBOARD-BEGINNER-02--EAT",
+      "opener": "I'm happy you went with this one. Food is something you touch every single day, so it's a place where small changes really add up, and I'm excited to help you find yours. Which of these would you like to start with? Pick one or two.",
+      "path": "beginner"
+    },
+    {
+      "index": 17,
+      "screenId": "ONBOARD-BEGINNER-02--ENERGY",
+      "opener": "This is a great one to choose. More energy changes how every part of your day feels, and I'm excited for what that could open up for you. Which of these would you like to start with? Pick one or two.",
+      "path": "beginner"
+    },
+    {
+      "index": 18,
+      "screenId": "ONBOARD-BEGINNER-02--STRESS",
+      "opener": "I'm really glad you chose this. Giving your stress somewhere to go is one of the kindest things you can do for yourself, and I'd love to help you build that. Which of these would you like to start with? Pick one or two.",
+      "path": "beginner"
+    },
+    {
+      "index": 19,
+      "screenId": "ONBOARD-BEGINNER-02--FOCUS",
+      "opener": "I'm happy you went with focus. There's a specific kind of good that comes from finishing something without your attention scattering everywhere, and I'd love to help you get more of that. Which of these would you like to start with? Pick one or two.",
+      "path": "beginner"
+    },
+    {
+      "index": 20,
+      "screenId": "ONBOARD-BEGINNER-02--BREAK",
+      "opener": "Love that you're taking this on. These are the changes that actually free up something in your life, and I think you'll be surprised how good it feels to loosen the grip. Which of these would you like to start with? Pick one or two.",
+      "path": "beginner"
+    },
+    {
+      "index": 21,
+      "screenId": "ONBOARD-BEGINNER-02--ORGANIZE",
+      "opener": "I'm happy you picked this. There's something really good about clearing the mental clutter, and I think you're going to feel lighter as we go. Which of these would you like to start with? Pick one or two.",
+      "path": "beginner"
+    },
+    {
+      "index": 22,
+      "screenId": "ONBOARD-BEGINNER-02-CUSTOM",
+      "opener": "What goal do you want to work toward?",
+      "path": "beginner"
+    },
+    {
+      "index": 23,
       "screenId": "ONBOARD-BEGINNER-03",
       "opener": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
       "path": "beginner"
     },
     {
-      "index": 16,
-      "screenId": "ONBOARD-BEGINNER-03-CUSTOM",
-      "opener": "Tell me the habit you want to add, and I'll set it up.",
+      "index": 24,
+      "screenId": "ONBOARD-BEGINNER-03--FALL-ASLEEP-EARLIER",
+      "opener": "To fall asleep earlier, let's pick a habit or two you'll actually keep.",
       "path": "beginner"
     },
     {
-      "index": 17,
+      "index": 25,
+      "screenId": "ONBOARD-BEGINNER-03--WAKE-EARLIER",
+      "opener": "To wake up earlier, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 26,
+      "screenId": "ONBOARD-BEGINNER-03--SLEEP-CONSISTENTLY",
+      "opener": "To sleep more consistently, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 27,
+      "screenId": "ONBOARD-BEGINNER-03--SLEEP-DEEPLY",
+      "opener": "To sleep more deeply, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 28,
+      "screenId": "ONBOARD-BEGINNER-03--WALK-MORE",
+      "opener": "For walking more, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 29,
+      "screenId": "ONBOARD-BEGINNER-03--EXERCISE-CONSISTENTLY",
+      "opener": "To exercise more consistently, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 30,
+      "screenId": "ONBOARD-BEGINNER-03--MOBILITY",
+      "opener": "For better mobility, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 31,
+      "screenId": "ONBOARD-BEGINNER-03--EAT-INTENTIONALLY",
+      "opener": "To eat more intentionally, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 32,
+      "screenId": "ONBOARD-BEGINNER-03--REDUCE-OVEREATING",
+      "opener": "To reduce overeating, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 33,
+      "screenId": "ONBOARD-BEGINNER-03--PLAN-FOOD",
+      "opener": "To plan your food better, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 34,
+      "screenId": "ONBOARD-BEGINNER-03--MORNING-ENERGY",
+      "opener": "For more morning energy, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 35,
+      "screenId": "ONBOARD-BEGINNER-03--AVOID-CRASHES",
+      "opener": "To avoid afternoon crashes, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 36,
+      "screenId": "ONBOARD-BEGINNER-03--STABLE-ENERGY",
+      "opener": "To keep your energy more stable, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 37,
+      "screenId": "ONBOARD-BEGINNER-03--CALMER-DAY",
+      "opener": "To feel calmer during the day, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 38,
+      "screenId": "ONBOARD-BEGINNER-03--EVENING-STRESS",
+      "opener": "To reduce evening stress, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 39,
+      "screenId": "ONBOARD-BEGINNER-03--LESS-OVERWHELMED",
+      "opener": "To feel less overwhelmed, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 40,
+      "screenId": "ONBOARD-BEGINNER-03--START-WORK",
+      "opener": "To start work with less friction, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 41,
+      "screenId": "ONBOARD-BEGINNER-03--DEEPER-WORK",
+      "opener": "For deeper work, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 42,
+      "screenId": "ONBOARD-BEGINNER-03--PROCRASTINATE-LESS",
+      "opener": "To procrastinate less, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 43,
+      "screenId": "ONBOARD-BEGINNER-03--SMOKING",
+      "opener": "To cut back on smoking, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 44,
+      "screenId": "ONBOARD-BEGINNER-03--WEED",
+      "opener": "To cut back on weed, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 45,
+      "screenId": "ONBOARD-BEGINNER-03--ALCOHOL",
+      "opener": "To cut back on alcohol, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 46,
+      "screenId": "ONBOARD-BEGINNER-03--PORN",
+      "opener": "To cut back on porn, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 47,
+      "screenId": "ONBOARD-BEGINNER-03--PHONE-USE",
+      "opener": "To cut back on phone use, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 48,
+      "screenId": "ONBOARD-BEGINNER-03--LATE-SNACKING",
+      "opener": "To cut back on late-night snacking, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 49,
+      "screenId": "ONBOARD-BEGINNER-03--CAFFEINE",
+      "opener": "To cut back on caffeine, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 50,
+      "screenId": "ONBOARD-BEGINNER-03--STAY-ON-TASKS",
+      "opener": "To stay on top of your tasks, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 51,
+      "screenId": "ONBOARD-BEGINNER-03--TIDY-SPACES",
+      "opener": "To keep your spaces tidy, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 52,
+      "screenId": "ONBOARD-BEGINNER-03--LIFE-ADMIN",
+      "opener": "To handle life admin better, let's pick a habit or two you'll actually keep.",
+      "path": "beginner"
+    },
+    {
+      "index": 53,
+      "screenId": "ONBOARD-BEGINNER-03-CUSTOM",
+      "opener": "What habit do you want to build?",
+      "path": "beginner"
+    },
+    {
+      "index": 54,
       "screenId": "ONBOARD-BEGINNER-04",
       "opener": "Please set the days that you're going to actually do these habits.",
       "path": "beginner"
     },
     {
-      "index": 18,
+      "index": 55,
       "screenId": "ONBOARD-ADVANCED",
       "opener": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
       "path": "advanced"
     },
     {
-      "index": 19,
+      "index": 56,
       "screenId": "ONBOARD-ADVANCED-FREQUENCY",
       "opener": "Please set the days that you're going to actually do these habits.",
       "path": "advanced"
     },
     {
-      "index": 20,
+      "index": 57,
       "screenId": "ONBOARD-COMPLETE",
       "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
       "path": "both"
     },
     {
-      "index": 21,
+      "index": 58,
       "screenId": "ONBOARD-WEEKLY-PROJECTION-BLANK",
       "opener": "This is your week. Blank, starting today.",
       "path": "both"
     },
     {
-      "index": 22,
+      "index": 59,
       "screenId": "ONBOARD-WEEKLY-PROJECTION-FULL",
       "opener": "Best case, every day green. 100% success. That would be amazing.",
       "path": "both"
     },
     {
-      "index": 23,
+      "index": 60,
       "screenId": "ONBOARD-WEEKLY-PROJECTION-P78",
       "opener": "Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.",
       "path": "both"
     },
     {
-      "index": 24,
+      "index": 61,
       "screenId": "ONBOARD-WEEKLY-PROJECTION-P36",
       "opener": "Some weeks can look like this. And even that's okay, because you're in the process and you're consistent inside the process.",
       "path": "both"
     },
     {
-      "index": 25,
+      "index": 62,
       "screenId": "ONBOARD-WEEKLY-PROJECTION-GAPS",
       "opener": "The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going.",
       "path": "both"
