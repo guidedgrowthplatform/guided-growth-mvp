@@ -867,12 +867,12 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         rows: [
           {
             seq: 1,
-            reveal: 'age input revealed on entry',
+            reveal: 'no gate: age input revealed on entry alongside the age prompt (opener line)',
             timing: 'karaoke per-word on the age prompt',
           },
           {
             seq: 2,
-            reveal: 'gender selector revealed after the age prompt',
+            reveal: 'gated on seq 1 clip end: gender selector revealed after the age prompt finishes',
             timing: 'karaoke per-word on the gender prompt',
           },
         ],
