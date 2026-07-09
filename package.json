@@ -43,7 +43,10 @@
     "build-storybook": "storybook build",
     "check:links": "node scripts/render-link-integrity-check.mjs",
     "check:source-integrity": "node scripts/source-integrity-check.mjs",
-    "check:beats": "npm run check:render && npm run check:links && npm run check:source-integrity"
+    "check:id-alias": "node scripts/id-alias-check.mjs",
+    "check:persistence": "node scripts/persistence-contract-check.mjs",
+    "check:decisions": "node scripts/decisions-coverage-check.mjs",
+    "check:beats": "npm run check:render && npm run check:links && npm run check:source-integrity && npm run check:id-alias && npm run check:persistence && npm run check:decisions"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
