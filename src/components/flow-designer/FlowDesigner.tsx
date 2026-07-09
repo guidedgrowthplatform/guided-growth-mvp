@@ -1,5 +1,12 @@
 import { Icon } from '@iconify/react';
-import { createElement, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  createElement,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { Orb } from '@/components/orb/Orb';
 import { orbSpeaking } from '@/components/orb/orbView';
 import {
@@ -140,11 +147,14 @@ function metadataPropsForBeat(type: string, screenId?: string): Record<string, s
 // A fresh, scoped FlowState for one beat, so beats can stack in one scroll
 // without sharing a global active-beat state. Mirrors the flowState object
 // FlowBuilder builds for its Play pane (flowStateCtx.ts shape), seeded with
-// light demo values so each beat looks interactive on its own.
-function useIsolatedFlowState(): FlowState {
+// light demo values so each beat looks interactive on its own. An optional seed
+// overrides the picked category / goals so a beat that carries that selection
+// (the goals-list and habit-picker variants) renders the right on-screen grid,
+// not the fixed demo default. Beats without the seed keep the demo values.
+function useIsolatedFlowState(seed?: { category?: string; goals?: string[] }): FlowState {
   const [path, setPath] = useState<'new' | 'exp' | null>('new');
-  const [category, setCategoryState] = useState<string | null>('Sleep better');
-  const [goals, setGoals] = useState<string[]>(['Fall asleep earlier']);
+  const [category, setCategoryState] = useState<string | null>(seed?.category ?? 'Sleep better');
+  const [goals, setGoals] = useState<string[]>(seed?.goals ?? ['Fall asleep earlier']);
   const [habits, setHabits] = useState<string[]>(['No screens after 10 PM']);
   // 24-hour "HH:MM" so the beats' formatTime12() renders them correctly.
   const [morningTime, setMorningTime] = useState<string | null>('08:00');
@@ -246,7 +256,14 @@ export function IsolatedBeat({
   stepReveal?: number | null;
   elementReveal?: number | null;
 }) {
-  const flowState = useIsolatedFlowState();
+  // Seed the picked selection from the beat's props so a variation renders its
+  // own on-screen grid: goals-list shows the picked category's subcategories,
+  // habit-picker shows the picked goal's habits. Only these variants carry
+  // category / goal props, so every other beat keeps the demo defaults.
+  const flowState = useIsolatedFlowState({
+    category: props?.category,
+    goals: props?.goal ? [props.goal] : undefined,
+  });
 
   // coach-bubble is defined inline in FlowBuilder, not in BEAT_DEFS. Handle it
   // directly so check-in greeting and wrap lines render as real speech bubbles
@@ -1381,20 +1398,57 @@ const CONCEPT_META: Record<ConceptKey, { title: string; sub: string }> = {
   },
 };
 
+// The label to flip variations by: the category the user picked (goals) or the
+// goal they picked (habits).
+function variationLabel(b: FlowBeat): string {
+  return b.props?.category ?? b.props?.goal ?? b.id;
+}
+
+// A variation's opener line, read straight off the one source by screenId, so the
+// openers list matches exactly what the phone + script panel show.
+function conceptOpener(b: FlowBeat): string {
+  return scriptOpener(b.screenId ? ENTRY_BY_SCREEN_ID[b.screenId] : undefined);
+}
+
 // A run of same-concept variation beats, shown as one collapsible concept card.
-// Collapsed, it reads as a single concept beat; expanded, it shows every
-// variation's phone card and panels unchanged.
+// Collapsed, it reads as a single concept beat. Expanded, a variation switcher
+// (prev/next + a dropdown of the category/goal labels) swaps ONE variation IN
+// PLACE — the phone, the script panel, and the metadata all update to the picked
+// category/goal — so every option can be flipped through and compared on the same
+// screen without un-collapsing into 37 cards. Every variation's opener line is
+// also listed at once in the detail panel below.
 function ConceptGroup({
   concept,
-  count,
-  children,
+  beats,
+  startIndex,
+  renderRow,
 }: {
   concept: ConceptKey;
-  count: number;
-  children: ReactNode;
+  beats: FlowBeat[];
+  startIndex: number;
+  renderRow: (beat: FlowBeat, globalIndex: number) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [sel, setSel] = useState(0);
   const meta = CONCEPT_META[concept];
+  const count = beats.length;
+  const idx = Math.min(sel, count - 1);
+  const current = beats[idx];
+  const go = (d: number) => setSel((s) => (Math.min(s, count - 1) + d + count) % count);
+
+  const ctrlBtn: CSSProperties = {
+    border: '1px solid #cbd5e1',
+    background: '#fff',
+    borderRadius: 999,
+    width: 30,
+    height: 30,
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#334155',
+    lineHeight: 1,
+  };
+
   return (
     <div style={{ marginBottom: 34 }}>
       <button
@@ -1443,10 +1497,127 @@ function ConceptGroup({
             whiteSpace: 'nowrap',
           }}
         >
-          {count} variations {open ? '· hide' : '· show'}
+          {count} variations {open ? '· hide' : '· flip through'}
         </span>
       </button>
-      {open && <div style={{ marginTop: 20 }}>{children}</div>}
+
+      {open && (
+        <div style={{ marginTop: 16 }}>
+          {/* Variation switcher: flip one variation in place. Prev/next + a
+              dropdown of the category/goal labels. */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 10,
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#475569' }}>Variation</span>
+            <button
+              type="button"
+              style={ctrlBtn}
+              onClick={() => go(-1)}
+              aria-label="Previous variation"
+            >
+              {'◀'}
+            </button>
+            <select
+              value={idx}
+              onChange={(e) => setSel(Number(e.target.value))}
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: '#0f172a',
+                padding: '6px 10px',
+                borderRadius: 10,
+                border: '1px solid #cbd5e1',
+                background: '#fff',
+                cursor: 'pointer',
+                maxWidth: 280,
+              }}
+            >
+              {beats.map((b, i) => (
+                <option key={b.id} value={i}>
+                  {i + 1}. {variationLabel(b)}
+                </option>
+              ))}
+            </select>
+            <button type="button" style={ctrlBtn} onClick={() => go(1)} aria-label="Next variation">
+              {'▶'}
+            </button>
+            <span style={{ fontSize: 12, color: '#94a3b8' }}>
+              {idx + 1} / {count} · {current.screenId ?? current.id}
+            </span>
+          </div>
+
+          {/* The picked variation, rendered in place: phone + script + metadata all
+              swap to this category/goal. */}
+          {renderRow(current, startIndex + idx)}
+
+          {/* Every variation's opener, visible at once. Click a row to flip to it. */}
+          <div
+            style={{
+              marginTop: 8,
+              border: '1px solid #e2e8f0',
+              borderRadius: 14,
+              background: '#f8fafc',
+              padding: '12px 14px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: 0.4,
+                color: '#64748b',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}
+            >
+              All {count} variation openers
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {beats.map((b, i) => {
+                const active = i === idx;
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setSel(i)}
+                    style={{
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      border: 'none',
+                      borderRadius: 9,
+                      padding: '7px 10px',
+                      background: active ? 'rgba(99,102,241,0.12)' : 'transparent',
+                      display: 'flex',
+                      gap: 12,
+                      alignItems: 'baseline',
+                    }}
+                  >
+                    <span
+                      style={{
+                        flex: '0 0 150px',
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        color: active ? '#3730a3' : '#0f172a',
+                      }}
+                    >
+                      {i + 1}. {variationLabel(b)}
+                    </span>
+                    <span style={{ flex: 1, fontSize: 12.5, color: '#475569', lineHeight: 1.45 }}>
+                      {conceptOpener(b)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1532,10 +1703,10 @@ function FlowPhoneFrame({
         <ConceptGroup
           key={`concept-${concept}-${start}`}
           concept={concept}
-          count={groupBeats.length}
-        >
-          {groupBeats.map((b, k) => beatRow(b, start + k))}
-        </ConceptGroup>,
+          beats={groupBeats}
+          startIndex={start}
+          renderRow={beatRow}
+        />,
       );
     } else {
       rows.push(beatRow(beats[i], i));
