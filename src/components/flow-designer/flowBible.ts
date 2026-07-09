@@ -38,7 +38,7 @@ export interface ImprovisationLaw {
 
 export const IMPROVISATION: ImprovisationLaw = {
   default: 'OFF',
-  law: 'Improvisation is OFF for onboarding (Yair 2026-07-09, LOCKED). The LLM never improvises: every spoken or shown coach line is a scripted verbatim line. No per-beat improvise windows exist and none may be authored. Not improvisation: the one live {name} line (live TTS of a scripted shape, governed by the voice/audio-ownership rule) and custom-entry fallbacks (the pre-authored generic line, copy-flow rule 14). The one real runtime case, user goes off topic, is handled by the GLOBAL off-topic rule (glob-out-of-scope), not a window. Open tension flagged for the fill: eval:brainstorm-then-yield (help an unsure user land on a pick) implies bounded generative replies; under improv-OFF it must run on scripted/bounded lines or get an explicit ruling.',
+  law: 'Improvisation is OFF for onboarding (Yair 2026-07-09, LOCKED). The LLM never improvises: every spoken or shown coach line is a scripted verbatim line. No per-beat improvise windows exist and none may be authored. Not improvisation: the one live {name} line (live TTS of a scripted shape, governed by the voice/audio-ownership rule) and custom-entry fallbacks (the pre-authored generic line, copy-flow rule 14). The one real runtime case, user goes off topic, is handled by the GLOBAL off-topic rule (glob-out-of-scope), not a window. Tension RESOLVED (Yair 2026-07-09): the stay-open/help-them-land behavior (eval:brainstorm-then-yield, MUST) runs on SCRIPTED PROMPTS, a small pre-written help-you-decide line set the coach picks from (example: "What\'s been weighing on you most lately?"). Fully scripted, no generative window; the fill authors the bounded prompt set per picker beat, homed in that beat\'s section 13 branches.',
   windows: [],
   enforcedBy: ['eval:verbatim-opener', 'eval:one-line-then-wait'],
 };
@@ -449,7 +449,8 @@ export const ENFORCER_REGISTRY: readonly EnforcerEntry[] = [
     id: 'eval:brainstorm-then-yield',
     kind: 'qa-eval',
     status: 'planned',
-    meaning: 'helps an unsure user, yields when sure (replaces eval:stay-open-unsure)',
+    meaning:
+      'helps an unsure user decide using the beat scripted help-you-decide prompt set only (no generation, Yair 2026-07-09), yields when sure (replaces eval:stay-open-unsure)',
     owner: 'fleet',
   },
   {
@@ -629,7 +630,7 @@ export const OPEN_DECISIONS: readonly OpenDecision[] = [
       'Four minimal windows (name slot, pre-pick brainstorm, custom-entry fallback, edge one-liner), pending a dedicated Yair discussion.',
     decider: 'Yair',
     decided:
-      'OFF for onboarding (Yair 2026-07-09, LOCKED). No per-beat improvise windows at all; off-topic input is handled by the GLOBAL off-topic rule (acknowledge briefly, steer back with the beat own question, never chase, never advance). Windows removed from IMPROVISATION.',
+      'OFF for onboarding (Yair 2026-07-09, LOCKED). No per-beat improvise windows at all; off-topic input is handled by the GLOBAL off-topic rule (acknowledge briefly, steer back with the beat own question, never chase, never advance). Windows removed from IMPROVISATION. Follow-up resolved: stay-open runs on SCRIPTED PROMPTS (pre-written help-you-decide lines per picker beat), no generative exception.',
   },
 ];
 
