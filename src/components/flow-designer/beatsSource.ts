@@ -1102,9 +1102,1025 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Fall asleep earlier).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-fall-asleep-earlier',
+    name: 'Habits (Fall asleep earlier)',
+    order: 23,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--FALL-ASLEEP-EARLIER',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Fall asleep earlier',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To fall asleep earlier, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--FALL-ASLEEP-EARLIER',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Wake up earlier).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-wake-earlier',
+    name: 'Habits (Wake up earlier)',
+    order: 24,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--WAKE-EARLIER',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Wake up earlier',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To wake up earlier, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--WAKE-EARLIER',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Sleep more consistently).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-sleep-consistently',
+    name: 'Habits (Sleep more consistently)',
+    order: 25,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--SLEEP-CONSISTENTLY',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Sleep more consistently',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To sleep more consistently, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--SLEEP-CONSISTENTLY',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Sleep more deeply).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-sleep-deeply',
+    name: 'Habits (Sleep more deeply)',
+    order: 26,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--SLEEP-DEEPLY',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Sleep more deeply',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To sleep more deeply, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--SLEEP-DEEPLY',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Walk more).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-walk-more',
+    name: 'Habits (Walk more)',
+    order: 27,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--WALK-MORE',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Walk more',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "For walking more, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--WALK-MORE',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Exercise consistently).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-exercise-consistently',
+    name: 'Habits (Exercise consistently)',
+    order: 28,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--EXERCISE-CONSISTENTLY',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Exercise consistently',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To exercise more consistently, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--EXERCISE-CONSISTENTLY',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Improve mobility).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-mobility',
+    name: 'Habits (Improve mobility)',
+    order: 29,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--MOBILITY',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Improve mobility',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "For better mobility, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--MOBILITY',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Eat more intentionally).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-eat-intentionally',
+    name: 'Habits (Eat more intentionally)',
+    order: 30,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--EAT-INTENTIONALLY',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Eat more intentionally',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To eat more intentionally, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--EAT-INTENTIONALLY',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Reduce overeating).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-reduce-overeating',
+    name: 'Habits (Reduce overeating)',
+    order: 31,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--REDUCE-OVEREATING',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Reduce overeating',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To reduce overeating, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--REDUCE-OVEREATING',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Plan food better).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-plan-food',
+    name: 'Habits (Plan food better)',
+    order: 32,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--PLAN-FOOD',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Plan food better',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To plan your food better, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--PLAN-FOOD',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Have more morning energy).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-morning-energy',
+    name: 'Habits (Have more morning energy)',
+    order: 33,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--MORNING-ENERGY',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Have more morning energy',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "For more morning energy, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--MORNING-ENERGY',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Avoid afternoon crashes).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-avoid-crashes',
+    name: 'Habits (Avoid afternoon crashes)',
+    order: 34,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--AVOID-CRASHES',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Avoid afternoon crashes',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To avoid afternoon crashes, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--AVOID-CRASHES',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Keep energy more stable).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-stable-energy',
+    name: 'Habits (Keep energy more stable)',
+    order: 35,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--STABLE-ENERGY',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Keep energy more stable',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To keep your energy more stable, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--STABLE-ENERGY',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Feel calmer during the day).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-calmer-day',
+    name: 'Habits (Feel calmer during the day)',
+    order: 36,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--CALMER-DAY',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Feel calmer during the day',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To feel calmer during the day, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--CALMER-DAY',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Reduce evening stress).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-evening-stress',
+    name: 'Habits (Reduce evening stress)',
+    order: 37,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--EVENING-STRESS',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Reduce evening stress',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To reduce evening stress, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--EVENING-STRESS',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Feel less overwhelmed).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-less-overwhelmed',
+    name: 'Habits (Feel less overwhelmed)',
+    order: 38,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--LESS-OVERWHELMED',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Feel less overwhelmed',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To feel less overwhelmed, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--LESS-OVERWHELMED',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Start work with less friction).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-start-work',
+    name: 'Habits (Start work with less friction)',
+    order: 39,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--START-WORK',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Start work with less friction',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To start work with less friction, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--START-WORK',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Do deeper work).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-deeper-work',
+    name: 'Habits (Do deeper work)',
+    order: 40,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--DEEPER-WORK',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Do deeper work',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "For deeper work, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--DEEPER-WORK',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Procrastinate less).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-procrastinate-less',
+    name: 'Habits (Procrastinate less)',
+    order: 41,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--PROCRASTINATE-LESS',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Procrastinate less',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To procrastinate less, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--PROCRASTINATE-LESS',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Smoking).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-smoking',
+    name: 'Habits (Smoking)',
+    order: 42,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--SMOKING',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Smoking',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To cut back on smoking, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--SMOKING',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Weed).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-weed',
+    name: 'Habits (Weed)',
+    order: 43,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--WEED',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Weed',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To cut back on weed, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--WEED',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Alcohol).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-alcohol',
+    name: 'Habits (Alcohol)',
+    order: 44,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--ALCOHOL',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Alcohol',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To cut back on alcohol, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--ALCOHOL',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Porn).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-porn',
+    name: 'Habits (Porn)',
+    order: 45,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--PORN',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Porn',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To cut back on porn, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--PORN',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Phone use).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-phone-use',
+    name: 'Habits (Phone use)',
+    order: 46,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--PHONE-USE',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Phone use',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To cut back on phone use, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--PHONE-USE',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Late-night snacking).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-late-snacking',
+    name: 'Habits (Late-night snacking)',
+    order: 47,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--LATE-SNACKING',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Late-night snacking',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words:
+          "To cut back on late-night snacking, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--LATE-SNACKING',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Caffeine).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-caffeine',
+    name: 'Habits (Caffeine)',
+    order: 48,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--CAFFEINE',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Caffeine',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To cut back on caffeine, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--CAFFEINE',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Stay on top of tasks).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-stay-on-tasks',
+    name: 'Habits (Stay on top of tasks)',
+    order: 49,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--STAY-ON-TASKS',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Stay on top of tasks',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To stay on top of your tasks, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--STAY-ON-TASKS',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Keep spaces tidy).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-tidy-spaces',
+    name: 'Habits (Keep spaces tidy)',
+    order: 50,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--TIDY-SPACES',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Keep spaces tidy',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To keep your spaces tidy, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--TIDY-SPACES',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
+    // L3: per-goal habit-pick opener. Resolves by the goal picked (Handle life admin better).
+    // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
+    id: 'habits-life-admin',
+    name: 'Habits (Handle life admin better)',
+    order: 51,
+    path: 'beginner',
+    type: 'habit-picker',
+    screenId: 'ONBOARD-BEGINNER-03--LIFE-ADMIN',
+    context:
+      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
+    allowedTools: 'add_habit, remove_habit, advance_step',
+    expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: {
+      goal: 'Handle life admin better',
+    },
+    elements: ['createOwn'],
+    script: [
+      {
+        seq: 1,
+        words: "To handle life admin better, let's pick a habit or two you'll actually keep.",
+        bindsTo: {
+          kind: 'bubble',
+          element: 'opener',
+          screen: 'ONBOARD-BEGINNER-03--LIFE-ADMIN',
+        },
+        voice: 'mp3',
+        clip: null,
+        clipPath: null,
+      },
+    ],
+  },
+  {
     id: 'habit-custom',
     name: 'Create your own habit',
-    order: 23,
+    order: 52,
     path: 'beginner',
     type: 'custom-entry',
     screenId: 'ONBOARD-BEGINNER-03-CUSTOM',
@@ -1135,7 +2151,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'schedule',
     name: 'Habit schedule',
-    order: 24,
+    order: 53,
     path: 'beginner',
     type: 'habit-schedule',
     screenId: 'ONBOARD-BEGINNER-04',
@@ -1190,7 +2206,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'advanced-capture',
     name: 'Advanced capture',
-    order: 25,
+    order: 54,
     path: 'advanced',
     type: 'advanced-capture',
     screenId: 'ONBOARD-ADVANCED',
@@ -1246,7 +2262,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'advanced-frequency',
     name: 'Advanced frequency',
-    order: 26,
+    order: 55,
     path: 'advanced',
     type: 'advanced-frequency',
     screenId: 'ONBOARD-ADVANCED-FREQUENCY',
@@ -1313,7 +2329,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'plan',
     name: 'Plan confirm',
-    order: 27,
+    order: 56,
     path: 'both',
     type: 'into-app',
     screenId: 'ONBOARD-COMPLETE',
@@ -1344,7 +2360,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-blank',
     name: 'Weekly projection (blank)',
-    order: 28,
+    order: 57,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-BLANK',
@@ -1376,7 +2392,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-full',
     name: 'Weekly projection (full)',
-    order: 29,
+    order: 58,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-FULL',
@@ -1408,7 +2424,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-p78',
     name: 'Weekly projection (78%)',
-    order: 30,
+    order: 59,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-P78',
@@ -1441,7 +2457,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-p36',
     name: 'Weekly projection (36%)',
-    order: 31,
+    order: 60,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-P36',
@@ -1474,7 +2490,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-gaps',
     name: 'Weekly projection (gaps)',
-    order: 32,
+    order: 61,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-GAPS',
