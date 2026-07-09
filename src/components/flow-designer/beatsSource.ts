@@ -96,6 +96,27 @@ export interface BibleDecision {
   readonly binds: boolean;
   readonly how: string;
 }
+
+// The 14-key uniform section shape (Yair/conductor 2026-07-09, LOCKED): every
+// beat with a bible declares ALL of these, no optional-by-omission sections.
+export type BibleSectionKey =
+  | 'identity'
+  | 'scriptMeta'
+  | 'components'
+  | 'voice'
+  | 'rulesContext'
+  | 'rulesCode'
+  | 'conversation'
+  | 'contextProse'
+  | 'allowedTools'
+  | 'persistence'
+  | 'flow'
+  | 'edges'
+  | 'acceptance'
+  | 'applicableDecisions';
+// na = short reason a section does not apply to this beat's type.
+export type SectionFillStatus = 'filled' | 'pending-app-reconcile' | { readonly na: string };
+
 export interface BibleSections {
   readonly identity?: {
     readonly rows: readonly BibleKV[];
@@ -166,6 +187,8 @@ export interface BibleSections {
     readonly enforcedBy: readonly string[];
     readonly status?: SourceStatus;
   };
+  // uniform shape (Yair/conductor 2026-07-09): every beat declares ALL sections; non-applicable = explicit na + reason, never silently absent
+  readonly sectionManifest: Readonly<Record<BibleSectionKey, SectionFillStatus>>;
 }
 
 export interface BeatEntry {
@@ -1161,6 +1184,42 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           enforcedBy: ['id-alias-check'],
         },
       ],
+      // section 13 - multi-turn conversation model (scripted prompts only, Yair 2026-07-09)
+      conversation: {
+        opens: 'after the opener bubble and the tiles reveal (ask what they most want to work on)',
+        branches: [
+          {
+            on: 'names or taps one valid category',
+            reply: 'none (silent after pick); map to the exact label',
+            then: 'tool:submit_category',
+          },
+          {
+            on: 'names two or more',
+            reply: 'scripted: "Which feels most urgent right now?"',
+            then: 'wait',
+          },
+          {
+            on: 'names something off-list',
+            reply:
+              'scripted: "You can create your own for that. Want to?" (routes to the create-your-own tile)',
+            then: 'wait',
+          },
+          {
+            on: 'unsure / cannot decide',
+            reply:
+              'scripted help-you-decide prompt set (e.g. "What\'s been weighing on you most lately?"); yields the instant they lean toward one',
+            then: 'wait',
+          },
+          {
+            on: 'off-topic or world question',
+            reply:
+              'global rule glob-out-of-scope: one brief acknowledgement, steer back with the category question',
+            then: 'wait',
+          },
+        ],
+        maxTurns: 4,
+        onMaxTurns: 'plain one-line re-ask of the category question and point to the tap path',
+      },
       contextProse: {
         prose:
           'Focus area. Collect one category. The opener shows as a coach bubble, then the category tiles appear (women-art illustration set). When the create-your-own option appears at the end, "Or you can create your own" is spoken verbal only. Ask what they most want to work on, then wait. If they are unsure, you can talk it through with them and help them land on one. If they name several, ask which feels most urgent. Keep the response specific to their pick.',
@@ -1315,6 +1374,22 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
         ],
         enforcedBy: ['decisions-coverage-check'],
+      },
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: 'filled',
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'filled',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
       },
     },
     script: [
@@ -3694,23 +3769,71 @@ export const BEAT_BY_SCREEN_ID: Record<string, BeatEntry> = Object.fromEntries(
   BEATS_SOURCE.filter((b) => b.screenId).map((b) => [b.screenId as string, b]),
 );
 
+// Identity (section 1) is GENERATED from the beat's own fields, never copied
+// from the head: beatId, order, path, type, screenId are per-beat facts, and
+// copying them from a variantOf head would silently misreport them.
+export function deriveVariantIdentity(beat: BeatEntry): NonNullable<BibleSections['identity']> {
+  return {
+    rows: [
+      { label: 'beatId (canonical)', value: beat.id },
+      { label: 'name', value: beat.name },
+      { label: 'order', value: String(beat.order) },
+      { label: 'path', value: beat.path },
+      { label: 'type', value: beat.type },
+    ],
+    aliases: [
+      { surface: 'screenId', value: beat.screenId ?? '(none)' },
+      { surface: 'route', value: 'generated at app-reconcile (alias map)' },
+      { surface: 'persisted current_step', value: beat.id },
+      { surface: 'session_log value', value: beat.id },
+      { surface: 'data-beat-id', value: beat.id },
+    ],
+    watchOut:
+      'GENERATED from this beat entry (variants never inherit identity); the alias map is the app-reconcile source.',
+    enforcedBy: ['id-alias-check'],
+    status: 'verified',
+  };
+}
+
 // Display-only resolver for variantOf inheritance (Yair 2026-07-09: beat + sub-beat,
-// no copying). One level, no chains: a sub-beat's own io/bible win if present, else
-// the head's. Pure function, no side effects.
+// no copying). One level, no chains: a sub-beat's own fields win per SECTION —
+// this is a per-key merge, not "sub-beat's bible or the head's bible" as a whole
+// (that older shape silently inherited the WRONG beatId/order/aliases/tiles/clip
+// on every filled variant). Identity is never taken from the head; it is always
+// either the sub-beat's own or freshly derived (deriveVariantIdentity). Pure
+// function, no side effects.
 export function resolveBeatStructure(id: string): {
   readonly io?: BeatIO;
   readonly bible?: BibleSections;
   readonly inheritedFrom?: string;
+  readonly inheritedSections?: readonly string[];
 } {
   const beat = BEAT_BY_ID[id];
   if (!beat) return {};
   if (!beat.variantOf) return { io: beat.io, bible: beat.bible };
   const head = BEAT_BY_ID[beat.variantOf];
   if (!head) return { io: beat.io, bible: beat.bible };
-  const ownHasSomething = Boolean(beat.io || beat.bible);
-  return {
-    io: beat.io ?? head.io,
-    bible: beat.bible ?? head.bible,
-    inheritedFrom: ownHasSomething ? undefined : beat.variantOf,
-  };
+
+  const io = beat.io ?? head.io;
+  const ioInherited = !beat.io && Boolean(head.io);
+
+  let bible: BibleSections | undefined;
+  let inheritedSections: readonly string[] = [];
+  if (head.bible || beat.bible) {
+    // Cast: at least one side is defined here (the `if` guard), so the spread
+    // always yields a complete BibleSections at runtime even though TS can't
+    // narrow that fact through the `||` check on two independently-optional values.
+    bible = {
+      ...head.bible,
+      ...beat.bible,
+      identity: beat.bible?.identity ?? deriveVariantIdentity(beat),
+    } as BibleSections;
+    inheritedSections = Object.keys(head.bible ?? {}).filter(
+      (key) => key !== 'identity' && !(beat.bible && key in beat.bible),
+    );
+  }
+
+  const inheritedFrom = ioInherited || inheritedSections.length > 0 ? beat.variantOf : undefined;
+
+  return { io, bible, inheritedFrom, inheritedSections };
 }
