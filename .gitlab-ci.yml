@@ -1,5 +1,41 @@
 stages:
   - sync
+  - verify
+
+# Render guards: the six static check families keeping beatsSource.ts the
+# render's one source (consistency, link-integrity, source-integrity,
+# id-alias, persistence-contract, decisions-coverage). REPORT MODE
+# (allow_failure: true) while render cleanup + the bible fill land: the
+# result shows on every render MR but does not block merge. The step-5
+# flip is allow_failure: false plus RENDER_GUARDS_STRICT: '1' (which also
+# makes unfilled bible sections fatal). Each family runs even if an
+# earlier one fails, so one red check cannot hide another.
+render_guards:
+  stage: verify
+  image: node:20
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+  interruptible: true
+  allow_failure: true
+  timeout: 15 minutes
+  variables:
+    npm_config_cache: '$CI_PROJECT_DIR/.npm'
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  script:
+    - npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
+    - failed=0
+    - npm run check:render || failed=1
+    - npm run check:links || failed=1
+    - npm run check:source-integrity || failed=1
+    - npm run check:id-alias || failed=1
+    - npm run check:persistence || failed=1
+    - npm run check:decisions || failed=1
+    - exit $failed
 
 voice-sync:
   stage: sync
