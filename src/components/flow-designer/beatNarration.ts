@@ -345,6 +345,10 @@ function playLine(line: ScriptLine, muted: boolean, onWord?: (n: number) => void
 // component line blooms its card row (verbal-only). Same stepReveal / elementReveal
 // / syncWords seam the annotated render and the recorded clips already drive, so
 // playback reads from script instead of the legacy narration/elements.
+// A choice grid can stagger at most this many tiles; the component caps to its
+// real option count, so ramping to this covers every category / goal.
+const GRID_TILE_MAX = 14;
+
 export async function runBeatScript(opts: {
   script: readonly ScriptLine[];
   muted: boolean;
@@ -352,8 +356,10 @@ export async function runBeatScript(opts: {
   setElementReveal: (n: number | null) => void;
   setSyncWords: (n: number | null) => void;
   shouldStop: () => boolean;
+  beatType?: string;
 }): Promise<void> {
-  const { script, muted, setStepReveal, setElementReveal, setSyncWords, shouldStop } = opts;
+  const { script, muted, setStepReveal, setElementReveal, setSyncWords, shouldStop, beatType } =
+    opts;
 
   const lines = [...script].sort((a, b) => a.seq - b.seq);
 
@@ -368,6 +374,41 @@ export async function runBeatScript(opts: {
   if (lines.length === 0) {
     setStepReveal(99);
     await wait(500);
+    return;
+  }
+
+  // Choice grids (category / goals / habits pickers): the opener is a long clip,
+  // so the option tiles must NOT stagger in on a fixed timer while it plays. Speak
+  // the opener bubble(s) fully first, THEN reveal the grid and bloom the tiles,
+  // gated on the opener clip END (not a fixed wait). Any component line (e.g. the
+  // "create your own" nudge) speaks verbal-only after the tiles are in.
+  if (beatType && kindOf(beatType) === 'grid') {
+    const bubbles = lines.filter((l) => scriptTarget(l).bubbleStep != null);
+    const rest = lines.filter((l) => scriptTarget(l).bubbleStep == null);
+    for (const line of bubbles) {
+      if (shouldStop()) return;
+      const step = scriptTarget(line).bubbleStep ?? 1;
+      setStepReveal(step);
+      setSyncWords(0);
+      await playLine(line, muted, (n) => setSyncWords(n));
+      setSyncWords(null);
+      await wait(120);
+    }
+    if (shouldStop()) return;
+    // Opener done: reveal the grid step, then bloom the tiles one by one.
+    setStepReveal(99);
+    await wait(160);
+    for (let k = 1; k <= GRID_TILE_MAX; k += 1) {
+      if (shouldStop()) return;
+      setElementReveal(k);
+      await wait(300);
+    }
+    for (const line of rest) {
+      if (shouldStop()) return;
+      if (line.words) await playLine(line, muted);
+      await wait(120);
+    }
+    await wait(400);
     return;
   }
 

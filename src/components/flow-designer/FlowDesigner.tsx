@@ -1314,6 +1314,7 @@ function PlayableBeat({
           setElementReveal,
           setSyncWords,
           shouldStop: () => cancelled || run !== runRef.current,
+          beatType: beat.type,
         });
       } else {
         // Beats without a script[] (hand-authored check-in beats): drive the
@@ -1378,16 +1379,45 @@ function PlayableBeat({
 // screenId, copy, and clip, still validated by the render guards and still
 // resolved at runtime. Collapsed by default (reads as concepts); expand to
 // inspect every variation exactly as before.
-type ConceptKey = 'goals' | 'habits';
+export type ConceptKey = 'goals' | 'habits';
 
-function conceptOf(beat: FlowBeat): ConceptKey | null {
-  if (beat.type === 'goals-list' && beat.id.startsWith('goals-')) return 'goals';
-  if (beat.type === 'habit-picker' && beat.id.startsWith('habits-') && beat.id !== 'habits')
-    return 'habits';
+// A beat belongs to a concept if it is one of the per-selection variants of that
+// concept. Every goals-list beat is a category opener; every habit-picker beat is
+// a goal opener, INCLUDING the generic 'habits' fallback (order 22) whose screen
+// is the same habit-picker as the per-goal variants — folding it in stops the
+// generic + first per-goal beats double-rendering the picker back to back.
+export function conceptOf(beat: FlowBeat): ConceptKey | null {
+  if (beat.type === 'goals-list') return 'goals';
+  if (beat.type === 'habit-picker') return 'habits';
   return null;
 }
 
-const CONCEPT_META: Record<ConceptKey, { title: string; sub: string }> = {
+// Coalesce a flow into concept runs: each contiguous run of same-concept variant
+// beats becomes one group; every other beat is a run of one with concept null.
+// Shared by the annotated stack (FlowPhoneFrame) and #play (FlowPlay) so a variant
+// screen renders ONCE in both, never N times in a row.
+export interface ConceptRun {
+  concept: ConceptKey | null;
+  beats: FlowBeat[];
+  start: number;
+}
+export function buildConceptRuns(beats: FlowBeat[]): ConceptRun[] {
+  const runs: ConceptRun[] = [];
+  for (let i = 0; i < beats.length; ) {
+    const concept = conceptOf(beats[i]);
+    if (concept) {
+      const start = i;
+      while (i < beats.length && conceptOf(beats[i]) === concept) i += 1;
+      runs.push({ concept, beats: beats.slice(start, i), start });
+    } else {
+      runs.push({ concept: null, beats: [beats[i]], start: i });
+      i += 1;
+    }
+  }
+  return runs;
+}
+
+export const CONCEPT_META: Record<ConceptKey, { title: string; sub: string }> = {
   goals: {
     title: 'Goals — category opener',
     sub: 'One concept. The opener copy and clip resolve at runtime from the category the user picked.',
@@ -1399,14 +1429,14 @@ const CONCEPT_META: Record<ConceptKey, { title: string; sub: string }> = {
 };
 
 // The label to flip variations by: the category the user picked (goals) or the
-// goal they picked (habits).
-function variationLabel(b: FlowBeat): string {
-  return b.props?.category ?? b.props?.goal ?? b.id;
+// goal they picked (habits). The generic habit-picker (no goal yet) reads as such.
+export function variationLabel(b: FlowBeat): string {
+  return b.props?.category ?? b.props?.goal ?? (b.id === 'habits' ? 'Any goal (generic)' : b.id);
 }
 
 // A variation's opener line, read straight off the one source by screenId, so the
 // openers list matches exactly what the phone + script panel show.
-function conceptOpener(b: FlowBeat): string {
+export function conceptOpener(b: FlowBeat): string {
   return scriptOpener(b.screenId ? ENTRY_BY_SCREEN_ID[b.screenId] : undefined);
 }
 
@@ -1692,27 +1722,19 @@ function FlowPhoneFrame({
 
   // Walk the flow, coalescing each contiguous run of same-concept variation beats
   // into one collapsible ConceptGroup, leaving every other beat as its own row.
-  const rows: ReactNode[] = [];
-  for (let i = 0; i < beats.length; ) {
-    const concept = conceptOf(beats[i]);
-    if (concept) {
-      const start = i;
-      while (i < beats.length && conceptOf(beats[i]) === concept) i += 1;
-      const groupBeats = beats.slice(start, i);
-      rows.push(
-        <ConceptGroup
-          key={`concept-${concept}-${start}`}
-          concept={concept}
-          beats={groupBeats}
-          startIndex={start}
-          renderRow={beatRow}
-        />,
-      );
-    } else {
-      rows.push(beatRow(beats[i], i));
-      i += 1;
-    }
-  }
+  const rows: ReactNode[] = buildConceptRuns(beats).map((run) =>
+    run.concept ? (
+      <ConceptGroup
+        key={`concept-${run.concept}-${run.start}`}
+        concept={run.concept}
+        beats={run.beats}
+        startIndex={run.start}
+        renderRow={beatRow}
+      />
+    ) : (
+      beatRow(run.beats[0], run.start)
+    ),
+  );
 
   return (
     <div style={{ width: frameWidth, maxWidth: '100%', margin: '0 auto' }}>

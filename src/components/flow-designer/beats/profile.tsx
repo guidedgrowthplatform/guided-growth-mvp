@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
+import { useEffect, useState } from 'react';
 import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
@@ -62,21 +62,39 @@ function ProfileBeat(props?: Record<string, string>) {
     setGender(propGender);
   }, [propGender]);
 
-  const steps: BeatStep[] = [
-    {
+  // The profile beat is split in two: the greeting beat sets `greeting` and leaves
+  // the asks empty; the asks beat leaves `greeting` empty and sets the questions.
+  // An explicitly-empty string means "this half isn't mine" — hide that step so
+  // the greeting beat does NOT also render the age/gender pickers (the split would
+  // otherwise double-render them). Undefined props (the standalone canvas) keep
+  // the whole form.
+  const showGreeting = props?.greeting !== '';
+  const showAge = props?.askAge !== '';
+  const showGender = props?.askGender !== '';
+  const showAsks = showAge || showGender;
+
+  const steps: BeatStep[] = [];
+  if (showGreeting) {
+    steps.push({
       id: 'greet',
       speaker: 'coach',
       // {name} is substituted at runtime from the sign-up auth profile (Cartesia speaks it).
       // The real copy comes from beatContexts.ts; this is a placeholder that keeps the name.
-      say: props?.greeting ?? 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
-    },
-    {
+      say:
+        props?.greeting ??
+        'Good to meet you, {name}. Two quick things so I can tailor this to you.',
+    });
+  }
+  if (showAge) {
+    steps.push({
       id: 'age',
       speaker: 'coach',
       say: props?.askAge ?? 'How old are you?',
       render: <AgeScrollPicker key={propAge} value={age} onChange={setAge} />,
-    },
-    {
+    });
+  }
+  if (showGender) {
+    steps.push({
       id: 'gender',
       speaker: 'coach',
       say: props?.askGender ?? "What's your gender?",
@@ -89,10 +107,12 @@ function ProfileBeat(props?: Record<string, string>) {
           columns={3}
         />
       ),
-    },
-    { id: 'voice-hint', speaker: 'coach', render: <VoiceOpenHint /> },
-    { id: 'reply', speaker: 'user', say: props?.userReply ?? "I'm 35, and I'm male." },
-  ];
+    });
+  }
+  if (showAsks) {
+    steps.push({ id: 'voice-hint', speaker: 'coach', render: <VoiceOpenHint /> });
+    steps.push({ id: 'reply', speaker: 'user', say: props?.userReply ?? "I'm 35, and I'm male." });
+  }
 
   return <BeatPlayer steps={steps} />;
 }

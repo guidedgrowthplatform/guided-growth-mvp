@@ -5,7 +5,13 @@ import { orbIdle, orbSpeaking } from '@/components/orb/orbView';
 import { SpokenWordsCtx } from './beatKit';
 import { runBeatScript, stopSpeech } from './beatNarration';
 import { COACH_BG } from './beats/_beatStyle';
-import { BEATS, IsolatedBeat } from './FlowDesigner';
+import {
+  BEATS,
+  IsolatedBeat,
+  buildConceptRuns,
+  CONCEPT_META,
+  variationLabel,
+} from './FlowDesigner';
 
 // Play mode: runs the real onboarding beats in order in a single phone, speaking
 // each opener and per-element line with the browser voice (a stand-in for the
@@ -14,9 +20,18 @@ import { BEATS, IsolatedBeat } from './FlowDesigner';
 // played instead of stacked. The reveal seam is the same one the recorded MP3
 // clips will drive later: stepReveal (BeatPlayer steps) + elementReveal (per-
 // element bloom), both fed here off the spoken line.
+//
+// A category / goal opener is authored as one beat per selection, so playing the
+// raw beat list would render the same picker screen 8 (or 30) times in a row.
+// Instead Play walks CONCEPT RUNS: each run of same-concept variants is ONE step
+// with a variation switcher, so a variant screen plays ONCE and the user flips
+// between the openers in place, the same model as the annotated concept groups.
+const PLAY_RUNS = buildConceptRuns(BEATS);
 
 export function FlowPlay() {
-  const [idx, setIdx] = useState(0);
+  // The play step (a concept run), and, per run, which variation is selected.
+  const [itemIdx, setItemIdx] = useState(0);
+  const [sel, setSel] = useState<Record<number, number>>({});
   const [stepReveal, setStepReveal] = useState<number | null>(99);
   const [elementReveal, setElementReveal] = useState<number | null>(null);
   // Number of words the voice has spoken in the current bubble, or null when not
@@ -35,12 +50,26 @@ export function FlowPlay() {
   mutedRef.current = muted;
   const autoplayRef = useRef(false);
   autoplayRef.current = autoplay;
+  // The picked variation per run, read inside the async play loop.
+  const selRef = useRef<Record<number, number>>({});
+  selRef.current = sel;
   // The scrollable chat stage. As lines and cards bloom in, keep it pinned to the
   // bottom so the newest content pushes up like a real chat instead of running off
   // below the fold.
   const stageRef = useRef<HTMLDivElement>(null);
 
-  const beat = BEATS[idx];
+  // Resolve one play step to the beat that actually renders/plays: a concept run
+  // resolves to its selected variation; every other run is a single beat.
+  function beatOf(i: number): (typeof BEATS)[number] {
+    const runItem = PLAY_RUNS[i];
+    if (!runItem) return BEATS[0];
+    const s = runItem.concept ? Math.min(selRef.current[i] ?? 0, runItem.beats.length - 1) : 0;
+    return runItem.beats[s];
+  }
+
+  const item = PLAY_RUNS[itemIdx];
+  const selIdx = item?.concept ? Math.min(sel[itemIdx] ?? 0, item.beats.length - 1) : 0;
+  const beat = item ? item.beats[selIdx] : BEATS[0];
 
   useEffect(
     () => () => {
@@ -54,10 +83,10 @@ export function FlowPlay() {
   useEffect(() => {
     const el = stageRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [stepReveal, elementReveal, syncWords, idx, nonce]);
+  }, [stepReveal, elementReveal, syncWords, itemIdx, selIdx, nonce]);
 
-  async function playBeat(i: number, run: number) {
-    const b = BEATS[i];
+  async function playStep(i: number, run: number) {
+    const b = beatOf(i);
     // The one shared driver, reading straight off the beat's script[].
     await runBeatScript({
       script: b.script ?? [],
@@ -66,6 +95,7 @@ export function FlowPlay() {
       setElementReveal,
       setSyncWords,
       shouldStop: () => run !== runRef.current,
+      beatType: b.type,
     });
   }
 
@@ -73,12 +103,12 @@ export function FlowPlay() {
     const run = ++runRef.current;
     stopSpeech();
     setPlaying(true);
-    for (let i = start; i < BEATS.length; i++) {
+    for (let i = start; i < PLAY_RUNS.length; i++) {
       if (run !== runRef.current) return;
-      setIdx(i);
-      await playBeat(i, run);
+      setItemIdx(i);
+      await playStep(i, run);
       if (run !== runRef.current) return;
-      // Autoplay off: hold on this beat. On: roll into the next.
+      // Autoplay off: hold on this step. On: roll into the next.
       if (!autoplayRef.current) {
         setPlaying(false);
         return;
@@ -91,16 +121,23 @@ export function FlowPlay() {
     playFrom(0);
   }
   function onPrev() {
-    playFrom(Math.max(idx - 1, 0));
+    playFrom(Math.max(itemIdx - 1, 0));
   }
   function onNext() {
-    playFrom(Math.min(idx + 1, BEATS.length - 1));
+    playFrom(Math.min(itemIdx + 1, PLAY_RUNS.length - 1));
   }
-  // Replay the current beat from zero: remount it fresh and run its sync again.
+  // Replay the current step from zero: remount it fresh and run its sync again.
   // With autoplay off it holds after; with autoplay on it rolls forward.
   function onReplayBeat() {
     setNonce((n) => n + 1);
-    playFrom(idx);
+    playFrom(itemIdx);
+  }
+  // Flip to another variation of the current concept run and replay it in place.
+  function pickVariation(v: number) {
+    setSel((m) => ({ ...m, [itemIdx]: v }));
+    selRef.current = { ...selRef.current, [itemIdx]: v };
+    setNonce((n) => n + 1);
+    playFrom(itemIdx);
   }
 
   const btn = (primary?: boolean): CSSProperties => ({
@@ -187,9 +224,69 @@ export function FlowPlay() {
           Mute voice
         </label>
         <span style={{ fontSize: 12, color: '#94a3b8' }}>
-          {idx + 1} / {BEATS.length} · {beat.screenId ?? beat.id}
+          {itemIdx + 1} / {PLAY_RUNS.length} · {beat.screenId ?? beat.id}
         </span>
       </div>
+
+      {/* Variation switcher: shown only on a concept step (category / goal
+          opener). Flip which category/goal plays on this one screen, in place. */}
+      {item?.concept && (
+        <div
+          style={{
+            maxWidth: 520,
+            margin: '0 auto 14px',
+            display: 'flex',
+            gap: 10,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#475569' }}>
+            {CONCEPT_META[item.concept].title}
+          </span>
+          <button
+            type="button"
+            style={btn()}
+            onClick={() => pickVariation((selIdx - 1 + item.beats.length) % item.beats.length)}
+            aria-label="Previous variation"
+          >
+            ◀
+          </button>
+          <select
+            value={selIdx}
+            onChange={(e) => pickVariation(Number(e.target.value))}
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#0f172a',
+              padding: '7px 10px',
+              borderRadius: 10,
+              border: '1px solid #cbd5e1',
+              background: '#fff',
+              cursor: 'pointer',
+              maxWidth: 260,
+            }}
+          >
+            {item.beats.map((b, i) => (
+              <option key={b.id} value={i}>
+                {i + 1}. {variationLabel(b)}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            style={btn()}
+            onClick={() => pickVariation((selIdx + 1) % item.beats.length)}
+            aria-label="Next variation"
+          >
+            ▶
+          </button>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>
+            variation {selIdx + 1} / {item.beats.length}
+          </span>
+        </div>
+      )}
 
       <div
         style={{
@@ -291,7 +388,7 @@ export function FlowPlay() {
           >
             <SpokenWordsCtx.Provider value={syncWords}>
               <IsolatedBeat
-                key={`${beat.id}-${nonce}`}
+                key={`${beat.id}-${selIdx}-${nonce}`}
                 type={beat.type}
                 props={beat.props}
                 animated
