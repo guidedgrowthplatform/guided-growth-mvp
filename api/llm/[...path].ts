@@ -83,6 +83,14 @@ const TOOL_FAILURE_BAN_LIMIT = 2;
 // noInternalNarrationRule.ts.
 const TOOL_CAP_FALLBACK_TEXT = "I couldn't quite get that saved just now. Mind trying again?";
 const ONBOARDING_MODEL = process.env.ONBOARDING_LLM_MODEL || 'gpt-4o';
+// Cost fix: onboarding no longer forces gpt-4o on every turn. Only turns that
+// actually offer tools (the beat's allowedTools is non-empty and this isn't an
+// opener, which never carries onboarding tools — see getCheckinOpenerTools)
+// get the full model; everything else (silent/no-tool beats, openers) uses
+// the same mini tier every other screen already gets. Tool-CAPABILITY (tools
+// offered this turn) is the proxy — true intent-to-call isn't knowable before
+// the model responds.
+const ONBOARDING_MINI_MODEL = process.env.ONBOARDING_LLM_MINI_MODEL || 'gpt-4o-mini';
 const FORK_SCREEN_ID = 'ONBOARD-FORK--FORM';
 // Onboarding turns emit tool JSON (add_habit / update_habit / advance_step,
 // sometimes several per turn on the habit beats) ON TOP of the coach's text.
@@ -292,7 +300,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     debugRequested ? { debug: { stage, class: (err as { name?: string } | undefined)?.name } } : {};
 
   const isOnboardingScreen = screenId.startsWith('ONBOARD-');
-  const requestModel: string | undefined = isOnboardingScreen ? ONBOARDING_MODEL : undefined;
+  // Tool-capability proxy for the cost policy above: an opener never carries
+  // onboarding tools (getCheckinOpenerTools only serves ECHECK-01/MCHECK-01,
+  // so an ONBOARD-* opener resolves to undefined tools further down), and a
+  // chat-mode beat with an empty allowedTools (e.g. the silent auth beat)
+  // exposes none either. Everything else that has a non-empty allowedTools
+  // list keeps the full model.
+  const isOnboardingToolCapableTurn =
+    isOnboardingScreen && mode === 'chat' && (getOnboardingTools(screenId)?.length ?? 0) > 0;
+  const requestModel: string | undefined = isOnboardingScreen
+    ? isOnboardingToolCapableTurn
+      ? ONBOARDING_MODEL
+      : ONBOARDING_MINI_MODEL
+    : undefined;
   // Onboarding captures real name/age/brain-dump — scrubbing would destroy the
   // signal. Stored raw in chat_messages (see CLAUDE.md gotcha #8).
   const scrubbedMessage = isOnboardingScreen ? userMessage : scrubPII(userMessage);

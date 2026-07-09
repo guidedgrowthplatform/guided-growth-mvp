@@ -663,6 +663,66 @@ describe('LLM route — onboarding model + fork tool-choice forcing', () => {
     expect(o.model).toBeUndefined();
     expect(o.toolChoice).toBeUndefined();
   });
+
+  // Onboarding LLM cost fix: gpt-4o only on tool-capable onboarding turns,
+  // gpt-4o-mini everywhere else in onboarding. Tool-capability is derived
+  // from the beat's allowedTools (ONBOARD-AUTH--FORM is authored with an
+  // empty allow-list) and from mode (an opener never carries onboarding
+  // tools regardless of the beat's allow-list).
+  it('uses gpt-4o-mini on a no-tool onboarding beat (ONBOARD-AUTH--FORM, empty allowedTools)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ foreign_owned: false, prev_response_id: null }],
+    });
+    pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
+    (openResponsesStream as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      completedOnly(),
+    );
+    const { client } = makeClient();
+    pool.connect.mockResolvedValue(client);
+
+    await handler(
+      mockReq({
+        session_id: 'sess-abcd1234',
+        screen_id: 'ONBOARD-AUTH--FORM',
+        user_message: 'hi',
+        chat_session_id: CHAT_SESSION_ID,
+        user_turn_id: USER_TURN_ID,
+      }),
+      mockRes(),
+    );
+
+    const o = firstStreamOpts();
+    expect(o.model).toBe('gpt-4o-mini');
+    expect(o.tools?.length ?? 0).toBe(0);
+  });
+
+  it('uses gpt-4o-mini on an onboarding opener turn (openers never carry onboarding tools)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ foreign_owned: false, prev_response_id: null }],
+    });
+    pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
+    (openResponsesStream as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      completedOnly(),
+    );
+    const { client } = makeClient();
+    pool.connect.mockResolvedValue(client);
+
+    await handler(
+      mockReq({
+        session_id: 'sess-abcd1234',
+        screen_id: 'ONBOARD-01--FORM',
+        mode: 'opener',
+        chat_session_id: CHAT_SESSION_ID,
+      }),
+      mockRes(),
+    );
+
+    const o = firstStreamOpts();
+    expect(o.model).toBe('gpt-4o-mini');
+    expect(o.tools?.length ?? 0).toBe(0);
+  });
 });
 
 describe('LLM route — check-in opener starts a fresh response chain', () => {
