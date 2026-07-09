@@ -1,8 +1,8 @@
 import { Clock, Pencil } from 'lucide-react';
+import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
 import { Button } from '@/components/ui/Button';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { formatTime12 } from '@/components/ui/TimePicker';
-import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY, SECTION_LABEL, SPACE } from './_beatStyle';
@@ -64,8 +64,12 @@ function FullPlanBeat(props?: Record<string, string>) {
 
   // Times: prefer real values lifted from the morning and evening beats, fall
   // back to props (custom preview), then a default so the static tile reads full.
-  const morningTime = flow?.morningTime ? formatTime12(flow.morningTime) : (props?.morningTime ?? '8:00 AM');
-  const eveningTime = flow?.eveningTime ? formatTime12(flow.eveningTime) : (props?.eveningTime ?? '9:30 PM');
+  const morningTime = flow?.morningTime
+    ? formatTime12(flow.morningTime)
+    : (props?.morningTime ?? '8:00 AM');
+  const eveningTime = flow?.eveningTime
+    ? formatTime12(flow.eveningTime)
+    : (props?.eveningTime ?? '9:30 PM');
 
   // Habits: real selections in Play, sample on the static canvas.
   const habitNames = flow && flow.habits.length > 0 ? flow.habits : SAMPLE_HABITS;
@@ -99,10 +103,24 @@ function FullPlanBeat(props?: Record<string, string>) {
     </div>
   );
 
-  const approveButton = (
-    <div style={{ width: '100%', marginTop: SPACE.xs }}>
+  // L7: tap-path review buttons. Approve and start (primary) plus an edit button
+  // that opens the voice-driven add / edit / delete flow. On the voice path these
+  // are hidden and the user just says what they want.
+  const reviewButtons = (
+    <div
+      style={{
+        width: '100%',
+        marginTop: SPACE.xs,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: SPACE.xs,
+      }}
+    >
       <Button variant="primary" size="auth" fullWidth>
         {props?.buttonLabel ?? 'Approve and start'}
+      </Button>
+      <Button variant="secondary" size="auth" fullWidth>
+        {props?.buttonEditLabel ?? 'I want to change something'}
       </Button>
     </div>
   );
@@ -116,7 +134,7 @@ function FullPlanBeat(props?: Record<string, string>) {
         "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
     },
     { id: 'plan-card', speaker: 'coach', render: plan },
-    { id: 'approve', speaker: 'coach', render: approveButton },
+    { id: 'approve', speaker: 'coach', render: reviewButtons },
   ];
 
   return <BeatPlayer steps={steps} />;

@@ -113,7 +113,11 @@ function metadataPropsForBeat(type: string, screenId?: string): Record<string, s
         confirmCoachLine: bubbles[bubbles.length - 1] ?? '',
       };
     case 'into-app':
-      return { coachLine: opener, buttonLabel: entry.props?.buttonLabel ?? 'Approve and start' };
+      return {
+        coachLine: opener,
+        buttonLabel: entry.props?.buttonLabel ?? 'Approve and start',
+        buttonEditLabel: entry.props?.buttonEditLabel ?? 'I want to change something',
+      };
     case 'state-check':
     case 'morning-checkin-setup':
     case 'reflection-card':

@@ -2336,13 +2336,13 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'into-app',
     screenId: 'ONBOARD-COMPLETE',
     context:
-      'BEAT: Full plan.\n\nSPEAK MODE: VERBATIM_OPENER\n\nOne confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. Ask if it looks right or if they want to change anything. On approval, they enter the app. This is a high-investment moment, make the line real and specific, not generic.',
+      'BEAT: Full plan.\n\nSPEAK MODE: VERBATIM_OPENER\n\nOne confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. Ask if it looks right or if they want to change anything. On approval, they enter the app. This is a high-investment moment, make the line real and specific, not generic.\n\nBUTTONS (L7): tap path only. If the user is in voice, no buttons, they just say what they want. On the tap path, show two buttons, "Approve and start" and "I want to change something." Editing is voice-driven, the add / edit / delete component surfaces. Instrument users who never tap a button.',
     allowedTools: 'update_habit, confirm_plan',
     expectedResponse: 'Looks good, or an edit',
     voiceEngine: 'MP3',
     voiceMode: 'Verbatim',
     hideOrb: false,
-    props: { buttonLabel: 'Start' },
+    props: { buttonLabel: 'Approve and start', buttonEditLabel: 'I want to change something' },
     script: [
       {
         seq: 1,
