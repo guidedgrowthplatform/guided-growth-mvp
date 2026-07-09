@@ -1,0 +1,333 @@
+<title>Bible sample beat: category-women</title>
+<style>
+  :root {
+    --ground: #fbfbfc;
+    --surface: #ffffff;
+    --ink: #171a1d;
+    --muted: #5b6672;
+    --faint: #8a94a0;
+    --line: #e5e8ec;
+    --line-soft: #eef1f4;
+    --accent: #0e7490;
+    --accent-soft: #e0f2f5;
+    --pend-bg: #fdf0d5;
+    --pend-ink: #8a5a10;
+    --pend-line: #f0d69a;
+    --chip-bg: #f1f4f7;
+    --chip-ink: #3d4753;
+    --must: #b4531f;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #121417;
+      --surface: #191c20;
+      --ink: #e7eaed;
+      --muted: #9aa4af;
+      --faint: #6f7986;
+      --line: #2a2f35;
+      --line-soft: #23272c;
+      --accent: #2fb6cc;
+      --accent-soft: #103038;
+      --pend-bg: #2e2410;
+      --pend-ink: #e6bf74;
+      --pend-line: #4a3a17;
+      --chip-bg: #222831;
+      --chip-ink: #b9c2cc;
+      --must: #e08a52;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #fbfbfc; --surface: #ffffff; --ink: #171a1d; --muted: #5b6672; --faint: #8a94a0;
+    --line: #e5e8ec; --line-soft: #eef1f4; --accent: #0e7490; --accent-soft: #e0f2f5;
+    --pend-bg: #fdf0d5; --pend-ink: #8a5a10; --pend-line: #f0d69a; --chip-bg: #f1f4f7; --chip-ink: #3d4753; --must: #b4531f;
+  }
+  :root[data-theme="dark"] {
+    --ground: #121417; --surface: #191c20; --ink: #e7eaed; --muted: #9aa4af; --faint: #6f7986;
+    --line: #2a2f35; --line-soft: #23272c; --accent: #2fb6cc; --accent-soft: #103038;
+    --pend-bg: #2e2410; --pend-ink: #e6bf74; --pend-line: #4a3a17; --chip-bg: #222831; --chip-ink: #b9c2cc; --must: #e08a52;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, .mono { font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; }
+
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px 96px; }
+
+  header.top {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: saturate(140%) blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .top-inner { max-width: 860px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .top-inner .brand { font-weight: 640; letter-spacing: -0.01em; }
+  .top-inner .brand .beat { color: var(--accent); font-family: ui-monospace, Menlo, monospace; font-size: 0.9em; }
+  nav.jump { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; }
+  nav.jump a { color: var(--muted); text-decoration: none; font-variant-numeric: tabular-nums; }
+  nav.jump a:hover { color: var(--accent); }
+
+  .hero { padding: 44px 0 8px; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--accent); font-weight: 620; }
+  h1 { font-size: 30px; line-height: 1.2; letter-spacing: -0.02em; margin: 12px 0 10px; text-wrap: balance; }
+  .lede { color: var(--muted); font-size: 17px; max-width: 62ch; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 22px 0 6px; font-size: 13px; color: var(--muted); align-items: center; }
+  .legend .pend { background: var(--pend-bg); color: var(--pend-ink); border: 1px solid var(--pend-line); padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em; }
+  .legend .enf { background: var(--chip-bg); color: var(--chip-ink); border-radius: 6px; padding: 1px 7px; font-size: 12px; }
+
+  section.beat { padding-top: 30px; }
+  .sec-head { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+  .num { flex: none; width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-family: ui-monospace, Menlo, monospace; font-weight: 640; font-size: 14px; }
+  .sec-head h2 { font-size: 18px; margin: 0; letter-spacing: -0.01em; flex: 1 1 auto; }
+  .sec-head h2 .k { font-family: ui-monospace, Menlo, monospace; color: var(--accent); font-size: 0.86em; }
+  .enf-badge { flex: none; font-size: 11.5px; color: var(--muted); background: var(--chip-bg); border-radius: 6px; padding: 3px 9px; }
+  .enf-badge b { color: var(--chip-ink); font-weight: 600; }
+
+  p.note { color: var(--muted); font-size: 14.5px; margin: 6px 0 12px; }
+  p.watch { color: var(--must); font-size: 13.5px; margin: 8px 0 0; }
+  p.watch::before { content: "flag "; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10.5px; font-weight: 700; margin-right: 4px; opacity: 0.75; }
+
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  thead th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); font-weight: 640; background: color-mix(in srgb, var(--surface) 70%, var(--ground)); position: sticky; top: 0; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.k, td .k { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--accent); white-space: nowrap; }
+  td code { font-size: 12.5px; background: var(--chip-bg); padding: 1px 5px; border-radius: 4px; }
+  .pend { background: var(--pend-bg); color: var(--pend-ink); border: 1px solid var(--pend-line); padding: 0 6px; border-radius: 5px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .sev { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--must); }
+  .enf-cell { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+
+  blockquote { margin: 4px 0 0; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 8px 8px 0; color: var(--ink); font-size: 14.5px; }
+
+  ol.watchouts { counter-reset: w; list-style: none; padding: 0; margin: 14px 0 0; display: flex; flex-direction: column; gap: 12px; }
+  ol.watchouts li { counter-increment: w; position: relative; padding: 12px 14px 12px 44px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-size: 14px; }
+  ol.watchouts li::before { content: counter(w); position: absolute; left: 12px; top: 12px; width: 22px; height: 22px; border-radius: 6px; background: color-mix(in srgb, var(--must) 16%, transparent); color: var(--must); display: grid; place-items: center; font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 700; }
+  ol.watchouts li b { font-weight: 640; }
+
+  .foot { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--faint); font-size: 13px; }
+  a { color: var(--accent); }
+  @media (max-width: 620px) { h1 { font-size: 25px; } nav.jump { display: none; } .hero { padding-top: 30px; } }
+</style>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">Bible sample &nbsp;<span class="beat">category-women</span></div>
+    <nav class="jump">
+      <a href="#s1">01</a><a href="#s2">02</a><a href="#s3">03</a><a href="#s4">04</a><a href="#s5">05</a><a href="#s6">06</a><a href="#s7">07</a><a href="#s8">08</a><a href="#s9">09</a><a href="#s10">10</a><a href="#s11">11</a><a href="#s12">12</a><a href="#dec">dec</a><a href="#watch">flags</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">Shape sign-off · one beat, all 12 sections</div>
+    <h1>What every beat carries once the render is the source of truth</h1>
+    <p class="lede">This is one beat filled to the full 12-section contract, so you can approve the <strong>shape</strong> before it scales across all beats. The beat is <strong>category-women</strong>, picked because it is the richest one: verbatim opener, selectable tiles, a tool, a branch, eight coach rules, and it binds the women's-art decision. The words themselves are placeholders on your final copy. Every rule points at a real check, nothing is prose-only.</p>
+    <div class="legend">
+      <span><span class="pend">COPY-PENDING</span> waits on your final copy</span>
+      <span><span class="enf">enforcer</span> the check that proves the rule</span>
+    </div>
+  </div>
+
+  <section class="beat" id="s1">
+    <div class="sec-head"><div class="num">01</div><h2>identity <span class="k">.identity</span></h2><div class="enf-badge"><b>id-alias-check</b> · static</div></div>
+    <div class="scroll"><table>
+      <tbody>
+        <tr><td class="k">beatId</td><td><code>category-women</code> (the only unique key)</td></tr>
+        <tr><td class="k">name</td><td>Category (women's art)</td></tr>
+        <tr><td class="k">order</td><td>12</td></tr>
+        <tr><td class="k">path</td><td><code>beginner</code></td></tr>
+        <tr><td class="k">type</td><td><code>category-grid</code></td></tr>
+        <tr><td class="k">screenId</td><td><code>ONBOARD-BEGINNER-01</code></td></tr>
+        <tr><td class="k">route</td><td><code>/onboarding/beginner-01</code> (women-art variant)</td></tr>
+        <tr><td class="k">current_step</td><td><code>category-women</code></td></tr>
+        <tr><td class="k">session_log</td><td><code>category-women</code></td></tr>
+        <tr><td class="k">data-beat-id</td><td><code>category-women</code></td></tr>
+      </tbody>
+    </table></div>
+    <p class="watch"><code>category</code> and <code>category-women</code> SHARE screenId <code>ONBOARD-BEGINNER-01</code>. The render selects the variant by gender, not by screenId, so the alias-check must allow two beatIds on one screenId while keeping the rest of each beat's aliases unique.</p>
+  </section>
+
+  <section class="beat" id="s2">
+    <div class="sec-head"><div class="num">02</div><h2>script <span class="k">.script</span></h2><div class="enf-badge"><b>render-link-integrity</b> + <b>reveal-timing</b></div></div>
+    <p class="note">Ordered lines plus the two per-line fields that were missing and caused the beats-14-through-52 bug: reveal (does the bound component appear while the coach speaks, gated on the clip end) and timing (the karaoke caption). Reveal gates on the prior line's clip end, never a fixed timer.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>seq</th><th>words</th><th>binds to</th><th>clip</th><th>reveal</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>"Let's choose one area of your life that you'd like to improve on. Here are our recommended categories." <span class="pend">COPY-PENDING</span></td><td class="k">bubble-1</td><td class="k">onboard_beginner_01_1</td><td>opener bubble, no gate</td></tr>
+        <tr><td>2</td><td>(no spoken line)</td><td class="k">reveal-8</td><td>—</td><td>category tiles bloom, gated on seq 1 clip end</td></tr>
+        <tr><td>3</td><td>"Or you can create your own." <span class="pend">COPY-PENDING</span></td><td class="k">reveal-9</td><td class="k">create_your_own</td><td>create-your-own tile blooms, verbal only, not a bubble</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="beat" id="s3">
+    <div class="sec-head"><div class="num">03</div><h2>components <span class="k">.components</span></h2><div class="enf-badge"><b>component-registry-check</b> · static</div></div>
+    <div class="scroll"><table>
+      <tbody>
+        <tr><td class="k">component</td><td><code>category-grid</code></td></tr>
+        <tr><td class="k">variant</td><td><code>female</code> (from source props)</td></tr>
+        <tr><td class="k">tiles</td><td>8 category tiles: Sleep better, Move more, Eat better, Feel more energized, Reduce stress, Improve focus, Break bad habits, Get more organized <span class="pend">COPY-PENDING: confirm set + order</span>, plus a "Create your own" tile</td></tr>
+        <tr><td class="k">selection</td><td>single-select, no preselection</td></tr>
+        <tr><td class="k">state on entry</td><td>nothing selected; women's-art illustration set; create-your-own appears last (reveal-9)</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">The only structural difference from <code>category</code> is <code>variant: female</code>. Labels, count, and single-select behavior are identical. The rendered phone is a clean mirror a reviewer diffs against this section.</p>
+  </section>
+
+  <section class="beat" id="s4">
+    <div class="sec-head"><div class="num">04</div><h2>voice <span class="k">.voice</span></h2><div class="enf-badge"><b>audio-ownership-check</b> · static</div></div>
+    <div class="scroll"><table>
+      <thead><tr><th>seq</th><th>resolves to</th><th>live allowed?</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="k">onboard_beginner_01_1 (recorded clip)</td><td>no</td></tr>
+        <tr><td>2</td><td>silent reveal, no audio</td><td>n/a</td></tr>
+        <tr><td>3</td><td class="k">create_your_own (recorded clip)</td><td>no</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">engine MP3, mode Verbatim. No line here carries a live slot like <code>{name}</code>, so every spoken line must resolve to a recorded clip, none to live Cartesia.</p>
+  </section>
+
+  <section class="beat" id="s5">
+    <div class="sec-head"><div class="num">05</div><h2>rules.context <span class="k">coach behavior</span></h2><div class="enf-badge">one <b>QA-eval</b> per rule</div></div>
+    <p class="note">The coach-behavior lines that used to be buried in prose, lifted into discrete rules. Every rule names an eval, never null.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>rule</th><th>sev</th><th>enforcedBy</th></tr></thead>
+      <tbody>
+        <tr><td>Speaks the opener and create-your-own line verbatim, no improvised lead-in</td><td class="sev">must</td><td class="enf-cell">eval:verbatim-opener</td></tr>
+        <tr><td>Never reads the category tiles aloud, not one as an example</td><td class="sev">must</td><td class="enf-cell">eval:no-read-options</td></tr>
+        <tr><td>No praise after the pick ("great choice", "love that")</td><td class="sev">must</td><td class="enf-cell">eval:no-praise-pick</td></tr>
+        <tr><td>No reframe that undercuts the pick ("sleep isn't really the issue")</td><td class="sev">must</td><td class="enf-cell">eval:no-contrarian-turn</td></tr>
+        <tr><td>No per-category commentary or filler ("sleep is the foundation")</td><td class="sev">must</td><td class="enf-cell">eval:no-platitudes</td></tr>
+        <tr><td>After the opener, asks one short pointer question then waits</td><td class="sev">must</td><td class="enf-cell">eval:one-line-then-wait</td></tr>
+        <tr><td>Allows exactly one category; on two, asks which feels most urgent</td><td class="sev">must</td><td class="enf-cell">eval:single-select</td></tr>
+        <tr><td>If unsure, stays open and helps them land on one, no lecture</td><td class="sev">should</td><td class="enf-cell">eval:stay-open-unsure</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="beat" id="s6">
+    <div class="sec-head"><div class="num">06</div><h2>rules.code <span class="k">engine invariants</span></h2><div class="enf-badge">one <b>static check</b> per rule</div></div>
+    <div class="scroll"><table>
+      <thead><tr><th>rule</th><th>sev</th><th>enforcedBy</th></tr></thead>
+      <tbody>
+        <tr><td>Only <code>submit_category</code> and <code>advance_step</code> are callable</td><td class="sev">must</td><td class="enf-cell">tool-contract-check</td></tr>
+        <tr><td><code>advance_step</code> fires only after <code>submit_category</code> captured a valid category</td><td class="sev">must</td><td class="enf-cell">advance-gate-check</td></tr>
+        <tr><td>This variant renders only when gender == woman; all others get default <code>category</code></td><td class="sev">must</td><td class="enf-cell">component-registry-check</td></tr>
+        <tr><td>reveal-8 and reveal-9 gate on the prior clip end, never a timer</td><td class="sev">must</td><td class="enf-cell">reveal-timing-check</td></tr>
+        <tr><td>Every spoken line resolves to a recorded clip, no live Cartesia</td><td class="sev">must</td><td class="enf-cell">audio-ownership-check</td></tr>
+        <tr><td>The two clips resolve to real assets</td><td class="sev">must</td><td class="enf-cell">render-link-integrity-check</td></tr>
+        <tr><td>beatId maps to the screenId / route / step / log / data-beat-id</td><td class="sev">must</td><td class="enf-cell">id-alias-check</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="beat" id="s7">
+    <div class="sec-head"><div class="num">07</div><h2>context <span class="k">coach prose</span></h2><div class="enf-badge"><b>parity-walk</b> · QA-eval</div></div>
+    <p class="note">The coach's readable brief for framing and tone. The SPEAK MODE and DO-NOT lines moved out into section 5 so they are enforced, not just described. <span class="pend">COPY-PENDING</span> on the wording (current source text shown):</p>
+    <blockquote>Focus area. Collect one category. The opener shows as a coach bubble, then the category tiles appear (women's-art illustration set). When the create-your-own option appears at the end, "Or you can create your own" is spoken verbal only. Ask what they most want to work on, then wait. If they are unsure, you can talk it through and help them land on one. If they name several, ask which feels most urgent. Keep the response specific to their pick.</blockquote>
+  </section>
+
+  <section class="beat" id="s8">
+    <div class="sec-head"><div class="num">08</div><h2>allowedTools <span class="k">.allowedTools</span></h2><div class="enf-badge"><b>tool-contract-check</b> · static</div></div>
+    <div class="scroll"><table>
+      <thead><tr><th>tool</th><th>arg schema</th><th>when</th></tr></thead>
+      <tbody>
+        <tr><td class="k">submit_category</td><td><code>{ category: string }</code>, one of the 8 canonical labels or a custom string from create-your-own <span class="pend">confirm enum</span></td><td>once the user settles on exactly one category</td></tr>
+        <tr><td class="k">advance_step</td><td><code>{}</code></td><td>immediately after submit_category returns</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Call-rules bound from the global context: call once, only this beat's tools, pass the canonical value not the raw words. No <code>submit_habits</code> or <code>submit_goals</code> here.</p>
+  </section>
+
+  <section class="beat" id="s9">
+    <div class="sec-head"><div class="num">09</div><h2>persistence <span class="k">.persistence</span></h2><div class="enf-badge"><b>persistence-contract-check</b> · static</div></div>
+    <div class="scroll"><table>
+      <tbody>
+        <tr><td class="k">writes</td><td>the chosen category (one value) + the gender-derived variant flag</td></tr>
+        <tr><td class="k">never re-ask</td><td>once captured, category carries forward; downstream goal and habit beats read it, never re-prompt</td></tr>
+        <tr><td class="k">resume key</td><td><code>current_step</code> advanced past <code>category-women</code> proves this beat is done on refresh</td></tr>
+      </tbody>
+    </table></div>
+    <p class="watch">Exact table + column for the category write is not in the render source or the docs. Left conceptual and flagged for app-reconcile, not invented. The carry-forward contract (never re-ask category) is real, from the global context.</p>
+  </section>
+
+  <section class="beat" id="s10">
+    <div class="sec-head"><div class="num">10</div><h2>flow <span class="k">.flow</span></h2><div class="enf-badge"><b>advance-gate-check</b> · static</div></div>
+    <div class="scroll"><table>
+      <tbody>
+        <tr><td class="k">advance</td><td><code>submit_category</code> fired with a valid single category, then <code>advance_step</code></td></tr>
+        <tr><td class="k">branch in</td><td>gender == woman selects this women-art variant; all other genders route to default <code>category</code></td></tr>
+        <tr><td class="k">branch out</td><td>create-your-own tile &rarr; <code>goal-custom</code> (order 21); each of the 8 categories &rarr; its matching <code>goals-*</code> beat (e.g. Sleep better &rarr; <code>goals-sleep</code>)</td></tr>
+        <tr><td class="k">gate</td><td>exactly one category; if the user names two, the coach resolves to one before the tool fires</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="beat" id="s11">
+    <div class="sec-head"><div class="num">11</div><h2>edges <span class="k">.edges</span></h2><div class="enf-badge"><b>edge-walk</b> · QA-eval</div></div>
+    <div class="scroll"><table>
+      <thead><tr><th>edge</th><th>behavior</th></tr></thead>
+      <tbody>
+        <tr><td>tool failure</td><td>submit_category errors: stay on the beat, do not narrate the failure, let the user pick again</td></tr>
+        <tr><td>off-topic</td><td>acknowledge briefly, steer back with one short pointer question, do not advance</td></tr>
+        <tr><td>skip / decline</td><td>user won't choose: stay open, help them think it through, never force</td></tr>
+        <tr><td>empty state</td><td>no tiles appeared: ask one neutral question, do not recite the category list to fill silence</td></tr>
+        <tr><td>names two</td><td>ask which feels most urgent, then take the one</td></tr>
+        <tr><td>off-list</td><td>route to the create-your-own / custom category</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="beat" id="s12">
+    <div class="sec-head"><div class="num">12</div><h2>acceptance <span class="k">definition of done</span></h2><div class="enf-badge">static + QA-eval · composite</div></div>
+    <div class="scroll"><table>
+      <thead><tr><th>criterion</th><th>check</th></tr></thead>
+      <tbody>
+        <tr><td>shows right</td><td>phone renders category-grid variant female, 8 tiles + create-your-own, single-select, nothing preselected (diff vs section 3)</td></tr>
+        <tr><td>says right</td><td>opener verbatim, create-your-own verbal only, no read / praise / contrarian / platitude (section 5)</td></tr>
+        <tr><td>advances right</td><td>exactly one category via submit_category then advance_step; a two-category attempt resolves to one first</td></tr>
+        <tr><td>survives refresh</td><td>category persists, beat not re-asked, current_step resumes past category-women</td></tr>
+        <tr><td>variant is right</td><td>gender == woman renders this beat; any other gender renders default category</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="beat" id="dec">
+    <div class="sec-head"><div class="num">+</div><h2>applicable-decisions</h2><div class="enf-badge"><b>decisions-coverage-check</b> · static</div></div>
+    <div class="scroll"><table>
+      <thead><tr><th>locked decision</th><th>binds?</th><th>how</th></tr></thead>
+      <tbody>
+        <tr><td>3 · Women's art variant (gender == woman is the only selector)</td><td class="k">yes</td><td>this beat is the render side of decision 3; encoded as rules.code with component-registry-check</td></tr>
+        <tr><td>1, 2 (profile gates), 4/5 (habit caps), 6, 7 (reflection)</td><td class="k">none</td><td>not this beat</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Marked explicitly so coverage is provable, never null.</p>
+  </section>
+
+  <section class="beat" id="watch">
+    <div class="sec-head"><div class="num">!</div><h2>Build watch-outs</h2><div class="enf-badge">6 · for the packet, not for you</div></div>
+    <p class="note">Where the sample hit a judgment call or a gap. I resolve these in the build packet, they are here for transparency.</p>
+    <ol class="watchouts">
+      <li><b>Shared screenId across two beats.</b> category and category-women both use ONBOARD-BEGINNER-01. beatId is the only unique key; the gender-variant code rule disambiguates. The alias-check must permit two beatIds on one screenId while keeping the rest unique.</li>
+      <li><b>Persistence table + column unknown.</b> The source and docs do not name where the category write lands. Left conceptual, flagged for app-reconcile, not invented.</li>
+      <li><b>submit_category enum not locked in source.</b> The 8 labels are inferred from the goals-* beats; the exact enum + the custom-category shape needs confirming against beat_contexts.json.</li>
+      <li><b>parity-walk and edge-walk evals.</b> Referenced by sections 7, 11, 12 but not among the 9 coach-behavior evals. Confirm the fleet has these two registered, or build them.</li>
+      <li><b>Upstream gender routing owner.</b> The rule says gender == woman selects this variant, but the code path that reads gender and picks the beatId is not spelled out in the source. The build must name it.</li>
+      <li><b>create_your_own clip shared across variants.</b> Both category and category-women bind the same clip on reveal-9. Fine for audio, but the link and audio checks must treat one clip bound from two beats as valid, not a duplicate error.</li>
+    </ol>
+  </section>
+
+  <div class="foot">Sample for shape sign-off. One beat of the onboarding render, filled to the 12-section per-beat contract. Copy slots are placeholders on the final copy. Say scale, trim, or change.</div>
+</div>
