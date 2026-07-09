@@ -7,7 +7,7 @@ const pool = (await import('../../db.js')).default as {
 };
 
 const { DEFAULT_REFLECTION_PROMPTS } = await import('@gg/shared/types');
-const { readReflectionSettings, DEFAULT_REFLECTION_SETTINGS } =
+const { readReflectionSettings, sanitizePrompts, DEFAULT_REFLECTION_SETTINGS } =
   await import('../reflectionSettings.js');
 
 const ANON = '11111111-1111-4111-8111-111111111111';
@@ -61,5 +61,31 @@ describe('rule 6 — readReflectionSettings uses the saved row, not defaults', (
     const [sql, params] = pool.query.mock.calls[0];
     expect(sql).toMatch(/FROM reflection_settings WHERE anon_id = \$1/);
     expect(params?.[0]).toBe(ANON);
+  });
+});
+
+// ─── Rule 7: custom prompts stored and replayed verbatim ──────────────────
+describe('rule 7 — custom reflection prompts survive the round-trip verbatim', () => {
+  it('sanitizePrompts keeps under-cap prompts word-for-word (trim only)', () => {
+    const authored = ['What went well today?', 'Where did I struggle, honestly?'];
+    // sanitize trims surrounding whitespace but preserves content under the cap.
+    expect(sanitizePrompts(authored)).toEqual(authored);
+    expect(sanitizePrompts(['  padded  '])).toEqual(['padded']);
+  });
+
+  it('saved custom prompts read back byte-identical through readReflectionSettings', async () => {
+    const authored = ['What am I avoiding?', 'One kind thing I did today?'];
+    const stored = sanitizePrompts(authored);
+    expect(stored).toEqual(authored); // under the 280-char cap → verbatim
+
+    pool.query.mockResolvedValueOnce({ rows: [savedRow(stored)] });
+    const settings = await readReflectionSettings(ANON);
+    expect(settings.prompts).toEqual(authored);
+  });
+
+  it('the 280-char cap truncates (documents the boundary the verbatim claim depends on)', () => {
+    const long = 'x'.repeat(300);
+    const [out] = sanitizePrompts([long]);
+    expect(out.length).toBe(280);
   });
 });
