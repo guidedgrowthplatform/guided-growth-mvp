@@ -1,15 +1,15 @@
 {
-  "updated": "2026-07-09T03:31:44+03:00",
+  "updated": "2026-07-09T03:59:20+03:00",
   "phase": "render-clean",
-  "headline": "Conductor took over the stalled finisher. Building L2 through the clip-wiring on Opus, then gating to green.",
+  "headline": "Finisher MERGED to trunk (62 beats, all clips wired). Next: populate every beat annotations, then combine all-flows.",
   "gate": [
     {
       "step": "1. Finisher lands (onboarding copy, logic, clips)",
-      "status": "active"
+      "status": "done"
     },
     {
       "step": "2. Fully populate every beat's annotations (context rules, code rules, accordions, all angles)",
-      "status": "pending"
+      "status": "active"
     },
     {
       "step": "3. Combine all-flows into the trunk",
@@ -86,7 +86,7 @@
       "cards": [
         {
           "title": "Drive render to render-ready",
-          "status": "took over the stalled finisher, driving it to a green MR",
+          "status": "finisher merged; next = annotation population + all-flows combine",
           "state": "in-progress",
           "driver": "conductor"
         },
@@ -102,9 +102,9 @@
       "name": "Builders",
       "cards": [
         {
-          "title": "Finisher (!517)",
-          "status": "CONDUCTOR TAKEOVER (Opus): finishing L2/L4c/L3/L5/L7 + clip-wiring absorb -> green MR",
-          "state": "in-progress",
+          "title": "Finisher (!517) MERGED",
+          "status": "merged to trunk 6fbd9fdd; 62 beats, L2/L4c/L3/L5/L7 + all clips wired, checks green",
+          "state": "done",
           "driver": "conductor takeover"
         },
         {
@@ -175,6 +175,7 @@
     "render walkthrough and approve (when render-ready)"
   ],
   "recent": [
+    "finisher merged to trunk: 62 beats, all 42 clips wired (conductor takeover after 3.5h stall)",
     "all prep done: render guards in CI (!521), voicegen fix, TTS stub, cost note, screen_contexts plan",
     "live conductor dashboard deployed at /internal/conductor",
     "epoch rule resolved: render is permanent source of truth",
