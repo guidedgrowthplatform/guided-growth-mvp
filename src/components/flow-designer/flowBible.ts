@@ -38,39 +38,8 @@ export interface ImprovisationLaw {
 
 export const IMPROVISATION: ImprovisationLaw = {
   default: 'OFF',
-  law: 'The LLM never improvises. Every spoken or shown coach line is either a scripted verbatim line or produced inside one of the declared windows below. No window, no generation. [Window boundaries PENDING a dedicated Yair discussion (2026-07-09 ruling); the windows below are deliberately MINIMAL, especially on MP3 beats, and are not final.]',
-  windows: [
-    {
-      id: 'name-slot',
-      where: 'profile-greeting',
-      opens: 'the one live {name} line',
-      bounds: 'fill the name slot in the scripted shape, live Cartesia',
-      mustNot: 'add words beyond the scripted shape, ask a question, reference the slot mechanics',
-    },
-    {
-      id: 'brainstorm-pre-pick',
-      where: 'picker beats (fork, category, category-women, goals, habits)',
-      opens: 'the user is unsure BEFORE a pick (eval:brainstorm-then-yield)',
-      bounds:
-        'short back-and-forth within the beat rules to help them land on one option; yields the instant they are sure',
-      mustNot:
-        'read the on-screen options aloud, praise, reframe the choice, run past the beat maxTurns',
-    },
-    {
-      id: 'custom-entry-fallback',
-      where: 'goal-custom, habit-custom, category create-your-own',
-      opens: 'a made-up entry with no per-item recording (copy-flow rule 14)',
-      bounds: 'the generic fallback line shape, GENERATIVE speak mode',
-      mustNot: 'evaluate or reframe the entry; it captures, not comments',
-    },
-    {
-      id: 'edge-one-liner',
-      where: 'any',
-      opens: 'a global or beat edge fires (off-topic, empty state, tool failure surfacing)',
-      bounds: 'exactly one short line per the edge contract, then return to the beat question',
-      mustNot: 'chain lines, explain mechanics, answer out-of-scope content',
-    },
-  ],
+  law: 'Improvisation is OFF for onboarding (Yair 2026-07-09, LOCKED). The LLM never improvises: every spoken or shown coach line is a scripted verbatim line. No per-beat improvise windows exist and none may be authored. Not improvisation: the one live {name} line (live TTS of a scripted shape, governed by the voice/audio-ownership rule) and custom-entry fallbacks (the pre-authored generic line, copy-flow rule 14). The one real runtime case, user goes off topic, is handled by the GLOBAL off-topic rule (glob-out-of-scope), not a window. Open tension flagged for the fill: eval:brainstorm-then-yield (help an unsure user land on a pick) implies bounded generative replies; under improv-OFF it must run on scripted/bounded lines or get an explicit ruling.',
+  windows: [],
   enforcedBy: ['eval:verbatim-opener', 'eval:one-line-then-wait'],
 };
 
@@ -99,7 +68,7 @@ export const GLOBAL_RULES: GlobalRulesLayer = {
     },
     {
       id: 'glob-out-of-scope',
-      rule: 'World questions ("who won the game yesterday"): one brief friendly decline, back to the beat question in the same line. Never answers out-of-scope content during onboarding',
+      rule: 'Off-topic input or world questions ("who won the game yesterday"): acknowledge briefly, steer back with the beat own question, do not chase the tangent, do not advance (Yair 2026-07-09, LOCKED). Applies at every beat where the user speaks; never answers out-of-scope content during onboarding',
       severity: 'must',
       enforcedBy: ['eval:out-of-scope-decline'],
     },
@@ -156,18 +125,19 @@ export interface ToolFailureContract {
 }
 
 export const TOOL_FAILURE: ToolFailureContract = {
-  retry: 'First failure: one silent automatic retry. The user sees nothing.',
+  retry:
+    'First failure: one silent automatic retry. The user sees nothing. (Yair 2026-07-09: retry once quietly; if it still fails, surface it, never fail silently.)',
   voice:
-    'Second failure on the voice path: one short coach line ("Hm, that did not save. One second, trying again.") then retry once more; on third failure the coach offers the tap path. The beat never advances on a failed write.',
+    'Second failure on the voice path: one short coach line, APPROVED copy verbatim: "That didn\'t go through, let me try again." Then retry; if it still fails, keep it surfaced and offer the tap path. The beat never advances on a failed write.',
   textOrTap:
-    'Second failure on the text/tap path: a toast (existing Toast system) with a plain retry action; no coach line. The beat stays put.',
+    'Second failure on the text/tap path: a toast (existing Toast system), APPROVED copy verbatim: "Couldn\'t save that, tap to retry." No coach line; the beat stays put.',
   never: [
     'advance past a beat whose write failed',
     'narrate technical detail (endpoint, error, tool name) in any modality',
     'fail silently with no user signal after the retry (closes the pass-1 edges gap)',
   ],
   enforcedBy: ['eval:edge-walk', 'tool-contract-check'],
-  status: 'needs-yair',
+  status: 'verified',
 };
 
 // ---------- 4. Multi-turn conversation model (DECIDED: own per-beat section 13, not a section-5 sub-block) ----------
@@ -648,6 +618,18 @@ export const OPEN_DECISIONS: readonly OpenDecision[] = [
     proposal:
       'One silent retry; voice = one short coach line then tap-path offer; text/tap = toast; never advance on a failed write.',
     decider: 'Yair',
+    decided:
+      'APPROVED (Yair 2026-07-09) with exact copy: toast "Couldn\'t save that, tap to retry"; voice line "That didn\'t go through, let me try again". Retry once quietly; if it still fails, surface it, never fail silently.',
+  },
+  {
+    id: 'improvise-boundaries',
+    question:
+      'Improvise-window boundaries: which windows exist and how tight are they (esp. MP3 beats)?',
+    proposal:
+      'Four minimal windows (name slot, pre-pick brainstorm, custom-entry fallback, edge one-liner), pending a dedicated Yair discussion.',
+    decider: 'Yair',
+    decided:
+      'OFF for onboarding (Yair 2026-07-09, LOCKED). No per-beat improvise windows at all; off-topic input is handled by the GLOBAL off-topic rule (acknowledge briefly, steer back with the beat own question, never chase, never advance). Windows removed from IMPROVISATION.',
   },
 ];
 

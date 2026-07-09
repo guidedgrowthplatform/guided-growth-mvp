@@ -2626,10 +2626,10 @@ function GlobalBiblePanel() {
         </span>
       </div>
 
-      {/* 1. Improvisation law + windows */}
+      {/* 1. Improvisation law (windows resolved OFF, Yair 2026-07-09) */}
       <ContextSection
-        title="1 · Improvisation law + windows"
-        badge={<StatusChip status="needs-yair" label="boundaries PENDING Yair discussion" />}
+        title="1 · Improvisation law"
+        badge={<StatusChip status="verified" label="OFF for onboarding (Yair, LOCKED)" />}
       >
         <div style={{ fontSize: 12.5, lineHeight: 1.55, color: '#334155' }}>
           {IMPROVISATION.law}
