@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T12:36:26+03:00",
+  "updated": "2026-07-09T13:27:29+03:00",
   "phase": "render-clean",
   "headline": "Finisher MERGED to trunk (62 beats, all clips wired). Next: populate every beat annotations, then combine all-flows.",
   "gate": [
@@ -102,9 +102,9 @@
       "name": "Builders",
       "cards": [
         {
-          "title": "Collapse variant beats",
-          "status": "DONE (draft !523): render reads as 25 concepts + 2 expandable groups (Goals 8, Habits 29) instead of 62; display-grouping, data intact, every variation still resolves its own line+clip. Preview deploying for Yair.",
-          "state": "in-progress",
+          "title": "Variant fix (!523)",
+          "status": "DONE: variation switcher (flip in place, phone+script+meta update) + render ONCE (62->26 in play) + reveal gated on clip end + profile double-render fixed. Preview up. Needs Yair foreground-tab eyeball on the reveal timing.",
+          "state": "decision",
           "driver": "conductor"
         },
         {
@@ -179,6 +179,12 @@
           "status": "Yair + Mint converge: component reveals must fire WHILE the coach speaks (synced per line), not silent, not ahead. Investigating the reveal mechanism.",
           "state": "in-progress",
           "driver": "conductor"
+        },
+        {
+          "title": "Behavior rules MR (!526)",
+          "status": "6 of 7 rules enforced+tested (tsc clean); rule 3 women-art DEFERRED to flow-reconcile (render has category-women, runtime does not yet)",
+          "state": "pipeline",
+          "driver": "team"
         }
       ]
     },
@@ -241,12 +247,12 @@
     "render walkthrough and approve (when render-ready)"
   ],
   "recent": [
+    "variant fix DONE (!523): switcher + render-once + reveal-gating; behavior rules 6/7 shipped (!526)",
     "play button moved to header (draft !524); render QA found reveal-timing issue (reveals fire ahead of voice) - Yair + Mint converge",
     "render fixes in flight (draft MRs): variant collapse, voice bugs beat 3/6, play-button-to-header; conductor sequences the merges",
     "CONDUCTOR LOOP WORKED: Mint approved coach-per-beat via the button. Render QA found 2 voice bugs (beat 3/6), fix dispatched.",
     "fired 2 team tasks w/ approval buttons (behavior rules -> ai-yonas, coach-per-beat -> ai-mint); collapse running",
     "7 onboarding behavior decisions locked; reconciling rules schemas before scaling annotations",
-    "annotation exemplars done (!522): shape set, rules-check built, 7 behavior calls flagged for Yair",
-    "render trunk deployed (62 beats) at flow-annotated-render.gg-onboarding-render.pages.dev"
+    "annotation exemplars done (!522): shape set, rules-check built, 7 behavior calls flagged for Yair"
   ]
 }
