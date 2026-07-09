@@ -1450,8 +1450,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
         ],
         watchOut:
-          'The ONLY structural difference across the 8 goals-* beats is the category and its tile set. Sleep better carries exactly these 4 labels; do not add, rename, or reorder them (they are the canonical GOAL OPTIONS BY CATEGORY strings).',
+          'The ONLY structural difference across the 8 goals-* beats is the category and its tile set. Sleep better carries exactly these 4 labels; do not add, rename, or reorder them (they are the canonical GOAL OPTIONS BY CATEGORY strings). The "n of 2 selected" counter and Continue affordance in exact-state are ASSERTED SPEC the render component does not implement yet.',
         enforcedBy: ['component-registry-check'],
+        status: 'app-reconcile-pending',
       },
       voice: {
         rows: [
@@ -1485,7 +1486,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           id: 'gsleep-react-and-ask',
           rule: 'React warmly and ask for goals in one merged moment, naming the category (sleep) once',
           severity: 'must',
-          enforcedBy: ['eval:name-the-goal'],
+          enforcedBy: ['eval:warm-opener'],
         },
         {
           id: 'gsleep-no-contrarian',
@@ -1500,8 +1501,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           enforcedBy: ['eval:no-platitudes'],
         },
         {
-          id: 'gsleep-no-praise-pick',
-          rule: 'No praise after the pick ("great choice", "love that")',
+          id: 'gsleep-silent-after-pick',
+          rule: 'Silent after each pick: no praise, no commentary, nothing except submit_goals and advance_step',
           severity: 'must',
           enforcedBy: ['eval:silent-after-pick'],
         },
@@ -1515,7 +1516,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           id: 'gsleep-one-or-two',
           rule: 'Allows one or two goals only; on three, asks which two matter most',
           severity: 'must',
-          enforcedBy: ['eval:single-select'],
+          enforcedBy: ['eval:selection-cap'],
         },
         {
           id: 'gsleep-stay-open',
@@ -1580,6 +1581,42 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           enforcedBy: ['id-alias-check'],
         },
       ],
+      // section 13 - multi-turn conversation model (scripted prompts only, Yair 2026-07-09)
+      conversation: {
+        opens:
+          'after the opener question ("Which of these would you like to start with? Pick one or two.")',
+        branches: [
+          {
+            on: 'names or taps one or two valid goals',
+            reply: 'none (silent after pick); map to the exact labels',
+            then: 'tool:submit_goals',
+          },
+          {
+            on: 'names three or more',
+            reply: 'scripted: "Which two matter most right now?"',
+            then: 'wait',
+          },
+          {
+            on: 'vague or general ("just sleep in general")',
+            reply: 'scripted: "If you had to pick one, what bothers you most?"',
+            then: 'wait',
+          },
+          {
+            on: 'unsure / cannot decide',
+            reply:
+              'scripted help-you-decide prompt set (e.g. "What\'s been weighing on you most lately?"); yields the instant they lean toward one',
+            then: 'wait',
+          },
+          {
+            on: 'off-topic or world question',
+            reply:
+              'global rule glob-out-of-scope: one brief acknowledgement, steer back with the goal question',
+            then: 'wait',
+          },
+        ],
+        maxTurns: 4,
+        onMaxTurns: 'plain one-line re-ask of the goal question and point to the tap path',
+      },
       contextProse: {
         prose:
           'Goals inside the chosen category (Sleep better). The opener reacts warmly to the category and asks for goals in one merged moment, then the Goals tiles appear. Collect one or two goals. Map what the user says to the exact on-screen label; if they speak generally, map to the closest one or ask one short question. One or two, no more. The goal count sets up the downstream habit distribution. Do not read the tiles out loud, do not coach or explain per goal, do not allow more than two.',
@@ -1735,11 +1772,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             binds: false,
             how: 'not this beat',
           },
-          {
-            decision: 'decisions-coverage-check enforcer',
-            binds: false,
-            how: 'PENDING: the applicableDecisions enforcer slot is owned by the in-flight structure-unification work; not wired on the current schema (no schema edit here, per conductor ruling).',
-          },
         ],
         enforcedBy: ['decisions-coverage-check'],
       },
@@ -1767,6 +1799,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           from: 'flow-state',
           writtenBy: 'submit_goals',
           persistsTo: 'onboarding_states.data (verify key)',
+          note: 'goal count = goals.length, DERIVED (drives the habits distribution); not a separate persisted field',
         },
       ],
     },
