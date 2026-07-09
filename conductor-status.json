@@ -1,7 +1,7 @@
 {
-  "updated": "2026-07-09T13:27:29+03:00",
+  "updated": "2026-07-09T14:23:52+03:00",
   "phase": "render-clean",
-  "headline": "Finisher MERGED to trunk (62 beats, all clips wired). Next: populate every beat annotations, then combine all-flows.",
+  "headline": "NEW conductor live (single-conductor gate confirmed). Bible 12-section kept, moving to FILL. Next: Yair eyeballs !523 -> merge -> combine all-flows -> FILL -> Opus review -> human review.",
   "gate": [
     {
       "step": "1. Finisher lands (onboarding copy, logic, clips)",
@@ -241,12 +241,16 @@
     }
   ],
   "active": [
-    "finisher building on the render (all prep work done, waiting on it)"
+    "new conductor oriented + live; render critical path (523 merge -> combine -> fill) stalled on Yair's !523 foreground-tab eyeball"
   ],
   "waitingOnYair": [
+    "foreground-tab eyeball of !523 reveal timing (render-collapse-variants.gg-onboarding-render.pages.dev)",
     "render walkthrough and approve (when render-ready)"
   ],
   "recent": [
+    "CONDUCTOR HANDOFF: new session took the baton (Yair new account), single-conductor gate confirmed closed",
+    "Bible ruling (Yair): keep the 12 sections, FILL them, then a regular Opus review pass, then human review (Fable maybe before human, not yet)",
+    "verify flagged !523 + !525 both still Draft with NO GitLab pipeline; recalibrating render-MR gate to preview + behavioral walk",
     "variant fix DONE (!523): switcher + render-once + reveal-gating; behavior rules 6/7 shipped (!526)",
     "play button moved to header (draft !524); render QA found reveal-timing issue (reveals fire ahead of voice) - Yair + Mint converge",
     "render fixes in flight (draft MRs): variant collapse, voice bugs beat 3/6, play-button-to-header; conductor sequences the merges",
