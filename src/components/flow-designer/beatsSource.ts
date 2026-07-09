@@ -1038,8 +1038,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             label: 'resume key',
-            value:
-              'current_step advanced past category-women proves this beat is done on refresh',
+            value: 'current_step advanced past category-women proves this beat is done on refresh',
           },
         ],
         watchOut:
@@ -1137,7 +1136,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       applicableDecisions: [
         {
           decision:
-            '3. Women\'s art variant (gender == woman is the ONLY selector; men / non-binary / undisclosed get default)',
+            "3. Women's art variant (gender == woman is the ONLY selector; men / non-binary / undisclosed get default)",
           binds: true,
           how: 'this beat IS the render side of decision 3; encoded as rules.code catw-women-variant with component-registry-check',
         },
@@ -1206,6 +1205,347 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: {
       category: 'Sleep better',
+    },
+    bible: {
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'goals-sleep' },
+          { label: 'name', value: 'Goals (Sleep better)' },
+          { label: 'order', value: '13' },
+          { label: 'path', value: 'beginner' },
+          { label: 'type', value: 'goals-list' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-BEGINNER-02--SLEEP' },
+          { surface: 'route', value: '/onboarding/beginner-02 (sleep category variant)' },
+          { surface: 'persisted current_step', value: 'goals-sleep' },
+          { surface: 'session_log value', value: 'goals-sleep' },
+          { surface: 'data-beat-id', value: 'goals-sleep' },
+        ],
+        watchOut:
+          'The 8 goals-* beats share the base screen ONBOARD-BEGINNER-02 and differ only by the category suffix (--SLEEP). The beatId is the unique key; the render selects the variant by the category picked upstream, not by a distinct screenId root. The alias-check must keep each goals-* beatId other aliases unique.',
+        enforcedBy: 'id-alias-check',
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal:
+              'opener bubble; the Goals tiles bloom GATED on this opener (seq-1) clip end, never a fixed timer',
+            timing: 'karaoke per-word on the bubble',
+          },
+        ],
+        enforcedBy: 'render-link-integrity-check + reveal-timing-check',
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'goals-list' },
+          {
+            label: 'variant',
+            value: "category = Sleep better (from source props.category: 'Sleep better')",
+          },
+          {
+            label: 'on-screen tiles',
+            value:
+              '4 goal tiles for Sleep better: Fall asleep earlier, Wake up earlier, Sleep more consistently, Sleep more deeply (verbatim from GOAL OPTIONS BY CATEGORY), plus a "Create your own" custom-add affordance',
+          },
+          { label: 'selection mode', value: 'multi-select, 1 to 2 max, nothing preselected' },
+          {
+            label: 'exact state',
+            value:
+              'nothing selected on entry; the "Goals" section label renders above the tiles; a running "n of 2 selected" reflects taps; the Continue affordance advances once 1 to 2 goals are picked',
+          },
+          {
+            label: 'derived (debug, generated never authored)',
+            value:
+              "resolved props: { category: 'Sleep better', tileCount: 4, min: 1, max: 2, allowsCustom: true }",
+          },
+        ],
+        watchOut:
+          'The ONLY structural difference across the 8 goals-* beats is the category and its tile set. Sleep better carries exactly these 4 labels; do not add, rename, or reorder them (they are the canonical GOAL OPTIONS BY CATEGORY strings).',
+        enforcedBy: 'component-registry-check',
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          {
+            label: 'mode',
+            value: 'Verbatim (reconciled from source Verbatim; enum is Verbatim / Generative)',
+          },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_beginner_02_sleep', liveAllowed: 'NO' },
+        ],
+        assertion:
+          'The opener carries no live slot like {name}, so the one spoken line MUST resolve to the recorded clip onboard_beginner_02_sleep. No live Cartesia on this beat.',
+        enforcedBy: 'audio-ownership-check',
+      },
+      rulesContext: [
+        {
+          id: 'gsleep-verbatim-opener',
+          rule: 'Speaks the recorded sleep opener verbatim, no improvised lead-in or addition',
+          severity: 'must',
+          enforcedBy: 'eval:verbatim-opener',
+        },
+        {
+          id: 'gsleep-no-read-options',
+          rule: 'Never reads the goal tiles aloud, not in full, not one as an example',
+          severity: 'must',
+          enforcedBy: 'eval:no-read-options',
+        },
+        {
+          id: 'gsleep-react-and-ask',
+          rule: 'React warmly and ask for goals in one merged moment, naming the category (sleep) once',
+          severity: 'must',
+          enforcedBy: 'eval:name-the-goal',
+        },
+        {
+          id: 'gsleep-no-contrarian',
+          rule: 'No reframe that undercuts the pick ("sleep isn\'t really the issue")',
+          severity: 'must',
+          enforcedBy: 'eval:no-contrarian-turn',
+        },
+        {
+          id: 'gsleep-no-platitudes',
+          rule: 'No per-goal commentary or filler ("sleep is the foundation", "genuinely")',
+          severity: 'must',
+          enforcedBy: 'eval:no-platitudes',
+        },
+        {
+          id: 'gsleep-no-praise-pick',
+          rule: 'No praise after the pick ("great choice", "love that")',
+          severity: 'must',
+          enforcedBy: 'eval:no-praise-pick',
+        },
+        {
+          id: 'gsleep-one-line-wait',
+          rule: 'After the opener, asks one short pointer question then waits',
+          severity: 'must',
+          enforcedBy: 'eval:one-line-then-wait',
+        },
+        {
+          id: 'gsleep-one-or-two',
+          rule: 'Allows one or two goals only; on three, asks which two matter most',
+          severity: 'must',
+          enforcedBy: 'eval:single-select',
+        },
+        {
+          id: 'gsleep-stay-open',
+          rule: 'If the user is unsure, stays open and helps them land, no lecture',
+          severity: 'should',
+          enforcedBy: 'eval:stay-open-unsure',
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'gsleep-tools-only',
+          rule: 'Only submit_goals and advance_step are callable on this beat',
+          severity: 'must',
+          enforcedBy: 'tool-contract-check',
+        },
+        {
+          id: 'gsleep-canonical-values',
+          rule: 'submit_goals passes the exact canonical goal labels (never raw words or renamed labels) and includes the COMPLETE 1-2 selection',
+          severity: 'must',
+          enforcedBy: 'tool-contract-check',
+        },
+        {
+          id: 'gsleep-advance-on-tool',
+          rule: 'advance_step fires only after submit_goals captured 1 to 2 valid goals',
+          severity: 'must',
+          enforcedBy: 'advance-gate-check',
+        },
+        {
+          id: 'gsleep-goal-cap',
+          rule: 'At most two goals; floor of one goal to advance',
+          severity: 'must',
+          enforcedBy: 'advance-gate-check',
+        },
+        {
+          id: 'gsleep-count-sets-branch',
+          rule: 'The goal count (1 or 2) is persisted so the downstream habits beat can distribute the 2-habit cap',
+          severity: 'must',
+          enforcedBy: 'advance-gate-check',
+        },
+        {
+          id: 'gsleep-reveal-gates',
+          rule: 'The Goals tiles reveal gates on the opener clip end, never a fixed timer',
+          severity: 'must',
+          enforcedBy: 'reveal-timing-check',
+        },
+        {
+          id: 'gsleep-audio-ownership',
+          rule: 'The opener resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: 'audio-ownership-check',
+        },
+        {
+          id: 'gsleep-clip-resolves',
+          rule: 'onboard_beginner_02_sleep resolves to a real asset',
+          severity: 'must',
+          enforcedBy: 'render-link-integrity-check',
+        },
+        {
+          id: 'gsleep-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: 'id-alias-check',
+        },
+      ],
+      contextProse: {
+        prose:
+          'Goals inside the chosen category (Sleep better). The opener reacts warmly to the category and asks for goals in one merged moment, then the Goals tiles appear. Collect one or two goals. Map what the user says to the exact on-screen label; if they speak generally, map to the closest one or ask one short question. One or two, no more. The goal count sets up the downstream habit distribution. Do not read the tiles out loud, do not coach or explain per goal, do not allow more than two.',
+        pending: true,
+        enforcedBy: 'eval:parity-walk',
+      },
+      allowedTools: {
+        tools: ['submit_goals', 'advance_step'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: call once one or two goals are captured; only this beat tools; pass the canonical goal labels including the COMPLETE selection, not the user raw words.',
+        specs: [
+          {
+            tool: 'submit_goals',
+            args: '{ goals: string[] } - the COMPLETE current selection of 1 or 2 goals, each an exact label from GOAL OPTIONS BY CATEGORY for Sleep better (confirm canonical arg name/shape)',
+            when: 'once the user has settled on one or two goals',
+            pending: true,
+          },
+          {
+            tool: 'advance_step',
+            args: '{}',
+            when: 'immediately after submit_goals returns',
+          },
+        ],
+        note: 'No submit_category or habit tools on this beat; goals-list uses submit_goals only. Habits are added on the downstream habits-* beat.',
+        enforcedBy: 'tool-contract-check',
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'the chosen 1-2 goals + the goal count (1 or 2) that sets up the downstream habit distribution',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'the goals and count, once captured, carry forward; the habits beat reads them, never re-prompts',
+          },
+          {
+            label: 'resume key',
+            value: 'current_step advanced past goals-sleep proves this beat is done on refresh',
+          },
+        ],
+        watchOut:
+          'The exact table + column for the goals write is NOT confirmed in the render source. screen_contexts (Vapi-era) indicates user_onboarding.selected_subcategories[]; treat as an app-side hint, not final. Flagged for app-reconcile; do not invent a table name. The carry-forward contract (never re-ask goals) is from GLOBAL_CONTEXT and is real.',
+        enforcedBy: 'persistence-contract-check',
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'submit_goals fired with 1 to 2 valid goals, then advance_step',
+          },
+          {
+            label: 'upstream branch (into this beat)',
+            value:
+              'the category picked upstream (Sleep better) routes to this goals-sleep variant; the other 7 categories route to their matching goals-* beat',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value:
+              'the goal count sets up the habit distribution: two goals -> the next beat gives one habit per goal; one goal -> the next beat allows one or two habits. Each picked goal routes to its matching habits-* opener (e.g. Fall asleep earlier -> habits-fall-asleep-earlier)',
+          },
+          {
+            label: 'gate',
+            value:
+              'one or two goals; if the user names three, the coach resolves to two before the tool fires (gsleep-one-or-two)',
+          },
+        ],
+        enforcedBy: 'advance-gate-check',
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'submit_goals errors: do not advance and do not narrate the failure. The picked tiles stay selected (not cleared) so the user can retry. Voice path: one short neutral nudge to retry ("want to lock those in?"); text/tap path: the selection stays active for a re-tap. NOTE (app-side, pending): the exact on-screen error signal for a failed save is not specified in the render source, flagged for app-reconcile.',
+          },
+          {
+            edge: 'off-topic input',
+            behavior:
+              'one short acknowledgement, at most one sentence, no new topic and no advice, then re-ask the goal question ("Which of these feels right to start with?"). Do not follow the tangent, do not add commentary, do not advance.',
+          },
+          {
+            edge: 'skip / decline',
+            behavior:
+              'user will not choose: stay open, help them think it through (gsleep-stay-open), never force a pick',
+          },
+          {
+            edge: 'empty state',
+            behavior:
+              'no tiles appeared for the user: ask one neutral question ("Is anything coming up for you to pick from?"), do NOT recite the goal list to fill the silence',
+          },
+          {
+            edge: 'names three',
+            behavior: 'ask which two matter most, then take those two',
+          },
+          {
+            edge: 'vague / general ("just sleep in general")',
+            behavior:
+              'map to the closest label or ask one short question to pin it ("If you had to pick one, what bothers you most?"); never invent a label',
+          },
+        ],
+        enforcedBy: 'eval:edge-walk',
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders goals-list for Sleep better, 4 tiles + create-your-own, multi-select 1-2, nothing preselected (diff phone vs components)',
+          },
+          {
+            criterion: 'says the right thing',
+            check:
+              'opener spoken verbatim, category named once, no read / praise / contrarian / platitude (rules.context evals)',
+          },
+          {
+            criterion: 'advances correctly',
+            check:
+              'one or two goals captured via submit_goals, then advance_step; a three-goal attempt resolves to two first (flow gate)',
+          },
+          {
+            criterion: 'survives a refresh',
+            check:
+              'goals + count persist, beat not re-asked, current_step resumes past goals-sleep (persistence resume key)',
+          },
+          {
+            criterion: 'routes correctly',
+            check:
+              'each picked goal routes to its matching habits-* opener; the goal count sets the downstream habit distribution',
+          },
+        ],
+        enforcedBy:
+          'composite: component-registry-check, advance-gate-check, persistence-contract-check, render-link-integrity-check + eval:parity-walk + eval:edge-walk',
+      },
+      applicableDecisions: [
+        {
+          decision:
+            '4/5. Habit cap (2 habits total, floor 1, distributable: 2 goals x1 or 1 goal x2)',
+          binds: false,
+          how: 'not enforced on this beat; the cap is enforced on the downstream habits beat. This goals beat captures the 1-or-2 goal COUNT that decision 4/5 uses to distribute the cap, so it is the input, not the gate.',
+        },
+        {
+          decision: '1, 2 (profile gates), 3 (women-art), 6, 7 (reflection)',
+          binds: false,
+          how: 'not this beat',
+        },
+        {
+          decision: 'decisions-coverage-check enforcer',
+          binds: false,
+          how: 'PENDING: the applicableDecisions enforcer slot is owned by the in-flight structure-unification work; not wired on the current schema (no schema edit here, per conductor ruling).',
+        },
+      ],
     },
     script: [
       {
