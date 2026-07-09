@@ -1470,6 +1470,23 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       category: 'Sleep better',
     },
     bible: {
+      // uniform shape: all 14 sections filled (multi-turn beat, Yair 2026-07-09: conversation = filled)
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: 'filled',
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'filled',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
       identity: {
         rows: [
           { label: 'beatId (canonical)', value: 'goals-sleep' },
