@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T12:18:48+03:00",
+  "updated": "2026-07-09T12:27:01+03:00",
   "phase": "render-clean",
   "headline": "Finisher MERGED to trunk (62 beats, all clips wired). Next: populate every beat annotations, then combine all-flows.",
   "gate": [
@@ -103,7 +103,7 @@
       "cards": [
         {
           "title": "Collapse variant beats",
-          "status": "Opus reworking 62 -> ~25 concept beats (category/goal variations resolve at runtime); draft MR, conductor gates + shows Yair",
+          "status": "DONE (draft !523): render reads as 25 concepts + 2 expandable groups (Goals 8, Habits 29) instead of 62; display-grouping, data intact, every variation still resolves its own line+clip. Preview deploying for Yair.",
           "state": "in-progress",
           "driver": "conductor"
         },
