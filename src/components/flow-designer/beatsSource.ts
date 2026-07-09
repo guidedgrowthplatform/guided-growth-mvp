@@ -1468,7 +1468,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             edge: 'tool failure',
             behavior:
-              'submit_goals errors: do not advance and do not narrate the failure. The picked tiles stay selected (not cleared) so the user can retry. Voice path: one short neutral nudge to retry ("want to lock those in?"); text/tap path: the selection stays active for a re-tap. NOTE (app-side, pending): the exact on-screen error signal for a failed save is not specified in the render source, flagged for app-reconcile.',
+              'submit_goals errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" and the picked tiles stay selected for the retry. Voice path: one short coach line "That didn\'t go through, let me try again." (Yair-approved tool-failure contract, 2026-07-09.)',
           },
           {
             edge: 'off-topic input',
