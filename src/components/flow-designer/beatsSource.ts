@@ -1903,7 +1903,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             edge: 'tool failure',
             behavior:
-              'submit_category errors: stay on the beat, do not narrate the failure, let the user pick again',
+              'submit_category errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" and the picked category stays selected for the retry. Voice path: one short coach line "That didn\'t go through, let me try again." (Yair-approved tool-failure contract, 2026-07-09.)',
           },
           {
             edge: 'off-topic input',
