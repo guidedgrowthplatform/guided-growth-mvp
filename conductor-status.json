@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T12:13:39+03:00",
+  "updated": "2026-07-09T12:18:48+03:00",
   "phase": "render-clean",
   "headline": "Finisher MERGED to trunk (62 beats, all clips wired). Next: populate every beat annotations, then combine all-flows.",
   "gate": [
@@ -104,6 +104,12 @@
         {
           "title": "Collapse variant beats",
           "status": "Opus reworking 62 -> ~25 concept beats (category/goal variations resolve at runtime); draft MR, conductor gates + shows Yair",
+          "state": "in-progress",
+          "driver": "conductor"
+        },
+        {
+          "title": "Play button to header",
+          "status": "Yair: phone render must match the screen exactly, so play control moves out of the beat into the header. Draft MR in flight.",
           "state": "in-progress",
           "driver": "conductor"
         },
@@ -223,12 +229,12 @@
     "render walkthrough and approve (when render-ready)"
   ],
   "recent": [
+    "render fixes in flight (draft MRs): variant collapse, voice bugs beat 3/6, play-button-to-header; conductor sequences the merges",
     "CONDUCTOR LOOP WORKED: Mint approved coach-per-beat via the button. Render QA found 2 voice bugs (beat 3/6), fix dispatched.",
     "fired 2 team tasks w/ approval buttons (behavior rules -> ai-yonas, coach-per-beat -> ai-mint); collapse running",
     "7 onboarding behavior decisions locked; reconciling rules schemas before scaling annotations",
     "annotation exemplars done (!522): shape set, rules-check built, 7 behavior calls flagged for Yair",
     "render trunk deployed (62 beats) at flow-annotated-render.gg-onboarding-render.pages.dev",
-    "finisher merged to trunk: 62 beats, all 42 clips wired (conductor takeover after 3.5h stall)",
-    "all prep done: render guards in CI (!521), voicegen fix, TTS stub, cost note, screen_contexts plan"
+    "finisher merged to trunk: 62 beats, all 42 clips wired (conductor takeover after 3.5h stall)"
   ]
 }
