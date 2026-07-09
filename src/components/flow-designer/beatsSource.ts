@@ -218,21 +218,22 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'profile',
-    name: 'Profile (age + gender)',
+    // L2: Profile split into two single-engine beats. This greeting beat is
+    // Cartesia (live, has {name}); the asks beat that follows is MP3.
+    id: 'profile-greeting',
+    name: 'Profile greeting',
     order: 5,
     path: 'both',
     type: 'profile-beat',
     screenId: 'ONBOARD-01--FORM',
     context:
-      "BEAT: Profile.\n\nSPEAK MODE: VERBATIM_OPENER\n\nYou already know the user's name from sign-in. Greet them by name, warmly, and collect two things: their age and their gender. Ask gender plainly, and never let them skip or decline it. Accept voice or taps. If they give one, ask for the other. Both are required before moving on, gender included. Don't ask for anything else.",
-    allowedTools: 'submit_profile, advance_step',
-    expectedResponse: 'Says or taps age and gender',
+      "BEAT: Profile greeting.\n\nSPEAK MODE: VERBATIM_OPENER\n\nYou already know the user's name from sign-in. Greet them by name, warmly, and set up the two quick things you're about to collect (age and gender). This beat is only the greeting, spoken live in their name. The asks come next.",
+    allowedTools: null,
+    expectedResponse: 'Auto-advances',
     voiceEngine: 'Cartesia',
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    elements: ['age', 'gender'],
     script: [
       {
         seq: 1,
@@ -246,25 +247,45 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clip: null,
         clipPath: null,
       },
+    ],
+  },
+  {
+    // L2: the asks beat. MP3, single-engine. Collects age and gender.
+    id: 'profile-asks',
+    name: 'Profile asks (age + gender)',
+    order: 6,
+    path: 'both',
+    type: 'profile-beat',
+    screenId: 'ONBOARD-01--FORM--ASKS',
+    context:
+      "BEAT: Profile.\n\nSPEAK MODE: VERBATIM_OPENER\n\nCollect two things: their age and their gender. Ask gender plainly, and never let them skip or decline it. Accept voice or taps. If they give one, ask for the other. Both are required before moving on, gender included. Don't ask for anything else.",
+    allowedTools: 'submit_profile, advance_step',
+    expectedResponse: 'Says or taps age and gender',
+    voiceEngine: 'MP3',
+    voiceMode: 'Verbatim',
+    hideOrb: false,
+    props: null,
+    elements: ['age', 'gender'],
+    script: [
       {
-        seq: 2,
+        seq: 1,
         words: 'How old are you?',
         bindsTo: {
           kind: 'component',
           element: 'age',
-          screen: 'ONBOARD-01--FORM',
+          screen: 'ONBOARD-01--FORM--ASKS',
         },
         voice: 'mp3',
         clip: 'onboard_01_form_1',
         clipPath: '/voice/ob/onboard_01_form_1.wav',
       },
       {
-        seq: 3,
+        seq: 2,
         words: "What's your gender?",
         bindsTo: {
           kind: 'component',
           element: 'gender',
-          screen: 'ONBOARD-01--FORM',
+          screen: 'ONBOARD-01--FORM--ASKS',
         },
         voice: 'mp3',
         clip: 'onboard_01_form_2',
@@ -275,7 +296,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'state-check',
     name: 'State check-in',
-    order: 6,
+    order: 7,
     path: 'both',
     type: 'state-check',
     screenId: 'ONBOARD-STATE-CHECK',
@@ -367,7 +388,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'checkin',
     name: 'Morning check-in setup',
-    order: 7,
+    order: 8,
     path: 'both',
     type: 'morning-checkin-setup',
     screenId: 'ONBOARD-MORNING-SETUP',
@@ -447,7 +468,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'reflection',
     name: 'Evening reflection setup',
-    order: 8,
+    order: 9,
     path: 'both',
     type: 'reflection-card',
     screenId: 'ONBOARD-BEGINNER-07',
@@ -562,7 +583,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'fork',
     name: 'Path fork',
-    order: 9,
+    order: 10,
     path: 'both',
     type: 'path-selection',
     screenId: 'ONBOARD-FORK--FORM',
@@ -616,7 +637,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'category',
     name: 'Category',
-    order: 10,
+    order: 11,
     path: 'beginner',
     type: 'category-grid',
     screenId: 'ONBOARD-BEGINNER-01',
@@ -671,7 +692,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'category-women',
     name: 'Category (women’s art)',
-    order: 11,
+    order: 12,
     path: 'beginner',
     type: 'category-grid',
     screenId: 'ONBOARD-BEGINNER-01',
@@ -728,7 +749,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'goals',
     name: 'Goals',
-    order: 12,
+    order: 13,
     path: 'beginner',
     type: 'goals-list',
     screenId: 'ONBOARD-BEGINNER-02',
@@ -758,7 +779,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'goal-custom',
     name: 'Create your own goal',
-    order: 13,
+    order: 14,
     path: 'beginner',
     type: 'custom-entry',
     screenId: 'ONBOARD-BEGINNER-02-CUSTOM',
@@ -789,7 +810,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'habits',
     name: 'Habits',
-    order: 14,
+    order: 15,
     path: 'beginner',
     type: 'habit-picker',
     screenId: 'ONBOARD-BEGINNER-03',
@@ -833,7 +854,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'habit-custom',
     name: 'Create your own habit',
-    order: 15,
+    order: 16,
     path: 'beginner',
     type: 'custom-entry',
     screenId: 'ONBOARD-BEGINNER-03-CUSTOM',
@@ -864,7 +885,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'schedule',
     name: 'Habit schedule',
-    order: 16,
+    order: 17,
     path: 'beginner',
     type: 'habit-schedule',
     screenId: 'ONBOARD-BEGINNER-04',
@@ -919,7 +940,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'advanced-capture',
     name: 'Advanced capture',
-    order: 17,
+    order: 18,
     path: 'advanced',
     type: 'advanced-capture',
     screenId: 'ONBOARD-ADVANCED',
@@ -975,7 +996,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'advanced-frequency',
     name: 'Advanced frequency',
-    order: 18,
+    order: 19,
     path: 'advanced',
     type: 'advanced-frequency',
     screenId: 'ONBOARD-ADVANCED-FREQUENCY',
@@ -1042,7 +1063,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'plan',
     name: 'Plan confirm',
-    order: 19,
+    order: 20,
     path: 'both',
     type: 'into-app',
     screenId: 'ONBOARD-COMPLETE',
@@ -1073,7 +1094,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-blank',
     name: 'Weekly projection (blank)',
-    order: 20,
+    order: 21,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-BLANK',
@@ -1105,7 +1126,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-full',
     name: 'Weekly projection (full)',
-    order: 21,
+    order: 22,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-FULL',
@@ -1137,7 +1158,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-p78',
     name: 'Weekly projection (78%)',
-    order: 22,
+    order: 23,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-P78',
@@ -1170,7 +1191,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-p36',
     name: 'Weekly projection (36%)',
-    order: 23,
+    order: 24,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-P36',
@@ -1203,7 +1224,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'weekly-gaps',
     name: 'Weekly projection (gaps)',
-    order: 24,
+    order: 25,
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-GAPS',
