@@ -14,6 +14,72 @@ export type VoiceMode = 'Verbatim' | 'Improvise' | null;
 export type ScriptVoice = 'verbatim' | 'mp3' | 'cartesia' | null;
 export type BindKind = 'bubble' | 'component';
 
+// --- Annotation layer (per annotated-render-spec.md) ---------------------------
+// The render is the single source of truth. Beyond the script the engine plays,
+// each beat can carry the FULL annotation: the rules guardrail (context = coach
+// behavior, code = engine invariants) plus the accordion detail sections the spec
+// numbers (components, flow, persistence, edges, acceptance). Optional on the
+// BeatEntry so beats are annotated incrementally; the 4 exemplar onboarding beats
+// carry the complete shape, the rest are still bare.
+
+export type RuleSeverity = 'must' | 'should';
+
+// A rule is only a guardrail if you can see how it is enforced, so every rule
+// declares its enforcement. `enforcedBy` names a REAL enforcer (a check script
+// basename such as "render-link-integrity-check", or "type-check"), or null when
+// nothing enforces it yet. A `must` rule with a null enforcer must be marked
+// `proseOnlyAccepted` (it is a soft/coach rule, or a code invariant awaiting a
+// real enforcer). `needsYair` flags product behavior that is asserted here but
+// NOT yet confirmed by Yair or written in the docs, so it is not silently invented.
+export interface BeatRule {
+  readonly id: string;
+  readonly rule: string;
+  readonly severity: RuleSeverity;
+  readonly enforcedBy: string | null;
+  readonly proseOnlyAccepted?: boolean;
+  readonly needsYair?: boolean;
+}
+
+export interface BeatRules {
+  readonly context: readonly BeatRule[];
+  readonly code: readonly BeatRule[];
+}
+
+// What renders on this beat's screen and its reveal/karaoke timing.
+export interface BeatComponentSpec {
+  readonly component: string;
+  readonly props?: string;
+  readonly variant?: string;
+  readonly timing?: string;
+}
+
+// Advance + branch logic for the beat.
+export interface BeatFlow {
+  readonly advance: string;
+  readonly branch: string | null;
+}
+
+// What the beat writes, and what it must never re-ask afterward.
+export interface BeatPersistence {
+  readonly writes: string;
+  readonly neverReask: string;
+}
+
+// One non-happy-path case the beat must handle.
+export interface BeatEdge {
+  readonly case: string;
+  readonly behavior: string;
+}
+
+export interface BeatAnnotation {
+  readonly rules: BeatRules;
+  readonly components?: readonly BeatComponentSpec[];
+  readonly flow?: BeatFlow;
+  readonly persistence?: BeatPersistence;
+  readonly edges?: readonly BeatEdge[];
+  readonly acceptance?: readonly string[];
+}
+
 export interface ScriptLine {
   readonly seq: number;
   readonly words: string;
@@ -40,6 +106,7 @@ export interface BeatEntry {
   readonly props: Record<string, string> | null;
   readonly elements?: readonly string[];
   readonly script: readonly ScriptLine[];
+  readonly annotation?: BeatAnnotation;
 }
 
 // The coach persona sent every turn, shared by every flow. Sourced from the
@@ -292,6 +359,150 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: '/voice/ob/onboard_01_form_2.wav',
       },
     ],
+    annotation: {
+      rules: {
+        context: [
+          {
+            id: 'verbatim-opener',
+            rule: 'Say the two scripted asks as written ("How old are you?", "What\'s your gender?"), then stop and wait. Do not add to them or invent extra questions.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'gender-not-optional',
+            rule: 'Never offer to skip, defer, or decline gender. If only one of age or gender is given, ask for the other. Both are captured before this beat ends.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'collect-only-age-gender',
+            rule: 'Ask for nothing beyond age and gender here. No name, no goals, no small talk.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'accept-voice-or-tap',
+            rule: 'Accept a spoken answer or a tap on the age/gender inputs equally. Read a typed or tapped answer the same as a said one.',
+            severity: 'should',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'no-ui-directives',
+            rule: 'Never tell the user to tap, select, or scroll. The inputs are on the screen; keep it moving by talking. (Inherited from GLOBAL_CONTEXT, restated because this beat has tappable inputs.)',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'hold-overflow',
+            rule: 'If the user answers past this beat ("I\'m 34 and I want to sleep better"), take the age now and hold the goal for the beat it belongs to.',
+            severity: 'should',
+            enforcedBy: 'parity-walk',
+          },
+        ],
+        code: [
+          {
+            id: 'fields-and-script-shape',
+            rule: 'Required beat fields are present, order is dense, and the script is a well-formed seq sequence binding to real elements.',
+            severity: 'must',
+            enforcedBy: 'render-consistency-check',
+          },
+          {
+            id: 'links-resolve',
+            rule: 'The age and gender elements are declared on the beat, and both MP3 clips resolve to real files under public/voice.',
+            severity: 'must',
+            enforcedBy: 'render-link-integrity-check',
+          },
+          {
+            id: 'rules-well-formed',
+            rule: 'Every rule in this beat has an id, a line, a valid severity, and an enforcedBy that names a real enforcer (or is an accepted prose-only must-rule).',
+            severity: 'must',
+            enforcedBy: 'render-rules-check',
+          },
+          {
+            id: 'allowed-tools-only',
+            rule: "Only submit_profile and advance_step may be called from this beat. No other beat's tools.",
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'single-engine-beat',
+            rule: 'This beat is one engine (MP3, Verbatim). It never mixes a live Cartesia line with a recorded clip. (Copy-flow rule 8.)',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'both-required-before-advance',
+            rule: 'advance_step only fires once BOTH age and gender are captured. A missing gender blocks the advance.',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+            needsYair: true,
+          },
+          {
+            id: 'gender-required-in-schema',
+            rule: 'submit_profile should hard-reject a null/empty gender at the schema level, so "never decline gender" is a code invariant and not only coach behavior. NEEDS YAIR: confirm the profile schema enforces gender-required, or whether it is coach-behavior only today.',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+            needsYair: true,
+          },
+          {
+            id: 'gender-selects-downstream-art',
+            rule: "The gender captured here is what the later women-specific variants (category-women and the women's projection art) read to switch. NEEDS YAIR: confirm gender is the exact selector for the art/category variant, and how non-binary or undisclosed maps.",
+            severity: 'should',
+            enforcedBy: null,
+            needsYair: true,
+          },
+        ],
+      },
+      components: [
+        {
+          component: 'Profile asks form',
+          props: 'elements: age, gender',
+          timing:
+            'Both inputs present. Coach voices "How old are you?" (age) then "What\'s your gender?" (gender) in sequence.',
+        },
+      ],
+      flow: {
+        advance:
+          'advance_step, fired by the coach only after submit_profile has captured both age and gender.',
+        branch: null,
+      },
+      persistence: {
+        writes: 'age (number) and gender, to the user profile via submit_profile.',
+        neverReask:
+          'age and gender. No later beat asks either again; if the user restates one, accept the correction and keep going.',
+      },
+      edges: [
+        {
+          case: 'User declines or tries to skip gender',
+          behavior:
+            'Do not accept a skip. Ask once more, plainly and kindly. Gender is required to advance. (See needs-Yair: is this coach-only or schema-enforced.)',
+        },
+        {
+          case: 'User gives both in one breath',
+          behavior:
+            'Capture both, call submit_profile once, advance. Do not re-ask the one already given.',
+        },
+        {
+          case: 'User answers with info for a later beat',
+          behavior: 'Take age/gender now, hold the rest for its own beat.',
+        },
+        {
+          case: 'Ambiguous age ("thirties", "almost 40")',
+          behavior:
+            'Ask one short clarifying question to pin a number, then move on. Do not loop it more than twice.',
+        },
+      ],
+      acceptance: [
+        'Shows the age and gender inputs and no other fields.',
+        'Coach says the two scripted asks verbatim and waits.',
+        'Advances only after both age and gender are captured.',
+        'Survives a refresh: captured age and gender persist and are not re-asked.',
+      ],
+    },
   },
   {
     id: 'state-check',
@@ -581,6 +792,158 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: null,
       },
     ],
+    annotation: {
+      rules: {
+        context: [
+          {
+            id: 'setup-not-perform',
+            rule: 'Set the reflection up, do not run it now. The user picks one style and a time; the reflection itself happens in the daily flow, not here.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'silent-styles',
+            rule: 'The three styles are on the screen. Do not read them out loud. Ask which feels right and let them pick.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'first-person-mirrored',
+            rule: 'The reflection questions are first-person ("What am I proud of?", not "What are you proud of?") and the onboarding set matches the daily check-in set word for word, including "What do I forgive myself for?".',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'keep-it-light',
+            rule: 'If they resist, keep it light. It is two minutes a day. Never make it feel like homework.',
+            severity: 'should',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'no-per-style-coaching',
+            rule: 'Do not add coaching per style. Let them pick and move on.',
+            severity: 'should',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'picker-first-guidance-second',
+            rule: 'Show the styles and time first, then give the nudge about when to do it (before bed). Guidance comes after the thing it guides. (Copy-flow rule 12.)',
+            severity: 'should',
+            enforcedBy: 'parity-walk',
+          },
+        ],
+        code: [
+          {
+            id: 'fields-and-script-shape',
+            rule: 'Required beat fields are present, order is dense, and the script is a well-formed seq sequence binding to real elements.',
+            severity: 'must',
+            enforcedBy: 'render-consistency-check',
+          },
+          {
+            id: 'links-resolve',
+            rule: 'Every bubble and reveal element binds to a real screen element, and every non-null clip resolves to a real file under public/voice.',
+            severity: 'must',
+            enforcedBy: 'render-link-integrity-check',
+          },
+          {
+            id: 'rules-well-formed',
+            rule: 'Every rule in this beat has an id, a line, a valid severity, and an enforcedBy that names a real enforcer (or is an accepted prose-only must-rule).',
+            severity: 'must',
+            enforcedBy: 'render-rules-check',
+          },
+          {
+            id: 'allowed-tools-only',
+            rule: 'Only submit_reflection_config, submit_custom_prompts, and advance_step may be called from this beat.',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'single-engine-beat',
+            rule: 'This beat is one engine (MP3, Verbatim). It never mixes a live Cartesia line with a recorded clip. (Copy-flow rule 8.)',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'template-persists',
+            rule: 'Whatever style is picked IS saved as the reflection template, and the daily evening reflection asks based on it exactly: suggested template => the three questions (proud, forgive, grateful), your template => the saved prompts in order, freeform => no questions, just talk. NEEDS YAIR: confirm the daily reflection reads this saved config verbatim and where the persistence is enforced.',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+            needsYair: true,
+          },
+          {
+            id: 'capture-custom-prompts',
+            rule: 'If "your template" is chosen, the custom prompts are captured here via submit_custom_prompts so the daily reflection can ask them verbatim. NEEDS YAIR: confirm the custom prompts are stored and replayed verbatim in the daily flow.',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+            needsYair: true,
+          },
+          {
+            id: 'onboarding-daily-distinct',
+            rule: 'Onboarding and daily reflection sets are stored distinctly even when the wording matches, so the two do not drift into one. (Copy-flow rule 15.)',
+            severity: 'should',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'reminder-on-by-default',
+            rule: 'The reminder is on by default and a time is captured with the config.',
+            severity: 'should',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+        ],
+      },
+      components: [
+        {
+          component: 'Reflection setup card',
+          props:
+            'styles: suggested template, your template, freeform; time picker; reminder toggle (on by default)',
+          timing:
+            'Opener bubble, then the three questions reveal one by one (proud, forgive, grateful), then the alt-style line, then the style options and time, then the time nudge.',
+        },
+      ],
+      flow: {
+        advance:
+          'advance_step, after submit_reflection_config saves the chosen style and time (and submit_custom_prompts if "your template").',
+        branch:
+          'The chosen style sets what the daily evening reflection asks: suggested => the three questions, your template => the saved prompts, freeform => open talk.',
+      },
+      persistence: {
+        writes:
+          'the reflection style, time, and reminder-on flag via submit_reflection_config; and, if "your template", the custom prompts via submit_custom_prompts.',
+        neverReask:
+          'the reflection style and time. The daily evening reflection reads this config, it does not re-ask during onboarding.',
+      },
+      edges: [
+        {
+          case: 'User picks "your template"',
+          behavior:
+            'Capture their prompts here (submit_custom_prompts) so the daily reflection asks them verbatim.',
+        },
+        {
+          case: 'User picks freeform',
+          behavior: 'Save freeform. The daily reflection is open talk with no questions.',
+        },
+        {
+          case: 'User resists setting it up',
+          behavior: 'Keep it light, it is two minutes a day. Do not push or make it homework.',
+        },
+        {
+          case: 'User gives no time',
+          behavior: 'Offer the recommended time (before bed) and let them confirm or change it.',
+        },
+      ],
+      acceptance: [
+        'Shows the three styles and a time, reminder on by default.',
+        'Coach sets it up without performing the reflection now.',
+        'Saves the picked style and time; "your template" also saves the custom prompts.',
+        'The saved config is what the daily evening reflection uses; survives a refresh.',
+      ],
+    },
   },
   {
     id: 'fork',
@@ -782,6 +1145,146 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: '/voice/ob/onboard_beginner_02_sleep.wav',
       },
     ],
+    annotation: {
+      rules: {
+        context: [
+          {
+            id: 'warm-opener-one-reason',
+            rule: 'Open glad they chose sleep, give one true specific reason it is a good place to start, then ask for goals. React and ask in one merged line, not two moments.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'no-contrarian-turn',
+            rule: 'Do not undercut the choice with a reframe ("sleep is not really the problem"). They just chose it; meet them with warmth, not a pivot.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'no-platitudes',
+            rule: 'No fortune-cookie filler and no performative words. Cut "genuinely", do not call the choice "brave". Say something true and specific.',
+            severity: 'should',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'silent-options',
+            rule: 'The goal labels on the screen are reference for matching only. Never read them out loud, not in full, not one as an example.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'map-to-exact-label',
+            rule: 'Map what the user says to the exact goal label from the reference list. If vague, ask one short question. Never invent, rename, or shorten a label.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'cap-two-goals',
+            rule: 'Allow at most two goals. If they name three, ask which two matter most.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'no-per-goal-coaching',
+            rule: 'Do not coach or explain per goal here. Collect the goals and move on.',
+            severity: 'should',
+            enforcedBy: 'parity-walk',
+          },
+        ],
+        code: [
+          {
+            id: 'fields-and-script-shape',
+            rule: 'Required beat fields are present, order is dense, and the script is a well-formed seq sequence binding to real elements.',
+            severity: 'must',
+            enforcedBy: 'render-consistency-check',
+          },
+          {
+            id: 'links-resolve',
+            rule: 'The opener bubble binds to a real screen element and its MP3 clip resolves to a real file under public/voice.',
+            severity: 'must',
+            enforcedBy: 'render-link-integrity-check',
+          },
+          {
+            id: 'rules-well-formed',
+            rule: 'Every rule in this beat has an id, a line, a valid severity, and an enforcedBy that names a real enforcer (or is an accepted prose-only must-rule).',
+            severity: 'must',
+            enforcedBy: 'render-rules-check',
+          },
+          {
+            id: 'allowed-tools-only',
+            rule: 'Only submit_goals and advance_step may be called from this beat.',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'single-engine-beat',
+            rule: 'This beat is one engine (MP3, Verbatim). It never mixes a live Cartesia line with a recorded clip. (Copy-flow rule 8.)',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'variant-resolved-by-category',
+            rule: 'This is one of N goals-* variants selected by the upstream category pick (props.category = "Sleep better"). The engine renders the variant matching the picked category, not a separate beat per category. (Copy-flow rule 10.)',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'goal-count-sets-habit-branch',
+            rule: 'The saved goal count (1 or 2) is the branch the habit beat reads: two goals cap habits at one per goal, one goal allows one or two. NEEDS YAIR: confirm the two-goals-one-habit-each cap is the intended rule and where it is enforced.',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+            needsYair: true,
+          },
+        ],
+      },
+      components: [
+        {
+          component: 'Goals list',
+          props: 'category: Sleep better',
+          variant: 'sleep',
+          timing: 'Opener bubble reveals, then the goal chips are shown for selection.',
+        },
+      ],
+      flow: {
+        advance: 'advance_step, after submit_goals captures 1 to 2 goals.',
+        branch:
+          'Sets the goal count the downstream habit beat branches on: 2 goals => one habit per goal, 1 goal => one or two habits.',
+      },
+      persistence: {
+        writes: 'the 1 to 2 chosen goals (canonical labels) and the goal count, via submit_goals.',
+        neverReask: 'the chosen category and goals. The habit beat reads them; it does not re-ask.',
+      },
+      edges: [
+        {
+          case: 'User names three or more goals',
+          behavior: 'Ask which two matter most, cap at two.',
+        },
+        {
+          case: 'User speaks generally ("just sleep better")',
+          behavior: 'Map to the closest label, or ask one short question to pick.',
+        },
+        {
+          case: 'User wants a goal not on the list',
+          behavior:
+            'Map to the closest canonical label. A genuinely custom goal routes to goal-custom, it is not invented here.',
+        },
+        {
+          case: 'Empty state (no chips shown yet)',
+          behavior:
+            'Ask one neutral question ("is anything coming up to pick from?"). Do not recite the options.',
+        },
+      ],
+      acceptance: [
+        'Shows the Sleep-better goal options.',
+        'Coach opens warm with one specific reason and asks, in one line.',
+        'Captures 1 to 2 goals as canonical labels and saves the count.',
+        'Advances only after at least one goal is picked; survives a refresh.',
+      ],
+    },
   },
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
@@ -1837,6 +2340,175 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: '/voice/ob/onboard_beginner_03_goal_weed.wav',
       },
     ],
+    annotation: {
+      rules: {
+        context: [
+          {
+            id: 'name-the-goal',
+            rule: 'The opener names the goal ("To cut back on weed..."). Name it in every habit-pick opener, both the one-goal and two-goal case. Do not name it in some and not others.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'count-agnostic-wording',
+            rule: 'Use count-agnostic wording ("a habit or two") so the same clip serves the only-goal and one-of-two-goals path alike.',
+            severity: 'should',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'keep-the-gem',
+            rule: 'Keep the coaching point that less is more: one habit you actually keep beats five you do not. Warmth plus a real point, not generic uplift.',
+            severity: 'should',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'silent-options',
+            rule: 'The habit list on the screen is for matching only. Never read it out loud, in full or in part, not even one as an example, and not the sub-lists.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'match-canonical',
+            rule: 'Map what the user says to the closest canonical habit name. Never invent a habit name that is not on the list.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'custom-only-if-offered',
+            rule: 'Accept a custom habit only when the user offers something genuinely not on the list ("Create your own").',
+            severity: 'should',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'no-per-pick-commentary',
+            rule: 'Do not add commentary or motivation after each pick. Collect and move on.',
+            severity: 'should',
+            enforcedBy: 'parity-walk',
+          },
+          {
+            id: 'one-habit-per-goal-when-two',
+            rule: 'On the two-goal path, take exactly one habit for this goal. Do not accept a second for the same goal.',
+            severity: 'must',
+            enforcedBy: 'parity-walk',
+          },
+        ],
+        code: [
+          {
+            id: 'fields-and-script-shape',
+            rule: 'Required beat fields are present, order is dense, and the script is a well-formed seq sequence binding to real elements.',
+            severity: 'must',
+            enforcedBy: 'render-consistency-check',
+          },
+          {
+            id: 'links-resolve',
+            rule: 'The opener bubble and the createOwn element resolve, and the MP3 clip resolves to a real file under public/voice.',
+            severity: 'must',
+            enforcedBy: 'render-link-integrity-check',
+          },
+          {
+            id: 'rules-well-formed',
+            rule: 'Every rule in this beat has an id, a line, a valid severity, and an enforcedBy that names a real enforcer (or is an accepted prose-only must-rule).',
+            severity: 'must',
+            enforcedBy: 'render-rules-check',
+          },
+          {
+            id: 'allowed-tools-only',
+            rule: 'Only add_habit, remove_habit, and advance_step may be called from this beat.',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'single-engine-beat',
+            rule: 'This beat is one engine (MP3, Verbatim). It never mixes a live Cartesia line with a recorded clip. (Copy-flow rule 8.)',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'variant-resolved-by-goal',
+            rule: 'This is one of N habits-* variants selected by the upstream goal pick (props.goal = "Weed"). The engine renders the variant matching the picked goal. (Copy-flow rule 10.)',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'per-goal-loop',
+            rule: 'The habit-pick runs per goal: entered once for one goal, twice for two. (Copy-flow rule 13.)',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'one-habit-cap-two-goals',
+            rule: 'On the two-goal path, the engine caps this goal at exactly one habit and rejects a second add_habit for the same goal. NEEDS YAIR: confirm the cap is engine-enforced (not coach-only) and its exact behavior.',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+            needsYair: true,
+          },
+          {
+            id: 'at-least-one-to-advance',
+            rule: 'advance_step is blocked until at least one habit is added for this goal.',
+            severity: 'must',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+          {
+            id: 'custom-fallback-line',
+            rule: 'A custom habit (createOwn) has no per-item recording, so it falls back to a generic opener line. (Copy-flow rule 14.)',
+            severity: 'should',
+            enforcedBy: null,
+            proseOnlyAccepted: true,
+          },
+        ],
+      },
+      components: [
+        {
+          component: 'Habit picker',
+          props: 'goal: Weed; elements: createOwn',
+          variant: 'weed',
+          timing:
+            'Opener bubble reveals, then habit chips and Create-your-own are shown for selection.',
+        },
+      ],
+      flow: {
+        advance: 'advance_step, after at least one habit is added for this goal (add_habit).',
+        branch:
+          'Consumes the goal-count branch from goals: with two goals this beat is entered once per goal and capped at one habit each, with one goal it allows one or two habits.',
+      },
+      persistence: {
+        writes: 'the chosen habit(s) for this goal via add_habit; remove_habit undoes a pick.',
+        neverReask:
+          'the goal and its picked habits. The schedule and plan beats read them, they do not re-ask.',
+      },
+      edges: [
+        {
+          case: 'User offers a habit not on the list',
+          behavior:
+            'If it is a real alternative, accept it as a custom habit (Create your own). Otherwise map to the closest canonical name.',
+        },
+        {
+          case: 'Two-goal path, user picks a second habit for this goal',
+          behavior:
+            'Take one, hold the cap. One per goal on the two-goal path. (See needs-Yair on the cap enforcer.)',
+        },
+        {
+          case: 'User tries to continue without picking',
+          behavior: 'At least one habit is required. Ask once, keep it light.',
+        },
+        {
+          case: 'User picks many ("all of them")',
+          behavior: 'Keep it small: one or two. Less is more, they can build later.',
+        },
+      ],
+      acceptance: [
+        'Shows the Weed habit options and Create-your-own.',
+        'Opener names the goal and keeps the less-is-more point.',
+        'Captures one habit (two-goal path) or one to two (one-goal path) as canonical names.',
+        'Advances only after at least one habit; survives a refresh.',
+      ],
+    },
   },
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Alcohol).
