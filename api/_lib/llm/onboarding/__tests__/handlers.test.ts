@@ -162,6 +162,51 @@ describe('submit_profile', () => {
   });
 });
 
+// ─── submit_profile — rule 2: explicit invalid/empty gender hard-reject ────────
+
+describe('submit_profile rule 2 — gender hard-reject', () => {
+  it('(a) explicit null gender is rejected, no write', async () => {
+    const r = await submitProfile(CTX, { age: '28', gender: null });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('(a) explicit empty-string gender is rejected, no write', async () => {
+    const r = await submitProfile(CTX, { age: '28', gender: '' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('(a) explicit out-of-enum gender is rejected, no write', async () => {
+    const r = await submitProfile(CTX, { age: '28', gender: 'unknown' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('(b) absent gender key is allowed (age-first partial save)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { age: 28 }, current_step: 1 }],
+    });
+    const r = await submitProfile(CTX, { age: '28' });
+    expect(r.ok).toBe(true);
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    const [, params] = pool.query.mock.calls[0];
+    expect(JSON.parse(params[1] as string)).toEqual({ age: 28 });
+  });
+
+  it('(c) valid gender is accepted and persisted', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { age: 28, gender: 'Female' }, current_step: 1 }],
+    });
+    const r = await submitProfile(CTX, { age: '28', gender: 'Female' });
+    expect(r.ok).toBe(true);
+    const [, params] = pool.query.mock.calls[0];
+    expect(JSON.parse(params[1] as string)).toEqual({ age: 28, gender: 'Female' });
+  });
+});
+
 // ─── submit_profile — gender-loop regression (fix/profile-gender-required) ──────
 
 describe('submit_profile gender-loop regression', () => {

@@ -94,7 +94,12 @@ export async function submitProfile(
     }
   }
 
-  if (gender !== undefined && !isGenderOption(gender)) {
+  // Rule 2: an EXPLICIT gender that is null / empty / out-of-enum is a hard
+  // reject; an ABSENT gender key stays a legit partial save (advance gate blocks
+  // advancing without gender). getString collapses null and absent to undefined,
+  // so probe the raw arg to tell them apart.
+  const genderPresent = 'gender' in args;
+  if (genderPresent && (gender === undefined || gender.length === 0 || !isGenderOption(gender))) {
     console.log('[vapi/tool] validation_failed reason=gender_not_in_enum');
     return { error: 'validation_failed: gender must be Male, Female, or Other' };
   }

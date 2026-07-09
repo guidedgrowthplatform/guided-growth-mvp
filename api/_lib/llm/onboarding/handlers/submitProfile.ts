@@ -49,7 +49,12 @@ export async function submitProfile(
     }
   }
 
-  if (gender !== undefined && !isGenderOption(gender)) {
+  // Rule 2: an EXPLICIT gender that is null / empty / out-of-enum is a hard
+  // reject; an ABSENT gender key is the legit age-first partial-save (the
+  // advance gate blocks advancing without gender). getString collapses null and
+  // "key absent" both to undefined, so probe the raw arg to tell them apart.
+  const genderPresent = 'gender' in args;
+  if (genderPresent && (gender === undefined || gender.length === 0 || !isGenderOption(gender))) {
     return invalid('gender must be Male, Female, or Other');
   }
 
