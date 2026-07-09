@@ -1,5 +1,74 @@
 stages:
   - sync
+  - verify
+
+# Render guard: runs the render's own static checks (consistency, link
+# integrity, rules-registry — see package.json's check:beats, which itself
+# runs `node scripts/bible-registry-check.mjs` via check:rules-registry) on
+# every push to a render MR/branch. REPORT MODE (allow_failure: true) while
+# the render is still being cleaned up (see the 2026-07-10 whole-system
+# onboarding QA gate + render-parity-gate handoff) — it runs for real on
+# every pipeline and posts a real pass/fail, but does not block merge yet.
+# Flip allow_failure to false once a deliberately-wrong beat has been proven
+# to fail this job and the current branch passes clean.
+render_guards:
+  stage: verify
+  image: node:20
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+  interruptible: true
+  allow_failure: true
+  timeout: 15 minutes
+  variables:
+    npm_config_cache: '$CI_PROJECT_DIR/.npm'
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  script:
+    - npm ci --prefer-offline --no-audit --no-fund
+    - node scripts/bible-registry-check.mjs
+    - npm run check:render
+    - npm run check:links
+    - npm run check:beats
+
+# Parity guard: builds the render's published contract (dist-flow/parity.json,
+# schema v2 — beat order, identity, opener copy, audio clip ids; see
+# scripts/export-render-parity.mjs) and cross-checks it against three
+# independently-sourced, app-consumed inputs (scripts/check-app-parity.mjs):
+# the app's route-order bundle, its live onboarding-chat opener copy, and the
+# audio files actually shipped under public/. This is the "not just a static
+# string compare" half of the parity law: a screenId/clip missing on the app
+# side is informational (the app's coverage is intentionally partial right
+# now), but a value present on BOTH sides that disagrees, or an order
+# inversion, fails the job. REPORT MODE (allow_failure: true) for the same
+# reason as render_guards — this already fails today on real opener drift
+# between the render and the live chat copy (see check-app-parity.mjs's own
+# header), which is exactly the kind of divergence it exists to catch. Do not
+# flip to blocking until that drift is reconciled and a deliberately-wrong
+# change has been proven to fail this job on a clean branch.
+render_app_parity:
+  stage: verify
+  image: node:20
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+  interruptible: true
+  allow_failure: true
+  timeout: 15 minutes
+  variables:
+    npm_config_cache: '$CI_PROJECT_DIR/.npm'
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  script:
+    - npm ci --prefer-offline --no-audit --no-fund
+    - npm run build:flow
+    - npm run check:app-parity
 
 voice-sync:
   stage: sync
@@ -9,8 +78,8 @@ voice-sync:
   resource_group: voice-sync
   timeout: 5 minutes
   variables:
-    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
-    GOOGLE_APPLICATION_CREDENTIALS: "$GCP_SA_KEY"
+    PIP_CACHE_DIR: '$CI_PROJECT_DIR/.pip-cache'
+    GOOGLE_APPLICATION_CREDENTIALS: '$GCP_SA_KEY'
   cache:
     key: voice-sync-pip
     paths:
