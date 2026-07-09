@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T11:56:14+03:00",
+  "updated": "2026-07-09T12:06:55+03:00",
   "phase": "render-clean",
   "headline": "Finisher MERGED to trunk (62 beats, all clips wired). Next: populate every beat annotations, then combine all-flows.",
   "gate": [
@@ -102,6 +102,12 @@
       "name": "Builders",
       "cards": [
         {
+          "title": "Collapse variant beats",
+          "status": "Opus reworking 62 -> ~25 concept beats (category/goal variations resolve at runtime); draft MR, conductor gates + shows Yair",
+          "state": "in-progress",
+          "driver": "conductor"
+        },
+        {
           "title": "Finisher (!517) MERGED",
           "status": "merged to trunk 6fbd9fdd; 62 beats, L2/L4c/L3/L5/L7 + all clips wired, checks green",
           "state": "done",
@@ -109,7 +115,7 @@
         },
         {
           "title": "Annotation exemplars (!522)",
-          "status": "7 rules locked. Reconciling the two rules schemas (Codex all-flows vs exemplar), then scale annotations to all 62.",
+          "status": "blocked on the collapse: collapsing 37 variant beats to ~25 concept beats first, then annotate concepts once",
           "state": "in-progress",
           "driver": "conductor"
         },
@@ -143,6 +149,18 @@
           "title": "Voicegen preset fix (!520)",
           "status": "footgun closed",
           "state": "done"
+        },
+        {
+          "title": "Behavior rules in app",
+          "status": "FIRED to ai-yonas with approval button; awaiting the click",
+          "state": "pipeline",
+          "driver": "team session"
+        },
+        {
+          "title": "Coach per beat",
+          "status": "FIRED to ai-mint with approval button; awaiting the click",
+          "state": "pipeline",
+          "driver": "team session"
         }
       ]
     },
@@ -176,6 +194,12 @@
           "status": "DONE: shape approved, all 7 behavior rules locked (profile gates, women-art, habit caps, reflection persistence + verbatim)",
           "state": "done",
           "driver": "Yair"
+        },
+        {
+          "title": "Flow-engine track",
+          "status": "the high-involvement track, Yair keeps this; conductor specs it on request",
+          "state": "decision",
+          "driver": "Yair"
         }
       ]
     }
@@ -187,12 +211,12 @@
     "render walkthrough and approve (when render-ready)"
   ],
   "recent": [
+    "fired 2 team tasks w/ approval buttons (behavior rules -> ai-yonas, coach-per-beat -> ai-mint); collapse running",
     "7 onboarding behavior decisions locked; reconciling rules schemas before scaling annotations",
     "annotation exemplars done (!522): shape set, rules-check built, 7 behavior calls flagged for Yair",
     "render trunk deployed (62 beats) at flow-annotated-render.gg-onboarding-render.pages.dev",
     "finisher merged to trunk: 62 beats, all 42 clips wired (conductor takeover after 3.5h stall)",
     "all prep done: render guards in CI (!521), voicegen fix, TTS stub, cost note, screen_contexts plan",
-    "live conductor dashboard deployed at /internal/conductor",
-    "epoch rule resolved: render is permanent source of truth"
+    "live conductor dashboard deployed at /internal/conductor"
   ]
 }
