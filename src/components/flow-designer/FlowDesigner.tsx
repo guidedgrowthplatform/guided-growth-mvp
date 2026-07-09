@@ -382,9 +382,22 @@ function PathBanner({ path, edge }: { path?: BeatPath; edge: 'start' | 'end' }) 
   );
 }
 
-// A thin divider plus the beat number above each beat, so a beat's position in
-// the flow is clear at a glance.
-function BeatDivider({ n }: { n: number }) {
+// A thin divider plus the beat number, name, engine chip, and play control above
+// each beat. The play control AND the engine/MP3 chip live here, OUTSIDE the
+// rendered phone, so the phone's Coach header stays a clean mirror of the real
+// app screen (just "Coach", no annotation chrome).
+function BeatHeader({
+  n,
+  beat,
+  playing,
+  onTogglePlay,
+}: {
+  n: number;
+  beat: FlowBeat;
+  playing: boolean;
+  onTogglePlay: () => void;
+}) {
+  const chip = ENGINE_STYLE[beat.engine];
   return (
     <div style={{ marginTop: 28, marginBottom: 10 }}>
       <div style={{ height: 1, background: '#cbd5e1', width: '100%' }} />
@@ -392,15 +405,82 @@ function BeatDivider({ n }: { n: number }) {
         style={{
           marginTop: 6,
           marginLeft: TAG_COL_W + TAG_GAP,
-          fontSize: 12,
-          fontWeight: 800,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          color: '#64748b',
+          width: PHONE_W,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
           fontFamily: 'Urbanist, -apple-system, sans-serif',
         }}
       >
-        Beat {n}
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: '#64748b',
+            }}
+          >
+            Beat {n}
+          </div>
+          <div
+            style={{
+              marginTop: 2,
+              fontSize: 14,
+              fontWeight: 800,
+              color: '#0f172a',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {beat.name}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {beat.engine && (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: chip?.text ?? '#6366f1',
+                background: chip?.bg ?? 'rgba(99,102,241,0.1)',
+                border: `1px solid ${chip?.border ?? 'transparent'}`,
+                padding: '3px 9px',
+                borderRadius: 999,
+              }}
+            >
+              {beat.engine}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onTogglePlay}
+            title={playing ? 'Stop' : 'Play this beat'}
+            aria-label={playing ? 'Stop this beat' : 'Play this beat'}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 999,
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: playing ? '#ef4444' : '#135BEB',
+              boxShadow: '0 8px 18px -12px rgba(15,23,42,0.55)',
+            }}
+          >
+            <Icon
+              icon={playing ? 'mdi:stop' : 'mdi:play'}
+              width={17}
+              height={17}
+              style={{ color: '#fff' }}
+            />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -880,6 +960,8 @@ type BeatPath = 'beginner' | 'advanced' | 'both';
 
 interface FlowBeat {
   id: string;
+  // Shown in the beat header row above the phone, alongside the play control.
+  name: string;
   type: string;
   props?: Record<string, string>;
   engine: VoiceEngine;
@@ -905,6 +987,7 @@ interface FlowBeat {
 // the render has a single authored store.
 export const BASE_BEATS: FlowBeat[] = BEATS_SOURCE.map((b) => ({
   id: b.id,
+  name: b.name,
   type: b.type,
   props: b.props ?? undefined,
   engine: b.voiceEngine,
@@ -939,6 +1022,7 @@ const MORNING_BEATS: FlowBeat[] = [
   // One MP3, not two.
   {
     id: 'morning-opener',
+    name: 'Morning greeting',
     type: 'state-check',
     props: {
       coachLine:
@@ -949,6 +1033,7 @@ const MORNING_BEATS: FlowBeat[] = [
   },
   {
     id: 'morning-state-reaction',
+    name: 'State reaction',
     type: 'coach-bubble',
     props: {
       text: "Energy a little low, that makes sense. Sleep was short. Let's keep today light and focused.",
@@ -958,6 +1043,7 @@ const MORNING_BEATS: FlowBeat[] = [
   },
   {
     id: 'morning-are-you-done',
+    name: 'Anything else?',
     type: 'coach-bubble',
     props: {
       text: 'Looks like there are a few items left. Want to add anything, or should we move on?',
@@ -967,6 +1053,7 @@ const MORNING_BEATS: FlowBeat[] = [
   },
   {
     id: 'morning-wrap',
+    name: 'Morning wrap',
     type: 'coach-bubble',
     props: { text: "That's a good start. Go make it a good one." },
     engine: 'MP3',
@@ -991,6 +1078,7 @@ const MORNING_BEATS: FlowBeat[] = [
 const EVENING_BEATS: FlowBeat[] = [
   {
     id: 'evening-greeting',
+    name: 'Evening greeting',
     type: 'coach-bubble',
     props: { text: 'Hey, good evening. Here are your habits for today. How did the day go?' },
     engine: 'MP3',
@@ -998,12 +1086,14 @@ const EVENING_BEATS: FlowBeat[] = [
   },
   {
     id: 'evening-habit-review',
+    name: 'Habit review',
     type: 'habit-review',
     engine: 'Silent',
     mode: null,
   },
   {
     id: 'evening-habits-reaction',
+    name: 'Habits reaction',
     type: 'coach-bubble',
     props: { text: "Two out of three, that's solid. The screens one is hard. We'll work on that." },
     engine: 'Cartesia',
@@ -1011,6 +1101,7 @@ const EVENING_BEATS: FlowBeat[] = [
   },
   {
     id: 'evening-are-you-done',
+    name: 'Anything else?',
     type: 'coach-bubble',
     props: {
       text: 'Looks like there are a few items left. Want to add anything, or should we move on?',
@@ -1020,6 +1111,7 @@ const EVENING_BEATS: FlowBeat[] = [
   },
   {
     id: 'evening-reflection',
+    name: 'Reflection',
     type: 'reflection',
     props: {
       transition: "Good. Now let's take a moment to reflect on the day itself.",
@@ -1035,6 +1127,7 @@ const EVENING_BEATS: FlowBeat[] = [
   },
   {
     id: 'evening-reflection-reaction',
+    name: 'Reflection reaction',
     type: 'coach-bubble',
     props: { text: "That's real. Hold onto the gratitude tonight." },
     engine: 'Cartesia',
@@ -1042,6 +1135,7 @@ const EVENING_BEATS: FlowBeat[] = [
   },
   {
     id: 'evening-wrap',
+    name: 'Evening wrap',
     type: 'coach-bubble',
     props: { text: "That's it for tonight. Sleep well." },
     engine: 'MP3',
@@ -1128,15 +1222,11 @@ function TabSwitcher({ active, onChange }: { active: TabId; onChange: (id: TabId
 // so a wall of them settles into its look then freezes, instead of running many
 // perpetual animation loops.
 function PhoneCard({
-  engine,
   playing = false,
-  onTogglePlay,
   showOrb = true,
   children,
 }: {
-  engine?: string;
   playing?: boolean;
-  onTogglePlay?: () => void;
   showOrb?: boolean;
   children: ReactNode;
 }) {
@@ -1186,7 +1276,9 @@ function PhoneCard({
           <Icon icon="mdi:battery" width={15} height={15} />
         </span>
       </div>
-      {/* Coach header, with the engine chip for this beat */}
+      {/* Coach header: just "Coach", so the phone mirrors the real app screen
+          exactly. The play control and the engine chip live in the beat header
+          row above the phone (BeatHeader), not inside the phone. */}
       <div
         style={{
           display: 'flex',
@@ -1199,49 +1291,6 @@ function PhoneCard({
         }}
       >
         <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Coach</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {onTogglePlay && (
-            <button
-              type="button"
-              onClick={onTogglePlay}
-              title={playing ? 'Stop' : 'Play this beat'}
-              aria-label={playing ? 'Stop this beat' : 'Play this beat'}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 999,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: playing ? '#ef4444' : '#135BEB',
-                flexShrink: 0,
-              }}
-            >
-              <Icon
-                icon={playing ? 'mdi:stop' : 'mdi:play'}
-                width={16}
-                height={16}
-                style={{ color: '#fff' }}
-              />
-            </button>
-          )}
-          {engine && (
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#6366f1',
-                background: 'rgba(99,102,241,0.1)',
-                padding: '3px 9px',
-                borderRadius: 999,
-              }}
-            >
-              {engine}
-            </span>
-          )}
-        </div>
       </div>
       {/* Coach-blue interior: the beat at the top, the orb docked at the bottom on
           the same gradient (no white bar). The min height makes every phone at
@@ -1283,12 +1332,10 @@ function PhoneCard({
 function PlayableBeat({
   beat,
   active,
-  onRequestPlay,
   onDone,
 }: {
   beat: FlowBeat;
   active: boolean;
-  onRequestPlay: (id: string | null) => void;
   onDone: () => void;
 }) {
   const [stepReveal, setStepReveal] = useState<number | null>(null);
@@ -1348,12 +1395,7 @@ function PlayableBeat({
   }, [active]);
 
   return (
-    <PhoneCard
-      engine={beat.engine}
-      playing={active}
-      onTogglePlay={() => onRequestPlay(active ? null : beat.id)}
-      showOrb={!beat.hideOrb}
-    >
+    <PhoneCard playing={active} showOrb={!beat.hideOrb}>
       <SpokenWordsCtx.Provider value={active ? syncWords : null}>
         <IsolatedBeat
           key={`${beat.id}-${active ? 'active' : 'idle'}`}
@@ -1678,9 +1720,18 @@ function FlowPhoneFrame({
     const branched = b.path === 'beginner' || b.path === 'advanced';
     const isStart = branched && b.path !== beats[i - 1]?.path;
     const isEnd = branched && b.path !== beats[i + 1]?.path;
+    const isPlaying = playingId === b.id;
     return (
       <div key={b.id} data-beat-id={b.id} style={{ marginBottom: 34 }}>
-        {showWords && <BeatDivider n={i + 1} />}
+        {/* The beat header (number, name, engine chip, play control) renders for
+            every beat on every tab: the play control + chip moved out of the
+            phone, so they live here now. */}
+        <BeatHeader
+          n={i + 1}
+          beat={b}
+          playing={isPlaying}
+          onTogglePlay={() => onRequestPlay(isPlaying ? null : b.id)}
+        />
         {showWords && isStart && <PathBanner path={b.path} edge="start" />}
         <div style={{ display: 'flex', alignItems: 'flex-start' }}>
           {/* Left rail: compact voice tag on non-onboarding tabs, full metadata
@@ -1689,7 +1740,7 @@ function FlowPhoneFrame({
             style={{
               flex: `0 0 ${TAG_COL_W}px`,
               paddingRight: TAG_GAP,
-              paddingTop: showWords ? 8 : 96,
+              paddingTop: showWords ? 8 : 16,
             }}
           >
             {showWords ? (
@@ -1702,12 +1753,7 @@ function FlowPhoneFrame({
           </div>
           {/* Phone column: a self-contained phone with the orb, playable in place. */}
           <div style={{ flex: `0 0 ${PHONE_W}px` }}>
-            <PlayableBeat
-              beat={b}
-              active={playingId === b.id}
-              onRequestPlay={onRequestPlay}
-              onDone={() => onRequestPlay(null)}
-            />
+            <PlayableBeat beat={b} active={isPlaying} onDone={() => onRequestPlay(null)} />
           </div>
           {showWords && (
             <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP, paddingTop: 8 }}>

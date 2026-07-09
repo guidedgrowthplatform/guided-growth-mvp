@@ -226,6 +226,20 @@ export function FlowPlay() {
         <span style={{ fontSize: 12, color: '#94a3b8' }}>
           {itemIdx + 1} / {PLAY_RUNS.length} · {beat.screenId ?? beat.id}
         </span>
+        {beat.engine && (
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#6366f1',
+              background: 'rgba(99,102,241,0.1)',
+              padding: '3px 9px',
+              borderRadius: 999,
+            }}
+          >
+            {beat.engine}
+          </span>
+        )}
       </div>
 
       {/* Variation switcher: shown only on a concept step (category / goal
@@ -347,22 +361,9 @@ export function FlowPlay() {
             borderBottom: '1px solid rgba(15,23,42,0.06)',
           }}
         >
+          {/* Just "Coach", so the phone mirrors the real app screen exactly. The
+              engine chip lives in the controls row above the phone. */}
           <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Coach</span>
-          {beat.engine && (
-            <span
-              style={{
-                marginLeft: 'auto',
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#6366f1',
-                background: 'rgba(99,102,241,0.1)',
-                padding: '3px 9px',
-                borderRadius: 999,
-              }}
-            >
-              {beat.engine}
-            </span>
-          )}
         </div>
         {/* Coach-blue main area: the scrollable stage plus the orb docked at the
             bottom, both on one continuous coach gradient (no white bar). */}
