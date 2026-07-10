@@ -48,6 +48,15 @@
 //     'Let's get back to your onboarding') failed to pair because the interior class could
 //     not cross the mid-quote apostrophe. Interior apostrophes are now consumable only when
 //     mid-word, so the pair still closes across a contraction.
+//   Property-approach lock (QA hardening, 2026-07-11): the quote-glyph detection is now
+//     PROPERTY-BASED (Unicode Quotation_Mark + a small extra set of backtick/primes/modifier
+//     apostrophes, MINUS the two apostrophe-capable code points U+0027 and U+2019), not an
+//     enumerated glyph list — so it generalizes to quote glyphs that were never explicitly
+//     listed and ends the per-cycle whack-a-mole. These four committed cases lock that: a
+//     curly single-quote PAIR (’…’, both U+2019, caught by the deferred pair check), an
+//     UNPAIRED left single quote (‘, U+2018), a CJK corner-bracket pair (「…」), and a
+//     BEYOND-ENUMERATION pair the prior enumerated class never named (〝…〞, U+301D/U+301E) —
+//     all rejected by the property test with no glyph list left to extend.
 //
 // Run: `node scripts/checks/global-response-negatives.mjs` (or
 // `npm run check:global-response-negatives`). Exits 0 only if the guard behaved
@@ -319,6 +328,86 @@ withMutation(
   },
 );
 
+// Property-approach lock 1 — CURLY SINGLE-QUOTE PAIR (’…’, both delimiters U+2019). The
+// property fix defers U+2019 to the word-boundary-anchored pair check, which still catches a
+// genuine quoted pair (QA hardening, 2026-07-11: proves the deferred apostrophe path bites).
+withMutation(
+  'property-lock: curly single-quote pair (’…’) fails the guard',
+  [
+    injectRule({
+      id: 'glob-curly-pair-probe',
+      rule: "'On an unrecognized global input, say ’Let us get back to your onboarding’ and then re-ask.'",
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — a curly single-quote pair (’…’) in rule prose was accepted');
+    if (!/glob-curly-pair-probe/.test(out) || !/contains a quoted string/.test(out))
+      throw new Error('the quote lint did not fire on the curly single-quote pair');
+  },
+);
+
+// Property-approach lock 2 — UNPAIRED left single quote (‘, U+2018). U+2018 is a real
+// quotation mark that never doubles as an apostrophe, so the property test rejects it on ANY
+// occurrence — no pairing required (QA hardening, 2026-07-11).
+withMutation(
+  'property-lock: unpaired left single quote (‘) fails the guard',
+  [
+    injectRule({
+      id: 'glob-unpaired-lsq-probe',
+      rule: "'On an unrecognized global input, treat a stray ‘ mark as a quote and re-ask the current question.'",
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — an unpaired left single quote (‘) in rule prose was accepted');
+    if (!/glob-unpaired-lsq-probe/.test(out) || !/contains a quoted string/.test(out))
+      throw new Error('the quote lint did not fire on the unpaired left single quote');
+  },
+);
+
+// Property-approach lock 3 — CJK corner-bracket pair (「…」). Carries the Quotation_Mark
+// property, so it is caught even though it was never on any enumerated list (QA hardening,
+// 2026-07-11).
+withMutation(
+  'property-lock: CJK corner-bracket pair (「…」) fails the guard',
+  [
+    injectRule({
+      id: 'glob-cjk-corner-probe',
+      rule: "'On an unrecognized global input, say 「Let us get back to your onboarding」 and then re-ask.'",
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — a CJK corner-bracket pair (「…」) in rule prose was accepted');
+    if (!/glob-cjk-corner-probe/.test(out) || !/contains a quoted string/.test(out))
+      throw new Error('the quote lint did not fire on the CJK corner-bracket pair');
+  },
+);
+
+// Property-approach lock 4 — BEYOND-ENUMERATION quote marks (〝…〞, U+301D/U+301E). These were
+// never on the prior enumerated glyph class; the property test catches them anyway. This is
+// the proof the whack-a-mole is over (QA hardening, 2026-07-11).
+withMutation(
+  'property-lock: beyond-enumeration quote marks (〝…〞) fail the guard',
+  [
+    injectRule({
+      id: 'glob-beyond-enum-probe',
+      rule: "'On an unrecognized global input, say 〝Let us get back to your onboarding〞 and then re-ask.'",
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — beyond-enumeration quote marks (〝…〞) in rule prose were accepted');
+    if (!/glob-beyond-enum-probe/.test(out) || !/contains a quoted string/.test(out))
+      throw new Error('the quote lint did not fire on the beyond-enumeration quote marks');
+  },
+);
+
 // Duplicate GLOBAL_RULES id: two rules sharing the same id would make precedence and
 // spoken-response ownership ambiguous. Reuse the existing 'glob-crisis' id for the
 // injected probe so the ONLY failure is the new duplicate-id diagnostic (QA hardening,
@@ -419,7 +508,8 @@ if (failures) {
 console.log(
   'GLOBAL-RESPONSE NEGATIVE TESTS: all passed (guard bites on the B1 double-quote probe, ' +
     'the colon / single-quote / parenthesis / unquoted-response / backtick / guillemet / ' +
-    'long-single-quote / interior-contraction bypass classes, an unowned spoken response, ' +
-    'a spoken response outside the registry, a duplicate GLOBAL_RESPONSES id, and a ' +
-    'duplicate GLOBAL_RULES id).',
+    'long-single-quote / interior-contraction bypass classes, the property-approach lock ' +
+    'cases (curly single-quote pair, unpaired left single quote, CJK corner-bracket pair, ' +
+    'beyond-enumeration quote marks), an unowned spoken response, a spoken response outside ' +
+    'the registry, a duplicate GLOBAL_RESPONSES id, and a duplicate GLOBAL_RULES id).',
 );

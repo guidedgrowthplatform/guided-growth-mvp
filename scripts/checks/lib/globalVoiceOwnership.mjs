@@ -293,17 +293,23 @@ export function validateGlobalRuleEffects({ globalRules, responses, registry }) 
 //
 // (This lint applies ONLY to the GLOBAL layer GlobalRule.rule prose. Per-beat rulesContext
 // / rulesCode rule prose is not global response copy and is out of its scope.)
-// Glyph completeness (QA hardening, 2026-07-11): straight/curly double quotes,
-// backtick, and both guillemet forms are rejected on ANY occurrence — none of them
-// ever double as an apostrophe, so no pairing logic is needed for them. Straight/curly
-// single quote DOES double as an apostrophe (the user's, don't), so it is only rejected
-// as a PAIR, and that pair is anchored to a word boundary on each side (an opening mark
-// must not be immediately preceded by a word character; a closing mark must not be
-// immediately followed by one). A mid-word apostrophe can never satisfy either anchor,
-// so legitimate possessive/contraction prose is never mistaken for a quoted string. No
-// length cap: a quoted pair of ANY length is caught.
-const DOUBLE_QUOTE_RE = /["“”`«»‹›]/; // any quote glyph that never doubles as an apostrophe: straight/curly double quote, backtick, guillemets (« » ‹ ›)
-const SINGLE_QUOTE_PAIR_RE = /(?<!\w)['‘](?:[^'‘’\n]|(?<=\w)['’](?=\w))*['’](?!\w)/; // a straight/curly single-quote PAIR, word-boundary anchored (not a mid-word apostrophe); interior apostrophes are consumable only when mid-word, so a real quoted pair still matches across a contraction while legit possessive/contraction prose is never mistaken for one
+// Glyph completeness (QA hardening, 2026-07-11) — PROPERTY-BASED, not an enumerated glyph
+// list. The prior fix chased quote glyphs one at a time (straight/curly double, backtick,
+// guillemets, then CJK corners, fullwidth, primes ...), so every QA cycle reopened a
+// whack-a-mole when it found one more exotic quote the enumerated class missed. Instead, a
+// character is an UNCONDITIONAL quote if it carries the Unicode Quotation_Mark property OR
+// is in a small extra set the property does not cover (backtick, the primes, the modifier
+// apostrophes), with ONE exception: the two apostrophe-capable code points U+0027 (') and
+// U+2019 (’). Those legitimately appear as apostrophes in constraint prose (the user's,
+// don't, users’), so they are NOT flagged on occurrence; they are deferred to
+// SINGLE_QUOTE_PAIR_RE and fail only when they form a word-boundary-anchored PAIR. Every
+// other quote-like glyph — present or future, however exotic — is caught by the property
+// test with no list left to extend, which is what ends the loop. (\p{Quotation_Mark}
+// already covers " “ ” ‘ ‚ ‛ „ « » ‹ › 「 」 『 』 〝 〞 〟 ＂ ＇ ｢ ｣ and the two excluded
+// apostrophes; it does NOT cover backtick, the primes, or the modifier apostrophes, hence
+// the extra set.)
+const UNCONDITIONAL_QUOTE_RE = /[\p{Quotation_Mark}`′″‴ʼʻ]/gu; // any Quotation_Mark or extra-set glyph; the two apostrophe-capable code points (U+0027, U+2019) are excluded at match time and deferred to SINGLE_QUOTE_PAIR_RE
+const SINGLE_QUOTE_PAIR_RE = /(?<!\w)['’](?:[^'’\n]|(?<=\w)['’](?=\w))*['’](?!\w)/; // a straight/curly single-quote PAIR (' and ’, the apostrophe-capable pair), word-boundary anchored so a mid-word apostrophe is never mistaken for a quote; interior apostrophes are consumable only when mid-word, so a real quoted pair still matches across a contraction while legit possessive/contraction prose is never flagged. No length cap.
 
 export function findGlobalRuleProseQuotes(globalRulesArr) {
   const problems = [];
@@ -311,10 +317,22 @@ export function findGlobalRuleProseQuotes(globalRulesArr) {
   for (const rule of globalRulesArr) {
     const text = rule && typeof rule.rule === 'string' ? rule.rule : '';
     if (!text) continue;
-    const dq = DOUBLE_QUOTE_RE.exec(text);
+    // Unconditional quote-glyph scan: any Quotation_Mark / extra-set glyph that is NOT one
+    // of the two apostrophe-capable code points (U+0027, U+2019) is a violation on ANY
+    // occurrence. Those two are deferred to the pair check below.
+    let dqAt = -1;
+    UNCONDITIONAL_QUOTE_RE.lastIndex = 0;
+    for (let m = UNCONDITIONAL_QUOTE_RE.exec(text); m; m = UNCONDITIONAL_QUOTE_RE.exec(text)) {
+      const cp = m[0].codePointAt(0);
+      if (cp !== 0x27 && cp !== 0x2019) {
+        dqAt = m.index;
+        break;
+      }
+    }
     const sq = SINGLE_QUOTE_PAIR_RE.exec(text);
-    if (!dq && !sq) continue;
-    const at = dq ? dq.index : sq.index;
+    if (dqAt === -1 && !sq) continue;
+    // Report the earliest offending glyph (unconditional glyph or the anchored pair).
+    const at = dqAt === -1 || (sq && sq.index < dqAt) ? sq.index : dqAt;
     const snippet = text.slice(at, at + 80).replace(/\s+/g, ' ').trim();
     problems.push(
       `GLOBAL_RULES "${rule.id}": rule prose contains a quoted string ("${snippet}"). Behavior prose ` +
