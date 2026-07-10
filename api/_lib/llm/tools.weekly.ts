@@ -57,8 +57,9 @@ export const WEEKLY_TOOLS: readonly WeeklyTool[] = [
     description:
       'Edit an existing habit during The Weekly. This is the "minimize it" move: keep the ' +
       'habit but make it smaller. Renaming to a smaller bar (e.g. "Read a chapter" to ' +
-      '"Read a page") or fewer days (frequency or schedule_days, e.g. five days a week ' +
-      'becomes three) both minimize it. Also carries a timing change for the "change ' +
+      '"Read a page") or fewer days a week (frequency or schedule_days, e.g. five days a ' +
+      'week becomes three, often the most useful lever) both minimize it. Also carries a ' +
+      'timing change for the "change ' +
       'something in your life" move (the time field). Only call once the user has actually ' +
       'agreed to the change. Provide the habit `name` (case-insensitive, matches the current ' +
       'name) and ONLY the field(s) that are changing, unspecified fields are preserved. ' +
