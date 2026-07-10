@@ -303,7 +303,7 @@ export function validateGlobalRuleEffects({ globalRules, responses, registry }) 
 // so legitimate possessive/contraction prose is never mistaken for a quoted string. No
 // length cap: a quoted pair of ANY length is caught.
 const DOUBLE_QUOTE_RE = /["“”`«»‹›]/; // any quote glyph that never doubles as an apostrophe: straight/curly double quote, backtick, guillemets (« » ‹ ›)
-const SINGLE_QUOTE_PAIR_RE = /(?<!\w)['‘][^'‘’\n]*['’](?!\w)/; // a straight/curly single-quote PAIR, word-boundary anchored (not a mid-word apostrophe), unbounded length
+const SINGLE_QUOTE_PAIR_RE = /(?<!\w)['‘](?:[^'‘’\n]|(?<=\w)['’](?=\w))*['’](?!\w)/; // a straight/curly single-quote PAIR, word-boundary anchored (not a mid-word apostrophe); interior apostrophes are consumable only when mid-word, so a real quoted pair still matches across a contraction while legit possessive/contraction prose is never mistaken for one
 
 export function findGlobalRuleProseQuotes(globalRulesArr) {
   const problems = [];

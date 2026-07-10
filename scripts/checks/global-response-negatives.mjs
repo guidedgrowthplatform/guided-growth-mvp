@@ -42,6 +42,12 @@
 //   Test E (duplicate GLOBAL_RULES id, QA hardening 2026-07-11): two GLOBAL_RULES rules
 //     sharing an id. Mirrors Test D but for rule ids (validateGlobalRuleEffects), which
 //     had no uniqueness check before this hardening pass.
+//   Bypass class 8 (interior contraction, QA hardening 2026-07-11): the word-boundary
+//     anchoring added to fix bypass classes 5-7's sibling apostrophe false positive
+//     reopened a hole — a single-quoted response line with a contraction INSIDE it (say
+//     'Let's get back to your onboarding') failed to pair because the interior class could
+//     not cross the mid-quote apostrophe. Interior apostrophes are now consumable only when
+//     mid-word, so the pair still closes across a contraction.
 //
 // Run: `node scripts/checks/global-response-negatives.mjs` (or
 // `npm run check:global-response-negatives`). Exits 0 only if the guard behaved
@@ -286,6 +292,33 @@ withMutation(
   },
 );
 
+// Bypass class 8 — INTERIOR CONTRACTION inside a single-quoted response line (QA
+// hardening, 2026-07-11: word-boundary-anchoring fix reopened this). The word-boundary
+// anchors added to stop the mid-word-apostrophe false positive also broke the single-quote
+// PAIR match whenever the quoted interior itself contained an apostrophe/contraction (the
+// interior character class could not cross it and no alternate anchored opener existed), so
+// a single-quoted spoken line with a contraction inside — e.g. say 'Let's get back to your
+// onboarding' — silently passed. The regex now consumes an interior apostrophe only when it
+// is mid-word (lookbehind/lookahead both \w), so the pair still closes across a contraction.
+withMutation(
+  "bypass: single-quoted line with an interior contraction (say 'Let's ...') fails the guard",
+  [
+    injectRule({
+      id: 'glob-interior-contraction-probe',
+      rule: '"On an unrecognized global input, say \'Let\'s get back to your onboarding\' and then re-ask."',
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error(
+        "guard exited 0 — a single-quoted line with an interior contraction (say 'Let's ...') was accepted",
+      );
+    if (!/glob-interior-contraction-probe/.test(out) || !/contains a quoted string/.test(out))
+      throw new Error('the quote lint did not fire on the interior-contraction bypass');
+  },
+);
+
 // Duplicate GLOBAL_RULES id: two rules sharing the same id would make precedence and
 // spoken-response ownership ambiguous. Reuse the existing 'glob-crisis' id for the
 // injected probe so the ONLY failure is the new duplicate-id diagnostic (QA hardening,
@@ -386,6 +419,7 @@ if (failures) {
 console.log(
   'GLOBAL-RESPONSE NEGATIVE TESTS: all passed (guard bites on the B1 double-quote probe, ' +
     'the colon / single-quote / parenthesis / unquoted-response / backtick / guillemet / ' +
-    'long-single-quote bypass classes, an unowned spoken response, a spoken response outside ' +
-    'the registry, a duplicate GLOBAL_RESPONSES id, and a duplicate GLOBAL_RULES id).',
+    'long-single-quote / interior-contraction bypass classes, an unowned spoken response, ' +
+    'a spoken response outside the registry, a duplicate GLOBAL_RESPONSES id, and a ' +
+    'duplicate GLOBAL_RULES id).',
 );
