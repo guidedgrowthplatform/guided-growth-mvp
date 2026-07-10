@@ -432,6 +432,63 @@ for (const beat of resolvedBeats) {
   }
 }
 
+// (3c) FAMILY TYPED-PATH GUARD (fill precondition, Fable finding #2).
+// The semantic-leak scan above can only bite a family whose head exposes a
+// non-empty semantic-token set AND whose variants are built from typed per-family
+// data. The B1-R fix wired that ONLY for the goals family (goalsSemanticTokens +
+// resolveBeatStructure step 3b, gated on type === 'goals-list'). Any OTHER
+// bible-bearing head with variantOf children would derive its category-sensitive
+// sections through the free-text substitution path (substituteDeep, exact-token-
+// only scanning) with an EMPTY semantic-token set — so the semantic noun/example-
+// label leak class would be invisible for that family the moment it is filled.
+//
+// This guard makes that impossible for ANY family: a bible-bearing head that has
+// variant children MUST (a) expose a non-empty per-family semantic-token set and
+// (b) not let any variant derive a category-sensitive section via free-text
+// substitution. Fail, naming the family, otherwise. Goals is the only such family
+// today and satisfies both, so this stays green; it forces every future family
+// fill (habits, etc.) onto the safe typed path.
+const CATEGORY_SENSITIVE_KEYS = ['rulesContext', 'conversation', 'flow', 'edges'];
+const beatById = new Map(resolvedBeats.map((b) => [b.id, b]));
+const variantsByHead = new Map();
+for (const b of resolvedBeats) {
+  if (!b.variantOf) continue;
+  if (!variantsByHead.has(b.variantOf)) variantsByHead.set(b.variantOf, []);
+  variantsByHead.get(b.variantOf).push(b);
+}
+for (const [headId, variants] of variantsByHead) {
+  const head = beatById.get(headId);
+  // Only a bible-bearing head gates: a no-bible head resolves its variants to
+  // all-pending manifests (honest, nothing derived, nothing to leak).
+  if (!head || !head.hasOwnBible) continue;
+  const headCategory = variants[0]?.headTokens?.category ?? null;
+  const family = headCategory ? `${headId} (category "${headCategory}")` : headId;
+  const semanticTokens = (variants[0]?.headTokens?.semanticTokens ?? []).filter(
+    (t) => typeof t === 'string' && t.length > 0,
+  );
+  if (semanticTokens.length === 0) {
+    problems.push(
+      `FAMILY GUARD: head "${family}" is bible-bearing with ${variants.length} variant(s) but exposes NO per-family semantic tokens. ` +
+        `Its variants would derive category-sensitive sections via free-text substitution (exact-token-only scanning), ` +
+        `making the semantic noun/example-label leak class (B1-R) invisible for this family. ` +
+        `Add typed per-family data + a non-empty semantic-token set (mirror goalsCategoryData/goalsSemanticTokens) before filling this head's bible.`,
+    );
+  }
+  for (const v of variants) {
+    if (v.hasOwnBible) continue; // a variant that authors its own bible derives nothing
+    const substituted = (v.inheritedSections ?? []).filter((k) =>
+      CATEGORY_SENSITIVE_KEYS.includes(k),
+    );
+    if (substituted.length) {
+      problems.push(
+        `FAMILY GUARD: variant "${v.id}" of bible-bearing head "${family}" derives category-sensitive section(s) ` +
+          `[${substituted.join(', ')}] via free-text substitution (substituteDeep) instead of a typed per-family builder. ` +
+          `Route these through typed per-category data (as goals-list does in resolveBeatStructure step 3b) so semantic tokens are per-variant and the leak scan can see them.`,
+      );
+    }
+  }
+}
+
 // (4) RELEASE MODE: every MUST rule's enforcedBy must be a BUILT static checker or
 // a runnable fleet eval. Authoring mode allows planned ids (registry-staging).
 function enforceableInRelease(id) {

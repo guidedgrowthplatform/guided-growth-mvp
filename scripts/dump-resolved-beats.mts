@@ -40,6 +40,11 @@ const out = BEATS_SOURCE.map((beat) => {
     resolvedManifest: resolved.sectionManifest ?? resolved.bible?.sectionManifest ?? null,
     resolvedBible: resolved.bible ?? null,
     derivedSections: resolved.derivedSections ?? [],
+    // sections a variant inherited via FREE-TEXT substitution (substituteDeep,
+    // resolver step 4) rather than a typed per-family builder. The family guard
+    // in bible-registry-check reads this: a category-sensitive key appearing here
+    // means the variant is on the unsafe substitution path for that family.
+    inheritedSections: resolved.inheritedSections ?? [],
     // for the guard's leak scan: the head tokens that must NOT survive onto a
     // variant's derived sections (category label, clip ids, rule-id prefix,
     // beatId, screenId).
