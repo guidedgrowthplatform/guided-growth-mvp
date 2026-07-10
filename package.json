@@ -43,6 +43,7 @@
     "build-storybook": "storybook build",
     "check:links": "node scripts/render-link-integrity-check.mjs",
     "check:rules-registry": "node scripts/bible-registry-check.mjs",
+    "check:family-guard-negatives": "node scripts/checks/family-guard-negatives.mjs",
     "check:beat-metadata": "node scripts/beat-metadata-reconcile-check.mjs",
     "check:id-alias": "node scripts/checks/id-alias-check.mjs",
     "check:reveal-timing": "node scripts/checks/reveal-timing-check.mjs",

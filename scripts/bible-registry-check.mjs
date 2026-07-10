@@ -443,10 +443,12 @@ for (const beat of resolvedBeats) {
 // label leak class would be invisible for that family the moment it is filled.
 //
 // This guard makes that impossible for ANY family: a bible-bearing head that has
-// variant children MUST (a) expose a non-empty per-family semantic-token set and
-// (b) not let any variant derive a category-sensitive section via free-text
-// substitution. Fail, naming the family, otherwise. Goals is the only such family
-// today and satisfies both, so this stays green; it forces every future family
+// variant children MUST (a) expose a per-family semantic-token set that MATCHES the
+// canonical set regenerated from its typed family data (not merely non-empty — a
+// junk/drifted set fails, Codex G1), and (b) not let any variant — even one that
+// authors part of its own bible (Codex G2) — derive a category-sensitive section via
+// free-text substitution. Fail, naming the family, otherwise. Goals is the only such
+// family today and satisfies both, so this stays green; it forces every future family
 // fill (habits, etc.) onto the safe typed path.
 const CATEGORY_SENSITIVE_KEYS = ['rulesContext', 'conversation', 'flow', 'edges'];
 const beatById = new Map(resolvedBeats.map((b) => [b.id, b]));
@@ -466,23 +468,72 @@ for (const [headId, variants] of variantsByHead) {
   const semanticTokens = (variants[0]?.headTokens?.semanticTokens ?? []).filter(
     (t) => typeof t === 'string' && t.length > 0,
   );
-  if (semanticTokens.length === 0) {
+  // The INDEPENDENT canonical token set (recomputed from the typed family data in
+  // dump-resolved-beats.mts, NOT via goalsSemanticTokens). null => no registered
+  // typed contract exists for this head family.
+  const canonical = variants[0]?.headTokens?.canonicalSemanticTokens ?? null;
+
+  // (3c-i) FAMILY CONTRACT INTEGRITY (Codex G1, 2026-07-10). A non-empty token set
+  // is not enough — it must be the RIGHT set. Verify the head's EXPORTED semantic
+  // tokens against the canonical generator built from the same typed family data
+  // that builds the sensitive sections. This is the STATIC guard-gated port of the
+  // Vitest "semantic token set is non-trivial" assertion (variantSemanticLeak.test
+  // .ts): it runs inside check:beats / CI render_guards, not Vitest-only, so a junk
+  // or drifted token set fails the gate the leak scan trusts.
+  const norm = (arr) =>
+    JSON.stringify(
+      [...new Set(arr.map((t) => String(t).toLowerCase()))].sort(),
+    );
+  if (canonical === null) {
+    // No typed FamilyVariantContract registered for this head family.
+    if (semanticTokens.length === 0) {
+      problems.push(
+        `FAMILY GUARD: head "${family}" is bible-bearing with ${variants.length} variant(s) but exposes NO per-family semantic tokens. ` +
+          `Its variants would derive category-sensitive sections via free-text substitution (exact-token-only scanning), ` +
+          `making the semantic noun/example-label leak class (B1-R) invisible for this family. ` +
+          `Add typed per-family data + a non-empty semantic-token set (mirror goalsCategoryData/goalsSemanticTokens) before filling this head's bible.`,
+      );
+    } else {
+      problems.push(
+        `FAMILY CONTRACT: head "${family}" exposes semantic tokens [${semanticTokens.join(', ')}] but has NO registered typed ` +
+          `FamilyVariantContract, so the guard cannot verify them against the typed data that builds its sensitive sections. ` +
+          `A non-empty token set is not proof it is the CORRECT set. Register a typed per-family contract (mirror ` +
+          `goalsCategoryData + the canonical generator in dump-resolved-beats.mts) so the exported token set is verifiable.`,
+      );
+    }
+  } else if (canonical.length === 0) {
     problems.push(
-      `FAMILY GUARD: head "${family}" is bible-bearing with ${variants.length} variant(s) but exposes NO per-family semantic tokens. ` +
-        `Its variants would derive category-sensitive sections via free-text substitution (exact-token-only scanning), ` +
-        `making the semantic noun/example-label leak class (B1-R) invisible for this family. ` +
-        `Add typed per-family data + a non-empty semantic-token set (mirror goalsCategoryData/goalsSemanticTokens) before filling this head's bible.`,
+      `FAMILY CONTRACT: head "${family}" resolved an EMPTY canonical token set from its typed family data — the typed ` +
+        `contract cannot be empty. Fix the per-family data (goalsCategoryData) so noun/clip-root/beatId/example are present.`,
+    );
+  } else if (norm(semanticTokens) !== norm(canonical)) {
+    problems.push(
+      `FAMILY CONTRACT: head "${family}" EXPORTS semantic token set [${semanticTokens.join(', ')}] that does NOT match the ` +
+        `canonical set [${canonical.join(', ')}] regenerated from the typed family data (goalsCategoryData) that BUILDS its ` +
+        `sensitive sections. The exported goalsSemanticTokens has drifted from that data, so the leak scan would search for the ` +
+        `wrong tokens and a real category leak would be invisible. Fix goalsSemanticTokens (or the typed data) so they agree.`,
     );
   }
+
+  // (3c-ii) SUBSTITUTION-PATH GUARD (Codex G2, 2026-07-10). Do NOT blanket-skip a
+  // variant that authors its own bible. Owning sectionManifest/identity/one section
+  // does not mean it derives nothing: the resolver treats a section as child-authored
+  // ONLY when that specific key is present (beatsSource.ts step 1); every OTHER
+  // category-sensitive section the child does not own can still be inherited via
+  // free-text substituteDeep and is recorded in inheritedSections (step 4). So inspect
+  // inheritedSections for category-sensitive keys on EVERY variant. A variant is exempt
+  // only when it owns every affected section AND no sensitive inherited section remains
+  // — which is exactly "no category-sensitive key survives in inheritedSections", since
+  // child-authored and typed-built keys are never recorded there.
   for (const v of variants) {
-    if (v.hasOwnBible) continue; // a variant that authors its own bible derives nothing
     const substituted = (v.inheritedSections ?? []).filter((k) =>
       CATEGORY_SENSITIVE_KEYS.includes(k),
     );
     if (substituted.length) {
       problems.push(
         `FAMILY GUARD: variant "${v.id}" of bible-bearing head "${family}" derives category-sensitive section(s) ` +
-          `[${substituted.join(', ')}] via free-text substitution (substituteDeep) instead of a typed per-family builder. ` +
+          `[${substituted.join(', ')}] via free-text substitution (substituteDeep) instead of a typed per-family builder ` +
+          `(even though it authors its own bible for other sections). ` +
           `Route these through typed per-category data (as goals-list does in resolveBeatStructure step 3b) so semantic tokens are per-variant and the leak scan can see them.`,
       );
     }

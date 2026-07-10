@@ -1,0 +1,148 @@
+// FAMILY-GUARD NEGATIVE TESTS (Codex G1/G2 re-gate, 2026-07-10).
+//
+// These are committed adversarial tests that prove the family typed-path guard in
+// scripts/bible-registry-check.mjs actually BITES on the two holes Codex found. They
+// run the SAME command CI gates on (`node scripts/bible-registry-check.mjs`, i.e.
+// `npm run check:rules-registry`, a member of `check:beats`), NOT Vitest — the point
+// of the re-gate is that the integrity check lives in the guard command, not a
+// Vitest-only assertion the CI job never runs.
+//
+// Each test: back up the real source, apply a surgical mutation on disk, run the
+// guard, assert it FAILS with the expected diagnostic, then ALWAYS restore. A
+// baseline test also confirms the guard PASSES on the clean tree.
+//
+//   Test A (G1): goalsSemanticTokens() -> ['harmless-token'] + the typed rules
+//     builder forced to n = 'sleep'. Before the fix the guard exited 0 (nonempty
+//     token set trusted by length) while the resolver leaked 28 real Sleep tokens.
+//     After the fix the FAMILY CONTRACT integrity check rejects the drifted token
+//     set (exported != canonical).
+//
+//   Test B (G2): a variant (goals-organize) that authors only a manifest bible while
+//     inheriting a category-sensitive head section via free-text substitution. Before
+//     the fix `if (v.hasOwnBible) continue` skipped it wholesale in the family loop,
+//     so a FAMILY GUARD substitution diagnostic could NEVER be emitted for a
+//     bible-owning variant. After the fix the substitution-path guard flags it. The
+//     presence of that diagnostic for a hasOwnBible variant is the unique fingerprint
+//     of the fix.
+//
+// Run: `node scripts/checks/family-guard-negatives.mjs` (or `npm run check:family-guard-negatives`).
+// Exits 0 only if the guard behaved correctly on all cases (green clean, red on both
+// mutations). This is NOT part of `check:beats` (which must stay green); it is the
+// proof harness that the guard rejects what it must.
+
+import { readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+
+const root = process.cwd();
+const beatsPath = path.join(root, 'src/components/flow-designer/beatsSource.ts');
+const guardScript = path.join('scripts', 'bible-registry-check.mjs');
+
+function runGuard() {
+  const r = spawnSync('node', [guardScript], { cwd: root, encoding: 'utf8' });
+  return { code: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
+}
+
+// Apply an ordered list of [find, replace] edits to a string; throw if any anchor
+// is missing (a moved anchor must fail loudly, never silently no-op the test).
+function mutate(src, edits) {
+  let out = src;
+  for (const [find, replace] of edits) {
+    if (!out.includes(find)) throw new Error(`anchor not found:\n${find}`);
+    out = out.replace(find, replace);
+  }
+  return out;
+}
+
+let failures = 0;
+const original = readFileSync(beatsPath, 'utf8');
+
+function withMutation(name, edits, assertFn) {
+  let result;
+  try {
+    writeFileSync(beatsPath, mutate(original, edits), 'utf8');
+    result = runGuard();
+  } finally {
+    writeFileSync(beatsPath, original, 'utf8'); // always restore
+  }
+  try {
+    assertFn(result);
+    console.log(`  PASS  ${name}`);
+  } catch (e) {
+    failures += 1;
+    console.log(`  FAIL  ${name}: ${e.message}`);
+    console.log(`        guard exit=${result.code}, output tail:`);
+    console.log(
+      result.out
+        .split('\n')
+        .filter((l) => l.trim())
+        .slice(-8)
+        .map((l) => `        | ${l}`)
+        .join('\n'),
+    );
+  }
+}
+
+console.log('FAMILY-GUARD NEGATIVE TESTS (Codex G1/G2)\n');
+
+// Baseline: clean tree must PASS.
+{
+  const { code } = runGuard();
+  if (code === 0) console.log('  PASS  baseline: clean tree passes the guard');
+  else {
+    failures += 1;
+    console.log(`  FAIL  baseline: clean tree should pass but guard exited ${code}`);
+  }
+}
+
+// Test A (G1): junk exported tokens + lowercase-Sleep rules builder.
+withMutation(
+  'G1 junk-token attack fails the guard (FAMILY CONTRACT)',
+  [
+    // A1: goalsSemanticTokens() always returns a nonempty JUNK set.
+    [
+      '  const data = goalsCategoryData[category];\n  if (!data) return [];',
+      "  const data = goalsCategoryData[category];\n  if (!data) return [];\n  return ['harmless-token']; // ADVERSARIAL MUTATION (G1 negative test)",
+    ],
+    // A2: the typed rules builder reintroduces the head Sleep noun for every category.
+    ['const n = data.noun;', "const n = 'sleep'; // ADVERSARIAL MUTATION (G1 negative test)"],
+  ],
+  ({ code, out }) => {
+    if (code === 0) throw new Error('guard exited 0 — junk token set was accepted');
+    if (!/FAMILY CONTRACT/.test(out))
+      throw new Error('guard failed but not via the FAMILY CONTRACT integrity check');
+    if (!/does NOT match the/.test(out))
+      throw new Error('FAMILY CONTRACT diagnostic did not report the exported/canonical mismatch');
+  },
+);
+
+// Test B (G2): a bible-owning variant that inherits a category-sensitive head
+// section via substitution. Switch goals-organize away from the goals-list typed
+// path (so rulesContext/conversation/flow/edges fall to substituteDeep) and give it
+// a manifest-only bible (so hasOwnBible is true). The old `if (v.hasOwnBible)
+// continue` would skip it; the fixed guard flags the substitution path.
+withMutation(
+  'G2 manifest-owning variant on the substitution path fails the guard (FAMILY GUARD)',
+  [
+    [
+      "    id: 'goals-organize',\n    name: 'Goals (Get more organized)',\n    order: 20,\n    path: 'beginner',\n    type: 'goals-list',\n    variantOf: 'goals-sleep',",
+      "    id: 'goals-organize',\n    name: 'Goals (Get more organized)',\n    order: 20,\n    path: 'beginner',\n    type: 'category',\n    variantOf: 'goals-sleep',\n    bible: { sectionManifest: {} }, // ADVERSARIAL MUTATION (G2 negative test): owns only a manifest",
+    ],
+  ],
+  ({ code, out }) => {
+    if (code === 0) throw new Error('guard exited 0 — manifest-owning inheriting variant was accepted');
+    // The UNIQUE fingerprint of the G2 fix: a FAMILY GUARD substitution diagnostic
+    // emitted for goals-organize, a hasOwnBible variant the old code skipped.
+    if (!/FAMILY GUARD: variant "goals-organize"/.test(out))
+      throw new Error('the G2 substitution-path guard did not flag the manifest-owning variant');
+    if (!/via free-text substitution/.test(out))
+      throw new Error('G2 diagnostic did not identify the free-text substitution path');
+  },
+);
+
+console.log('');
+if (failures) {
+  console.log(`FAMILY-GUARD NEGATIVE TESTS: ${failures} failure(s).`);
+  process.exit(1);
+}
+console.log('FAMILY-GUARD NEGATIVE TESTS: all passed (guard bites on both G1 and G2).');
