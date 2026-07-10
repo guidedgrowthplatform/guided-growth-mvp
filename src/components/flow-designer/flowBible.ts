@@ -17,6 +17,9 @@ export interface GlobalRule {
   readonly severity: 'must' | 'should';
   readonly enforcedBy: readonly string[];
   readonly status?: SourceStatus;
+  // spoken-line rules only (VOICE_OWNERSHIP). Four shapes, same as TurnBranch.voice:
+  // 'clip:<id>' | 'clip-family:<family> (pending recording)' | 'text-only' | 'live-exception:name-greeting'
+  readonly voice?: string;
 }
 
 // ---------- 1. No-improvisation law + improvise windows ----------
@@ -71,6 +74,7 @@ export const GLOBAL_RULES: GlobalRulesLayer = {
       rule: 'Off-topic input or world questions ("who won the game yesterday"): acknowledge briefly, steer back with the beat own question, do not chase the tangent, do not advance (Yair 2026-07-09, LOCKED). Applies at every beat where the user speaks; never answers out-of-scope content during onboarding',
       severity: 'must',
       enforcedBy: ['eval:out-of-scope-decline'],
+      voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
     },
     {
       id: 'glob-no-machinery',
@@ -146,6 +150,9 @@ export interface TurnBranch {
   readonly on: string; // user condition
   readonly reply: string; // bounded reply shape
   readonly then: string; // 'wait' | 'advance' | 'tool:<name>' | 'repeat'
+  // spoken reply must be owned (VOICE_OWNERSHIP). Four legal shapes:
+  // 'clip:<id>' | 'clip-family:<family> (pending recording)' | 'text-only' | 'live-exception:name-greeting'
+  readonly voice?: string;
 }
 
 export interface BeatConversation {
@@ -170,6 +177,35 @@ export const CONVERSATION_MODEL: ConversationModel = {
     onMaxTurns:
       'plain one-line re-ask of the beat question and, on a picker, point to the tap path. Never loops silently.',
   },
+};
+
+// ---------- 4b. Voice-ownership contract (the Yair rule, mechanized) ----------
+
+export interface VoiceOwnership {
+  readonly rule: string;
+  readonly shapes: readonly string[];
+  readonly familyNaming: string;
+  readonly liveException: string;
+  readonly enforcedBy: readonly string[];
+  readonly status: SourceStatus;
+}
+
+// Every dynamic coach reply is clip-owned, declared text-only, or the one live
+// name-greeting exception. No unowned spoken line anywhere (Yair). Carried on
+// TurnBranch.voice (section 13), BibleEdge.voice (spoken edges), and GlobalRule.voice.
+export const VOICE_OWNERSHIP: VoiceOwnership = {
+  rule: 'Every dynamic coach reply is MP3-clip-owned OR declared text-only OR THE one name-greeting live exception. No unowned spoken line anywhere: a spoken section-13 branch reply, a spoken edge behavior, and a spoken-line global rule each carry a voice field in one of the four legal shapes.',
+  shapes: [
+    'clip:<id> - one recorded clip owns the line',
+    'clip-family:<family> (pending recording) - a named clip family owns it, not yet recorded',
+    'text-only - declared non-spoken (chat / tap surface only)',
+    'live-exception:name-greeting - THE single live-TTS exception (the {name} slot)',
+  ],
+  familyNaming: 'onboard_<type>_<beat-or-global>_<n> (lowercase letters, digits, underscores only)',
+  liveException:
+    'The name-greeting {name} slot is the ONLY line that may go live. Everything else resolves to a clip or is text-only.',
+  enforcedBy: ['audio-ownership-check'],
+  status: 'verified',
 };
 
 // ---------- 5. Beat-to-beat data passing contract ----------
@@ -346,7 +382,8 @@ export const ENFORCER_REGISTRY: readonly EnforcerEntry[] = [
     id: 'audio-ownership-check',
     kind: 'static',
     status: 'built',
-    meaning: 'only {name} lines may be live; all else resolves to clips',
+    meaning:
+      'voice ownership across four lanes (VOICE_OWNERSHIP): (a) script perLine — only {name} lines may be live, all else resolves to clips; (b) section-13 conversation branches — every spoken reply owned; (c) edge rows — every quoted spoken behavior owned; (d) global-rule voice fields — shape-valid. Each spoken line carries one legal shape: clip / clip-family pending / text-only / name-greeting live exception',
     owner: 'render guards lane',
   },
   {
@@ -768,7 +805,8 @@ export const FILES_SYNC_MAP: readonly FileMapRow[] = [
     authored: 'generated',
     savesTo: 'none',
     syncEdge: 'edge 9 (Sheet -> gen_beat_metadata.py)',
-    staleRisk: 'scripts/beat-metadata-reconcile-check.mjs fails the build if a retired field reappears or a screen_id no longer resolves in beatsSource.ts; wording marked provisional',
+    staleRisk:
+      'scripts/beat-metadata-reconcile-check.mjs fails the build if a retired field reappears or a screen_id no longer resolves in beatsSource.ts; wording marked provisional',
   },
   {
     area: 'render',

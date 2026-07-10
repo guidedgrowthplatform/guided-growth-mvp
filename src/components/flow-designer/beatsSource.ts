@@ -87,6 +87,8 @@ export interface BibleToolSpec {
 export interface BibleEdge {
   readonly edge: string;
   readonly behavior: string;
+  // spoken edge behavior must be owned; four VOICE_OWNERSHIP shapes (flowBible.ts)
+  readonly voice?: string;
 }
 export interface BibleAcceptance {
   readonly criterion: string;
@@ -872,7 +874,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             seq: 2,
-            reveal: 'gated on seq 1 clip end: gender selector revealed after the age prompt finishes',
+            reveal:
+              'gated on seq 1 clip end: gender selector revealed after the age prompt finishes',
             timing: 'karaoke per-word on the gender prompt',
           },
         ],
@@ -962,6 +965,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             on: 'gives age only',
             reply: 'scripted: "And your gender?" (the second required ask)',
             then: 'wait',
+            voice: 'clip-family:onboard_profile_asks_1 (pending recording)',
           },
           {
             on: 'gives both age and gender',
@@ -972,12 +976,14 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             on: 'tries to skip or decline gender',
             reply: 'scripted: plainly re-ask gender; never store a skip, never advance',
             then: 'wait',
+            voice: 'clip-family:onboard_profile_asks_3 (pending recording)',
           },
           {
             on: 'off-topic or world question',
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back to the age/gender asks',
             then: 'wait',
+            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
           },
         ],
         maxTurns: 4,
@@ -1029,6 +1035,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             edge: 'tool failure',
             behavior:
               'submit_profile errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" with entries retained. Voice path: one short coach line "That didn\'t go through, let me try again."',
+            voice: 'clip-family:onboard_profile_asks_edge_1 (pending recording)',
           },
           {
             edge: 'invalid age',
@@ -1806,24 +1813,28 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             on: 'names two or more',
             reply: 'scripted: "Which feels most urgent right now?"',
             then: 'wait',
+            voice: 'clip-family:onboard_category_women_2 (pending recording)',
           },
           {
             on: 'names something off-list',
             reply:
               'scripted: "You can create your own for that. Want to?" (routes to the create-your-own tile)',
             then: 'wait',
+            voice: 'clip-family:onboard_category_women_3 (pending recording)',
           },
           {
             on: 'unsure / cannot decide',
             reply:
               'scripted help-you-decide prompt set (e.g. "What\'s been weighing on you most lately?"); yields the instant they lean toward one',
             then: 'wait',
+            voice: 'clip-family:onboard_category_women_4 (pending recording)',
           },
           {
             on: 'off-topic or world question',
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back with the category question',
             then: 'wait',
+            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
           },
         ],
         maxTurns: 4,
@@ -1904,6 +1915,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             edge: 'tool failure',
             behavior:
               'submit_category errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" and the picked category stays selected for the retry. Voice path: one short coach line "That didn\'t go through, let me try again." (Yair-approved tool-failure contract, 2026-07-09.)',
+            voice: 'clip-family:onboard_category_women_edge_1 (pending recording)',
           },
           {
             edge: 'off-topic input',
@@ -1919,6 +1931,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             edge: 'empty state',
             behavior:
               'no tiles appeared for the user: ask one neutral question ("Is anything coming up for you to pick from?"), do NOT recite the category list to fill the silence',
+            voice: 'clip-family:onboard_category_women_edge_4 (pending recording)',
           },
           {
             edge: 'names two',
@@ -2296,23 +2309,27 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             on: 'names three or more',
             reply: 'scripted: "Which two matter most right now?"',
             then: 'wait',
+            voice: 'clip-family:onboard_goals_sleep_2 (pending recording)',
           },
           {
             on: 'vague or general ("just sleep in general")',
             reply: 'scripted: "If you had to pick one, what bothers you most?"',
             then: 'wait',
+            voice: 'clip-family:onboard_goals_sleep_3 (pending recording)',
           },
           {
             on: 'unsure / cannot decide',
             reply:
               'scripted help-you-decide prompt set (e.g. "What\'s been weighing on you most lately?"); yields the instant they lean toward one',
             then: 'wait',
+            voice: 'clip-family:onboard_goals_sleep_4 (pending recording)',
           },
           {
             on: 'off-topic or world question',
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back with the goal question',
             then: 'wait',
+            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
           },
         ],
         maxTurns: 4,
@@ -2395,11 +2412,13 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             edge: 'tool failure',
             behavior:
               'submit_goals errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" and the picked tiles stay selected for the retry. Voice path: one short coach line "That didn\'t go through, let me try again." (Yair-approved tool-failure contract, 2026-07-09.)',
+            voice: 'clip-family:onboard_goals_sleep_edge_1 (pending recording)',
           },
           {
             edge: 'off-topic input',
             behavior:
               'one short acknowledgement, at most one sentence, no new topic and no advice, then re-ask the goal question ("Which of these feels right to start with?"). Do not follow the tangent, do not add commentary, do not advance.',
+            voice: 'clip-family:onboard_goals_sleep_edge_2 (pending recording)',
           },
           {
             edge: 'skip / decline',
@@ -2410,6 +2429,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             edge: 'empty state',
             behavior:
               'no tiles appeared for the user: ask one neutral question ("Is anything coming up for you to pick from?"), do NOT recite the goal list to fill the silence',
+            voice: 'clip-family:onboard_goals_sleep_edge_4 (pending recording)',
           },
           {
             edge: 'names three',
@@ -2419,6 +2439,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             edge: 'vague / general ("just sleep in general")',
             behavior:
               'map to the closest label or ask one short question to pin it ("If you had to pick one, what bothers you most?"); never invent a label',
+            voice: 'clip-family:onboard_goals_sleep_edge_6 (pending recording)',
           },
         ],
         enforcedBy: ['eval:edge-walk'],
