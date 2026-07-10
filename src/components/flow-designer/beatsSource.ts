@@ -1023,6 +1023,90 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: null,
     hideOrb: false,
     props: null,
+    // Archetype = SILENT structural beat (mirrors splash): a single "Get started"
+    // affordance that advances the flow on tap. No coach audio, no coach turn, no
+    // tool, saves nothing. identity / components / flow / acceptance owner-filled;
+    // the other ten sections are legitimately { na }.
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: { na: 'no script lines — the get-started beat plays no coach audio' },
+        components: 'filled',
+        voice: { na: 'silent structural beat — the coach does not speak here' },
+        rulesContext: { na: 'no coach turn — the beat shows one affordance and moves on' },
+        rulesCode: { na: 'structural beat; no beat-specific code gate to bind' },
+        conversation: { na: 'no user dialogue — a single tap proceeds' },
+        contextProse: { na: 'no coach/LLM context — nothing is read on this beat' },
+        allowedTools: { na: 'no tools — the get-started tap captures and saves nothing' },
+        persistence: { na: 'writes nothing — the get-started tap captures no user data' },
+        flow: 'filled',
+        edges: { na: 'single tap to proceed — no branch or failure path' },
+        acceptance: 'filled',
+        applicableDecisions: {
+          na: 'no product decision (1-7) binds on the pre-auth get-started affordance',
+        },
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'get-started' },
+          { label: 'name', value: 'Get started' },
+          { label: 'order', value: '1' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'get-started' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'none (pre-screen; screenId is null in source)' },
+          { surface: 'route', value: '/onboarding/get-started (app launch continuation)' },
+          { surface: 'persisted current_step', value: 'get-started' },
+          { surface: 'session_log value', value: 'get-started' },
+          { surface: 'data-beat-id', value: 'get-started' },
+        ],
+        watchOut:
+          'screenId is null in source (pre-screen affordance); the beatId is the only unique key. id-alias-check exempts screenId from cross-beat uniqueness.',
+        enforcedBy: ['id-alias-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'get-started' },
+          {
+            label: 'on-screen',
+            value: 'a single "Get started" affordance over the brand frame; no other controls',
+          },
+          { label: 'selection mode', value: 'single action (Get started), no preselection' },
+          { label: 'exact state', value: 'static frame on entry; nothing is selected' },
+        ],
+        enforcedBy: ['component-registry-check'],
+      },
+      flow: {
+        rows: [
+          { label: 'advance condition', value: 'the user taps Get started' },
+          { label: 'upstream branch (into this beat)', value: 'the splash proceeds here' },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to coach-greeting (order 2)',
+          },
+          { label: 'gate', value: 'none beyond the tap; there is nothing to validate' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check: 'the get-started frame renders with the single Get started affordance',
+          },
+          {
+            criterion: 'stays silent',
+            check: 'no coach audio or bubble plays (silent structural beat)',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'the tap proceeds to coach-greeting; no data is captured',
+          },
+        ],
+        enforcedBy: ['component-registry-check', 'eval:parity-walk'],
+      },
+    },
     script: [],
     io: {
       dataIn: [],
@@ -1666,6 +1750,174 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
+    // Archetype = single-turn spoken beat, but LIVE Cartesia (the one line carries
+    // the {name} slot, so it cannot be a fixed clip). voice is owner-filled with the
+    // one live-slot line (liveAllowed YES); components / conversation / allowedTools /
+    // persistence are legitimately { na } (a single bubble, no interactive control,
+    // no tool, and the name is read forward, not written here).
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: { na: 'no interactive component — a single coach bubble that auto-advances' },
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: { na: 'single-turn — the beat auto-advances; the user has no turn here' },
+        contextProse: 'filled',
+        allowedTools: { na: 'no tools — nothing is captured or saved on the greeting' },
+        persistence: {
+          na: 'writes nothing — the name is read forward from sign-up, not written here',
+        },
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'profile-greeting' },
+          { label: 'name', value: 'Profile greeting' },
+          { label: 'order', value: '5' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'profile-beat' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-01--FORM' },
+          { surface: 'route', value: '/onboarding/profile-greeting' },
+          { surface: 'persisted current_step', value: 'profile-greeting' },
+          { surface: 'session_log value', value: 'profile-greeting' },
+          { surface: 'data-beat-id', value: 'profile-greeting' },
+        ],
+        watchOut:
+          'profile-greeting (this beat, Cartesia live) and profile-asks (MP3) are the two single-engine halves of the old profile beat; they carry distinct beatIds and screenIds.',
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'greeting bubble on entry; no gate (this is the one spoken line)',
+            timing: 'karaoke per-word on the bubble; the flow auto-advances on clip end',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'Cartesia (live; the one line carries the {name} slot)' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [{ seq: 1, resolvesTo: 'live Cartesia with the {name} slot', liveAllowed: 'YES' }],
+        assertion:
+          'The greeting carries the live {name} slot, so it is the one onboarding line that MUST resolve to live Cartesia (not a recorded clip). This is the sanctioned name-greeting live exception.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'profgreet-verbatim-opener',
+          rule: 'Speaks the greeting verbatim (with the user name filled), no improvised lead-in or addition',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'profgreet-warm-by-name',
+          rule: 'Greets the user warmly by the name captured at sign-up; never re-asks the name',
+          severity: 'must',
+          enforcedBy: ['eval:warm-opener'],
+        },
+        {
+          id: 'profgreet-no-machinery',
+          rule: 'Never names the machinery (beat / step / screen / tool) in the greeting',
+          severity: 'must',
+          enforcedBy: ['eval:no-machinery-words'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'profgreet-live-name',
+          rule: 'The greeting resolves to live Cartesia BECAUSE it carries the {name} slot (the one sanctioned live line)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'profgreet-name-from-state',
+          rule: 'The {name} slot is filled from flow-state (auth sign-up), never re-fetched from the database',
+          severity: 'must',
+          enforcedBy: ['persistence-contract-check'],
+        },
+        {
+          id: 'profgreet-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Profile greeting. The coach already knows the user name from sign-in. Greet them by name, warmly, and set up the two quick things about to be collected (age and gender). This beat is only the greeting, spoken live in their name. The asks come next.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      flow: {
+        rows: [
+          { label: 'advance condition', value: 'auto-advances when the greeting clip ends' },
+          { label: 'upstream branch (into this beat)', value: 'mic-permission advances here' },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to profile-asks (order 6)',
+          },
+          { label: 'gate', value: 'none — this beat always auto-advances' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'name missing from state',
+            behavior:
+              'if the {name} slot is empty (unexpected), fall back to a name-free warm greeting rather than speaking an empty slot; still auto-advance',
+          },
+          {
+            edge: 'audio fails to play',
+            behavior:
+              'show the greeting as text and still auto-advance; never strand the user on a silent screen',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'says the right thing',
+            check: 'the greeting plays verbatim with the captured name filled into the {name} slot',
+          },
+          {
+            criterion: 'shows the right thing',
+            check: 'a single coach bubble renders; no interactive tiles or inputs appear',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'the flow auto-advances to profile-asks when the clip ends, with no user action',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'advance-gate-check'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1, 2 (profile gates)',
+            binds: false,
+            how: 'this is the greeting before the asks; the age/gender gates bind on profile-asks, not here',
+          },
+          {
+            decision: '3 (women-art), 4/5 (habit caps), 6, 7 (reflection)',
+            binds: false,
+            how: 'not this beat',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -5780,6 +6032,182 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     props: {
       state: 'blank',
     },
+    // Archetype = non-conversational MP3 beat over a display animation: one recorded
+    // line timed to a week-grid frame, then a Next tap. voice / scriptMeta owner-filled;
+    // components is pending-app-reconcile (the animated 5-state week grid is not yet
+    // built/reconciled in the app); conversation / allowedTools / persistence are { na }.
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'pending-app-reconcile',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: { na: 'single-turn narration — the user only taps Next; no coach dialogue' },
+        contextProse: 'filled',
+        allowedTools: { na: 'no tools — the frame narrates and advances on a Next tap' },
+        persistence: {
+          na: 'writes nothing — the projection is display-only (io.dataOut is empty)',
+        },
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'weekly-blank' },
+          { label: 'name', value: 'Weekly projection (blank)' },
+          { label: 'order', value: '57' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'weekly-projection' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-WEEKLY-PROJECTION-BLANK' },
+          { surface: 'route', value: '/onboarding/weekly-projection-blank' },
+          { surface: 'persisted current_step', value: 'weekly-blank' },
+          { surface: 'session_log value', value: 'weekly-blank' },
+          { surface: 'data-beat-id', value: 'weekly-blank' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'opener line as the week grid animates in blank; no gate (the one spoken line)',
+            timing: 'karaoke per-word, timed to the frame animation',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'weekly-projection' },
+          { label: 'state', value: 'blank (from source props.state)' },
+          {
+            label: 'on-screen',
+            value: 'the week grid animating into its blank starting state; a Next affordance',
+          },
+          { label: 'selection mode', value: 'none — display-only; the user taps Next to proceed' },
+        ],
+        watchOut:
+          'The animated 5-state week grid (blank -> full -> p78 -> p36 -> gaps) is not yet built/reconciled in the app; this component claim is pending-app-reconcile, not filled.',
+        enforcedBy: ['component-registry-check'],
+        status: 'app-reconcile-pending',
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3 (Cartesia, Yair Pro Clone candidate)' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          {
+            seq: 1,
+            resolvesTo: 'recorded clip onboard_weekly_projection_blank_1',
+            liveAllowed: 'NO',
+          },
+        ],
+        assertion:
+          'The line carries no live slot like {name}, so it MUST resolve to the recorded clip onboard_weekly_projection_blank_1. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'wblank-verbatim',
+          rule: 'Speaks the frame line verbatim, timed to the animation; never improvises or adds',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'wblank-no-describe-grid',
+          rule: 'Does not describe the grid; the visual carries itself while the line lands the point',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'wblank-audio-ownership',
+          rule: 'The line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'wblank-clip-resolves',
+          rule: 'onboard_weekly_projection_blank_1 resolves to a real asset',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'wblank-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Weekly projection, frame 1 of 5. The week grid animates in blank, starting today. One verbatim line, timed to the frame. The five frames together carry the message: reporting itself is the win, weekly reassessment is the loop, a miss still counts, the one thing to avoid is the unreported gap.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      flow: {
+        rows: [
+          { label: 'advance condition', value: 'the user taps Next after the line lands' },
+          { label: 'upstream branch (into this beat)', value: 'plan confirm proceeds here' },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to weekly-full (order 58)',
+          },
+          { label: 'gate', value: 'none — a single Next tap advances the frame' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'audio fails to play',
+            behavior:
+              'show the line as text and keep the Next affordance; never strand a silent frame',
+          },
+          {
+            edge: 'grid animation not ready',
+            behavior:
+              'if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'the blank week grid animates and a Next affordance appears (pending the built component)',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the frame line plays verbatim from onboard_weekly_projection_blank_1',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'a Next tap proceeds to weekly-full; nothing is captured',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'the weekly projection is a closing narration; it captures nothing and gates nothing, so no decision binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -5816,6 +6244,179 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     props: {
       state: 'full',
     },
+    // Archetype = non-conversational MP3 beat over a display animation (weekly frame 2).
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'pending-app-reconcile',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: { na: 'single-turn narration — the user only taps Next; no coach dialogue' },
+        contextProse: 'filled',
+        allowedTools: { na: 'no tools — the frame narrates and advances on a Next tap' },
+        persistence: {
+          na: 'writes nothing — the projection is display-only (io.dataOut is empty)',
+        },
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'weekly-full' },
+          { label: 'name', value: 'Weekly projection (full)' },
+          { label: 'order', value: '58' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'weekly-projection' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-WEEKLY-PROJECTION-FULL' },
+          { surface: 'route', value: '/onboarding/weekly-projection-full' },
+          { surface: 'persisted current_step', value: 'weekly-full' },
+          { surface: 'session_log value', value: 'weekly-full' },
+          { surface: 'data-beat-id', value: 'weekly-full' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'opener line as the week grid fills green; no gate (the one spoken line)',
+            timing: 'karaoke per-word, timed to the frame animation',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'weekly-projection' },
+          { label: 'state', value: 'full (from source props.state)' },
+          {
+            label: 'on-screen',
+            value: 'the week grid filling all-green; a Next affordance',
+          },
+          { label: 'selection mode', value: 'none — display-only; the user taps Next to proceed' },
+        ],
+        watchOut:
+          'The animated 5-state week grid (blank -> full -> p78 -> p36 -> gaps) is not yet built/reconciled in the app; this component claim is pending-app-reconcile, not filled.',
+        enforcedBy: ['component-registry-check'],
+        status: 'app-reconcile-pending',
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3 (Cartesia, Yair Pro Clone candidate)' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          {
+            seq: 1,
+            resolvesTo: 'recorded clip onboard_weekly_projection_full_1',
+            liveAllowed: 'NO',
+          },
+        ],
+        assertion:
+          'The line carries no live slot like {name}, so it MUST resolve to the recorded clip onboard_weekly_projection_full_1. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'wfull-verbatim',
+          rule: 'Speaks the frame line verbatim, timed to the animation; never improvises or adds',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'wfull-hold-lightly',
+          rule: 'Holds the best-case frame lightly; never promises this is what will happen',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'wfull-audio-ownership',
+          rule: 'The line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'wfull-clip-resolves',
+          rule: 'onboard_weekly_projection_full_1 resolves to a real asset',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'wfull-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Weekly projection, frame 2 of 5. The week grid fills all-green. One verbatim line, timed to the frame. This is the best-case frame, held lightly; the realistic frames come next.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      flow: {
+        rows: [
+          { label: 'advance condition', value: 'the user taps Next after the line lands' },
+          { label: 'upstream branch (into this beat)', value: 'weekly-blank proceeds here' },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to weekly-p78 (order 59)',
+          },
+          { label: 'gate', value: 'none — a single Next tap advances the frame' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'audio fails to play',
+            behavior:
+              'show the line as text and keep the Next affordance; never strand a silent frame',
+          },
+          {
+            edge: 'grid animation not ready',
+            behavior:
+              'if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'the week grid fills green and a Next affordance appears (pending the built component)',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the frame line plays verbatim from onboard_weekly_projection_full_1',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'a Next tap proceeds to weekly-p78; nothing is captured',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'the weekly projection is a closing narration; it captures nothing and gates nothing, so no decision binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -5851,6 +6452,180 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: {
       state: 'p78',
+    },
+    // Archetype = non-conversational MP3 beat over a display animation (weekly frame 3).
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'pending-app-reconcile',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: { na: 'single-turn narration — the user only taps Next; no coach dialogue' },
+        contextProse: 'filled',
+        allowedTools: { na: 'no tools — the frame narrates and advances on a Next tap' },
+        persistence: {
+          na: 'writes nothing — the projection is display-only (io.dataOut is empty)',
+        },
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'weekly-p78' },
+          { label: 'name', value: 'Weekly projection (78%)' },
+          { label: 'order', value: '59' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'weekly-projection' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-WEEKLY-PROJECTION-P78' },
+          { surface: 'route', value: '/onboarding/weekly-projection-p78' },
+          { surface: 'persisted current_step', value: 'weekly-p78' },
+          { surface: 'session_log value', value: 'weekly-p78' },
+          { surface: 'data-beat-id', value: 'weekly-p78' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal:
+              'opener line as the grid shows mostly-green with a few misses; no gate (the one spoken line)',
+            timing: 'karaoke per-word, timed to the frame animation',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'weekly-projection' },
+          { label: 'state', value: 'p78 (from source props.state)' },
+          {
+            label: 'on-screen',
+            value: 'the week grid mostly green with a few misses; a Next affordance',
+          },
+          { label: 'selection mode', value: 'none — display-only; the user taps Next to proceed' },
+        ],
+        watchOut:
+          'The animated 5-state week grid (blank -> full -> p78 -> p36 -> gaps) is not yet built/reconciled in the app; this component claim is pending-app-reconcile, not filled.',
+        enforcedBy: ['component-registry-check'],
+        status: 'app-reconcile-pending',
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3 (Cartesia, Yair Pro Clone candidate)' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          {
+            seq: 1,
+            resolvesTo: 'recorded clip onboard_weekly_projection_p78_1',
+            liveAllowed: 'NO',
+          },
+        ],
+        assertion:
+          'The line carries no live slot like {name}, so it MUST resolve to the recorded clip onboard_weekly_projection_p78_1. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'wp78-verbatim',
+          rule: 'Speaks the frame line verbatim, timed to the animation; never improvises or adds',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'wp78-frame-as-win',
+          rule: 'Frames the realistic mostly-green week as a real win; never as a shortfall from all-green',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'wp78-audio-ownership',
+          rule: 'The line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'wp78-clip-resolves',
+          rule: 'onboard_weekly_projection_p78_1 resolves to a real asset',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'wp78-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Weekly projection, frame 3 of 5. The grid shows mostly green with a few misses. One verbatim line, timed to the frame. This is the realistic win frame, the one that matters most.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      flow: {
+        rows: [
+          { label: 'advance condition', value: 'the user taps Next after the line lands' },
+          { label: 'upstream branch (into this beat)', value: 'weekly-full proceeds here' },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to weekly-p36 (order 60)',
+          },
+          { label: 'gate', value: 'none — a single Next tap advances the frame' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'audio fails to play',
+            behavior:
+              'show the line as text and keep the Next affordance; never strand a silent frame',
+          },
+          {
+            edge: 'grid animation not ready',
+            behavior:
+              'if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'the grid shows mostly-green with a few misses and a Next affordance appears (pending the built component)',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the frame line plays verbatim from onboard_weekly_projection_p78_1',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'a Next tap proceeds to weekly-p36; nothing is captured',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'the weekly projection is a closing narration; it captures nothing and gates nothing, so no decision binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
     },
     script: [
       {
@@ -5889,6 +6664,180 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     props: {
       state: 'p36',
     },
+    // Archetype = non-conversational MP3 beat over a display animation (weekly frame 4).
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'pending-app-reconcile',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: { na: 'single-turn narration — the user only taps Next; no coach dialogue' },
+        contextProse: 'filled',
+        allowedTools: { na: 'no tools — the frame narrates and advances on a Next tap' },
+        persistence: {
+          na: 'writes nothing — the projection is display-only (io.dataOut is empty)',
+        },
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'weekly-p36' },
+          { label: 'name', value: 'Weekly projection (36%)' },
+          { label: 'order', value: '60' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'weekly-projection' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-WEEKLY-PROJECTION-P36' },
+          { surface: 'route', value: '/onboarding/weekly-projection-p36' },
+          { surface: 'persisted current_step', value: 'weekly-p36' },
+          { surface: 'session_log value', value: 'weekly-p36' },
+          { surface: 'data-beat-id', value: 'weekly-p36' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal:
+              'opener line as the grid shows a rough week with one streak surviving; no gate (the one spoken line)',
+            timing: 'karaoke per-word, timed to the frame animation',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'weekly-projection' },
+          { label: 'state', value: 'p36 (from source props.state)' },
+          {
+            label: 'on-screen',
+            value: 'the week grid showing a rough week, one streak surviving; a Next affordance',
+          },
+          { label: 'selection mode', value: 'none — display-only; the user taps Next to proceed' },
+        ],
+        watchOut:
+          'The animated 5-state week grid (blank -> full -> p78 -> p36 -> gaps) is not yet built/reconciled in the app; this component claim is pending-app-reconcile, not filled.',
+        enforcedBy: ['component-registry-check'],
+        status: 'app-reconcile-pending',
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3 (Cartesia, Yair Pro Clone candidate)' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          {
+            seq: 1,
+            resolvesTo: 'recorded clip onboard_weekly_projection_p36_1',
+            liveAllowed: 'NO',
+          },
+        ],
+        assertion:
+          'The line carries no live slot like {name}, so it MUST resolve to the recorded clip onboard_weekly_projection_p36_1. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'wp36-verbatim',
+          rule: 'Speaks the frame line verbatim, timed to the animation; never improvises or adds',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'wp36-no-failure-framing',
+          rule: 'Never makes a rough week sound like failure; a rough week is still building, we reassess, no guilt',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'wp36-audio-ownership',
+          rule: 'The line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'wp36-clip-resolves',
+          rule: 'onboard_weekly_projection_p36_1 resolves to a real asset',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'wp36-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Weekly projection, frame 4 of 5. The grid shows a rough week, one streak surviving. One verbatim line, timed to the frame. The message: a rough week is still building, we reassess, no guilt.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      flow: {
+        rows: [
+          { label: 'advance condition', value: 'the user taps Next after the line lands' },
+          { label: 'upstream branch (into this beat)', value: 'weekly-p78 proceeds here' },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to weekly-gaps (order 61)',
+          },
+          { label: 'gate', value: 'none — a single Next tap advances the frame' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'audio fails to play',
+            behavior:
+              'show the line as text and keep the Next affordance; never strand a silent frame',
+          },
+          {
+            edge: 'grid animation not ready',
+            behavior:
+              'if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'the grid shows a rough week with one streak surviving and a Next affordance appears (pending the built component)',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the frame line plays verbatim from onboard_weekly_projection_p36_1',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'a Next tap proceeds to weekly-gaps; nothing is captured',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'the weekly projection is a closing narration; it captures nothing and gates nothing, so no decision binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -5925,6 +6874,181 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: {
       state: 'gaps',
+    },
+    // Archetype = non-conversational MP3 beat over a display animation (weekly frame 5, the close).
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'pending-app-reconcile',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: { na: 'single-turn narration — the user only taps Next; no coach dialogue' },
+        contextProse: 'filled',
+        allowedTools: { na: 'no tools — the frame narrates and advances on a Next tap' },
+        persistence: {
+          na: 'writes nothing — the projection is display-only (io.dataOut is empty)',
+        },
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'weekly-gaps' },
+          { label: 'name', value: 'Weekly projection (gaps)' },
+          { label: 'order', value: '61' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'weekly-projection' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-WEEKLY-PROJECTION-GAPS' },
+          { surface: 'route', value: '/onboarding/weekly-projection-gaps' },
+          { surface: 'persisted current_step', value: 'weekly-gaps' },
+          { surface: 'session_log value', value: 'weekly-gaps' },
+          { surface: 'data-beat-id', value: 'weekly-gaps' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal:
+              'opener line as the grid shows empty, unreported days; no gate (the one spoken line)',
+            timing: 'karaoke per-word, timed to the frame animation',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'weekly-projection' },
+          { label: 'state', value: 'gaps (from source props.state)' },
+          {
+            label: 'on-screen',
+            value: 'the week grid showing empty, unreported days; a Next affordance',
+          },
+          { label: 'selection mode', value: 'none — display-only; the user taps Next to proceed' },
+        ],
+        watchOut:
+          'The animated 5-state week grid (blank -> full -> p78 -> p36 -> gaps) is not yet built/reconciled in the app; this component claim is pending-app-reconcile, not filled.',
+        enforcedBy: ['component-registry-check'],
+        status: 'app-reconcile-pending',
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3 (Cartesia, Yair Pro Clone candidate)' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          {
+            seq: 1,
+            resolvesTo: 'recorded clip onboard_weekly_projection_gaps_1',
+            liveAllowed: 'NO',
+          },
+        ],
+        assertion:
+          'The line carries no live slot like {name}, so it MUST resolve to the recorded clip onboard_weekly_projection_gaps_1. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'wgaps-verbatim',
+          rule: 'Speaks the frame line verbatim, timed to the animation; never improvises or adds',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'wgaps-no-shame',
+          rule: 'Never shames the user; the point is reporting, not perfection, and even a miss counts when reported',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'wgaps-audio-ownership',
+          rule: 'The line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'wgaps-clip-resolves',
+          rule: 'onboard_weekly_projection_gaps_1 resolves to a real asset',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'wgaps-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Weekly projection, frame 5 of 5, the close. The grid shows empty, unreported days. One verbatim line, timed to the frame. The message: the only thing to avoid is the unreported gap, even a miss counts when you report it.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      flow: {
+        rows: [
+          { label: 'advance condition', value: 'the user taps Next after the line lands' },
+          { label: 'upstream branch (into this beat)', value: 'weekly-p36 proceeds here' },
+          {
+            label: 'downstream branch (out of this beat)',
+            value:
+              'the onboarding flow completes and the user enters the app (final projection frame)',
+          },
+          { label: 'gate', value: 'none — a single Next tap closes the projection' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'audio fails to play',
+            behavior:
+              'show the line as text and keep the Next affordance; never strand a silent frame',
+          },
+          {
+            edge: 'grid animation not ready',
+            behavior:
+              'if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'the grid shows empty unreported days and a Next affordance appears (pending the built component)',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the frame line plays verbatim from onboard_weekly_projection_gaps_1',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'a Next tap closes the projection and enters the app; nothing is captured',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'the weekly projection is a closing narration; it captures nothing and gates nothing, so no decision binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
     },
     script: [
       {
