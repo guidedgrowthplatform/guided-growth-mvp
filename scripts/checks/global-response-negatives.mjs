@@ -48,15 +48,23 @@
 //     'Let's get back to your onboarding') failed to pair because the interior class could
 //     not cross the mid-quote apostrophe. Interior apostrophes are now consumable only when
 //     mid-word, so the pair still closes across a contraction.
-//   Property-approach lock (QA hardening, 2026-07-11): the quote-glyph detection is now
+//   Property-approach lock (QA hardening, 2026-07-11): the quote-glyph detection was made
 //     PROPERTY-BASED (Unicode Quotation_Mark + a small extra set of backtick/primes/modifier
 //     apostrophes, MINUS the two apostrophe-capable code points U+0027 and U+2019), not an
-//     enumerated glyph list — so it generalizes to quote glyphs that were never explicitly
-//     listed and ends the per-cycle whack-a-mole. These four committed cases lock that: a
-//     curly single-quote PAIR (’…’, both U+2019, caught by the deferred pair check), an
-//     UNPAIRED left single quote (‘, U+2018), a CJK corner-bracket pair (「…」), and a
-//     BEYOND-ENUMERATION pair the prior enumerated class never named (〝…〞, U+301D/U+301E) —
-//     all rejected by the property test with no glyph list left to extend.
+//     enumerated glyph list. These four committed cases lock that: a curly single-quote PAIR
+//     (’…’, both U+2019, caught by the deferred pair check), an UNPAIRED left single quote
+//     (‘, U+2018), a CJK corner-bracket pair (「…」), and a BEYOND-ENUMERATION pair the prior
+//     enumerated class never named (〝…〞, U+301D/U+301E).
+//   Allow-list lock (QA hardening, 2026-07-11 — the DURABLE fix): a property-based block-list
+//     is STILL open-by-default, because Unicode has code points named "QUOTATION MARK" that
+//     LACK the Quotation_Mark property and slipped it (angle-quote ornaments, Hebrew
+//     gershayim, \p{Pi}/\p{Pf} paraphrase brackets, the modifier double apostrophe, reversed
+//     primes, emoji quote ornaments). The lint now inverts the test into a FAIL-CLOSED
+//     SAFE-ALPHABET allow-list: rule prose may contain ONLY a known-safe alphabet, so any
+//     glyph outside it is rejected BY CONSTRUCTION with no list left to extend (the two
+//     apostrophe-capable code points stay admitted and are deferred to the pair check). Five
+//     committed cases lock it, each a glyph no block-list caught: ❮…❯ (U+276E/F), ⸜…⸝
+//     (U+2E1C/D Pi/Pf), ˮ…ˮ (U+02EE), ‶…‶ (U+2036), and ״…״ (U+05F4 Hebrew gershayim).
 //
 // Run: `node scripts/checks/global-response-negatives.mjs` (or
 // `npm run check:global-response-negatives`). Exits 0 only if the guard behaved
@@ -408,6 +416,39 @@ withMutation(
   },
 );
 
+// Allow-list locks (QA hardening, 2026-07-11): the fail-closed SAFE-ALPHABET allow-list
+// supersedes every block-list — a character is rejected unless it is in the known-safe set,
+// so ANY glyph outside it fails BY CONSTRUCTION. These five cases lock code points that NO
+// block-list ever caught, INCLUDING ones named "QUOTATION MARK" that lack the Unicode
+// Quotation_Mark property (so even the property-based block-list this fix replaced let them
+// through): U+276E/F angle-quote ornaments, U+2E1C/D \p{Pi}/\p{Pf} paraphrase brackets,
+// U+02EE modifier double apostrophe, U+2036 reversed double prime, and U+05F4 Hebrew
+// gershayim. Each fails on ANY occurrence because none is an admitted apostrophe.
+for (const { name, id, glyphOpen, glyphClose } of [
+  { name: 'angle-quote ornaments ❮…❯ (U+276E/F, no Quotation_Mark property)', id: 'glob-anglequote-probe', glyphOpen: '❮', glyphClose: '❯' },
+  { name: 'Pi/Pf paraphrase brackets ⸜…⸝ (U+2E1C/D)', id: 'glob-pipf-probe', glyphOpen: '⸜', glyphClose: '⸝' },
+  { name: 'modifier double apostrophe ˮ…ˮ (U+02EE)', id: 'glob-modapos-probe', glyphOpen: 'ˮ', glyphClose: 'ˮ' },
+  { name: 'reversed double prime ‶…‶ (U+2036)', id: 'glob-revprime-probe', glyphOpen: '‶', glyphClose: '‶' },
+  { name: 'Hebrew gershayim ״…״ (U+05F4)', id: 'glob-gershayim-probe', glyphOpen: '״', glyphClose: '״' },
+]) {
+  withMutation(
+    `allow-list lock: ${name} fails the guard`,
+    [
+      injectRule({
+        id,
+        rule: `'On an unrecognized global input, say ${glyphOpen}Let us get back to your onboarding${glyphClose} and then re-ask.'`,
+        effect: "{ kind: 'constraint' }",
+      }),
+    ],
+    ({ code, out }) => {
+      if (code === 0)
+        throw new Error(`guard exited 0 — ${name} in rule prose was accepted (allow-list not fail-closed)`);
+      if (!new RegExp(id).test(out) || !/contains a quoted string/.test(out))
+        throw new Error(`the allow-list did not fire on ${name}`);
+    },
+  );
+}
+
 // Duplicate GLOBAL_RULES id: two rules sharing the same id would make precedence and
 // spoken-response ownership ambiguous. Reuse the existing 'glob-crisis' id for the
 // injected probe so the ONLY failure is the new duplicate-id diagnostic (QA hardening,
@@ -510,6 +551,9 @@ console.log(
     'the colon / single-quote / parenthesis / unquoted-response / backtick / guillemet / ' +
     'long-single-quote / interior-contraction bypass classes, the property-approach lock ' +
     'cases (curly single-quote pair, unpaired left single quote, CJK corner-bracket pair, ' +
-    'beyond-enumeration quote marks), an unowned spoken response, a spoken response outside ' +
-    'the registry, a duplicate GLOBAL_RESPONSES id, and a duplicate GLOBAL_RULES id).',
+    'beyond-enumeration quote marks), the fail-closed allow-list lock cases (angle-quote ' +
+    'ornaments U+276E/F, Pi/Pf paraphrase brackets U+2E1C/D, modifier double apostrophe ' +
+    'U+02EE, reversed double prime U+2036, Hebrew gershayim U+05F4), an unowned spoken ' +
+    'response, a spoken response outside the registry, a duplicate GLOBAL_RESPONSES id, and ' +
+    'a duplicate GLOBAL_RULES id).',
 );

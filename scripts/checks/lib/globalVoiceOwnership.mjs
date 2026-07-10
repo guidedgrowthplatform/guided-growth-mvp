@@ -287,29 +287,34 @@ export function validateGlobalRuleEffects({ globalRules, responses, registry }) 
 // bypassable with a colon, single quotes, parentheses, or >3 intervening words). Since
 // every legitimate quote now lives in a typed field — a user-input example in
 // `inputExamples`, a prescribed coach line in the GLOBAL_RESPONSES row named by `effect`
-// — NO quoted string belongs in behavior prose. So the rule is: reject ANY double- or
-// single-quoted string, with no attempt to infer who speaks it. This removes all speaker
-// inference and closes every punctuation-shape bypass class at once.
+// — NO quoted string belongs in behavior prose. So the rule is: reject ANY quoted string,
+// with no attempt to infer who speaks it. This is now enforced by a FAIL-CLOSED allow-list
+// (a safe alphabet) plus an apostrophe-pair check, which together remove all speaker
+// inference and close every punctuation-shape bypass class — including quote-like glyphs no
+// block-list had ever named — at once (see the allow-list note below).
 //
 // (This lint applies ONLY to the GLOBAL layer GlobalRule.rule prose. Per-beat rulesContext
 // / rulesCode rule prose is not global response copy and is out of its scope.)
-// Glyph completeness (QA hardening, 2026-07-11) — PROPERTY-BASED, not an enumerated glyph
-// list. The prior fix chased quote glyphs one at a time (straight/curly double, backtick,
-// guillemets, then CJK corners, fullwidth, primes ...), so every QA cycle reopened a
-// whack-a-mole when it found one more exotic quote the enumerated class missed. Instead, a
-// character is an UNCONDITIONAL quote if it carries the Unicode Quotation_Mark property OR
-// is in a small extra set the property does not cover (backtick, the primes, the modifier
-// apostrophes), with ONE exception: the two apostrophe-capable code points U+0027 (') and
-// U+2019 (’). Those legitimately appear as apostrophes in constraint prose (the user's,
-// don't, users’), so they are NOT flagged on occurrence; they are deferred to
-// SINGLE_QUOTE_PAIR_RE and fail only when they form a word-boundary-anchored PAIR. Every
-// other quote-like glyph — present or future, however exotic — is caught by the property
-// test with no list left to extend, which is what ends the loop. (\p{Quotation_Mark}
-// already covers " “ ” ‘ ‚ ‛ „ « » ‹ › 「 」 『 』 〝 〞 〟 ＂ ＇ ｢ ｣ and the two excluded
-// apostrophes; it does NOT cover backtick, the primes, or the modifier apostrophes, hence
-// the extra set.)
-const UNCONDITIONAL_QUOTE_RE = /[\p{Quotation_Mark}`′″‴ʼʻ]/gu; // any Quotation_Mark or extra-set glyph; the two apostrophe-capable code points (U+0027, U+2019) are excluded at match time and deferred to SINGLE_QUOTE_PAIR_RE
-const SINGLE_QUOTE_PAIR_RE = /(?<!\w)['’](?:[^'’\n]|(?<=\w)['’](?=\w))*['’](?!\w)/; // a straight/curly single-quote PAIR (' and ’, the apostrophe-capable pair), word-boundary anchored so a mid-word apostrophe is never mistaken for a quote; interior apostrophes are consumable only when mid-word, so a real quoted pair still matches across a contraction while legit possessive/contraction prose is never flagged. No length cap.
+// SAFE-ALPHABET allow-list (QA hardening, 2026-07-11) — FAIL-CLOSED, not a block-list. Every
+// prior fix chased quote glyphs one at a time (straight/curly double, backtick, guillemets,
+// CJK corners, primes ...), and even a property-based block-list (\p{Quotation_Mark} + an
+// extra set) stayed open-by-default: QA kept finding code points named "QUOTATION MARK" that
+// LACK the property (U+276E/F angle-quote ornaments, U+275D/E dingbat quotes, U+05F4 Hebrew
+// gershayim, the \p{Pi}/\p{Pf} paraphrase brackets like U+2E1C/D, U+02EE modifier double
+// apostrophe, U+2036 reversed prime, emoji quote ornaments) — always one glyph behind. The
+// durable fix inverts the test: rule prose may contain ONLY a known-safe alphabet, so ANY
+// character outside it — present or future, however exotic — is rejected BY CONSTRUCTION,
+// with no list left to extend. The set is exactly the punctuation the real GLOBAL_RULES prose
+// uses (letters, digits, space, and (),-.:;_ ) plus a small margin of ordinary constraint-
+// prose punctuation (/ ? ! % & + …) and the two apostrophe-capable code points U+0027 (') and
+// U+2019 (’). Those two apostrophes are ADMITTED because they legitimately appear in
+// constraint prose (the user's, don't, users’); a straight/curly apostrophe PAIR forming a
+// quoted span is still caught by SINGLE_QUOTE_PAIR_RE, which runs ALONGSIDE the allow-list.
+// Both checks run; either firing = a violation. (Scope: GLOBAL_RULES rule prose ONLY —
+// GLOBAL_RESPONSES lines are SUPPOSED to carry quoted spoken copy and are owned elsewhere.)
+const PROSE_ALLOWED_RE = /^[A-Za-z0-9 (),\-.:;_/'’?!%&+…\n]*$/u; // fail-closed: prose may contain ONLY these code points; any other glyph is a violation, whatever it is
+const PROSE_ALLOWED_CHAR_RE = /[A-Za-z0-9 (),\-.:;_/'’?!%&+…\n]/u; // single-char form of the same safe alphabet, used to locate the first offending code point for the diagnostic
+const SINGLE_QUOTE_PAIR_RE = /(?<!\w)['’](?:[^'’\n]|(?<=\w)['’](?=\w))*['’](?!\w)/; // a straight/curly single-quote PAIR (' and ’, the two apostrophe-capable code points the allow-list admits), word-boundary anchored so a mid-word apostrophe is never mistaken for a quote; interior apostrophes are consumable only when mid-word, so a real quoted pair still matches across a contraction while legit possessive/contraction prose is never flagged. No length cap.
 
 export function findGlobalRuleProseQuotes(globalRulesArr) {
   const problems = [];
@@ -317,28 +322,48 @@ export function findGlobalRuleProseQuotes(globalRulesArr) {
   for (const rule of globalRulesArr) {
     const text = rule && typeof rule.rule === 'string' ? rule.rule : '';
     if (!text) continue;
-    // Unconditional quote-glyph scan: any Quotation_Mark / extra-set glyph that is NOT one
-    // of the two apostrophe-capable code points (U+0027, U+2019) is a violation on ANY
-    // occurrence. Those two are deferred to the pair check below.
-    let dqAt = -1;
-    UNCONDITIONAL_QUOTE_RE.lastIndex = 0;
-    for (let m = UNCONDITIONAL_QUOTE_RE.exec(text); m; m = UNCONDITIONAL_QUOTE_RE.exec(text)) {
-      const cp = m[0].codePointAt(0);
-      if (cp !== 0x27 && cp !== 0x2019) {
-        dqAt = m.index;
-        break;
+    // 1. SAFE-ALPHABET scan (fail-closed allow-list): the FIRST code point outside the safe
+    //    alphabet is a violation, whatever it is — a quote glyph the property test missed, an
+    //    ornament, an emoji, anything. Iterate by code point (string iterator) so astral
+    //    glyphs (e.g. emoji quote ornaments U+1F676/77) are handled as one char.
+    let badAt = -1;
+    let badChar = '';
+    if (!PROSE_ALLOWED_RE.test(text)) {
+      let i = 0;
+      for (const ch of text) {
+        if (!PROSE_ALLOWED_CHAR_RE.test(ch)) {
+          badAt = i;
+          badChar = ch;
+          break;
+        }
+        i += ch.length;
       }
     }
+    // 2. APOSTROPHE-PAIR scan: ' (U+0027) and ’ (U+2019) are admitted by the allow-list for
+    //    legit contractions/possessives, so a straight/curly apostrophe PAIR forming a quoted
+    //    span still needs the word-boundary-anchored pair check. Runs alongside the allow-list;
+    //    either firing = a violation.
     const sq = SINGLE_QUOTE_PAIR_RE.exec(text);
-    if (dqAt === -1 && !sq) continue;
-    // Report the earliest offending glyph (unconditional glyph or the anchored pair).
-    const at = dqAt === -1 || (sq && sq.index < dqAt) ? sq.index : dqAt;
+    if (badAt === -1 && !sq) continue;
+    // Report the earliest offending position (out-of-alphabet char or the anchored pair). When
+    // the out-of-alphabet char is the earliest (or only) offense, name it + its code point so a
+    // maintainer sees exactly which glyph the fail-closed alphabet rejected.
+    const badIsEarliest = badAt !== -1 && (!sq || badAt <= sq.index);
+    const at = badIsEarliest ? badAt : sq.index;
     const snippet = text.slice(at, at + 80).replace(/\s+/g, ' ').trim();
+    const charNote = badIsEarliest
+      ? ` first out-of-alphabet char "${badChar}" (U+${badChar
+          .codePointAt(0)
+          .toString(16)
+          .toUpperCase()
+          .padStart(4, '0')})`
+      : '';
     problems.push(
-      `GLOBAL_RULES "${rule.id}": rule prose contains a quoted string ("${snippet}"). Behavior prose ` +
-        `must carry NO quotes — put a user-input example in inputExamples[], and a prescribed coach line in ` +
-        `the GLOBAL_RESPONSES row named by effect. This removes speaker inference and closes the colon / ` +
-        `single-quote / parenthesis / >3-word bypass classes (B1-R2).`,
+      `GLOBAL_RULES "${rule.id}": rule prose contains a quoted string ("${snippet}")${charNote}. Behavior ` +
+        `prose may carry ONLY the safe constraint-prose alphabet (letters, digits, and a small punctuation ` +
+        `set) — any other glyph, including quote-like code points that lack the Unicode Quotation_Mark ` +
+        `property, is rejected by construction (fail-closed allow-list). Put a user-input example in ` +
+        `inputExamples[], and a prescribed coach line in the GLOBAL_RESPONSES row named by effect (B1-R2).`,
     );
   }
   return problems;
