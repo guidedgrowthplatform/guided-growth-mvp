@@ -7036,6 +7036,256 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
+    // Archetype = interactive data-gate (card-fill day pickers). The coach frames it,
+    // then all picked habits show as cards with day pickers; reminders OFF by default.
+    // conversation is { na } (per-habit card fill, no branching); allowedTools is
+    // owner-filled; persistence is pending-app-reconcile (writes go "per handler").
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: {
+          na: 'card-fill day pickers — the coach frames it once; each habit card day picker is filled directly, no branching turn',
+        },
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'pending-app-reconcile',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'schedule' },
+          { label: 'name', value: 'Habit schedule' },
+          { label: 'order', value: '53' },
+          { label: 'path', value: 'beginner' },
+          { label: 'type', value: 'habit-schedule' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-BEGINNER-04' },
+          { surface: 'route', value: '/onboarding/beginner-04' },
+          { surface: 'persisted current_step', value: 'schedule' },
+          { surface: 'session_log value', value: 'schedule' },
+          { surface: 'data-beat-id', value: 'schedule' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'first framing bubble on entry; no gate (first spoken line)',
+            timing: 'karaoke per-word on the bubble',
+          },
+          {
+            seq: 2,
+            reveal: 'second framing bubble, GATED on seq 1 clip end',
+            timing: 'karaoke per-word on the bubble',
+          },
+          {
+            seq: 3,
+            reveal: 'all picked habit cards with their day pickers bloom, GATED on seq 2 clip end',
+            timing: 'n/a (silent reveal)',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'habit-schedule' },
+          {
+            label: 'on-screen cards',
+            value:
+              'one card per picked habit, each with a day picker (frequency); per-habit reminders OFF by default',
+          },
+          {
+            label: 'selection mode',
+            value: 'days set per habit; the weekday preset by locale is offered, nothing forced',
+          },
+          {
+            label: 'exact state',
+            value:
+              'the daily check-in and the evening reflection are NOT shown here (they are rituals, not habits)',
+          },
+        ],
+        watchOut:
+          'Per-habit reminders default OFF (on only if the user asks). Never include the check-in or the reflection as habits here.',
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_beginner_04_1', liveAllowed: 'NO' },
+          { seq: 2, resolvesTo: 'recorded clip onboard_beginner_04_2', liveAllowed: 'NO' },
+          { seq: 3, resolvesTo: 'silent reveal (no audio)', liveAllowed: 'n/a' },
+        ],
+        assertion:
+          'No line here carries a live slot like {name}, so both spoken lines MUST resolve to recorded clips; the cards reveal silently. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'schedule-verbatim-opener',
+          rule: 'Speaks the two framing lines verbatim, no improvised lead-in',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'schedule-recommend-weekdays',
+          rule: 'Recommends weekdays to start; never insists every habit must be daily',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+        {
+          id: 'schedule-no-reask',
+          rule: 'Never re-asks a piece the user already gave; never adds the check-in or reflection as a habit',
+          severity: 'must',
+          enforcedBy: ['eval:carry-forward'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'schedule-tools-only',
+          rule: 'Only add_habit, update_habit, and advance_step are callable on this beat',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'schedule-advance-on-days',
+          rule: 'advance_step fires only after each habit has its days set',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'schedule-reminders-off',
+          rule: 'Per-habit reminders stay OFF unless the user asks; never turn one on unprompted',
+          severity: 'must',
+          enforcedBy: ['component-registry-check'],
+        },
+        {
+          id: 'schedule-reveal-gates',
+          rule: 'the habit cards reveal gates on the prior line clip end, never a fixed timer',
+          severity: 'must',
+          enforcedBy: ['reveal-timing-check'],
+        },
+        {
+          id: 'schedule-audio-ownership',
+          rule: 'Every spoken line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'schedule-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Habit schedule. Shows all the habits the user just picked, each as its own card with the habit name and its day picker. The daily check-in and the evening reflection are NOT here (rituals, not habits). For each habit, set which days; recommend weekdays to start. Days default to the weekday preset by locale. Per-habit reminders are OFF by default, on only if the user asks. Never turn a reminder on unless they ask, never re-ask a piece already given, and never include the check-in or reflection as habits.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      allowedTools: {
+        tools: ['add_habit', 'update_habit', 'advance_step'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: update_habit to set days on an existing habit, add_habit only if needed; only this beat tools.',
+        specs: [
+          {
+            tool: 'update_habit',
+            args: '{ habitId: string, days: string[], reminder?: boolean }',
+            when: 'to set the days (and optionally a reminder) on a picked habit',
+          },
+          {
+            tool: 'add_habit',
+            args: '{ name: string, polarity: "build" | "break", days: string[] }',
+            when: 'only if a habit needs adding here',
+          },
+          { tool: 'advance_step', args: '{}', when: 'once every habit has its days set' },
+        ],
+        note: 'The exact per-habit write shape is reconciled with the handler (persistence pending-app-reconcile).',
+        enforcedBy: ['tool-contract-check'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'every picked habit has its days set (via update_habit), then advance_step',
+          },
+          {
+            label: 'upstream branch (into this beat)',
+            value: 'the habits picker (or the custom habit) routes here',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to the plan confirm',
+          },
+          { label: 'gate', value: 'each habit needs days set before advancing' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'update_habit errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" with the days retained. Voice path: one short coach line "That didn\'t go through, let me try again."',
+            voice: 'clip-family:onboard_beginner_04_edge_1 (pending recording)',
+          },
+          {
+            edge: 'a habit left with no days',
+            behavior: 'prompt once for that habit days; do not advance until every habit has days',
+          },
+          {
+            edge: 'asks for a reminder',
+            behavior: 'turn the per-habit reminder on for that habit; otherwise reminders stay OFF',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders one card per picked habit with a day picker; no check-in or reflection card appears here',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the two framing lines play verbatim; weekdays recommended, not forced',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'each habit days set via update_habit, then advance_step',
+          },
+        ],
+        enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '4/5 (habit caps: max 2 habits)',
+            binds: false,
+            how: 'the cap is applied when habits are picked, not here; this beat only sets days on the already-capped set',
+          },
+          {
+            decision: '1, 2 (profile gates), 3 (women-art), 6, 7 (reflection)',
+            binds: false,
+            how: 'not this beat',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -7103,6 +7353,288 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
+    // Archetype = multi-turn conversation (brain dump). The user reads or types their
+    // existing habits; cards form live, each auto-marked build or break; the coach names
+    // the read once and asks for a single yes. All 14 sections owner-filled except
+    // persistence (pending-app-reconcile: submit_brain_dump writes "per handler").
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: 'filled',
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'pending-app-reconcile',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'advanced-capture' },
+          { label: 'name', value: 'Advanced capture' },
+          { label: 'order', value: '54' },
+          { label: 'path', value: 'advanced' },
+          { label: 'type', value: 'advanced-capture' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-ADVANCED' },
+          { surface: 'route', value: '/onboarding/advanced' },
+          { surface: 'persisted current_step', value: 'advanced-capture' },
+          { surface: 'session_log value', value: 'advanced-capture' },
+          { surface: 'data-beat-id', value: 'advanced-capture' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'opener bubble on entry; no gate (first spoken line)',
+            timing: 'karaoke per-word on the bubble',
+          },
+          {
+            seq: 2,
+            reveal:
+              'habit cards form live as the user reads them, each auto-marked build or break, GATED on seq 1 clip end',
+            timing: 'n/a (silent, cards form as the user speaks)',
+          },
+          {
+            seq: 3,
+            reveal: 'the close/confirm bubble, GATED on seq 2 reveal',
+            timing: 'karaoke per-word on the bubble',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'advanced-capture' },
+          {
+            label: 'on-screen cards',
+            value:
+              'habit cards forming live as the user reads or types; each card auto-marked build or break',
+          },
+          {
+            label: 'selection mode',
+            value: 'free capture; avoidance wording reads as break, everything else as build',
+          },
+          {
+            label: 'exact state',
+            value:
+              'nothing preselected; the coach does not ask build or break per habit (the cards already mark it)',
+          },
+        ],
+        watchOut:
+          'The coach never asks build or break per habit; the card marks it. Capture verbatim, do not reorganize as the user talks.',
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_advanced_1', liveAllowed: 'NO' },
+          { seq: 2, resolvesTo: 'silent reveal (no audio)', liveAllowed: 'n/a' },
+          { seq: 3, resolvesTo: 'recorded clip close', liveAllowed: 'NO' },
+        ],
+        assertion:
+          'No line here carries a live slot like {name}, so both spoken lines MUST resolve to recorded clips; the cards form silently. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'advcap-verbatim-opener',
+          rule: 'Speaks the opener and the close line verbatim, no improvised lead-in',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'advcap-no-build-break-ask',
+          rule: 'Never asks build or break per habit; the cards already mark it',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+        {
+          id: 'advcap-capture-verbatim',
+          rule: 'Captures verbatim; never rewords or reorganizes what the user said',
+          severity: 'must',
+          enforcedBy: ['eval:carry-forward'],
+        },
+        {
+          id: 'advcap-less-is-more',
+          rule: 'Never pushes for more; less is more, they can build on it later',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+        {
+          id: 'advcap-confirm-once',
+          rule: 'Names the build and break read once over the whole set and asks for a single yes',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'advcap-tools-only',
+          rule: 'Only submit_brain_dump and advance_step are callable on this beat',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'advcap-advance-on-tool',
+          rule: 'advance_step fires only after submit_brain_dump captured the confirmed set',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'advcap-reveal-gates',
+          rule: 'the cards and the close bubble gate on the prior line clip end, never a fixed timer',
+          severity: 'must',
+          enforcedBy: ['reveal-timing-check'],
+        },
+        {
+          id: 'advcap-audio-ownership',
+          rule: 'Every spoken line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'advcap-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      conversation: {
+        opens: 'after the opener (read me the list of habits you already track)',
+        branches: [
+          {
+            on: 'reads or types their habits',
+            reply: 'none (silent); each habit forms a card, auto-marked build or break',
+            then: 'tool:submit_brain_dump',
+          },
+          {
+            on: 'flags a card as wrong (build/break or wording)',
+            reply: 'scripted: fix that one card only; do not reorganize or reword the rest',
+            then: 'wait',
+            voice: 'clip-family:onboard_advanced_fix_one (pending recording)',
+          },
+          {
+            on: 'confirms the set is good',
+            reply: 'none (silent); proceed to set the days next',
+            then: 'advance',
+          },
+          {
+            on: 'off-topic or world question',
+            reply:
+              'global rule glob-out-of-scope: one brief acknowledgement, steer back to the habit list',
+            then: 'wait',
+            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+          },
+        ],
+        maxTurns: 6,
+        onMaxTurns: 'name the build/break read once over the whole set and ask for a single yes',
+      },
+      contextProse: {
+        prose:
+          'Advanced capture. The user already has habits. Let them read or type them all, in their own words. Each one forms on screen as a card, auto-marked build or break (avoidance wording reads as break, everything else as build). Do NOT ask build or break per habit. Capture verbatim, do not reorganize as they talk. Less is more, especially at the start, they can build on it later. When they finish, name the build and break read once over the whole set and ask for a single yes. If they flag one as wrong, fix that one. Then the days get set on the next beat.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      allowedTools: {
+        tools: ['submit_brain_dump', 'advance_step'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: submit_brain_dump with the verbatim habit set once the user confirms; only this beat tools.',
+        specs: [
+          {
+            tool: 'submit_brain_dump',
+            args: '{ habits: { name: string, polarity: "build" | "break" }[] } (verbatim, polarity auto-marked)',
+            when: 'once the user confirms the read set',
+          },
+          { tool: 'advance_step', args: '{}', when: 'immediately after submit_brain_dump returns' },
+        ],
+        note: 'The exact write shape for the brain dump is reconciled with the handler (persistence pending-app-reconcile).',
+        enforcedBy: ['tool-contract-check'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'submit_brain_dump captured the confirmed set, then advance_step',
+          },
+          {
+            label: 'upstream branch (into this beat)',
+            value: 'the fork advanced choice routes here',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to advanced-frequency (order 55) to set the days',
+          },
+          { label: 'gate', value: 'the user confirms the read set before advancing' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'submit_brain_dump errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" with the cards retained. Voice path: one short coach line "That didn\'t go through, let me try again."',
+            voice: 'clip-family:onboard_advanced_edge_1 (pending recording)',
+          },
+          {
+            edge: 'flags a card wrong',
+            behavior: 'fix that one card only; never reorganize or reword the rest',
+          },
+          {
+            edge: 'user reports something heavy',
+            behavior:
+              'if the user shares something hard, drop the capture, be human first, and do not rush them back (global glob-crisis)',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders habit cards forming live, each auto-marked build or break; nothing preselected',
+          },
+          {
+            criterion: 'says the right thing',
+            check:
+              'opener and close play verbatim; the coach never asks build or break per habit (rules.context evals)',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'the confirmed set captured via submit_brain_dump, then advance_step',
+          },
+        ],
+        enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '4/5 (habit caps: max 2 habits)',
+            binds: false,
+            how: 'advanced capture takes the user existing list; the beginner 2-habit cap does not gate this path',
+          },
+          {
+            decision: '1, 2 (profile gates), 3 (women-art), 6, 7 (reflection)',
+            binds: false,
+            how: 'not this beat',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -7170,6 +7702,266 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
+    // Archetype = interactive data-gate (card-fill day circles) for the advanced path.
+    // The day circles grow out of the already-captured habit cards; the coach parses a
+    // full frequency answer, asks only for what is missing. conversation is { na }
+    // (card-fill, no branching); allowedTools owner-filled; persistence pending-app-reconcile.
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: {
+          na: 'card-fill day circles — the coach parses a spoken frequency onto the same cards; the missing-field prompt is generative, no branching turn',
+        },
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'pending-app-reconcile',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'advanced-frequency' },
+          { label: 'name', value: 'Advanced frequency' },
+          { label: 'order', value: '55' },
+          { label: 'path', value: 'advanced' },
+          { label: 'type', value: 'advanced-frequency' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-ADVANCED-FREQUENCY' },
+          { surface: 'route', value: '/onboarding/advanced-frequency' },
+          { surface: 'persisted current_step', value: 'advanced-frequency' },
+          { surface: 'session_log value', value: 'advanced-frequency' },
+          { surface: 'data-beat-id', value: 'advanced-frequency' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'first framing bubble on entry; no gate (first spoken line)',
+            timing: 'karaoke per-word on the bubble',
+          },
+          {
+            seq: 2,
+            reveal: 'second framing bubble, GATED on seq 1 clip end',
+            timing: 'karaoke per-word on the bubble',
+          },
+          {
+            seq: 3,
+            reveal: 'the day circles grow out of the habit cards, GATED on seq 2 clip end',
+            timing: 'n/a (silent reveal)',
+          },
+          {
+            seq: 4,
+            reveal: 'the plan-ready bubble, GATED on seq 3 reveal',
+            timing: 'karaoke per-word on the bubble',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'advanced-frequency' },
+          {
+            label: 'on-screen',
+            value:
+              'the already-captured habit cards, each growing a day-circle picker (frequency); per-habit reminders OFF by default',
+          },
+          {
+            label: 'selection mode',
+            value:
+              'days set per habit; a full spoken answer is parsed onto the cards, nothing forced',
+          },
+          {
+            label: 'exact state',
+            value:
+              'the cards are the same ones from advanced-capture; no new cards are created here',
+          },
+        ],
+        watchOut:
+          'Per-habit reminders default OFF (on only if the user asks). Parse a full answer when given; ask only for what is missing.',
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          {
+            seq: 1,
+            resolvesTo: 'recorded clip onboard_advanced_frequency_days',
+            liveAllowed: 'NO',
+          },
+          { seq: 2, resolvesTo: 'recorded clip onboard_advanced_frequency_1', liveAllowed: 'NO' },
+          { seq: 3, resolvesTo: 'silent reveal (no audio)', liveAllowed: 'n/a' },
+          { seq: 4, resolvesTo: 'recorded clip onboard_advanced_frequency_2', liveAllowed: 'NO' },
+        ],
+        assertion:
+          'No line here carries a live slot like {name}, so every spoken line MUST resolve to a recorded clip; the day circles reveal silently. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'advfreq-verbatim-opener',
+          rule: 'Speaks the framing and the plan-ready lines verbatim, no improvised lead-in',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'advfreq-parse-full-answer',
+          rule: 'Parses a full frequency answer when given; asks only for what is missing',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+        {
+          id: 'advfreq-no-reask',
+          rule: 'Never re-asks anything already captured',
+          severity: 'must',
+          enforcedBy: ['eval:carry-forward'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'advfreq-tools-only',
+          rule: 'Only add_habit, update_habit, and advance_step are callable on this beat',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'advfreq-advance-on-days',
+          rule: 'advance_step fires only after each habit has its days set',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'advfreq-reminders-off',
+          rule: 'Per-habit reminders stay OFF unless the user asks; never turn one on unprompted',
+          severity: 'must',
+          enforcedBy: ['component-registry-check'],
+        },
+        {
+          id: 'advfreq-reveal-gates',
+          rule: 'the day circles reveal gates on the prior line clip end, never a fixed timer',
+          severity: 'must',
+          enforcedBy: ['reveal-timing-check'],
+        },
+        {
+          id: 'advfreq-audio-ownership',
+          rule: 'Every spoken line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'advfreq-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Habit days, advanced. The habits are already captured as cards. Now set how often each one runs; the day circles grow out of the same cards. Parse a full answer when the user gives one, ask only for what is missing. Per-habit reminders OFF by default. Go through them, then the plan is ready. Never re-ask anything already captured, and never turn a reminder on unless they ask.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      allowedTools: {
+        tools: ['add_habit', 'update_habit', 'advance_step'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: update_habit to set the frequency on an existing card; only this beat tools.',
+        specs: [
+          {
+            tool: 'update_habit',
+            args: '{ habitId: string, days: string[], reminder?: boolean }',
+            when: 'to set the days (frequency) on a captured habit',
+          },
+          {
+            tool: 'add_habit',
+            args: '{ name: string, polarity: "build" | "break", days: string[] }',
+            when: 'only if a habit needs adding here',
+          },
+          { tool: 'advance_step', args: '{}', when: 'once every habit has its days set' },
+        ],
+        note: 'The exact per-habit write shape is reconciled with the handler (persistence pending-app-reconcile).',
+        enforcedBy: ['tool-contract-check'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'every captured habit has its days set (via update_habit), then advance_step',
+          },
+          { label: 'upstream branch (into this beat)', value: 'advanced-capture advances here' },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to the plan confirm (the plan is ready)',
+          },
+          { label: 'gate', value: 'each captured habit needs days set before advancing' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'update_habit errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" with the days retained. Voice path: one short coach line "That didn\'t go through, let me try again."',
+            voice: 'clip-family:onboard_advanced_frequency_edge_1 (pending recording)',
+          },
+          {
+            edge: 'partial frequency answer',
+            behavior:
+              'take what was given, ask only for the missing habits days; never re-ask a set one',
+          },
+          {
+            edge: 'asks for a reminder',
+            behavior: 'turn the per-habit reminder on for that habit; otherwise reminders stay OFF',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders the captured habit cards, each with a day-circle picker; no new cards are created',
+          },
+          {
+            criterion: 'says the right thing',
+            check:
+              'the framing and plan-ready lines play verbatim; a full answer is parsed, only gaps asked',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'each habit days set via update_habit, then advance_step',
+          },
+        ],
+        enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '4/5 (habit caps: max 2 habits)',
+            binds: false,
+            how: 'the advanced path uses the user existing list; the beginner 2-habit cap does not gate this frequency beat',
+          },
+          {
+            decision: '1, 2 (profile gates), 3 (women-art), 6, 7 (reflection)',
+            binds: false,
+            how: 'not this beat',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -7250,6 +8042,250 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: { buttonLabel: 'Approve and start', buttonEditLabel: 'I want to change something' },
+    // Archetype = interactive confirm gate into the app. One spoken line, the whole plan
+    // shown, approve or edit. All 14 sections owner-filled except persistence
+    // (pending-app-reconcile: confirm_plan completes onboarding "per handler").
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: 'filled',
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'pending-app-reconcile',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'plan' },
+          { label: 'name', value: 'Plan confirm' },
+          { label: 'order', value: '56' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'into-app' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-COMPLETE' },
+          { surface: 'route', value: '/onboarding/complete' },
+          { surface: 'persisted current_step', value: 'plan' },
+          { surface: 'session_log value', value: 'plan' },
+          { surface: 'data-beat-id', value: 'plan' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'opener line with the whole plan on screen; no gate (the one spoken line)',
+            timing: 'karaoke per-word on the bubble',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'into-app' },
+          {
+            label: 'on-screen',
+            value:
+              'the whole plan: the check-in time, the evening reflection time, and all the habits under them',
+          },
+          {
+            label: 'buttons (tap path only)',
+            value:
+              'two buttons: "Approve and start" and "I want to change something"; the voice path shows no buttons (the user just says what they want)',
+          },
+          {
+            label: 'selection mode',
+            value: 'approve or edit; editing is voice-driven, the add/edit/delete surface appears',
+          },
+        ],
+        watchOut:
+          'On the voice path there are no buttons; the user just speaks. Editing is voice-driven; instrument users who never tap a button (see edges).',
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [{ seq: 1, resolvesTo: 'recorded clip onboard_complete_1', liveAllowed: 'NO' }],
+        assertion:
+          'The line carries no live slot like {name}, so it MUST resolve to the recorded clip onboard_complete_1. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'plan-verbatim-opener',
+          rule: 'Speaks the confirm line verbatim; the line is real and specific to the plan, not generic',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'plan-one-confirm',
+          rule: 'One confirm: ask if it looks right or if they want to change anything, then wait',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+        {
+          id: 'plan-no-platitudes',
+          rule: 'This is a high-investment moment; make the line real, no generic praise or filler',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'plan-tools-only',
+          rule: 'Only update_habit and confirm_plan are callable on this beat',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'plan-confirm-enters-app',
+          rule: 'confirm_plan fires on approval and completes onboarding into the app',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'plan-audio-ownership',
+          rule: 'The line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'plan-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      conversation: {
+        opens: 'after the confirm line (want to start here, or change anything first)',
+        branches: [
+          {
+            on: 'approves (taps Approve and start, or says it looks good)',
+            reply: 'none (silent); enter the app',
+            then: 'tool:confirm_plan',
+          },
+          {
+            on: 'wants to change something',
+            reply:
+              'scripted: the add/edit/delete surface opens; make the edit by voice, then confirm again',
+            then: 'tool:update_habit',
+            voice: 'clip-family:onboard_complete_edit (pending recording)',
+          },
+          {
+            on: 'off-topic or world question',
+            reply:
+              'global rule glob-out-of-scope: one brief acknowledgement, steer back to the plan confirm',
+            then: 'wait',
+            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+          },
+        ],
+        maxTurns: 5,
+        onMaxTurns: 'plain one-line re-ask of whether the plan looks right or needs a change',
+      },
+      contextProse: {
+        prose:
+          'Full plan. One confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. Ask if it looks right or if they want to change anything. On approval, they enter the app. This is a high-investment moment, so make the line real and specific, not generic. On the tap path, two buttons ("Approve and start" and "I want to change something"); on voice, no buttons, the user just says what they want. Editing is voice-driven, the add/edit/delete surface appears. Instrument users who never tap a button.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      allowedTools: {
+        tools: ['update_habit', 'confirm_plan'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: update_habit for a requested edit, confirm_plan on approval; only this beat tools.',
+        specs: [
+          {
+            tool: 'update_habit',
+            args: '{ habitId: string, ...changes }',
+            when: 'when the user asks to change a habit before confirming',
+          },
+          {
+            tool: 'confirm_plan',
+            args: '{}',
+            when: 'once the user approves the plan',
+          },
+        ],
+        note: 'confirm_plan completes onboarding; the exact completion write is reconciled with the handler (persistence pending-app-reconcile).',
+        enforcedBy: ['tool-contract-check'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'the user approves and confirm_plan completes onboarding into the app',
+          },
+          {
+            label: 'upstream branch (into this beat)',
+            value: 'the habit schedule (beginner) or advanced-frequency (advanced) routes here',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value:
+              'on approval, into the app; on a change request, the edit surface, then re-confirm; then the weekly projection frames',
+          },
+          { label: 'gate', value: 'the user must approve (confirm_plan) before entering the app' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'confirm_plan errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not enter the app. Tap/text path: a toast "Couldn\'t save that, tap to retry". Voice path: one short coach line "That didn\'t go through, let me try again."',
+            voice: 'clip-family:onboard_complete_edge_1 (pending recording)',
+          },
+          {
+            edge: 'wants an edit',
+            behavior: 'open the add/edit/delete surface, make the edit by voice, then re-confirm',
+          },
+          {
+            edge: 'never taps a button (voice path)',
+            behavior:
+              'no buttons on voice; take the spoken approval or edit; instrument users who complete without a tap',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders the whole plan (check-in, reflection, habits); tap path shows two buttons, voice path shows none',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the confirm line plays verbatim, real and specific to the plan',
+          },
+          {
+            criterion: 'advances correctly',
+            check:
+              'approval fires confirm_plan and enters the app; a change opens the edit surface then re-confirms',
+          },
+        ],
+        enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'the plan confirm reflects the choices already made; it is a confirm-into-app gate, not the render side of any single decision, so none binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
