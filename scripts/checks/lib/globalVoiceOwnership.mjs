@@ -39,8 +39,6 @@ export function validateGlobalVoiceOwnership({ registry, globalRulesById, toolFa
     return problems;
   }
 
-  const registeredRuleIds = new Set();
-
   for (const entry of registry) {
     const label = `GLOBAL_VOICE_OWNERSHIP "${entry?.id ?? '(no id)'}"`;
     // The registry entry itself must declare a legal-shape owner.
@@ -51,20 +49,26 @@ export function validateGlobalVoiceOwnership({ registry, globalRulesById, toolFa
     }
 
     if (entry?.kind === 'global-rule') {
-      registeredRuleIds.add(entry.id);
       const rule = globalRulesById?.[entry.id];
+      // Ownership is now STRUCTURAL: the owning rule must exist and EMIT the response of
+      // the same id via its typed effect (B1-R2). The response's voice legality + per-id
+      // agreement with this registry are enforced in validateGlobalResponses; the link
+      // resolution is enforced in validateGlobalRuleEffects. Here we only pin the rule
+      // -> owner correspondence.
       if (!rule) {
         problems.push(
           `${label}: declares GLOBAL_RULES.${entry.id} owned, but no such global rule exists`,
         );
-      } else if (rule.voice === undefined || rule.voice === null) {
+      } else if (!rule.effect || rule.effect.kind !== 'response') {
         problems.push(
-          `${label}: GLOBAL_RULES.${entry.id} is declared spoken/owned but carries NO voice field ` +
-            `(VOICE_OWNERSHIP: every spoken global reply must be owned)`,
+          `${label}: GLOBAL_RULES.${entry.id} is declared spoken/owned but its effect is not ` +
+            `{ kind: 'response', responseId } (a rule that owns a spoken global response must ` +
+            `EMIT it via a typed response effect — VOICE_OWNERSHIP)`,
         );
-      } else if (!isLegalVoiceShape(rule.voice)) {
+      } else if (rule.effect.responseId !== entry.id) {
         problems.push(
-          `${label}: GLOBAL_RULES.${entry.id} voice "${rule.voice}" is not one of the four legal shapes`,
+          `${label}: GLOBAL_RULES.${entry.id}.effect.responseId "${rule.effect.responseId}" does not ` +
+            `match its owner id "${entry.id}" (the owning rule must link the response of the same id)`,
         );
       }
     } else if (entry?.kind === 'tool-failure') {
@@ -84,17 +88,9 @@ export function validateGlobalVoiceOwnership({ registry, globalRulesById, toolFa
     }
   }
 
-  // Exhaustiveness: any GLOBAL rule that carries a voice field must be registered,
-  // so a newly-added spoken global cannot escape the ownership requirement.
-  for (const [id, rule] of Object.entries(globalRulesById ?? {})) {
-    if (rule && rule.voice !== undefined && rule.voice !== null && !registeredRuleIds.has(id)) {
-      problems.push(
-        `GLOBAL_RULES.${id} carries a voice field but is NOT declared in GLOBAL_VOICE_OWNERSHIP ` +
-          `(every spoken global rule must be registered and owned)`,
-      );
-    }
-  }
-
+  // Exhaustiveness (a rule that EMITS a spoken response but is not registered) is now
+  // enforced structurally in validateGlobalRuleEffects, which has GLOBAL_RESPONSES in
+  // scope to tell spoken from text-only.
   return problems;
 }
 
@@ -120,9 +116,22 @@ export function validateGlobalResponses({ responses, registry }) {
 
   const spokenIds = new Set();
   const spokenVoiceById = new Map();
+  const seenIds = new Set();
 
   for (const resp of responses) {
     const label = `GLOBAL_RESPONSES "${resp?.id ?? '(no id)'}"`;
+    // Row-id UNIQUENESS: a Map/Set overwrite would silently let two rows share an id
+    // (last one wins), making the copy source ambiguous. Reject any duplicate id.
+    if (resp?.id) {
+      if (seenIds.has(resp.id)) {
+        problems.push(
+          `${label}: duplicate id — every GLOBAL_RESPONSES row id must be unique ` +
+            `(two rows with the same id make the owned copy source ambiguous)`,
+        );
+      } else {
+        seenIds.add(resp.id);
+      }
+    }
     if (resp?.modality === 'spoken') {
       if (!resp.id) {
         problems.push(
@@ -183,37 +192,112 @@ export function validateGlobalResponses({ responses, registry }) {
   return problems;
 }
 
-// ---- B1-R: prose lint — a GlobalRule.rule must not hide a spoken coach line ----
+// ---- B1-R2: typed effect discriminator + response-link resolution ----
 //
-// A quoted line (>2 words) that appears after a speech verb (say/reply/respond/tell/
-// speak/utter/answer, and inflections) inside a GlobalRule.rule is a prescribed spoken
-// coach line hidden in free-text prose. This is the exact Codex B1 attack shape
-// (`... say "Let us get back to your onboarding" ...`). Global dynamic response copy
-// must live in the typed GLOBAL_RESPONSES declaration and be owned, so this is rejected.
-//
-// It is deliberately anchored on a QUOTE preceded by a SPEECH VERB, so it does NOT fire
-// on a rule that quotes a USER-input EXAMPLE (glob-out-of-scope's "who won the game
-// yesterday", glob-invalid-value's "my gender is yellow" — those follow nouns like
-// "questions"/"values", not a speech verb), nor on a speech verb with no quote
-// (glob-no-machinery's "Never says beat...", glob-ack-where-declared's "speak the
-// recorded acknowledgment line").
-const SPEECH_VERB_QUOTE_RE =
-  /\b(say|says|said|saying|reply|replies|replied|respond|responds|responded|tell|tells|told|speak|speaks|spoke|spoken|utter|utters|uttered|answer|answers|answered)\b(?:\s+\w+){0,3}\s*["“]([^"”]+)["”]/i;
+// Every GlobalRule declares a TYPED `effect`. This replaces inferring "does this rule
+// emit a response?" from prose. Enforced:
+//   - `effect` is present and legal: { kind:'constraint' } | { kind:'response', responseId }.
+//   - a 'constraint' effect carries no responseId.
+//   - a 'response' effect names a responseId that resolves to EXACTLY ONE GLOBAL_RESPONSES
+//     row; if that row is spoken, the rule must be an owner in GLOBAL_VOICE_OWNERSHIP.
+// Because a response's copy can live ONLY in a GLOBAL_RESPONSES row (rule prose is quote-
+// free, lane g), a rule cannot introduce owned-looking or spoken copy without a resolved,
+// owned response — no punctuation-shape bypass exists.
+export function validateGlobalRuleEffects({ globalRules, responses, registry }) {
+  const problems = [];
+  if (!Array.isArray(globalRules)) {
+    problems.push('GLOBAL_RULES.rules is missing or not an array (B1-R2 typed-effect check)');
+    return problems;
+  }
+  const responseById = new Map();
+  if (Array.isArray(responses)) {
+    for (const r of responses) {
+      // Duplicate ids are rejected by validateGlobalResponses; index first-wins here
+      // only for link resolution.
+      if (r && typeof r.id === 'string' && !responseById.has(r.id)) responseById.set(r.id, r);
+    }
+  }
+  const registeredIds = new Set(
+    Array.isArray(registry) ? registry.map((e) => e?.id).filter(Boolean) : [],
+  );
 
-export function findGlobalRuleProseSpokenLines(globalRulesArr) {
+  for (const rule of globalRules) {
+    const label = `GLOBAL_RULES "${rule?.id ?? '(no id)'}"`;
+    const effect = rule?.effect;
+    if (
+      !effect ||
+      typeof effect !== 'object' ||
+      (effect.kind !== 'constraint' && effect.kind !== 'response')
+    ) {
+      problems.push(
+        `${label}: missing or invalid typed effect discriminator ` +
+          `(every global rule must declare effect: { kind: 'constraint' } or { kind: 'response', responseId })`,
+      );
+      continue;
+    }
+    if (effect.kind === 'constraint') {
+      if (effect.responseId !== undefined && effect.responseId !== null) {
+        problems.push(`${label}: effect.kind 'constraint' must NOT carry a responseId`);
+      }
+      continue;
+    }
+    // effect.kind === 'response'
+    const rid = effect.responseId;
+    if (typeof rid !== 'string' || rid.length === 0) {
+      problems.push(
+        `${label}: effect.kind 'response' must carry a non-empty responseId naming a GLOBAL_RESPONSES row`,
+      );
+      continue;
+    }
+    const resp = responseById.get(rid);
+    if (!resp) {
+      problems.push(
+        `${label}: effect.responseId "${rid}" does not resolve to any GLOBAL_RESPONSES row ` +
+          `(an output-producing global rule must reference exactly one declared, owned response)`,
+      );
+      continue;
+    }
+    if (resp.modality === 'spoken' && !registeredIds.has(rid)) {
+      problems.push(
+        `${label}: links spoken response "${rid}" but that response has no GLOBAL_VOICE_OWNERSHIP owner ` +
+          `(every spoken global response must be owned)`,
+      );
+    }
+  }
+  return problems;
+}
+
+// ---- B1-R2: prose lint — a GlobalRule.rule must carry NO quoted string at all ----
+//
+// STRUCTURAL replacement for the old speech-verb-plus-quote regex (which Codex proved
+// bypassable with a colon, single quotes, parentheses, or >3 intervening words). Since
+// every legitimate quote now lives in a typed field — a user-input example in
+// `inputExamples`, a prescribed coach line in the GLOBAL_RESPONSES row named by `effect`
+// — NO quoted string belongs in behavior prose. So the rule is: reject ANY double- or
+// single-quoted string, with no attempt to infer who speaks it. This removes all speaker
+// inference and closes every punctuation-shape bypass class at once.
+//
+// (This lint applies ONLY to the GLOBAL layer GlobalRule.rule prose. Per-beat rulesContext
+// / rulesCode rule prose is not global response copy and is out of its scope.)
+const DOUBLE_QUOTE_RE = /["“”]/; // any straight or curly double quote
+const SINGLE_QUOTE_PAIR_RE = /['‘][^'‘’\n]{0,300}['’]/; // a straight/curly single-quote PAIR (not a lone apostrophe)
+
+export function findGlobalRuleProseQuotes(globalRulesArr) {
   const problems = [];
   if (!Array.isArray(globalRulesArr)) return problems;
   for (const rule of globalRulesArr) {
     const text = rule && typeof rule.rule === 'string' ? rule.rule : '';
     if (!text) continue;
-    const m = SPEECH_VERB_QUOTE_RE.exec(text);
-    if (!m) continue;
-    const inner = (m[2] ?? '').trim();
-    if (inner.split(/\s+/).filter(Boolean).length <= 2) continue;
+    const dq = DOUBLE_QUOTE_RE.exec(text);
+    const sq = SINGLE_QUOTE_PAIR_RE.exec(text);
+    if (!dq && !sq) continue;
+    const at = dq ? dq.index : sq.index;
+    const snippet = text.slice(at, at + 80).replace(/\s+/g, ' ').trim();
     problems.push(
-      `GLOBAL_RULES "${rule.id}": rule prose prescribes a spoken coach line ("${inner}") in free text ` +
-        `(a quoted line after the speech verb "${m[1]}"). Global dynamic response copy must live in the typed ` +
-        `GLOBAL_RESPONSES declaration and be owned in GLOBAL_VOICE_OWNERSHIP — a spoken line may not hide in rule prose (B1-R).`,
+      `GLOBAL_RULES "${rule.id}": rule prose contains a quoted string ("${snippet}"). Behavior prose ` +
+        `must carry NO quotes — put a user-input example in inputExamples[], and a prescribed coach line in ` +
+        `the GLOBAL_RESPONSES row named by effect. This removes speaker inference and closes the colon / ` +
+        `single-quote / parenthesis / >3-word bypass classes (B1-R2).`,
     );
   }
   return problems;

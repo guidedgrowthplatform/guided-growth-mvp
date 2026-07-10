@@ -11,20 +11,37 @@ export type EnforcerKind = 'static' | 'qa-eval';
 export type EnforcerStatus = 'built' | 'planned';
 export type SourceStatus = 'verified' | 'copy-pending' | 'app-reconcile-pending' | 'needs-yair';
 
+// A global rule is EITHER a pure behavior constraint that emits no coach copy of its
+// own, OR it emits exactly one global dynamic response. Which one is a TYPED
+// discriminator on the rule, never inferred from its prose (B1-R2, Codex re-gate
+// 2026-07-11):
+//   { kind: 'constraint' }                     -> emits no coach copy
+//   { kind: 'response', responseId: '<id>' }   -> emits the GLOBAL_RESPONSES row <id>,
+//        which is the SINGLE owned source of that response's copy, modality, and voice.
+// The link is validated to resolve to exactly one GLOBAL_RESPONSES row, and if that row
+// is spoken the rule must be an owner in GLOBAL_VOICE_OWNERSHIP. This replaces the old
+// free-text `voice` field on the rule and the fragile speech-verb-plus-quote prose regex.
+export type GlobalRuleEffect =
+  | { readonly kind: 'constraint' }
+  | { readonly kind: 'response'; readonly responseId: string };
+
 export interface GlobalRule {
   readonly id: string;
-  // Behavior/precedence prose ONLY. It may quote a USER-input example (e.g. an
-  // off-topic question) but MUST NOT prescribe a spoken COACH line (a quoted line
-  // after a speech verb, e.g. reply "..."). Global dynamic response COPY lives in the
-  // typed GLOBAL_RESPONSES declaration and is owned in GLOBAL_VOICE_OWNERSHIP; a spoken
-  // line hidden in this prose is rejected by audio-ownership-check (B1-R).
+  // Behavior/precedence prose ONLY. It MUST contain NO quoted string at all: a
+  // user-input example lives in `inputExamples`, and a prescribed coach line lives in
+  // the GLOBAL_RESPONSES row named by `effect`. audio-ownership-check (lane g) rejects
+  // ANY double- or single-quoted string here, so no speaker inference is needed and no
+  // response copy can hide in prose (B1-R2).
   readonly rule: string;
   readonly severity: 'must' | 'should';
   readonly enforcedBy: readonly string[];
   readonly status?: SourceStatus;
-  // spoken-line rules only (VOICE_OWNERSHIP). Four shapes, same as TurnBranch.voice:
-  // 'clip:<id>' | 'clip-family:<family> (pending recording)' | 'text-only' | 'live-exception:name-greeting'
-  readonly voice?: string;
+  // TYPED effect discriminator (B1-R2), required on every rule. A 'response' effect
+  // links exactly one GLOBAL_RESPONSES row (that row owns the copy/modality/voice).
+  readonly effect: GlobalRuleEffect;
+  // User-input examples the rule references (e.g. an off-topic question). NOT coach
+  // copy; the quoted phrases that used to sit inline in `rule` prose live here now.
+  readonly inputExamples?: readonly string[];
 }
 
 // ---------- 1. No-improvisation law + improvise windows ----------
@@ -67,37 +84,44 @@ export const GLOBAL_RULES: GlobalRulesLayer = {
       rule: 'Heavy-topic and crisis handling per GLOBAL_CONTEXT overrides everything; the coach stops the flow-task and follows the safety boundary',
       severity: 'must',
       enforcedBy: ['eval:parity-walk'],
+      effect: { kind: 'constraint' },
     },
     {
       id: 'glob-invalid-value',
-      rule: 'Nonsense or invalid values ("my gender is yellow"): one light redirect, never argue, never store the invalid value, re-ask plainly once',
+      rule: 'Nonsense or invalid values: one light redirect, never argue, never store the invalid value, re-ask the beat own question plainly once',
       severity: 'must',
       enforcedBy: ['eval:invalid-value-redirect'],
+      effect: { kind: 'constraint' },
+      inputExamples: ['my gender is yellow'],
     },
     {
       id: 'glob-out-of-scope',
-      rule: 'Off-topic input or world questions ("who won the game yesterday"): acknowledge briefly, steer back with the beat own question, do not chase the tangent, do not advance (Yair 2026-07-09, LOCKED). Applies at every beat where the user speaks; never answers out-of-scope content during onboarding',
+      rule: 'Off-topic input or world questions: acknowledge briefly, steer back with the beat own question, do not chase the tangent, do not advance (Yair 2026-07-09, LOCKED). Applies at every beat where the user speaks; never answers out-of-scope content during onboarding',
       severity: 'must',
       enforcedBy: ['eval:out-of-scope-decline'],
-      voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+      effect: { kind: 'response', responseId: 'glob-out-of-scope' },
+      inputExamples: ['who won the game yesterday'],
     },
     {
       id: 'glob-no-machinery',
       rule: 'Never says beat, step, screen, page, card, tool, or system',
       severity: 'must',
       enforcedBy: ['eval:no-machinery-words'],
+      effect: { kind: 'constraint' },
     },
     {
       id: 'glob-carry-forward',
       rule: 'Never re-asks a value already captured; downstream beats read it from flow state',
       severity: 'must',
       enforcedBy: ['eval:carry-forward'],
+      effect: { kind: 'constraint' },
     },
     {
       id: 'glob-privacy-readback',
       rule: 'Never reads the user email, account, or stored values back unprompted',
       severity: 'must',
       enforcedBy: ['eval:parity-walk'],
+      effect: { kind: 'constraint' },
     },
     {
       id: 'glob-no-preselection',
@@ -105,12 +129,14 @@ export const GLOBAL_RULES: GlobalRulesLayer = {
       severity: 'must',
       enforcedBy: ['component-registry-check'],
       status: 'app-reconcile-pending',
+      effect: { kind: 'constraint' },
     },
     {
       id: 'glob-silent-after-pick',
-      rule: 'After a pick is made the coach is silent except tool calls and the next scripted moment. No praise, no commentary, no response to the pick. (Resolves the "keep the response specific to their pick" contradiction: that prose applied to the pre-pick brainstorm window and is retired.)',
+      rule: 'After a pick is made the coach is silent except tool calls and the next scripted moment. No praise, no commentary, no response to the pick. (Resolves the keep-the-response-specific-to-their-pick contradiction: that prose applied to the pre-pick brainstorm window and is retired.)',
       severity: 'must',
       enforcedBy: ['eval:silent-after-pick'],
+      effect: { kind: 'constraint' },
     },
     {
       id: 'glob-ack-where-declared',
@@ -118,6 +144,7 @@ export const GLOBAL_RULES: GlobalRulesLayer = {
       severity: 'must',
       enforcedBy: ['eval:ack-each-habit'],
       status: 'needs-yair',
+      effect: { kind: 'constraint' },
     },
   ],
 };
@@ -234,10 +261,12 @@ export const VOICE_OWNERSHIP: VoiceOwnership = {
 // could be removed or corrupted and the check stayed green.
 //
 // This registry EXHAUSTIVELY declares every global dynamic spoken response that
-// MUST be owned. audio-ownership-check lane d now REQUIRES an owner for each entry
-// (not merely validating an optional field if present): the declared source must
-// actually carry a legal-shape voice owner, and any GLOBAL_RULES rule that carries
-// a voice field must appear here (no unregistered spoken global).
+// MUST be owned. audio-ownership-check REQUIRES an owner for each entry (not merely
+// validating an optional field if present): the declared source must actually carry a
+// legal-shape voice owner. For a 'global-rule' owner the source rule must exist and
+// EMIT the response of the same id (effect: { kind: 'response', responseId }); for a
+// 'tool-failure' owner TOOL_FAILURE.voicePath must carry the owner. Any GLOBAL_RULES
+// rule that emits a spoken response must appear here (no unregistered spoken global).
 export type GlobalVoiceOwnerKind = 'global-rule' | 'tool-failure';
 
 export interface GlobalVoiceOwner {
@@ -272,15 +301,20 @@ export const GLOBAL_VOICE_OWNERSHIP: readonly GlobalVoiceOwner[] = [
 // global behavior could be added with no owner while every gate stayed green (Codex
 // B1, whole-system QA 2026-07-10).
 //
-// This declaration closes that hole with THREE machine-enforced contracts, all inside
-// check:beats (check:audio-ownership):
+// This declaration closes that hole STRUCTURALLY (not with a prose regex), with the
+// machine-enforced contracts inside check:beats (check:audio-ownership):
 //   1. Every `modality: 'spoken'` row MUST carry a legal-shape voice owner.
-//   2. SET-EQUALITY: the set of spoken responses here EQUALS GLOBAL_VOICE_OWNERSHIP
+//   2. Every row id is UNIQUE (no two rows share an id, which would make the copy
+//      source ambiguous).
+//   3. SET-EQUALITY: the set of spoken responses here EQUALS GLOBAL_VOICE_OWNERSHIP
 //      (every spoken response is owned; no owner without a declared response; no
 //      spoken response outside the registry). Voices must agree per id.
-//   3. A GlobalRule.rule may NOT prescribe a spoken coach line in its prose (a quoted
-//      line after a speech verb): global dynamic response copy lives ONLY here, so a
-//      spoken line cannot hide in rule prose.
+//   4. TYPED LINK (B1-R2): every GlobalRule declares a typed `effect`. An emitting rule
+//      ({ kind: 'response', responseId }) must link exactly one row here, and if that
+//      row is spoken the rule must be an owner in GLOBAL_VOICE_OWNERSHIP. A GlobalRule
+//      constraint emits no copy. Combined with the hard "no quotes in rule prose" lint,
+//      global dynamic response copy can live ONLY here — there is no speaker inference
+//      and no punctuation-shape bypass (colon, single quote, parens, >3 words).
 // The two pre-existing owned globals (glob-out-of-scope, TOOL_FAILURE.voicePath) are
 // migrated into this typed form below, meaning/copy unchanged.
 export type GlobalResponseModality = 'spoken' | 'text-only';

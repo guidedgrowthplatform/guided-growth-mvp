@@ -16,18 +16,23 @@
 // guard, assert it FAILS with the expected diagnostic, then ALWAYS restore. A baseline
 // test also confirms the guard PASSES on the clean tree.
 //
-//   Test A (B1 probe): the EXACT Codex probe — a GLOBAL_RULES entry
-//     'glob-unregistered-spoken-probe' whose `rule` prose prescribes a spoken coach
-//     line (say "...") with no `voice` field and no registry entry. Before the fix both
-//     audio-ownership and the registry exited 0. After the fix the prose lint (lane g)
-//     rejects it. The "prescribes a spoken coach line" diagnostic naming the probe is
-//     the fingerprint.
+//   Test A (B1 probe): the EXACT prior Codex probe — a GLOBAL_RULES entry
+//     'glob-unregistered-spoken-probe' whose `rule` prose carries a double-quoted line.
+//     STILL fails: the hard quote lint (lane g) rejects any quote in prose.
+//   Bypass classes (the reason the fix is structural, not a widened regex): the same
+//     spoken line via a COLON (say: "..."), SINGLE QUOTES (say '...'), or PARENTHESES
+//     (say ("...")) all still contain a quote, so lane g rejects them; and an UNQUOTED
+//     prescribed response (no quote at all) is caught structurally by lane f, because a
+//     rule that declares it emits a response must link a responseId that resolves to a
+//     real, owned GLOBAL_RESPONSES row.
 //   Test B (spoken response with no owner): a GLOBAL_RESPONSES modality:'spoken' row
-//     stripped of its `voice` owner. Lane f rejects it (every spoken response must be
+//     stripped of its `voice` owner. Lane e rejects it (every spoken response must be
 //     owned).
 //   Test C (spoken response outside the registry): a NEW GLOBAL_RESPONSES spoken row
-//     with a legal voice but no matching GLOBAL_VOICE_OWNERSHIP entry. Lane f set-
+//     with a legal voice but no matching GLOBAL_VOICE_OWNERSHIP entry. Lane e set-
 //     equality rejects it (no spoken response may live outside the ownership registry).
+//   Test D (duplicate GLOBAL_RESPONSES id): two rows sharing an id. The uniqueness check
+//     rejects it (a Set/Map-overwrite would silently keep the last, an ambiguous source).
 //
 // Run: `node scripts/checks/global-response-negatives.mjs` (or
 // `npm run check:global-response-negatives`). Exits 0 only if the guard behaved
@@ -98,27 +103,116 @@ console.log('GLOBAL-RESPONSE NEGATIVE TESTS (Codex B1 prose-hidden spoken global
   }
 }
 
-// Test A (B1 probe): the EXACT Codex probe — a prose-only spoken global with no voice
-// and no registry entry. Injected as the first GLOBAL_RULES entry.
+// Helper: build a GLOBAL_RULES probe injected as the FIRST entry, with a typed effect
+// so the ONLY failing lane is the one under test (isolates the diagnostic).
+function injectRule({ id, rule, effect }) {
+  return [
+    "  rules: [\n    {\n      id: 'glob-crisis',",
+    `  rules: [\n    {\n      id: '${id}',\n` +
+      `      rule: ${rule},\n` +
+      "      severity: 'must',\n" +
+      "      enforcedBy: ['eval:out-of-scope-decline'],\n" +
+      `      effect: ${effect},\n` +
+      "    },\n    {\n      id: 'glob-crisis',",
+  ];
+}
+
+// Test A (B1 probe): the EXACT prior Codex probe — a double-quoted spoken line in rule
+// prose. Still fails: the hard quote lint (lane g) rejects any quote in prose.
 withMutation(
-  'B1 probe (prose-hidden spoken global, no voice, no registry) fails the guard',
+  'B1 probe (glob-unregistered-spoken-probe: double-quoted line in prose) fails the guard',
   [
-    [
-      "  rules: [\n    {\n      id: 'glob-crisis',",
-      "  rules: [\n    {\n      id: 'glob-unregistered-spoken-probe',\n" +
-        "      rule: 'On an unrecognized global input, say \"Let us get back to your onboarding\" and then re-ask the current question.',\n" +
-        "      severity: 'must',\n" +
-        "      enforcedBy: ['eval:out-of-scope-decline'],\n" +
-        "    },\n    {\n      id: 'glob-crisis',",
-    ],
+    injectRule({
+      id: 'glob-unregistered-spoken-probe',
+      rule: '\'On an unrecognized global input, say "Let us get back to your onboarding" and then re-ask the current question.\'',
+      effect: "{ kind: 'constraint' }",
+    }),
   ],
   ({ code, out }) => {
     if (code === 0)
-      throw new Error('guard exited 0 — a prose-hidden spoken global with no owner was accepted');
+      throw new Error('guard exited 0 — a double-quoted spoken line in rule prose was accepted');
     if (!/glob-unregistered-spoken-probe/.test(out))
       throw new Error('the guard failed but did not name the probe rule');
-    if (!/prescribes a spoken coach line/.test(out))
-      throw new Error('the B1-R prose lint (lane g) did not fire on the probe');
+    if (!/contains a quoted string/.test(out))
+      throw new Error('the B1-R2 quote lint (lane g) did not fire on the probe');
+  },
+);
+
+// Bypass class 1 — COLON (`say: "..."`). The old regex allowed only word chars between
+// the speech verb and the quote, so a colon slipped it. The hard quote lint bites.
+withMutation(
+  'bypass: colon (say: "...") fails the guard',
+  [
+    injectRule({
+      id: 'glob-colon-spoken-probe',
+      rule: '\'On an unrecognized global input, say: "Let us get back to your onboarding" and then re-ask.\'',
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0) throw new Error('guard exited 0 — the colon bypass (say: "...") was accepted');
+    if (!/glob-colon-spoken-probe/.test(out) || !/contains a quoted string/.test(out))
+      throw new Error('the quote lint did not fire on the colon bypass');
+  },
+);
+
+// Bypass class 2 — SINGLE QUOTES. The old regex matched only double/curly-double quotes.
+// Single-quoted copy slipped it. Written with double-quote TS delimiters to hold the
+// single-quoted phrase in the parsed prose.
+withMutation(
+  "bypass: single-quote (say '...') fails the guard",
+  [
+    injectRule({
+      id: 'glob-singlequote-spoken-probe',
+      rule: '"On an unrecognized global input, say \'Let us get back to your onboarding\' and then re-ask."',
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0) throw new Error("guard exited 0 — the single-quote bypass (say '...') was accepted");
+    if (!/glob-singlequote-spoken-probe/.test(out) || !/contains a quoted string/.test(out))
+      throw new Error('the quote lint did not fire on the single-quote bypass');
+  },
+);
+
+// Bypass class 3 — PARENTHESES around the quote. The old regex only allowed word chars
+// before the quote, so a parenthesis slipped it. The hard quote lint bites (a quote is
+// a quote regardless of surrounding punctuation).
+withMutation(
+  'bypass: parenthesis (say ("...")) fails the guard',
+  [
+    injectRule({
+      id: 'glob-paren-spoken-probe',
+      rule: '\'On an unrecognized global input, say ("Let us get back to your onboarding") and re-ask.\'',
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0) throw new Error('guard exited 0 — the parenthesis bypass was accepted');
+    if (!/glob-paren-spoken-probe/.test(out) || !/contains a quoted string/.test(out))
+      throw new Error('the quote lint did not fire on the parenthesis bypass');
+  },
+);
+
+// Bypass class 4 — UNQUOTED prescribed response (no quote at all, so the quote lint can
+// never see it). Structurally caught: the rule declares it emits a response
+// (effect.kind 'response') but its responseId resolves to NO GLOBAL_RESPONSES row.
+withMutation(
+  'bypass: unquoted prescribed response (dangling responseId) fails the guard',
+  [
+    injectRule({
+      id: 'glob-unquoted-response-probe',
+      rule: "'On an unrecognized global input, deliver the standard steer-back response and then re-ask the current question.'",
+      effect: "{ kind: 'response', responseId: 'glob-unquoted-response-probe' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — an unquoted prescribed response with a dangling responseId was accepted');
+    if (!/glob-unquoted-response-probe/.test(out))
+      throw new Error('the guard failed but did not name the unquoted-response probe');
+    if (!/does not resolve to any GLOBAL_RESPONSES row/.test(out))
+      throw new Error('the B1-R2 effect-link resolution (lane f) did not fire on the unquoted probe');
   },
 );
 
@@ -163,7 +257,33 @@ withMutation(
     if (!/glob-phantom-spoken/.test(out))
       throw new Error('the guard failed but did not name the unregistered spoken response');
     if (!/NO matching GLOBAL_VOICE_OWNERSHIP entry/.test(out))
-      throw new Error('the B1-R lane-f set-equality guard did not fire');
+      throw new Error('the B1-R lane-e set-equality guard did not fire');
+  },
+);
+
+// Test D (GLOBAL_RESPONSES duplicate id): two rows sharing an id. A Set/Map-overwrite
+// would silently keep the last row (ambiguous copy source); the uniqueness check rejects
+// it. Duplicate the existing glob-out-of-scope spoken row (same id, same voice) so set-
+// equality still holds and the ONLY failure is the duplicate-id diagnostic.
+withMutation(
+  'a duplicate GLOBAL_RESPONSES id (two rows, same id) fails the guard',
+  [
+    [
+      'export const GLOBAL_RESPONSES: readonly GlobalResponse[] = [',
+      'export const GLOBAL_RESPONSES: readonly GlobalResponse[] = [\n' +
+        '  {\n' +
+        "    id: 'glob-out-of-scope',\n" +
+        "    modality: 'spoken',\n" +
+        "    line: 'Duplicate row with the same id (ambiguous copy source).',\n" +
+        "    voice: 'clip-family:onboard_offtopic_steerback (pending recording)',\n" +
+        '  },',
+    ],
+  ],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — two GLOBAL_RESPONSES rows with the same id were accepted');
+    if (!/GLOBAL_RESPONSES "glob-out-of-scope": duplicate id/.test(out))
+      throw new Error('the GLOBAL_RESPONSES uniqueness check did not fire on the duplicate id');
   },
 );
 
@@ -173,5 +293,7 @@ if (failures) {
   process.exit(1);
 }
 console.log(
-  'GLOBAL-RESPONSE NEGATIVE TESTS: all passed (guard bites on the B1 prose-hidden spoken global, an unowned spoken response, and a spoken response outside the registry).',
+  'GLOBAL-RESPONSE NEGATIVE TESTS: all passed (guard bites on the B1 double-quote probe, ' +
+    'the colon / single-quote / parenthesis / unquoted-response bypass classes, an unowned ' +
+    'spoken response, a spoken response outside the registry, and a duplicate GLOBAL_RESPONSES id).',
 );

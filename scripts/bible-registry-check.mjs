@@ -535,14 +535,30 @@ const ruleIdOwners = new Map();
 for (const beat of resolvedBeats) {
   const bible = beat.resolvedBible;
   if (!bible) continue;
+  // WITHIN-BEAT uniqueness: the cross-beat owner map counts each beat once (owners is a
+  // Set of beat ids), so the SAME rule id appearing twice inside ONE beat's own
+  // rulesContext+rulesCode keeps owners.size at 1 and slips the cross-beat check. Track
+  // ids seen inside this beat (across both sections) and reject an intra-beat duplicate:
+  // a rule id is the ownership handle and must name exactly one rule within a beat too.
+  const seenInBeat = new Set();
+  const dupInBeat = new Set();
   for (const key of ['rulesContext', 'rulesCode']) {
     const rules = Array.isArray(bible[key]) ? bible[key] : [];
     for (const rule of rules) {
       const rid = rule && typeof rule === 'object' ? rule.id : undefined;
       if (typeof rid !== 'string' || !rid.length) continue;
+      if (seenInBeat.has(rid)) dupInBeat.add(rid);
+      else seenInBeat.add(rid);
       if (!ruleIdOwners.has(rid)) ruleIdOwners.set(rid, new Set());
       ruleIdOwners.get(rid).add(beat.id);
     }
+  }
+  for (const rid of dupInBeat) {
+    problems.push(
+      `WITHIN-BEAT RULE-ID: rule id "${rid}" appears more than once inside beat ${beat.id}'s ` +
+        `rulesContext/rulesCode — a rule id is the ownership handle and must be unique within a beat ` +
+        `(the cross-beat owner map counts a beat once, so an intra-beat duplicate slips it).`,
+    );
   }
 }
 for (const [rid, owners] of ruleIdOwners) {

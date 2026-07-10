@@ -36,7 +36,8 @@ import {
   isLegalVoiceShape,
   validateGlobalVoiceOwnership,
   validateGlobalResponses,
-  findGlobalRuleProseSpokenLines,
+  validateGlobalRuleEffects,
+  findGlobalRuleProseQuotes,
 } from './lib/globalVoiceOwnership.mjs';
 
 const problems = [];
@@ -212,25 +213,16 @@ if (!Array.isArray(registry))
   throw new Error('Could not find GLOBAL_VOICE_OWNERSHIP in flowBible.ts (F1-R registry required)');
 const toolFailure = fbConsts.TOOL_FAILURE ?? null;
 
-// Lane d (legacy, kept): any GLOBAL rule that DOES carry a voice field must be a
-// legal shape (shape-only, opportunistic).
-let globalRulesChecked = 0;
 const globalRulesById = {};
 for (const rule of globalRulesArr) {
   if (rule && rule.id) globalRulesById[rule.id] = rule;
-  if (rule.voice === undefined || rule.voice === null) continue;
-  globalRulesChecked += 1;
-  if (!isLegalVoiceShape(rule.voice)) {
-    problems.push(
-      `flowBible.ts GLOBAL_RULES "${rule.id}": voice "${rule.voice}" is not one of the four legal shapes`,
-    );
-  }
 }
 
-// Lane e (F1-R): the exhaustive ownership REQUIREMENT. Every declared global
+// Lane d (F1-R): the exhaustive ownership REQUIREMENT. Every declared global
 // dynamic spoken response (registry entry) must resolve to a real, legal owner at
-// its source, and no spoken global may be unregistered. Removing glob-out-of-scope's
-// voice owner, or corrupting TOOL_FAILURE.voicePath.voice, fails here.
+// its source. For a 'global-rule' owner the source rule must EMIT the response of the
+// same id via its typed effect; for a 'tool-failure' owner TOOL_FAILURE.voicePath must
+// carry the owner. Removing the owner, or corrupting TOOL_FAILURE.voicePath.voice, fails.
 const ownershipProblems = validateGlobalVoiceOwnership({
   registry,
   globalRulesById,
@@ -238,30 +230,45 @@ const ownershipProblems = validateGlobalVoiceOwnership({
 });
 for (const p of ownershipProblems) problems.push(p);
 
-// Lane f (B1-R): the TYPED global response declaration (GLOBAL_RESPONSES) is the only
+// Lane e (B1-R): the TYPED global response declaration (GLOBAL_RESPONSES) is the only
 // permitted source of global dynamic response copy. Every modality:'spoken' row must
-// carry a legal owner, and the spoken-response set must EQUAL GLOBAL_VOICE_OWNERSHIP
-// (no spoken response outside the registry; no owner without a declared response).
+// carry a legal owner, every row id is unique, and the spoken-response set must EQUAL
+// GLOBAL_VOICE_OWNERSHIP (no spoken response outside the registry; no owner without a
+// declared response).
 const globalResponses = fbConsts.GLOBAL_RESPONSES;
 if (!Array.isArray(globalResponses))
   throw new Error('Could not find GLOBAL_RESPONSES in flowBible.ts (B1-R typed response declaration required)');
 const responseProblems = validateGlobalResponses({ responses: globalResponses, registry });
 for (const p of responseProblems) problems.push(p);
 
-// Lane g (B1-R): a GlobalRule.rule may not hide a prescribed spoken coach line in its
-// prose (a quoted line after a speech verb). This is the exact Codex B1 attack: a
-// spoken global reply added as rule prose with no voice field and no registry entry.
-const proseProblems = findGlobalRuleProseSpokenLines(globalRulesArr);
+// Lane f (B1-R2): the STRUCTURAL ownership boundary. Every GlobalRule declares a typed
+// effect; an emitting rule ({ kind:'response', responseId }) must link exactly one
+// GLOBAL_RESPONSES row, and a spoken linked row must be owned. This is what makes
+// ownership non-inferable and non-bypassable: response copy has nowhere to live except a
+// resolved, owned row. Replaces the old speaker-inference on rule prose.
+const effectProblems = validateGlobalRuleEffects({
+  globalRules: globalRulesArr,
+  responses: globalResponses,
+  registry,
+});
+for (const p of effectProblems) problems.push(p);
+
+// Lane g (B1-R2): a GlobalRule.rule prose must carry NO quoted string at all. The exact
+// Codex B1 probe and every punctuation-shape mutation of it (colon, single quote,
+// parentheses, >3 intervening words) put a quote in the prose, so all are rejected with
+// no speaker inference. Legitimate quotes live in inputExamples[] / GLOBAL_RESPONSES.
+const proseProblems = findGlobalRuleProseQuotes(globalRulesArr);
 for (const p of proseProblems) problems.push(p);
 
 const spokenResponses = globalResponses.filter((r) => r?.modality === 'spoken').length;
+const emittingRules = globalRulesArr.filter((r) => r?.effect?.kind === 'response').length;
 report(
   problems,
   `audio-ownership-check passed (7 lanes): ${bibleBeats.length} bible-bearing beat(s); ` +
     `lane a perLine ownership holds; lane b ${branchesChecked} spoken branch reply(ies) owned; ` +
     `lane c ${edgesChecked} quoted-spoken edge(s) owned; ` +
-    `lane d ${globalRulesChecked} global-rule voice field(s) shape-valid; ` +
-    `lane e ${registry.length} global dynamic reply(ies) required-owned (registry-exhaustive); ` +
-    `lane f ${spokenResponses} typed spoken response(s) owned + set-equal to the registry; ` +
-    `lane g ${globalRulesArr.length} global rule(s) prose-linted (no spoken line hidden in prose).`,
+    `lane d ${registry.length} global dynamic reply(ies) required-owned (registry-exhaustive); ` +
+    `lane e ${spokenResponses} typed spoken response(s) owned + unique-id + set-equal to the registry; ` +
+    `lane f ${globalRulesArr.length} global rule(s) carry a typed effect (${emittingRules} emit a linked, owned response); ` +
+    `lane g ${globalRulesArr.length} global rule(s) prose-linted (no quoted string in rule prose).`,
 );

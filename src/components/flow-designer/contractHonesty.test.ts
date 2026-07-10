@@ -53,13 +53,33 @@ describe('B1: real 62-beat manifest coverage (production resolver)', () => {
     expect(resolved.filter(Boolean).length).toBe(62);
   });
 
-  it('no-bible beats resolve an all-pending manifest (honest, not owner-filled)', () => {
+  // The fill is COMPLETE, so there are zero non-variant beats left on the all-pending
+  // fallback. This assertion is valid for a fully-contracted codebase: pre-fill this set
+  // was nonempty and each such beat resolved an honest all-pending manifest; the fill
+  // closed them all out. (Superseded the stale `noBible.length > 0` premise, which failed
+  // on a void set once every beat authored a bible.)
+  it('the fill is complete: every non-variant beat authors its own bible', () => {
     const noBible = BEATS_SOURCE.filter((b) => !b.bible && !b.variantOf);
-    expect(noBible.length).toBeGreaterThan(0);
-    for (const beat of noBible) {
+    expect(noBible).toEqual([]);
+  });
+
+  // Resolver honesty on the fallback path is still real coverage: an UNKNOWN beat id must
+  // NOT be handed a fabricated owner-filled (or any) manifest. It resolves to nothing.
+  it('the resolver stays honest: an unknown beat id yields no fabricated manifest', () => {
+    const resolved = resolveBeatStructure('__synthetic_no_such_beat__');
+    expect(resolved.sectionManifest).toBeUndefined();
+  });
+
+  // Every real beat's manifest carries ONLY legal statuses (no fabricated owner-fill):
+  // this is the honesty guarantee the stale test aimed at, now asserted across all 62.
+  it('every resolved manifest carries only legal fill statuses (no fabricated owner-fill)', () => {
+    for (const beat of BEATS_SOURCE) {
       const manifest = resolveBeatStructure(beat.id).sectionManifest!;
       for (const key of SECTION_KEYS) {
-        expect((manifest as Record<string, SectionFillStatus>)[key]).toBe('pending-app-reconcile');
+        expect(
+          isLegalStatus((manifest as Record<string, SectionFillStatus>)[key]),
+          `${beat.id}.${key} must be a legal SectionFillStatus`,
+        ).toBe(true);
       }
     }
   });

@@ -822,6 +822,9 @@ interface RuleLike {
   readonly severity: 'must' | 'should';
   readonly enforcedBy: readonly string[];
   readonly status?: string;
+  // user-input examples the rule references (global rules only); rendered as chips so
+  // the examples stay visible now that they no longer live inline in `rule` prose.
+  readonly inputExamples?: readonly string[];
 }
 
 function RuleRows({ rules }: { rules: readonly RuleLike[] }) {
@@ -869,6 +872,37 @@ function RuleRows({ rules }: { rules: readonly RuleLike[] }) {
             {r.status && <StatusChip status={r.status} />}
           </div>
           <div style={{ fontSize: 12, lineHeight: 1.45, color: '#334155' }}>{r.rule}</div>
+          {r.inputExamples && r.inputExamples.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  color: '#94a3b8',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.03em',
+                }}
+              >
+                e.g.
+              </span>
+              {r.inputExamples.map((ex) => (
+                <span
+                  key={ex}
+                  style={{
+                    padding: '1px 7px',
+                    borderRadius: 99,
+                    fontSize: 11,
+                    fontStyle: 'italic',
+                    color: '#475569',
+                    background: '#f1f5f9',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  “{ex}”
+                </span>
+              ))}
+            </div>
+          )}
           <EnforcerRow enforcedBy={r.enforcedBy} />
         </div>
       ))}

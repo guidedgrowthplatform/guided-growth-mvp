@@ -45,6 +45,11 @@
 //     the same rule id claimed by two beats; the "CROSS-BEAT RULE-ID" diagnostic naming
 //     both beats is the fingerprint.
 //
+//   Test F (within-beat rule-id duplicate): the SAME rule id twice inside ONE beat's own
+//     rulesContext/rulesCode. The cross-beat owner map counts each beat once, so an intra-
+//     beat duplicate keeps owners.size at 1 and slips (3d). The within-beat pass rejects
+//     it; the "WITHIN-BEAT RULE-ID" diagnostic naming the id and beat is the fingerprint.
+//
 // Run: `node scripts/checks/family-guard-negatives.mjs` (or `npm run check:family-guard-negatives`).
 // Exits 0 only if the guard behaved correctly on all cases (green clean, red on both
 // mutations). This is NOT part of `check:beats` (which must stay green); it is the
@@ -223,11 +228,27 @@ withMutation(
   },
 );
 
+// Test F (WITHIN-BEAT rule-id duplicate): the same rule id appearing twice inside ONE
+// beat's own sections. The cross-beat owner map counts each beat once (owners is a Set of
+// beat ids), so a rule id repeated inside a single beat keeps owners.size at 1 and slips
+// (3d). Duplicate category-women's authored 'catw-verbatim-opener' onto a second
+// rulesContext rule in the SAME beat; only the within-beat check catches it.
+withMutation(
+  'F within-beat duplicate rule id fails the guard (WITHIN-BEAT RULE-ID)',
+  [["      id: 'catw-no-read-options',", "      id: 'catw-verbatim-opener', // ADVERSARIAL MUTATION (within-beat rule-id negative test)"]],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — a rule id duplicated inside one beat was accepted');
+    if (!/WITHIN-BEAT RULE-ID: rule id "catw-verbatim-opener" appears more than once inside beat category-women/.test(out))
+      throw new Error('the within-beat uniqueness check did not flag the intra-beat duplicate rule id');
+  },
+);
+
 console.log('');
 if (failures) {
   console.log(`FAMILY-GUARD NEGATIVE TESTS: ${failures} failure(s).`);
   process.exit(1);
 }
 console.log(
-  'FAMILY-GUARD NEGATIVE TESTS: all passed (guard bites on G1, G2, H1 rule-id leak, category token-drift, and cross-beat rule-id duplicate).',
+  'FAMILY-GUARD NEGATIVE TESTS: all passed (guard bites on G1, G2, H1 rule-id leak, category token-drift, cross-beat rule-id duplicate, and within-beat rule-id duplicate).',
 );
