@@ -33,6 +33,15 @@
 //     equality rejects it (no spoken response may live outside the ownership registry).
 //   Test D (duplicate GLOBAL_RESPONSES id): two rows sharing an id. The uniqueness check
 //     rejects it (a Set/Map-overwrite would silently keep the last, an ambiguous source).
+//   Bypass classes 5-7 (QA hardening, 2026-07-11: quote-glyph completeness + length cap):
+//     a BACKTICK pair (say `...`), GUILLEMETS (say «...»), and a single-quoted line OVER
+//     300 chars all used to slip the old lint (it covered only straight/curly double and
+//     single quotes, and single-quote pairs were capped at 300 chars). The hardened lint
+//     rejects any quote/backtick/guillemet glyph, and the single-quote-pair length cap is
+//     removed.
+//   Test E (duplicate GLOBAL_RULES id, QA hardening 2026-07-11): two GLOBAL_RULES rules
+//     sharing an id. Mirrors Test D but for rule ids (validateGlobalRuleEffects), which
+//     had no uniqueness check before this hardening pass.
 //
 // Run: `node scripts/checks/global-response-negatives.mjs` (or
 // `npm run check:global-response-negatives`). Exits 0 only if the guard behaved
@@ -216,6 +225,88 @@ withMutation(
   },
 );
 
+// Bypass class 5 — BACKTICK PAIR (say `...`). The hard quote lint used to only cover
+// straight/curly double and single quotes; a backtick pair slipped it entirely (QA
+// hardening, 2026-07-11). Backtick never doubles as an apostrophe, so it is rejected on
+// ANY occurrence.
+withMutation(
+  'bypass: backtick pair (say `...`) fails the guard',
+  [
+    injectRule({
+      id: 'glob-backtick-probe',
+      rule: "'On an unrecognized global input, say `Let us get back to your onboarding` and then re-ask.'",
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0) throw new Error('guard exited 0 — a backtick pair in rule prose was accepted');
+    if (!/glob-backtick-probe/.test(out) || !/contains a quoted string/.test(out))
+      throw new Error('the quote lint did not fire on the backtick-pair bypass');
+  },
+);
+
+// Bypass class 6 — GUILLEMETS («...»). Also slipped the old lint entirely. Guillemets
+// never double as an apostrophe either, so they are rejected on ANY occurrence.
+withMutation(
+  'bypass: guillemets (say «...») fails the guard',
+  [
+    injectRule({
+      id: 'glob-guillemet-probe',
+      rule: "'On an unrecognized global input, say «Let us get back to your onboarding» and then re-ask.'",
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0) throw new Error('guard exited 0 — a guillemet pair in rule prose was accepted');
+    if (!/glob-guillemet-probe/.test(out) || !/contains a quoted string/.test(out))
+      throw new Error('the quote lint did not fire on the guillemet bypass');
+  },
+);
+
+// Bypass class 7 — LONG single-quoted line (>300 chars). The single-quote-pair regex
+// used to cap the interior at 300 chars, so a single-quoted line longer than that slipped
+// the lint entirely (QA hardening, 2026-07-11). The cap is now removed; any length must
+// be caught.
+withMutation(
+  'bypass: single-quoted line over 300 chars fails the guard (length cap removed)',
+  [
+    injectRule({
+      id: 'glob-long-singlequote-probe',
+      rule: `"On an unrecognized global input, say '${'x'.repeat(320)}' and then re-ask."`,
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error(
+        'guard exited 0 — a single-quoted line over 300 chars was accepted (length cap not removed)',
+      );
+    if (!/glob-long-singlequote-probe/.test(out) || !/contains a quoted string/.test(out))
+      throw new Error('the quote lint did not fire on the long single-quoted line');
+  },
+);
+
+// Duplicate GLOBAL_RULES id: two rules sharing the same id would make precedence and
+// spoken-response ownership ambiguous. Reuse the existing 'glob-crisis' id for the
+// injected probe so the ONLY failure is the new duplicate-id diagnostic (QA hardening,
+// 2026-07-11, mirrors the pre-existing GLOBAL_RESPONSES duplicate-id check).
+withMutation(
+  'a duplicate GLOBAL_RULES id (two rules share glob-crisis) fails the guard',
+  [
+    injectRule({
+      id: 'glob-crisis',
+      rule: "'A second rule reusing the glob-crisis id (ambiguous precedence and ownership).'",
+      effect: "{ kind: 'constraint' }",
+    }),
+  ],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — two GLOBAL_RULES rules sharing the same id were accepted');
+    if (!/GLOBAL_RULES "glob-crisis": duplicate id/.test(out))
+      throw new Error('the GLOBAL_RULES rule-id uniqueness check did not fire on the duplicate id');
+  },
+);
+
 // Test B (spoken response with no owner): strip the voice from the tool-failure-voice
 // GLOBAL_RESPONSES row. Lane f requires a legal owner for every spoken row.
 withMutation(
@@ -294,6 +385,7 @@ if (failures) {
 }
 console.log(
   'GLOBAL-RESPONSE NEGATIVE TESTS: all passed (guard bites on the B1 double-quote probe, ' +
-    'the colon / single-quote / parenthesis / unquoted-response bypass classes, an unowned ' +
-    'spoken response, a spoken response outside the registry, and a duplicate GLOBAL_RESPONSES id).',
+    'the colon / single-quote / parenthesis / unquoted-response / backtick / guillemet / ' +
+    'long-single-quote bypass classes, an unowned spoken response, a spoken response outside ' +
+    'the registry, a duplicate GLOBAL_RESPONSES id, and a duplicate GLOBAL_RULES id).',
 );
