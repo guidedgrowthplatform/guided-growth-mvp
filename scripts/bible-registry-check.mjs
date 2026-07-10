@@ -468,11 +468,11 @@ for (const beat of resolvedBeats) {
           );
         }
       }
-      if (!inheritedSections.has(key)) {
+      if (!(inheritedSections.has(key) && key === 'applicableDecisions')) {
         for (const tok of ruleIdTokens) {
           if (sectionStr.includes(tok)) {
             problems.push(
-              `${beat.id}: rebuilt section '${key}' leaks head rule id "${tok}" from ${beat.variantOf} (a rebuilt section must emit the variant's own rule ids, not the head's)`,
+              `${beat.id}: section '${key}' leaks head rule id "${tok}" from ${beat.variantOf} (a rebuilt section must emit the variant's own rule ids, not the head's)`,
             );
           }
         }
