@@ -14,6 +14,8 @@ import {
   goalsCategoryData,
   habitsSemanticTokens,
   HABITS_HEAD_CLIP,
+  categorySemanticTokens,
+  categoryData,
   type BeatEntry,
 } from '../src/components/flow-designer/beatsSource.ts';
 
@@ -45,12 +47,21 @@ function headSemanticTokens(head: BeatEntry): string[] {
   if (head.type === 'goals-list' && head.props?.category)
     return [...goalsSemanticTokens(head.props.category)];
   if (head.type === 'habit-picker') return [...habitsSemanticTokens()];
+  // category-grid: the head is the GENERIC picker (props: null), like habits; its
+  // one head-specific semantic token is its generic opener clip. Its sole variant
+  // (category-women) authors its own full bible and derives nothing, so this token
+  // is never leak-scanned against a variant; it exists to satisfy the family
+  // contract. Recomputed independently below from categoryData.
+  if (head.type === 'category-grid') return [...categorySemanticTokens()];
   return [];
 }
 function headCanonicalSemanticTokens(head: BeatEntry): string[] | null {
   if (head.type === 'goals-list')
     return canonicalGoalsSemanticTokens(head.props?.category ?? null);
   if (head.type === 'habit-picker') return [HABITS_HEAD_CLIP];
+  // category-grid canonical: recomputed straight from categoryData (NOT via the
+  // exported categorySemanticTokens), so a drifted export fails the family contract.
+  if (head.type === 'category-grid') return [categoryData.headClip];
   return null;
 }
 
