@@ -302,6 +302,93 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: null,
     hideOrb: false,
     props: null,
+    // EXEMPLAR (pre-fill, archetype = SILENT structural beat): the pre-auth brand
+    // splash. It shows a component but has no coach audio, no coach turn, no tool,
+    // and saves nothing. identity / components / flow / acceptance are owner-filled;
+    // the other ten sections are legitimately { na }.
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: { na: 'no script lines — the splash plays no coach audio' },
+        components: 'filled',
+        voice: { na: 'silent structural beat — the coach does not speak on the splash' },
+        rulesContext: { na: 'no coach turn — the splash shows branding and moves on' },
+        rulesCode: { na: 'structural splash; no beat-specific code gate to bind' },
+        conversation: { na: 'no user turn — the splash proceeds on its own' },
+        contextProse: { na: 'no coach/LLM context — nothing is read on the splash' },
+        allowedTools: { na: 'no tools — the splash captures and saves nothing' },
+        persistence: { na: 'writes nothing — the splash captures no user data' },
+        flow: 'filled',
+        edges: { na: 'no input and no tool — the splash has no edge branches' },
+        acceptance: 'filled',
+        applicableDecisions: {
+          na: 'no product decision (1-7) binds on the pre-auth branding splash',
+        },
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'splash' },
+          { label: 'name', value: 'Splash' },
+          { label: 'order', value: '0' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'splash' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'none (pre-screen splash; screenId is null in source)' },
+          { surface: 'route', value: '/onboarding/splash (app launch)' },
+          { surface: 'persisted current_step', value: 'splash' },
+          { surface: 'session_log value', value: 'splash' },
+          { surface: 'data-beat-id', value: 'splash' },
+        ],
+        watchOut:
+          'screenId is null in source (the splash is pre-screen); the beatId is the only unique key. id-alias-check exempts screenId from cross-beat uniqueness.',
+        enforcedBy: ['id-alias-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'splash' },
+          {
+            label: 'on-screen',
+            value: 'the brand splash (logo / wordmark); no interactive controls',
+          },
+          { label: 'selection mode', value: 'none — nothing to select on the splash' },
+          { label: 'exact state', value: 'static branding on cold start; no inputs appear' },
+        ],
+        enforcedBy: ['component-registry-check'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'the splash displays on cold start, then the flow proceeds to get-started',
+          },
+          { label: 'upstream branch (into this beat)', value: 'app launch / cold-start entry' },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to get-started (order 1)',
+          },
+          { label: 'gate', value: 'none — structural splash, no user gate' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check: 'the brand splash renders on cold start; no interactive tiles or inputs appear',
+          },
+          {
+            criterion: 'stays silent',
+            check: 'no coach audio or bubble plays (silent structural beat)',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'the flow proceeds to get-started with no user action required',
+          },
+        ],
+        enforcedBy: ['component-registry-check', 'eval:parity-walk'],
+      },
+    },
     script: [],
     io: {
       dataIn: [],
@@ -746,6 +833,188 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       heading: 'Allow your microphone',
       sub: 'So you can talk with your coach out loud.',
     },
+    // EXEMPLAR (pre-fill, archetype = non-conversational MP3 beat): one recorded
+    // opener then a permission tap. voice is owner-filled (perLine covers the one
+    // spoken seq, so lane a passes); conversation / allowedTools / persistence are
+    // legitimately { na } (single-turn, no coach tool, OS-level grant not persisted).
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: { na: 'single-turn, no branches' },
+        contextProse: 'filled',
+        allowedTools: { na: 'no tools — the mic grant is an OS permission, not a coach tool' },
+        persistence: {
+          na: 'nothing persisted — the mic grant is an OS permission, not an app write',
+        },
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'mic-permission' },
+          { label: 'name', value: 'Mic permission' },
+          { label: 'order', value: '4' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'mic-permission' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'MIC-PERMISSION' },
+          { surface: 'route', value: '/onboarding/mic-permission' },
+          { surface: 'persisted current_step', value: 'mic-permission' },
+          { surface: 'session_log value', value: 'mic-permission' },
+          { surface: 'data-beat-id', value: 'mic-permission' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'opener line on entry; no gate (this is the only spoken line)',
+            timing: 'karaoke per-word on the opener line',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'mic-permission' },
+          { label: 'heading', value: 'Allow your microphone' },
+          { label: 'sub', value: 'So you can talk with your coach out loud.' },
+          {
+            label: 'on-screen controls',
+            value: 'two affordances: Allow and Not now',
+          },
+          {
+            label: 'selection mode',
+            value: 'single action (Allow or Not now), nothing preselected',
+          },
+        ],
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [{ seq: 1, resolvesTo: 'recorded clip mic_permission_1', liveAllowed: 'NO' }],
+        assertion:
+          'The opener carries no live slot like {name}, so the one spoken line MUST resolve to the recorded clip mic_permission_1. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'micperm-verbatim-opener',
+          rule: 'Speaks the recorded opener verbatim, no improvised lead-in or addition',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'micperm-light-optional',
+          rule: 'Keeps the ask light and optional; never pressures the user to grant the mic',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+        {
+          id: 'micperm-skip-is-fine',
+          rule: 'If the user skips, reassures that typing is fine and moves on, never re-asks',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'micperm-audio-ownership',
+          rule: 'The opener resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'micperm-clip-resolves',
+          rule: 'mic_permission_1 resolves to a real asset',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'micperm-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Mic permission. Ask for the mic so the user can talk to the coach. Keep it light, optional, no pressure. If the user skips it, they can still type, and that is completely fine.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'the user taps Allow or Not now; either choice advances the flow',
+          },
+          { label: 'upstream branch (into this beat)', value: 'sign-up advances here' },
+          { label: 'downstream branch (out of this beat)', value: 'proceeds to profile-greeting' },
+          { label: 'gate', value: 'none — skipping the mic is allowed and never penalized' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'permission granted',
+            behavior:
+              'user taps Allow: the mic is enabled and the flow advances; no coach line needed',
+          },
+          {
+            edge: 'permission denied / skip',
+            behavior:
+              'user taps Not now: reassure that typing is fine, then advance — "That\'s completely fine, you can just type." Never pressure or re-ask.',
+            voice: 'clip-family:onboard_mic_permission_edge_2 (pending recording)',
+          },
+          {
+            edge: 'permission blocked at OS level',
+            behavior:
+              'the OS has permanently denied the mic: do not loop the prompt; fall back to typing and advance',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check: 'phone renders the mic-permission screen with the Allow / Not now controls',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the opener plays verbatim from mic_permission_1',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'either Allow or Not now advances the flow; skipping is never penalized',
+          },
+        ],
+        enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'the mic-permission ask captures no profile data and gates nothing; no decision binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -1153,6 +1422,236 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
+    // EXEMPLAR (pre-fill, archetype = pending-app-reconcile data beat): the state
+    // check-in whose record_checkin tool binding is a known fork (no beat_contexts
+    // entry; deep-QA B6). allowedTools + persistence are legitimately
+    // 'pending-app-reconcile' (facts live app-side, section absent until reconcile);
+    // the render-side sections are owner-filled.
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: {
+          na: 'card-fill check-in — the four cards ARE the check-in; the coach asks once and takes no branching turn',
+        },
+        contextProse: 'filled',
+        allowedTools: 'pending-app-reconcile',
+        persistence: 'pending-app-reconcile',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'state-check' },
+          { label: 'name', value: 'State check-in' },
+          { label: 'order', value: '7' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'state-check' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-STATE-CHECK' },
+          { surface: 'route', value: '/onboarding/state-check' },
+          { surface: 'persisted current_step', value: 'state-check' },
+          { surface: 'session_log value', value: 'state-check' },
+          { surface: 'data-beat-id', value: 'state-check' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'opener bubble on entry; no gate (first spoken line)',
+            timing: 'karaoke per-word on the bubble',
+          },
+          {
+            seq: 2,
+            reveal: 'second framing bubble, GATED on seq 1 clip end',
+            timing: 'karaoke per-word on the bubble',
+          },
+          {
+            seq: 3,
+            reveal: 'the sleep card blooms, GATED on seq 2 clip end',
+            timing: 'karaoke per-word on the sleep question',
+          },
+          {
+            seq: 4,
+            reveal: 'the mood card blooms, GATED on seq 3 clip end',
+            timing: 'karaoke per-word on the mood question',
+          },
+          {
+            seq: 5,
+            reveal: 'the energy card blooms, GATED on seq 4 clip end',
+            timing: 'karaoke per-word on the energy question',
+          },
+          {
+            seq: 6,
+            reveal: 'the stress card blooms, GATED on seq 5 clip end',
+            timing: 'karaoke per-word on the stress question',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'state-check' },
+          {
+            label: 'on-screen cards',
+            value: 'four check-in cards: sleep, mood, energy, stress',
+          },
+          {
+            label: 'selection mode',
+            value: 'each card rated once; the four cards ARE the check-in (no second card set)',
+          },
+          {
+            label: 'exact state',
+            value:
+              'each card blooms as its question is asked; the same cards are then filled by the user',
+          },
+        ],
+        watchOut:
+          'These four cards are the check-in itself — never render a second set of cards after asking the questions.',
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_state_check_1', liveAllowed: 'NO' },
+          { seq: 2, resolvesTo: 'recorded clip onboard_state_check_2', liveAllowed: 'NO' },
+          { seq: 3, resolvesTo: 'recorded clip state_sleep', liveAllowed: 'NO' },
+          { seq: 4, resolvesTo: 'recorded clip state_mood', liveAllowed: 'NO' },
+          { seq: 5, resolvesTo: 'recorded clip state_energy', liveAllowed: 'NO' },
+          { seq: 6, resolvesTo: 'recorded clip state_stress', liveAllowed: 'NO' },
+        ],
+        assertion:
+          'No line here carries a live slot like {name}, so all six spoken lines MUST resolve to recorded clips. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'statecheck-verbatim-opener',
+          rule: 'Speaks the framing opener and the four questions verbatim, no improvised lead-in',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'statecheck-ask-once',
+          rule: 'Asks the four questions once, as the four sync points; never repeats them',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+        {
+          id: 'statecheck-no-advice',
+          rule: 'Gives no advice on what the user reports; one warm line, then moves on',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'statecheck-audio-ownership',
+          rule: 'Every spoken line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'statecheck-clips-resolve',
+          rule: 'the six check-in clips resolve to real assets',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'statecheck-reveal-gates',
+          rule: 'each card reveal gates on the prior line clip end, never a fixed timer',
+          severity: 'must',
+          enforcedBy: ['reveal-timing-check'],
+        },
+        {
+          id: 'statecheck-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Check-in (opener for the whole process, plus the first state check). The opener frames the coaching process as a few small pieces done together, built light for everyone, each part explained as it is reached. Then the first piece: a quick state check-in done now. The four questions (sleep, mood, energy, stress) are asked once, each blooming its card; the same cards are the check-in the user fills. Give no advice on what they report; one warm line, then move on.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'the four state cards are filled, then record_checkin and advance_step',
+          },
+          { label: 'upstream branch (into this beat)', value: 'profile-asks advances here' },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to the morning check-in setup (order 8)',
+          },
+          { label: 'gate', value: 'all four cards must be filled before advancing' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'record_checkin errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" with the ratings retained. Voice path: one short coach line "That didn\'t go through, let me try again." (Yair-approved tool-failure contract, 2026-07-09.)',
+            voice: 'clip-family:onboard_state_check_edge_1 (pending recording)',
+          },
+          {
+            edge: 'user reports something heavy',
+            behavior:
+              'if the user shares something hard, drop the check-in, be human first, name it plainly, and do not rush them back (global glob-crisis)',
+          },
+          {
+            edge: 'skips a card',
+            behavior:
+              'a card left unrated: prompt once for the missing one; do not advance until all four are filled',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders the four state cards (sleep, mood, energy, stress); no second card set appears',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the framing opener and the four questions play verbatim, each asked once',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'all four cards filled, then record_checkin and advance_step',
+          },
+        ],
+        enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'the state check-in captures momentary state, not a profile gate or reflection config; no decision binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
