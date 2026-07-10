@@ -65,8 +65,8 @@ import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowState
  * left-aligned), each tag next to the beat it describes. A tag is engine + mode:
  *   MP3 . Verbatim        pre-recorded clip (blue)
  *   Cartesia . Verbatim   live TTS reading a scripted opener (purple)
- *   Cartesia . Improvise  live TTS phrasing it itself (purple)
- *   Vapi . Improvise      live two-way coaching (green)
+ *   Cartesia . Generative  live TTS phrasing it itself (purple)
+ *   Vapi . Generative      live two-way coaching (green)
  *   Silent                no coach voice at this beat (gray)
  */
 
@@ -333,7 +333,7 @@ export function IsolatedBeat({
 // --- Voice engine + mode tags ---
 
 type VoiceEngine = 'MP3' | 'Cartesia' | 'Vapi' | 'Silent';
-type VoiceMode = 'Verbatim' | 'Improvise' | null;
+type VoiceMode = 'Verbatim' | 'Generative' | null;
 
 const ENGINE_STYLE: Record<
   VoiceEngine,
@@ -524,8 +524,8 @@ function BeatHeader({
 const LEGEND: { engine: VoiceEngine; mode: VoiceMode; note: string }[] = [
   { engine: 'MP3', mode: 'Verbatim', note: 'Pre-recorded clip' },
   { engine: 'Cartesia', mode: 'Verbatim', note: 'Live TTS, scripted opener' },
-  { engine: 'Cartesia', mode: 'Improvise', note: 'Live TTS, phrased on the fly' },
-  { engine: 'Vapi', mode: 'Improvise', note: 'Live two-way coaching' },
+  { engine: 'Cartesia', mode: 'Generative', note: 'Live TTS, phrased on the fly' },
+  { engine: 'Vapi', mode: 'Generative', note: 'Live two-way coaching' },
   { engine: 'Silent', mode: null, note: 'No coach voice' },
 ];
 
@@ -1323,42 +1323,7 @@ function BiblePanel({
             {beat.path ? ` · ${PATH_STYLE[beat.path].label}` : ''}
           </div>
         </div>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            gap: 4,
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 800,
-              color: '#135bec',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Bible fill · 12 sections
-          </span>
-          <span
-            style={{
-              fontSize: 9.5,
-              fontWeight: 800,
-              padding: '1px 7px',
-              borderRadius: 99,
-              background: '#eaf1ff',
-              color: '#135bec',
-              border: '1px solid #c7d8ff',
-              letterSpacing: '0.03em',
-              textTransform: 'uppercase',
-            }}
-          >
-            full contract
-          </span>
-        </div>
+        <ManifestBadge manifest={manifest} />
       </div>
 
       {/* One-line rules summary, default open */}
@@ -2252,12 +2217,12 @@ export const BEATS: FlowBeat[] = BASE_BEATS.map((beat) => ({
 
 // --- Morning check-in beats ---
 // Source: MORNING_CHECKIN_FLOW in FlowBuilder.tsx.
-// Beat 2 (state-check) gets a Cartesia . Improvise reaction beat injected right
+// Beat 2 (state-check) gets a Cartesia . Generative reaction beat injected right
 // after the card, showing where the coach reacts live to the user's morning state.
 // Voice tag assignment:
 //   morning_greeting  -> MP3 . Verbatim  (scripted opener, pre-recorded)
 //   morning_state_prompt -> MP3 . Verbatim (scripted ask, pre-recorded)
-//   state reaction    -> Cartesia . Improvise (live reaction to what they said)
+//   state reaction    -> Cartesia . Generative (live reaction to what they said)
 //   are_you_done      -> MP3 . Verbatim (scripted line, pre-recorded)
 //   morning_wrap      -> MP3 . Verbatim (scripted closer, pre-recorded)
 const MORNING_BEATS: FlowBeat[] = [
@@ -2283,7 +2248,7 @@ const MORNING_BEATS: FlowBeat[] = [
       text: "Energy a little low, that makes sense. Sleep was short. Let's keep today light and focused.",
     },
     engine: 'Cartesia',
-    mode: 'Improvise',
+    mode: 'Generative',
   },
   {
     id: 'morning-are-you-done',
@@ -2309,15 +2274,15 @@ const MORNING_BEATS: FlowBeat[] = [
 // Source: EVENING_CHECKIN_FLOW in FlowBuilder.tsx.
 // Beat 1 is the greeting that also surfaces the habit list (the greeting happens,
 // then the habit-review card appears). Beat 4 (reflection) renders the full proud /
-// forgive / grateful steps. A Cartesia . Improvise reaction is injected after the
+// forgive / grateful steps. A Cartesia . Generative reaction is injected after the
 // habit-review card to show where the coach reacts live to the habits report.
 // Voice tag assignment:
 //   evening_greeting_habits -> MP3 . Verbatim (scripted opener with habit context)
 //   habit-review (card)     -> Silent (user taps done/missed/pending, no coach voice)
-//   habits reaction         -> Cartesia . Improvise (live reaction to the day's habits)
+//   habits reaction         -> Cartesia . Generative (live reaction to the day's habits)
 //   are_you_done            -> MP3 . Verbatim
 //   reflection              -> MP3 . Verbatim (transition + 3 questions are all scripted)
-//   reflection end reaction -> Cartesia . Improvise (live close after grateful)
+//   reflection end reaction -> Cartesia . Generative (live close after grateful)
 //   evening_wrap            -> MP3 . Verbatim
 const EVENING_BEATS: FlowBeat[] = [
   {
@@ -2341,7 +2306,7 @@ const EVENING_BEATS: FlowBeat[] = [
     type: 'coach-bubble',
     props: { text: "Two out of three, that's solid. The screens one is hard. We'll work on that." },
     engine: 'Cartesia',
-    mode: 'Improvise',
+    mode: 'Generative',
   },
   {
     id: 'evening-are-you-done',
@@ -2375,7 +2340,7 @@ const EVENING_BEATS: FlowBeat[] = [
     type: 'coach-bubble',
     props: { text: "That's real. Hold onto the gratitude tonight." },
     engine: 'Cartesia',
-    mode: 'Improvise',
+    mode: 'Generative',
   },
   {
     id: 'evening-wrap',

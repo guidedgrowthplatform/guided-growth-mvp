@@ -13,7 +13,7 @@ import type { BeatConversation, SourceStatus } from './flowBible';
 
 export type BeatPath = 'beginner' | 'advanced' | 'both';
 export type VoiceEngine = 'MP3' | 'Cartesia' | 'Vapi' | 'Silent';
-export type VoiceMode = 'Verbatim' | 'Improvise' | null;
+export type VoiceMode = 'Verbatim' | 'Generative' | null;
 export type ScriptVoice = 'verbatim' | 'mp3' | 'cartesia' | null;
 export type BindKind = 'bubble' | 'component';
 
@@ -2270,7 +2270,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
         {
           id: 'catw-women-variant',
-          rule: 'This variant renders ONLY when gender == woman; men, non-binary, undisclosed get the default category render',
+          rule: "This variant renders ONLY when gender === 'Female'; Male and Other get the default category render",
           severity: 'must',
           enforcedBy: ['component-registry-check'],
         },
@@ -2393,7 +2393,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'upstream branch (into this beat)',
             value:
-              'gender == woman selects this women-art variant; all other genders route to the default category beat',
+              "gender === 'Female' selects this women-art variant; Male and Other route to the default category beat",
           },
           {
             label: 'downstream branch (out of this beat)',
@@ -2468,7 +2468,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             criterion: 'variant is correct',
             check:
-              'gender == woman renders this beat; any other gender renders default category (catw-women-variant)',
+              "gender === 'Female' renders this beat; Male and Other render default category (catw-women-variant)",
           },
         ],
         enforcedBy: [
@@ -2484,7 +2484,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         rows: [
           {
             decision:
-              "3. Women's art variant (gender == woman is the ONLY selector; men / non-binary / undisclosed get default)",
+              "3. Women's art variant (gender === 'Female' is the ONLY selector; Male and Other get default)",
             binds: true,
             how: 'this beat IS the render side of decision 3; encoded as rules.code catw-women-variant with component-registry-check',
           },
