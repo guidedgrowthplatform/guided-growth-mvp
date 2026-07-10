@@ -12,18 +12,19 @@ import {
   rulePrefix,
   goalsSemanticTokens,
   goalsCategoryData,
+  habitsSemanticTokens,
+  HABITS_HEAD_CLIP,
+  type BeatEntry,
 } from '../src/components/flow-designer/beatsSource.ts';
 
 // INDEPENDENT canonical semantic-token generator (Codex G1, 2026-07-10). It does
-// NOT call the exported goalsSemanticTokens; it recomputes the head-family tokens
-// straight from goalsCategoryData — the SAME typed family data that the section
-// builders (buildGoalsRulesContext et al.) consume to build the category-sensitive
-// sections. The guard compares the head's EXPORTED token set (goalsSemanticTokens,
-// above) against this canonical set. If goalsSemanticTokens drifts (e.g. is mutated
-// to return junk), exported !== canonical and the guard fails — a non-empty-but-
-// WRONG token set can no longer pass. Returns null for a head family that has no
-// registered typed contract (the guard then requires it to add one).
-function canonicalSemanticTokens(category: string | null): string[] | null {
+// NOT call the exported *SemanticTokens; it recomputes the head-family tokens
+// straight from the SAME typed family data the section builders consume, so a
+// drifted exported set (exported !== canonical) fails the family guard. Returns null
+// for a head family that has no registered typed contract.
+//
+// goals family: recomputed from goalsCategoryData (buildGoals* consume it).
+function canonicalGoalsSemanticTokens(category: string | null): string[] | null {
   if (!category) return null;
   const data = goalsCategoryData[category];
   if (!data) return null; // no typed family contract registered for this head
@@ -34,6 +35,23 @@ function canonicalSemanticTokens(category: string | null): string[] | null {
     `goals-${data.slug}`,
     goalExample,
   ].filter((t) => t.length > 0);
+}
+
+// Per-family dispatch. The habits head is the GENERIC picker (no goal), so its one
+// head-specific semantic token is its generic opener clip (HABITS_HEAD_CLIP), which
+// no per-goal variant carries; buildHabits* rebuild the per-goal sensitive sections
+// so the real per-goal leak protection is the substitution-path guard, not this set.
+function headSemanticTokens(head: BeatEntry): string[] {
+  if (head.type === 'goals-list' && head.props?.category)
+    return [...goalsSemanticTokens(head.props.category)];
+  if (head.type === 'habit-picker') return [...habitsSemanticTokens()];
+  return [];
+}
+function headCanonicalSemanticTokens(head: BeatEntry): string[] | null {
+  if (head.type === 'goals-list')
+    return canonicalGoalsSemanticTokens(head.props?.category ?? null);
+  if (head.type === 'habit-picker') return [HABITS_HEAD_CLIP];
+  return null;
 }
 
 const out = BEATS_SOURCE.map((beat) => {
@@ -51,19 +69,20 @@ const out = BEATS_SOURCE.map((beat) => {
         // clip-family root, its beatId, and its category example label. No
         // NON-head variant may carry any of these (B1-R semantic guard). This is
         // the EXPORTED set the leak scan consumes.
-        semanticTokens: head.props?.category ? goalsSemanticTokens(head.props.category) : [],
-        // The INDEPENDENT canonical set (recomputed from goalsCategoryData, not via
-        // goalsSemanticTokens). The guard asserts semanticTokens === this. null =>
-        // this head family has no registered typed contract to verify against.
-        canonicalSemanticTokens: head.props?.category
-          ? canonicalSemanticTokens(head.props.category)
-          : null,
+        semanticTokens: headSemanticTokens(head),
+        // The INDEPENDENT canonical set (recomputed from the typed family data, not
+        // via the exported *SemanticTokens). The guard asserts semanticTokens ===
+        // this. null => this head family has no registered typed contract to verify.
+        canonicalSemanticTokens: headCanonicalSemanticTokens(head),
       }
     : null;
   return {
     id: beat.id,
     type: beat.type,
     variantOf: beat.variantOf ?? null,
+    // the variant's OWN screenId, for the guard's namespace-prefix leak exemption
+    // (a head id / screenId that is a prefix of the variant's own is not a leak).
+    screenId: beat.screenId ?? null,
     hasOwnBible: Boolean(beat.bible),
     // section keys the beat AUTHORS itself (manifest excluded)
     ownBibleKeys: beat.bible ? Object.keys(beat.bible).filter((k) => k !== 'sectionManifest') : [],

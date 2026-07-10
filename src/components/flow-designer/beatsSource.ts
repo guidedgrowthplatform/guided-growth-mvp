@@ -577,6 +577,330 @@ export function buildGoalsEdges(data: GoalsCategoryData): NonNullable<BibleSecti
   };
 }
 
+// --- Habits variant goal data (typed per-goal source, NOT free-text substitution) ---
+//
+// The habits family differs structurally from goals: the HEAD (`habits`) is the
+// GENERIC multi-goal habit picker (props.goal is absent, opener "Pick one or two
+// habits that feel doable..."), and its ~29 children are per-GOAL openers
+// (variantOf: 'habits'). So the category-sensitive dimension here is the GOAL, not
+// a category. As with goals (B1-R), the category-sensitive facts of a per-goal
+// habits-* beat — its rules wording (which names the goal), its section-13
+// conversation branches, its edge examples, its flow routing, and its dynamic clip
+// families — are BUILT from this typed per-goal data (buildHabits* below), never
+// string-substituted from the head, so a variant only ever carries its OWN goal
+// tokens and never the head's generic clip / id / screenId.
+//
+// idSlug is the beat-id suffix (habits-<idSlug>); the clip-family root is
+// onboard_beginner_03_goal_<idSlug with '-' -> '_'>, and the rule-id prefix is
+// rulePrefix(habits-<idSlug>) = 'h<idSlug without hyphens>'. goal is props.goal.
+export interface HabitsGoalData {
+  readonly goal: string; // canonical label, e.g. 'Fall asleep earlier' (also props.goal)
+  readonly idSlug: string; // beat-id + clip-root + rule-prefix stem, e.g. 'fall-asleep-earlier'
+}
+
+// One entry per per-goal habits-* variant (order 23..51). Authored to match the
+// existing source beat ids / clip ids exactly (idSlug -> habits-<idSlug> and
+// onboard_beginner_03_goal_<idSlug _-underscored>).
+export const habitsGoalData: Record<string, HabitsGoalData> = {
+  'Fall asleep earlier': { goal: 'Fall asleep earlier', idSlug: 'fall-asleep-earlier' },
+  'Wake up earlier': { goal: 'Wake up earlier', idSlug: 'wake-earlier' },
+  'Sleep more consistently': { goal: 'Sleep more consistently', idSlug: 'sleep-consistently' },
+  'Sleep more deeply': { goal: 'Sleep more deeply', idSlug: 'sleep-deeply' },
+  'Walk more': { goal: 'Walk more', idSlug: 'walk-more' },
+  'Exercise consistently': { goal: 'Exercise consistently', idSlug: 'exercise-consistently' },
+  'Improve mobility': { goal: 'Improve mobility', idSlug: 'mobility' },
+  'Eat more intentionally': { goal: 'Eat more intentionally', idSlug: 'eat-intentionally' },
+  'Reduce overeating': { goal: 'Reduce overeating', idSlug: 'reduce-overeating' },
+  'Plan food better': { goal: 'Plan food better', idSlug: 'plan-food' },
+  'Have more morning energy': { goal: 'Have more morning energy', idSlug: 'morning-energy' },
+  'Avoid afternoon crashes': { goal: 'Avoid afternoon crashes', idSlug: 'avoid-crashes' },
+  'Keep energy more stable': { goal: 'Keep energy more stable', idSlug: 'stable-energy' },
+  'Feel calmer during the day': { goal: 'Feel calmer during the day', idSlug: 'calmer-day' },
+  'Reduce evening stress': { goal: 'Reduce evening stress', idSlug: 'evening-stress' },
+  'Feel less overwhelmed': { goal: 'Feel less overwhelmed', idSlug: 'less-overwhelmed' },
+  'Start work with less friction': {
+    goal: 'Start work with less friction',
+    idSlug: 'start-work',
+  },
+  'Do deeper work': { goal: 'Do deeper work', idSlug: 'deeper-work' },
+  'Procrastinate less': { goal: 'Procrastinate less', idSlug: 'procrastinate-less' },
+  Smoking: { goal: 'Smoking', idSlug: 'smoking' },
+  Weed: { goal: 'Weed', idSlug: 'weed' },
+  Alcohol: { goal: 'Alcohol', idSlug: 'alcohol' },
+  Porn: { goal: 'Porn', idSlug: 'porn' },
+  'Phone use': { goal: 'Phone use', idSlug: 'phone-use' },
+  'Late-night snacking': { goal: 'Late-night snacking', idSlug: 'late-snacking' },
+  Caffeine: { goal: 'Caffeine', idSlug: 'caffeine' },
+  'Stay on top of tasks': { goal: 'Stay on top of tasks', idSlug: 'stay-on-tasks' },
+  'Keep spaces tidy': { goal: 'Keep spaces tidy', idSlug: 'tidy-spaces' },
+  'Handle life admin better': { goal: 'Handle life admin better', idSlug: 'life-admin' },
+};
+
+function habitsBeatId(data: HabitsGoalData): string {
+  return `habits-${data.idSlug}`;
+}
+function habitsClipRoot(data: HabitsGoalData): string {
+  return `onboard_beginner_03_goal_${data.idSlug.replace(/-/g, '_')}`;
+}
+function habitsRulePrefix(data: HabitsGoalData): string {
+  return rulePrefix(habitsBeatId(data)); // 'h' + idSlug without hyphens
+}
+// Lowercase goal reference used in per-goal coach-rule prose.
+function habitsGoalRef(data: HabitsGoalData): string {
+  return data.goal.toLowerCase();
+}
+
+// The habits HEAD is the GENERIC picker (no goal), so unlike goals it exposes no
+// per-goal noun/example to leak. Its one head-specific SEMANTIC token is its
+// generic opener clip, which no per-goal variant ever carries (variant openers
+// resolve to onboard_beginner_03_goal_<slug>). This non-empty, variant-absent
+// token satisfies the family-guard non-trivial-contract requirement without false
+// leaks; the REAL per-goal leak protection for this family is the typed-path
+// rebuild of the 4 category-sensitive sections (buildHabits*), enforced by the
+// substitution-path guard. Keep this in sync with the canonical generator in
+// dump-resolved-beats.mts.
+export const HABITS_HEAD_CLIP = 'onboard_beginner_03_1';
+export function habitsSemanticTokens(): readonly string[] {
+  return [HABITS_HEAD_CLIP];
+}
+
+// --- Category-sensitive section builders for the habits family (single template,
+// per-goal data) --- Each returns the section BUILT from HabitsGoalData, so every
+// per-goal variant produces identical structure with its OWN goal tokens (goal
+// reference, clip family, beatId, rule prefix). The head authors GENERIC versions
+// inline (it names no goal), so these builders serve the variants only.
+export function buildHabitsRulesContext(data: HabitsGoalData): readonly BibleRule[] {
+  const p = habitsRulePrefix(data);
+  const ref = habitsGoalRef(data);
+  return [
+    {
+      id: `${p}-verbatim-opener`,
+      rule: `Speaks the recorded ${ref} opener verbatim, naming the goal, no improvised lead-in or addition`,
+      severity: 'must',
+      enforcedBy: ['eval:verbatim-opener', 'eval:name-the-goal'],
+    },
+    {
+      id: `${p}-count-agnostic`,
+      rule: 'Opener wording works whether one or two goals were picked upstream',
+      severity: 'must',
+      enforcedBy: ['eval:count-agnostic'],
+    },
+    {
+      id: `${p}-no-read-list`,
+      rule: 'Never reads the habit list aloud, in full or in part, not even one as an example',
+      severity: 'must',
+      enforcedBy: ['eval:no-read-options'],
+    },
+    {
+      id: `${p}-no-sublists`,
+      rule: 'Never reads sub-lists or anything the screen is not currently showing',
+      severity: 'must',
+      enforcedBy: ['eval:no-read-options'],
+    },
+    {
+      id: `${p}-match-canonical`,
+      rule: "Matches the user's words to the closest canonical habit name; never invents a habit not on the list",
+      severity: 'must',
+      enforcedBy: ['eval:invalid-value-redirect'],
+    },
+    {
+      id: `${p}-keep-the-gem`,
+      rule: 'Keeps the less-is-more point: one kept habit beats five, small on purpose',
+      severity: 'must',
+      enforcedBy: ['eval:keep-the-gem'],
+    },
+    {
+      id: `${p}-one-per-goal`,
+      rule: 'With two goals, takes exactly one habit per goal; never two for a single goal',
+      severity: 'must',
+      enforcedBy: ['eval:single-select'],
+    },
+    {
+      id: `${p}-silent-after-pick`,
+      rule: 'Silent after each pick: no praise or commentary, nothing except add_habit, remove_habit and advance_step',
+      severity: 'must',
+      enforcedBy: ['eval:silent-after-pick'],
+    },
+    {
+      id: `${p}-no-motivation`,
+      rule: 'No commentary or motivation after each pick',
+      severity: 'must',
+      enforcedBy: ['eval:no-platitudes'],
+    },
+  ];
+}
+
+export function buildHabitsConversation(data: HabitsGoalData): BeatConversation {
+  const root = habitsClipRoot(data);
+  return {
+    opens: 'after the per-goal opener names the goal and asks for a habit or two',
+    branches: [
+      {
+        on: 'names or taps a valid habit (one per goal, or one to two for a single goal)',
+        reply: 'none (silent after pick); map to the exact canonical habit name',
+        then: 'tool:add_habit',
+      },
+      {
+        on: 'names more habits than the cap allows',
+        reply: 'scripted: "Let\'s keep it to one or two for now. Which matters most?"',
+        then: 'wait',
+        voice: `clip-family:${root}_2 (pending recording)`,
+      },
+      {
+        on: 'offers a habit not on the list',
+        reply:
+          'accept it as a custom habit ("Create your own"); do not force it onto a canonical name',
+        then: 'tool:add_habit',
+        voice: `clip-family:${root}_3 (pending recording)`,
+      },
+      {
+        on: 'vague or unsure which habit',
+        reply:
+          'scripted help-you-decide prompt (e.g. "What is one small thing you could actually keep?"); yields the instant they lean toward one',
+        then: 'wait',
+        voice: `clip-family:${root}_4 (pending recording)`,
+      },
+      {
+        on: 'off-topic or world question',
+        reply:
+          'global rule glob-out-of-scope: one brief acknowledgement, steer back with the habit question',
+        then: 'wait',
+        voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+      },
+    ],
+    maxTurns: 4,
+    onMaxTurns: 'plain one-line re-ask of the habit question and point to the tap path',
+  };
+}
+
+export function buildHabitsFlow(data: HabitsGoalData): NonNullable<BibleSections['flow']> {
+  return {
+    rows: [
+      {
+        label: 'advance condition',
+        value: 'add_habit fired with at least one habit within the cap, then advance_step',
+      },
+      {
+        label: 'upstream branch (into this beat)',
+        value: `the goal picked upstream (${data.goal}) routes to this ${habitsBeatId(
+          data,
+        )} variant; each other picked goal routes to its matching habits-* beat`,
+      },
+      {
+        label: 'downstream branch (out of this beat)',
+        value:
+          'once the habit(s) are captured within the cap, onboarding continues to the next step (schedule / day-picker), then the reflection beats',
+      },
+      {
+        label: 'gate',
+        value: `at least one habit to advance; at most two habits total; with two goals, exactly one habit per goal (${habitsRulePrefix(
+          data,
+        )}-habit-cap)`,
+      },
+    ],
+    enforcedBy: ['advance-gate-check'],
+  };
+}
+
+export function buildHabitsEdges(data: HabitsGoalData): NonNullable<BibleSections['edges']> {
+  const root = habitsClipRoot(data);
+  return {
+    rows: [
+      {
+        edge: 'tool failure',
+        behavior:
+          'add_habit errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" and the picked habit stays selected for the retry. Voice path: one short coach line "That didn\'t go through, let me try again." (Yair-approved tool-failure contract, 2026-07-09.)',
+        voice: `clip-family:${root}_edge_1 (pending recording)`,
+      },
+      {
+        edge: 'off-topic input',
+        behavior:
+          'one short acknowledgement, at most one sentence, no new topic and no advice, then re-ask the habit question ("Which of these feels doable to start with?"). Do not follow the tangent, do not add commentary, do not advance.',
+        voice: `clip-family:${root}_edge_2 (pending recording)`,
+      },
+      {
+        edge: 'skip / decline',
+        behavior: `user will not pick: at least one habit is needed to continue; help them find one small doable habit (${habitsRulePrefix(
+          data,
+        )}-keep-the-gem), never force a heroic one`,
+      },
+      {
+        edge: 'empty state',
+        behavior:
+          'no habit options appeared for the user: ask one neutral question ("Is there one small thing you could keep?"), do NOT recite the habit list to fill the silence',
+        voice: `clip-family:${root}_edge_4 (pending recording)`,
+      },
+      {
+        edge: 'over the cap',
+        behavior:
+          'user wants three or more habits: keep it to one or two, ask which matter most, then take those',
+      },
+      {
+        edge: 'not on the list / custom',
+        behavior:
+          'user offers something not on the list: accept it as a custom habit ("Create your own"); never force it onto a canonical name and never invent one',
+        voice: `clip-family:${root}_edge_6 (pending recording)`,
+      },
+    ],
+    enforcedBy: ['eval:edge-walk'],
+  };
+}
+
+export function buildHabitsRulesCode(data: HabitsGoalData): readonly BibleRule[] {
+  const p = habitsRulePrefix(data);
+  const clipRoot = habitsClipRoot(data);
+  return [
+    {
+      id: `${p}-tools-only`,
+      rule: 'Only add_habit, remove_habit and advance_step are callable on this beat',
+      severity: 'must',
+      enforcedBy: ['tool-contract-check'],
+    },
+    {
+      id: `${p}-canonical-values`,
+      rule: 'add_habit passes the exact canonical habit name (never the raw words), or a custom name only when the user offers one not on the list',
+      severity: 'must',
+      enforcedBy: ['tool-contract-check'],
+    },
+    {
+      id: `${p}-advance-on-tool`,
+      rule: 'advance_step fires only after at least one habit is captured within the cap',
+      severity: 'must',
+      enforcedBy: ['advance-gate-check'],
+    },
+    {
+      id: `${p}-habit-cap`,
+      rule: 'At most two habits total; with two goals, one habit per goal; floor of one habit to advance',
+      severity: 'must',
+      enforcedBy: ['advance-gate-check'],
+    },
+    {
+      id: `${p}-reveal-gates`,
+      rule: 'The habit options reveal gates on the opener clip end, never a fixed timer',
+      severity: 'must',
+      enforcedBy: ['reveal-timing-check'],
+    },
+    {
+      id: `${p}-audio-ownership`,
+      rule: 'The opener resolves to a recorded clip; no live Cartesia (no {name} slot)',
+      severity: 'must',
+      enforcedBy: ['audio-ownership-check'],
+    },
+    {
+      id: `${p}-clip-resolves`,
+      rule: `${clipRoot} resolves to a real asset`,
+      severity: 'must',
+      enforcedBy: ['render-link-integrity-check'],
+    },
+    {
+      id: `${p}-id-alias`,
+      rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+      severity: 'must',
+      enforcedBy: ['id-alias-check'],
+    },
+  ];
+}
+
 export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'splash',
@@ -3626,6 +3950,431 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
+    // HEAD of the habits family (habit-picker). This is the GENERIC multi-goal
+    // picker (names no goal); its ~29 per-goal children (variantOf: 'habits') derive
+    // their 4 category-sensitive sections from typed per-goal data via buildHabits*
+    // (resolveBeatStructure step 3b, gated on type === 'habit-picker'), so no head
+    // token leaks onto a variant. The head authors all 14 sections generically here.
+    bible: {
+      // components pending-app-reconcile: the per-goal on-screen habit sub-lists +
+      // the running counter / Continue affordance are ASSERTED SPEC not in the typed
+      // source (only goalsByCategory exists; there is no habitsByGoal table yet).
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'pending-app-reconcile',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: 'filled',
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'filled',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'habits' },
+          { label: 'name', value: 'Habits' },
+          { label: 'order', value: '22' },
+          { label: 'path', value: 'beginner' },
+          { label: 'type', value: 'habit-picker' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-BEGINNER-03' },
+          { surface: 'route', value: '/onboarding/beginner-03 (generic multi-goal picker)' },
+          { surface: 'persisted current_step', value: 'habits' },
+          { surface: 'session_log value', value: 'habits' },
+          { surface: 'data-beat-id', value: 'habits' },
+        ],
+        watchOut:
+          'This is the GENERIC head; the ~29 per-goal habits-* variants share the base screen ONBOARD-BEGINNER-03 and differ only by the goal suffix (--FALL-ASLEEP-EARLIER, ...). The beatId is the unique key; the render selects the per-goal variant by the goal picked upstream. The alias-check keeps each habits-* beatId unique.',
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal:
+              'opener bubble; the habit options bloom GATED on this opener (seq-1) clip end, never a fixed timer',
+            timing: 'karaoke per-word on the bubble',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'habit-picker' },
+          {
+            label: 'variant',
+            value:
+              'generic (no goal on the head); the per-goal variants render the habit set for the goal picked upstream',
+          },
+          {
+            label: 'on-screen options',
+            value:
+              'the habit options for the picked goal(s), one panel per goal, plus a "Create your own" custom-add affordance',
+          },
+          {
+            label: 'selection mode',
+            value:
+              'multi-select, nothing selected on entry; at least one to continue; at most two habits total (one per goal when two goals were picked)',
+          },
+          {
+            label: 'exact state',
+            value:
+              'nothing selected on entry; the habit options render under the opener; the Continue affordance advances once at least one habit is picked within the cap',
+          },
+          {
+            label: 'derived (debug, generated never authored)',
+            value:
+              'resolved props: { min: 1, max: 2, onePerGoalWhenTwoGoals: true, allowsCustom: true }',
+          },
+        ],
+        watchOut:
+          'The per-goal on-screen habit sub-lists are NOT in the typed source (goalsByCategory covers goals only; there is no habitsByGoal table yet), and the running counter / Continue affordance in exact-state are ASSERTED SPEC the render component does not implement yet. Flagged app-reconcile-pending.',
+        enforcedBy: ['component-registry-check'],
+        status: 'app-reconcile-pending',
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          {
+            label: 'mode',
+            value: 'Verbatim (reconciled from source Verbatim; enum is Verbatim / Generative)',
+          },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_beginner_03_1', liveAllowed: 'NO' },
+          {
+            seq: 2,
+            resolvesTo: 'silent reveal (no audio): the createOwn on-screen label',
+            liveAllowed: 'NO',
+          },
+        ],
+        assertion:
+          'The generic opener carries no live slot like {name}, so the one spoken line MUST resolve to the recorded clip onboard_beginner_03_1. The seq-2 "Create your own" text is an on-screen component label, not coach audio. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'h-verbatim-opener',
+          rule: 'Speaks the recorded opener verbatim, no improvised lead-in or addition',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'h-count-agnostic',
+          rule: 'Opener wording works whether one or two goals were picked upstream',
+          severity: 'must',
+          enforcedBy: ['eval:count-agnostic'],
+        },
+        {
+          id: 'h-no-read-list',
+          rule: 'Never reads the habit list aloud, in full or in part, not even one as an example',
+          severity: 'must',
+          enforcedBy: ['eval:no-read-options'],
+        },
+        {
+          id: 'h-no-sublists',
+          rule: 'Never reads sub-lists or anything the screen is not currently showing',
+          severity: 'must',
+          enforcedBy: ['eval:no-read-options'],
+        },
+        {
+          id: 'h-match-canonical',
+          rule: "Matches the user's words to the closest canonical habit name; never invents a habit not on the list",
+          severity: 'must',
+          enforcedBy: ['eval:invalid-value-redirect'],
+        },
+        {
+          id: 'h-keep-the-gem',
+          rule: 'Keeps the less-is-more point: one kept habit beats five, small on purpose',
+          severity: 'must',
+          enforcedBy: ['eval:keep-the-gem'],
+        },
+        {
+          id: 'h-one-per-goal',
+          rule: 'With two goals, takes exactly one habit per goal; never two for a single goal',
+          severity: 'must',
+          enforcedBy: ['eval:single-select'],
+        },
+        {
+          id: 'h-silent-after-pick',
+          rule: 'Silent after each pick: no praise or commentary, nothing except add_habit, remove_habit and advance_step',
+          severity: 'must',
+          enforcedBy: ['eval:silent-after-pick'],
+        },
+        {
+          id: 'h-no-motivation',
+          rule: 'No commentary or motivation after each pick',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'h-tools-only',
+          rule: 'Only add_habit, remove_habit and advance_step are callable on this beat',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'h-canonical-values',
+          rule: 'add_habit passes the exact canonical habit name (never the raw words), or a custom name only when the user offers one not on the list',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'h-advance-on-tool',
+          rule: 'advance_step fires only after at least one habit is captured within the cap',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'h-habit-cap',
+          rule: 'At most two habits total; with two goals, one habit per goal; floor of one habit to advance',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'h-reveal-gates',
+          rule: 'The habit options reveal gates on the opener clip end, never a fixed timer',
+          severity: 'must',
+          enforcedBy: ['reveal-timing-check'],
+        },
+        {
+          id: 'h-audio-ownership',
+          rule: 'The opener resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'h-clip-resolves',
+          rule: 'onboard_beginner_03_1 resolves to a real asset',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'h-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      // section 13 - multi-turn conversation model (scripted prompts only, Yair 2026-07-09)
+      conversation: {
+        opens: 'after the opener asks for a habit or two that feels doable',
+        branches: [
+          {
+            on: 'names or taps a valid habit (one per goal, or one to two for a single goal)',
+            reply: 'none (silent after pick); map to the exact canonical habit name',
+            then: 'tool:add_habit',
+          },
+          {
+            on: 'names more habits than the cap allows',
+            reply: 'scripted: "Let\'s keep it to one or two for now. Which matters most?"',
+            then: 'wait',
+            voice: 'clip-family:onboard_beginner_03_2 (pending recording)',
+          },
+          {
+            on: 'offers a habit not on the list',
+            reply:
+              'accept it as a custom habit ("Create your own"); do not force it onto a canonical name',
+            then: 'tool:add_habit',
+            voice: 'clip-family:onboard_beginner_03_3 (pending recording)',
+          },
+          {
+            on: 'vague or unsure which habit',
+            reply:
+              'scripted help-you-decide prompt (e.g. "What is one small thing you could actually keep?"); yields the instant they lean toward one',
+            then: 'wait',
+            voice: 'clip-family:onboard_beginner_03_4 (pending recording)',
+          },
+          {
+            on: 'off-topic or world question',
+            reply:
+              'global rule glob-out-of-scope: one brief acknowledgement, steer back with the habit question',
+            then: 'wait',
+            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+          },
+        ],
+        maxTurns: 4,
+        onMaxTurns: 'plain one-line re-ask of the habit question and point to the tap path',
+      },
+      contextProse: {
+        prose:
+          'Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.',
+        pending: true,
+        enforcedBy: ['eval:parity-walk'],
+      },
+      allowedTools: {
+        tools: ['add_habit', 'remove_habit', 'advance_step'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: call add_habit as each habit is captured; only this beat tools; pass the canonical habit name (or a custom name when offered), not the user raw words. remove_habit undoes a pick; advance_step fires once at least one habit is captured within the cap.',
+        specs: [
+          {
+            tool: 'add_habit',
+            args: '{ habit: string } - one canonical habit name from the on-screen list for the picked goal, or a custom name the user offered (confirm canonical arg name/shape)',
+            when: 'as each habit is picked, within the cap',
+            pending: true,
+          },
+          {
+            tool: 'remove_habit',
+            args: '{ habit: string } - the canonical habit name to remove',
+            when: 'when the user unpicks a habit before advancing',
+            pending: true,
+          },
+          {
+            tool: 'advance_step',
+            args: '{}',
+            when: 'once at least one habit is captured within the cap',
+          },
+        ],
+        note: 'No goal or category tools on this beat; goals were captured on the upstream goals-* beat. habit-picker uses add_habit / remove_habit only.',
+        enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'the chosen habits (1 or 2, capped at 2; one per goal when two goals were picked)',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'the habits, once captured, carry forward; downstream beats read them, never re-prompt',
+          },
+          {
+            label: 'resume key',
+            value: 'current_step advanced past this beat proves the habit pick is done on refresh',
+          },
+        ],
+        watchOut:
+          'The exact table + column for the habits write is NOT confirmed in the render source (io.dataOut notes the addHabit handler, cap 2 per decision 4/5). Flagged for app-reconcile; do not invent a table name. The carry-forward contract (never re-ask habits) is from GLOBAL_CONTEXT and is real.',
+        enforcedBy: ['persistence-contract-check'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'add_habit fired with at least one habit within the cap, then advance_step',
+          },
+          {
+            label: 'upstream branch (into this beat)',
+            value:
+              'the goal(s) picked upstream route into the habit pick; each picked goal routes to its matching habits-* variant of this beat',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value:
+              'once the habit(s) are captured within the cap, onboarding continues to the next step (schedule / day-picker), then the reflection beats',
+          },
+          {
+            label: 'gate',
+            value:
+              'at least one habit to advance; at most two habits total; with two goals, exactly one habit per goal (h-habit-cap)',
+          },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'add_habit errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" and the picked habit stays selected for the retry. Voice path: one short coach line "That didn\'t go through, let me try again." (Yair-approved tool-failure contract, 2026-07-09.)',
+            voice: 'clip-family:onboard_beginner_03_edge_1 (pending recording)',
+          },
+          {
+            edge: 'off-topic input',
+            behavior:
+              'one short acknowledgement, at most one sentence, no new topic and no advice, then re-ask the habit question ("Which of these feels doable to start with?"). Do not follow the tangent, do not add commentary, do not advance.',
+            voice: 'clip-family:onboard_beginner_03_edge_2 (pending recording)',
+          },
+          {
+            edge: 'skip / decline',
+            behavior:
+              'user will not pick: at least one habit is needed to continue; help them find one small doable habit (h-keep-the-gem), never force a heroic one',
+          },
+          {
+            edge: 'empty state',
+            behavior:
+              'no habit options appeared for the user: ask one neutral question ("Is there one small thing you could keep?"), do NOT recite the habit list to fill the silence',
+            voice: 'clip-family:onboard_beginner_03_edge_4 (pending recording)',
+          },
+          {
+            edge: 'over the cap',
+            behavior:
+              'user wants three or more habits: keep it to one or two, ask which matter most, then take those',
+          },
+          {
+            edge: 'not on the list / custom',
+            behavior:
+              'user offers something not on the list: accept it as a custom habit ("Create your own"); never force it onto a canonical name and never invent one',
+            voice: 'clip-family:onboard_beginner_03_edge_6 (pending recording)',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+          },
+          {
+            criterion: 'says the right thing',
+            check:
+              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+          },
+          {
+            criterion: 'advances correctly',
+            check:
+              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+          },
+          {
+            criterion: 'survives a refresh',
+            check:
+              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+          },
+          {
+            criterion: 'routes correctly',
+            check:
+              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+          },
+        ],
+        enforcedBy: [
+          'component-registry-check',
+          'advance-gate-check',
+          'persistence-contract-check',
+          'render-link-integrity-check',
+          'eval:parity-walk',
+          'eval:edge-walk',
+        ],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision:
+              '4/5. Habit cap (2 habits total, floor 1, distributable: 2 goals x1 or 1 goal x2)',
+            binds: true,
+            how: 'enforced on this beat: add_habit is capped at two total, at least one to advance, one per goal when two goals were picked (h-habit-cap, advance-gate-check).',
+          },
+          {
+            decision: '1, 2 (profile gates), 3 (women-art), 6, 7 (reflection)',
+            binds: false,
+            how: 'not this beat',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     elements: ['createOwn'],
     script: [
       {
@@ -5287,8 +6036,20 @@ export function variantSubstitutions(
     subs.push([head.screenId, beat.screenId]);
   const hp = rulePrefix(head.id);
   const vp = rulePrefix(beat.id);
-  if (hp !== vp) subs.push([hp, vp]);
-  if (head.id !== beat.id) subs.push([head.id, beat.id]);
+  // Skip a head rule-id prefix shorter than 3 chars: a 1-2 char prefix (e.g. the
+  // habits head's 'h') is too generic to substring-replace safely — it would rewrite
+  // every 'h' in the section. Families with such a short head prefix rebuild their
+  // rule-bearing sections (rulesContext/rulesCode/flow/edges) from typed per-family
+  // builders instead, so no prefix substitution is needed (mirrors leakTokens' >=3
+  // guard in bible-registry-check).
+  if (hp !== vp && hp.length >= 3) subs.push([hp, vp]);
+  // Skip the beatId substitution when the variant id is a namespaced child of the
+  // head id (variant.id starts with head.id, e.g. 'habits-fall-asleep-earlier' under
+  // head 'habits'): a global replace of the bare head id would also rewrite the
+  // English word it coincides with ('habits') and the variant's own id. For such
+  // families the category-sensitive sections that reference the beatId are
+  // typed-rebuilt, so no beatId substitution is needed.
+  if (head.id !== beat.id && !beat.id.startsWith(head.id)) subs.push([head.id, beat.id]);
   return subs;
 }
 
@@ -5517,6 +6278,38 @@ export function resolveBeatStructure(id: string): {
                 : key === 'flow'
                   ? buildGoalsFlow(catData)
                   : buildGoalsEdges(catData);
+          derivedSections.push(key);
+          continue;
+        }
+      }
+      // 3b-habits: same typed-path rebuild for the habits family (type
+      // 'habit-picker'), keyed by the goal picked upstream (props.goal). It rebuilds
+      // the 4 category-sensitive sections PLUS rulesCode — rulesCode is included
+      // because the habits head rule prefix ('h') is too short to substitute safely
+      // (variantSubstitutions skips it), so building rulesCode per-goal gives each
+      // variant unique rule ids without any substitution.
+      if (
+        beat.type === 'habit-picker' &&
+        (key === 'rulesContext' ||
+          key === 'conversation' ||
+          key === 'flow' ||
+          key === 'edges' ||
+          key === 'rulesCode') &&
+        headBible &&
+        key in headBible
+      ) {
+        const goalData = beat.props?.goal ? habitsGoalData[beat.props.goal] : undefined;
+        if (goalData) {
+          resolved[key] =
+            key === 'rulesContext'
+              ? buildHabitsRulesContext(goalData)
+              : key === 'conversation'
+                ? buildHabitsConversation(goalData)
+                : key === 'flow'
+                  ? buildHabitsFlow(goalData)
+                  : key === 'edges'
+                    ? buildHabitsEdges(goalData)
+                    : buildHabitsRulesCode(goalData);
           derivedSections.push(key);
           continue;
         }

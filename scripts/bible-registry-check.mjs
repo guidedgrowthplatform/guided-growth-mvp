@@ -407,7 +407,36 @@ for (const beat of resolvedBeats) {
   //    substitution missed (B1-R). A resolver that reverts to substituting these
   //    inherited sections fails here.
   if (isVariant && bible) {
-    const tokens = leakTokens(beat.headTokens);
+    const ht = beat.headTokens;
+    // Namespace-prefix exemption: a head id / screenId that is a strict PREFIX of the
+    // variant's OWN id / screenId (e.g. head 'habits' vs variant
+    // 'habits-fall-asleep-earlier', or head screen 'ONBOARD-BEGINNER-03' vs
+    // 'ONBOARD-BEGINNER-03--FALL-ASLEEP-EARLIER') is not a leak: the variant
+    // legitimately carries its own namespaced id everywhere, and the bare head id may
+    // even coincide with a common word ('habits'). Only these two hierarchical
+    // identifiers are exempted, and only when the variant's own value extends the
+    // head's; every other head token (category, clip ids, rule prefix) still scans by
+    // plain substring. Goals is unaffected (its variant ids/screenIds do not extend
+    // the head's).
+    const tokens = leakTokens(ht).filter((tok) => {
+      if (
+        ht &&
+        tok === ht.id &&
+        typeof beat.id === 'string' &&
+        beat.id !== ht.id &&
+        beat.id.startsWith(ht.id)
+      )
+        return false;
+      if (
+        ht &&
+        tok === ht.screenId &&
+        typeof beat.screenId === 'string' &&
+        beat.screenId !== ht.screenId &&
+        beat.screenId.startsWith(ht.screenId)
+      )
+        return false;
+      return true;
+    });
     const semanticTokens = (beat.headTokens?.semanticTokens ?? []).filter(
       (t) => typeof t === 'string' && t.length > 0,
     );
