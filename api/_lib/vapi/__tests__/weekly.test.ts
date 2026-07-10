@@ -106,7 +106,7 @@ describe('weeklyUpdateHabit', () => {
     expect(res).toMatchObject({ error: expect.stringContaining('not_found') });
   });
 
-  it('renames a habit (the shrink-it move)', async () => {
+  it('renames a habit (the minimize move)', async () => {
     pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'h1', name: 'Read a chapter' }] });
     pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] }); // rename clash check: clear
     pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'h1' }] });
@@ -134,7 +134,7 @@ describe('weeklyUpdateHabit', () => {
     expect(pool.query.mock.calls).toHaveLength(2);
   });
 
-  it('maps frequency to cadence (the lower-the-frequency move)', async () => {
+  it('maps frequency to cadence (minimize by fewer days)', async () => {
     pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'h1', name: 'Run' }] });
     pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'h1' }] });
     await weeklyUpdateHabit({ anon_id: ANON, name: 'Run', frequency: '3x/week' });
