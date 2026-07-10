@@ -287,6 +287,296 @@ When a beat puts choices on the screen (categories, the things inside a category
 ## Privacy
 - The user is about to share real, sometimes vulnerable things. Protect that. Don't read their email or account details back to them. Don't narrate what the system is doing.`;
 
+// --- Goals variant category data (B1: typed per-category source, NOT free-text substitution) ---
+//
+// The category-sensitive facts of a goals-* beat (its rules wording, its section-13
+// conversation branches, its edge examples, its downstream routing example, and its
+// dynamic clip families) are NOT derivable by string-substituting the head's prose:
+// free-text substitution missed the lowercased category noun, the clip-family roots,
+// and the category example labels, leaking the head category ("sleep") onto every
+// variant (whole-system QA B1-R, 2026-07-10). Those facts now live here as TYPED
+// per-category data, and every category-sensitive section is BUILT from it
+// (buildGoals* below), so a variant only ever carries its OWN category tokens.
+//
+// slug matches the beat-id suffix (goals-<slug>) and the clip-family root
+// (onboard_goals_<slug>); prefix is the rule-id prefix (g<slug>, mirrors rulePrefix).
+export interface GoalsCategoryData {
+  readonly category: string; // canonical label, e.g. 'Move more' (also props.category)
+  readonly slug: string; // 'move' — beat-id suffix + clip-root + rule prefix stem
+  readonly noun: string; // lowercase category noun used in coach-rule prose
+  readonly vagueExample: string; // the "just <x> in general" vague-input example
+  readonly downstreamExample: string; // "<a goal> -> habits-<route>" routing example
+}
+
+// Authored per head-category. noun/vagueExample/downstreamExample are the ONLY
+// genuinely per-category prose facts; everything else (beatId, rule prefix, clip
+// root, tile set) derives from slug + goalsByCategory. downstreamExample uses the
+// category's first goal and its real habits-* opener beat id.
+export const goalsCategoryData: Record<string, GoalsCategoryData> = {
+  'Sleep better': {
+    category: 'Sleep better',
+    slug: 'sleep',
+    noun: 'sleep',
+    vagueExample: 'just sleep in general',
+    downstreamExample: 'Fall asleep earlier -> habits-fall-asleep-earlier',
+  },
+  'Move more': {
+    category: 'Move more',
+    slug: 'move',
+    noun: 'movement',
+    vagueExample: 'just moving more in general',
+    downstreamExample: 'Walk more -> habits-walk-more',
+  },
+  'Eat better': {
+    category: 'Eat better',
+    slug: 'eat',
+    noun: 'eating',
+    vagueExample: 'just eating better in general',
+    downstreamExample: 'Eat more intentionally -> habits-eat-intentionally',
+  },
+  'Feel more energized': {
+    category: 'Feel more energized',
+    slug: 'energy',
+    noun: 'energy',
+    vagueExample: 'just more energy in general',
+    downstreamExample: 'Have more morning energy -> habits-morning-energy',
+  },
+  'Reduce stress': {
+    category: 'Reduce stress',
+    slug: 'stress',
+    noun: 'stress',
+    vagueExample: 'just less stress in general',
+    downstreamExample: 'Feel calmer during the day -> habits-calmer-day',
+  },
+  'Improve focus': {
+    category: 'Improve focus',
+    slug: 'focus',
+    noun: 'focus',
+    vagueExample: 'just better focus in general',
+    downstreamExample: 'Start work with less friction -> habits-start-work',
+  },
+  'Break bad habits': {
+    category: 'Break bad habits',
+    slug: 'break',
+    noun: 'habit change',
+    vagueExample: 'just breaking habits in general',
+    downstreamExample: 'Smoking -> habits-smoking',
+  },
+  'Get more organized': {
+    category: 'Get more organized',
+    slug: 'organize',
+    noun: 'organization',
+    vagueExample: 'just being more organized in general',
+    downstreamExample: 'Stay on top of tasks -> habits-stay-on-tasks',
+  },
+};
+
+function goalsBeatId(data: GoalsCategoryData): string {
+  return `goals-${data.slug}`;
+}
+function goalsRulePrefix(data: GoalsCategoryData): string {
+  return `g${data.slug}`;
+}
+function goalsClipRoot(data: GoalsCategoryData): string {
+  return `onboard_goals_${data.slug}`;
+}
+
+// Head-category SEMANTIC leak tokens: the case-normalized tokens that must NOT
+// survive onto a NON-head variant's resolved sections. Used by the resolver-level
+// semantic guard (bible-registry-check + variant-semantic-leak test). These are
+// exactly the tokens free-text substitution missed.
+export function goalsSemanticTokens(category: string): readonly string[] {
+  const data = goalsCategoryData[category];
+  if (!data) return [];
+  const goalExample = data.downstreamExample.split('->')[0]?.trim() ?? '';
+  return [
+    data.noun, // "sleep"
+    goalsClipRoot(data), // "onboard_goals_sleep"
+    goalsBeatId(data), // "goals-sleep"
+    goalExample, // "Fall asleep earlier"
+  ].filter((t) => t.length > 0);
+}
+
+// --- Category-sensitive section builders (single template, per-category data) ---
+// Each returns the section BUILT from goalsCategoryData, so the head (goals-sleep)
+// and every variant produce identical structure with their OWN category tokens.
+// buildGoals*(goalsCategoryData['Sleep better']) reproduces the head's authored
+// section byte-for-byte (locked by the goals-variant-parity test).
+export function buildGoalsRulesContext(data: GoalsCategoryData): readonly BibleRule[] {
+  const p = goalsRulePrefix(data);
+  const n = data.noun;
+  return [
+    {
+      id: `${p}-verbatim-opener`,
+      rule: `Speaks the recorded ${n} opener verbatim, no improvised lead-in or addition`,
+      severity: 'must',
+      enforcedBy: ['eval:verbatim-opener'],
+    },
+    {
+      id: `${p}-no-read-options`,
+      rule: 'Never reads the goal tiles aloud, not in full, not one as an example',
+      severity: 'must',
+      enforcedBy: ['eval:no-read-options'],
+    },
+    {
+      id: `${p}-react-and-ask`,
+      rule: `React warmly and ask for goals in one merged moment, naming the category (${n}) once`,
+      severity: 'must',
+      enforcedBy: ['eval:warm-opener'],
+    },
+    {
+      id: `${p}-no-contrarian`,
+      rule: `No reframe that undercuts the pick ("${n} isn't really the issue")`,
+      severity: 'must',
+      enforcedBy: ['eval:no-contrarian'],
+    },
+    {
+      id: `${p}-no-platitudes`,
+      rule: `No per-goal commentary or filler ("${n} is the foundation", "genuinely")`,
+      severity: 'must',
+      enforcedBy: ['eval:no-platitudes'],
+    },
+    {
+      id: `${p}-silent-after-pick`,
+      rule: 'Silent after each pick: no praise, no commentary, nothing except submit_goals and advance_step',
+      severity: 'must',
+      enforcedBy: ['eval:silent-after-pick'],
+    },
+    {
+      id: `${p}-one-line-wait`,
+      rule: 'After the opener, asks one short pointer question then waits',
+      severity: 'must',
+      enforcedBy: ['eval:one-line-then-wait'],
+    },
+    {
+      id: `${p}-one-or-two`,
+      rule: 'Allows one or two goals only; on three, asks which two matter most',
+      severity: 'must',
+      enforcedBy: ['eval:selection-cap'],
+    },
+    {
+      id: `${p}-stay-open`,
+      rule: 'If the user is unsure, stays open and helps them land, no lecture',
+      severity: 'must',
+      enforcedBy: ['eval:brainstorm-then-yield'],
+    },
+  ];
+}
+
+export function buildGoalsConversation(data: GoalsCategoryData): BeatConversation {
+  const root = goalsClipRoot(data);
+  return {
+    opens:
+      'after the opener question ("Which of these would you like to start with? Pick one or two.")',
+    branches: [
+      {
+        on: 'names or taps one or two valid goals',
+        reply: 'none (silent after pick); map to the exact labels',
+        then: 'tool:submit_goals',
+      },
+      {
+        on: 'names three or more',
+        reply: 'scripted: "Which two matter most right now?"',
+        then: 'wait',
+        voice: `clip-family:${root}_2 (pending recording)`,
+      },
+      {
+        on: `vague or general ("${data.vagueExample}")`,
+        reply: 'scripted: "If you had to pick one, what bothers you most?"',
+        then: 'wait',
+        voice: `clip-family:${root}_3 (pending recording)`,
+      },
+      {
+        on: 'unsure / cannot decide',
+        reply:
+          'scripted help-you-decide prompt set (e.g. "What\'s been weighing on you most lately?"); yields the instant they lean toward one',
+        then: 'wait',
+        voice: `clip-family:${root}_4 (pending recording)`,
+      },
+      {
+        on: 'off-topic or world question',
+        reply:
+          'global rule glob-out-of-scope: one brief acknowledgement, steer back with the goal question',
+        then: 'wait',
+        voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+      },
+    ],
+    maxTurns: 4,
+    onMaxTurns: 'plain one-line re-ask of the goal question and point to the tap path',
+  };
+}
+
+export function buildGoalsFlow(data: GoalsCategoryData): NonNullable<BibleSections['flow']> {
+  return {
+    rows: [
+      {
+        label: 'advance condition',
+        value: 'submit_goals fired with 1 to 2 valid goals, then advance_step',
+      },
+      {
+        label: 'upstream branch (into this beat)',
+        value: `the category picked upstream (${data.category}) routes to this ${goalsBeatId(
+          data,
+        )} variant; the other 7 categories route to their matching goals-* beat`,
+      },
+      {
+        label: 'downstream branch (out of this beat)',
+        value: `the goal count sets up the habit distribution: two goals -> the next beat gives one habit per goal; one goal -> the next beat allows one or two habits. Each picked goal routes to its matching habits-* opener (e.g. ${data.downstreamExample})`,
+      },
+      {
+        label: 'gate',
+        value: `one or two goals; if the user names three, the coach resolves to two before the tool fires (${goalsRulePrefix(
+          data,
+        )}-one-or-two)`,
+      },
+    ],
+    enforcedBy: ['advance-gate-check'],
+  };
+}
+
+export function buildGoalsEdges(data: GoalsCategoryData): NonNullable<BibleSections['edges']> {
+  const root = goalsClipRoot(data);
+  return {
+    rows: [
+      {
+        edge: 'tool failure',
+        behavior:
+          'submit_goals errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" and the picked tiles stay selected for the retry. Voice path: one short coach line "That didn\'t go through, let me try again." (Yair-approved tool-failure contract, 2026-07-09.)',
+        voice: `clip-family:${root}_edge_1 (pending recording)`,
+      },
+      {
+        edge: 'off-topic input',
+        behavior:
+          'one short acknowledgement, at most one sentence, no new topic and no advice, then re-ask the goal question ("Which of these feels right to start with?"). Do not follow the tangent, do not add commentary, do not advance.',
+        voice: `clip-family:${root}_edge_2 (pending recording)`,
+      },
+      {
+        edge: 'skip / decline',
+        behavior: `user will not choose: stay open, help them think it through (${goalsRulePrefix(
+          data,
+        )}-stay-open), never force a pick`,
+      },
+      {
+        edge: 'empty state',
+        behavior:
+          'no tiles appeared for the user: ask one neutral question ("Is anything coming up for you to pick from?"), do NOT recite the goal list to fill the silence',
+        voice: `clip-family:${root}_edge_4 (pending recording)`,
+      },
+      {
+        edge: 'names three',
+        behavior: 'ask which two matter most, then take those two',
+      },
+      {
+        edge: `vague / general ("${data.vagueExample}")`,
+        behavior:
+          'map to the closest label or ask one short question to pin it ("If you had to pick one, what bothers you most?"); never invent a label',
+        voice: `clip-family:${root}_edge_6 (pending recording)`,
+      },
+    ],
+    enforcedBy: ['eval:edge-walk'],
+  };
+}
+
 export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     id: 'splash',
@@ -5204,6 +5494,32 @@ export function resolveBeatStructure(id: string): {
           derivedSections.push(key);
         }
         continue;
+      }
+      // 3b. category-sensitive sections (rules / conversation / flow / edges) are
+      // BUILT fresh from typed per-category data (goalsCategoryData), never
+      // free-text-substituted from the head. This is the B1-R fix: those sections
+      // carried the head's lowercased category noun, clip-family roots, and example
+      // labels that substitution could not reach. Only when the head actually
+      // contracts the section and the variant has category data.
+      if (
+        beat.type === 'goals-list' &&
+        (key === 'rulesContext' || key === 'conversation' || key === 'flow' || key === 'edges') &&
+        headBible &&
+        key in headBible
+      ) {
+        const catData = beat.props?.category ? goalsCategoryData[beat.props.category] : undefined;
+        if (catData) {
+          resolved[key] =
+            key === 'rulesContext'
+              ? buildGoalsRulesContext(catData)
+              : key === 'conversation'
+                ? buildGoalsConversation(catData)
+                : key === 'flow'
+                  ? buildGoalsFlow(catData)
+                  : buildGoalsEdges(catData);
+          derivedSections.push(key);
+          continue;
+        }
       }
       // 4. every other inherited section: substitute head tokens out (safe allowlist)
       const headSection = headBible ? headBible[key] : undefined;

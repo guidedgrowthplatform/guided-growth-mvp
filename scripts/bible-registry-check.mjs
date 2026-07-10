@@ -399,15 +399,32 @@ for (const beat of resolvedBeats) {
   }
 
   // LEAK scan: over the sections the variant DERIVED (not authored). No head
-  // token may survive there.
+  // token may survive there. Two token classes:
+  //  - exact tokens (category label, clip ids, rule prefix, beatId, screenId):
+  //    case-sensitive substring.
+  //  - SEMANTIC tokens (case-normalized category noun, clip-family root, beatId,
+  //    category example label): case-insensitive. These are the tokens free-text
+  //    substitution missed (B1-R). A resolver that reverts to substituting these
+  //    inherited sections fails here.
   if (isVariant && bible) {
     const tokens = leakTokens(beat.headTokens);
+    const semanticTokens = (beat.headTokens?.semanticTokens ?? []).filter(
+      (t) => typeof t === 'string' && t.length > 0,
+    );
     for (const key of beat.derivedSections ?? []) {
       const sectionStr = JSON.stringify(bible[key] ?? null);
+      const sectionLower = sectionStr.toLowerCase();
       for (const tok of tokens) {
         if (sectionStr.includes(tok)) {
           problems.push(
             `${beat.id}: derived section '${key}' leaks head token "${tok}" from ${beat.variantOf} (variant content must be per-variant, not the head's)`,
+          );
+        }
+      }
+      for (const tok of semanticTokens) {
+        if (sectionLower.includes(tok.toLowerCase())) {
+          problems.push(
+            `${beat.id}: derived section '${key}' leaks head SEMANTIC token "${tok}" from ${beat.variantOf} (category-sensitive facts must be built from typed per-category data, not substituted)`,
           );
         }
       }

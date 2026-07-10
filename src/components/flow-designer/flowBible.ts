@@ -122,6 +122,12 @@ export const GLOBAL_RULES: GlobalRulesLayer = {
 export interface ToolFailureContract {
   readonly retry: string;
   readonly voice: string;
+  // The second-failure VOICE-PATH coach line is a dynamic spoken global response,
+  // so it is OWNED like any other spoken line (VOICE_OWNERSHIP). Structured so a
+  // lane can read it: `line` is the APPROVED copy, `voice` is the legal owner shape.
+  // (Prior state: the owner lived only inside the prose `voice` string, which no
+  // lane read — F1-R, whole-system QA 2026-07-10.)
+  readonly voicePath: { readonly line: string; readonly voice: string };
   readonly textOrTap: string;
   readonly never: readonly string[];
   readonly enforcedBy: readonly string[];
@@ -133,6 +139,10 @@ export const TOOL_FAILURE: ToolFailureContract = {
     'First failure: one silent automatic retry. The user sees nothing. (Yair 2026-07-09: retry once quietly; if it still fails, surface it, never fail silently.)',
   voice:
     'Second failure on the voice path: one short coach line, APPROVED copy verbatim: "That didn\'t go through, let me try again." Then retry; if it still fails, keep it surfaced and offer the tap path. The beat never advances on a failed write.',
+  voicePath: {
+    line: "That didn't go through, let me try again.",
+    voice: 'clip-family:onboard_tool_failure_retry (pending recording)',
+  },
   textOrTap:
     'Second failure on the text/tap path: a toast (existing Toast system), APPROVED copy verbatim: "Couldn\'t save that, tap to retry." No coach line; the beat stays put.',
   never: [
@@ -140,7 +150,7 @@ export const TOOL_FAILURE: ToolFailureContract = {
     'narrate technical detail (endpoint, error, tool name) in any modality',
     'fail silently with no user signal after the retry (closes the pass-1 edges gap)',
   ],
-  enforcedBy: ['eval:edge-walk', 'tool-contract-check'],
+  enforcedBy: ['eval:edge-walk', 'tool-contract-check', 'audio-ownership-check'],
   status: 'verified',
 };
 
@@ -207,6 +217,45 @@ export const VOICE_OWNERSHIP: VoiceOwnership = {
   enforcedBy: ['audio-ownership-check'],
   status: 'verified',
 };
+
+// ---------- 4c. Global dynamic-reply ownership registry (F1-R) ----------
+//
+// Section-13 branch replies and edge behaviors live per-beat and are owned there
+// (audio-ownership-check lanes b/c). The GLOBAL dynamic spoken responses do NOT
+// live on a beat: the off-topic steer-back (GLOBAL_RULES.glob-out-of-scope) and
+// the tool-failure voice line (TOOL_FAILURE.voicePath). Before F1-R these were
+// only ownership-checked opportunistically (lane d skipped a rule with no voice
+// field; TOOL_FAILURE's owner was buried in prose no lane read), so the owner
+// could be removed or corrupted and the check stayed green.
+//
+// This registry EXHAUSTIVELY declares every global dynamic spoken response that
+// MUST be owned. audio-ownership-check lane d now REQUIRES an owner for each entry
+// (not merely validating an optional field if present): the declared source must
+// actually carry a legal-shape voice owner, and any GLOBAL_RULES rule that carries
+// a voice field must appear here (no unregistered spoken global).
+export type GlobalVoiceOwnerKind = 'global-rule' | 'tool-failure';
+
+export interface GlobalVoiceOwner {
+  readonly id: string; // stable owner id (matches the GlobalRule id for global-rule kind)
+  readonly kind: GlobalVoiceOwnerKind;
+  readonly source: string; // where the spoken line lives (for diagnostics)
+  readonly voice: string; // REQUIRED legal voice shape (the declared owner)
+}
+
+export const GLOBAL_VOICE_OWNERSHIP: readonly GlobalVoiceOwner[] = [
+  {
+    id: 'glob-out-of-scope',
+    kind: 'global-rule',
+    source: 'GLOBAL_RULES.glob-out-of-scope',
+    voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+  },
+  {
+    id: 'tool-failure-voice',
+    kind: 'tool-failure',
+    source: 'TOOL_FAILURE.voicePath',
+    voice: 'clip-family:onboard_tool_failure_retry (pending recording)',
+  },
+];
 
 // ---------- 5. Beat-to-beat data passing contract ----------
 

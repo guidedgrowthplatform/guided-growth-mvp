@@ -32,21 +32,12 @@ import {
   FLOWBIBLE_PATH,
   report,
 } from './lib/beats-ast.mjs';
+import { isLegalVoiceShape, validateGlobalVoiceOwnership } from './lib/globalVoiceOwnership.mjs';
 
 const problems = [];
 
-// --- four-shape validator, shared by every lane ---
-const CLIP_RE = /^clip:[a-z0-9_]+$/;
-const CLIP_FAMILY_RE = /^clip-family:[a-z0-9_]+ \(pending recording\)$/;
-function isLegalVoiceShape(v) {
-  return (
-    typeof v === 'string' &&
-    (CLIP_RE.test(v) ||
-      CLIP_FAMILY_RE.test(v) ||
-      v === 'text-only' ||
-      v === 'live-exception:name-greeting')
-  );
-}
+// The four-shape voice validator (isLegalVoiceShape) is shared by every lane and
+// by the global-ownership validator, imported from ./lib/globalVoiceOwnership.mjs.
 
 // Lane b: conservative — a branch reply is SPOKEN unless it clearly denotes
 // silence / no coach speech.
@@ -173,58 +164,79 @@ for (const { beatId, value: beat, line } of bibleBeats) {
   });
 }
 
-// --- Lane d: flowBible.ts GLOBAL_RULES voice fields ---
-// Parallel AST read of flowBible (beats-ast loadBeats parses only beatsSource);
-// GLOBAL_RULES is an object literal, so pull its `rules` array directly.
-async function loadGlobalRules() {
+// --- Lane d + e: flowBible.ts GLOBAL dynamic-reply ownership (F1-R) ---
+// Parallel AST read of flowBible (beats-ast loadBeats parses only beatsSource).
+// Generic loader: find a top-level `export const <name> = <literal>` and return
+// its literalValue.
+async function loadFlowBibleConsts(names) {
   const sf = await loadSourceFile(FLOWBIBLE_PATH);
-  let rulesArr = null;
+  const out = {};
+  const lines = {};
   (function visit(node) {
     if (
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
-      node.name.text === 'GLOBAL_RULES' &&
+      names.includes(node.name.text) &&
       node.initializer
     ) {
       const init = ts.isAsExpression(node.initializer)
         ? node.initializer.expression
         : node.initializer;
-      if (ts.isObjectLiteralExpression(init)) {
-        for (const prop of init.properties) {
-          if (
-            ts.isPropertyAssignment(prop) &&
-            prop.name.getText() === 'rules' &&
-            ts.isArrayLiteralExpression(prop.initializer)
-          ) {
-            rulesArr = prop.initializer;
-          }
-        }
-      }
+      out[node.name.text] = literalValue(init);
+      lines[node.name.text] = lineOf(sf, node);
       return;
     }
     ts.forEachChild(node, visit);
   })(sf);
-  if (!rulesArr) throw new Error('Could not find GLOBAL_RULES.rules in flowBible.ts');
-  return rulesArr.elements.map((n) => ({ value: literalValue(n), line: lineOf(sf, n) }));
+  return { out, lines };
 }
 
-const globalRules = await loadGlobalRules();
+const { out: fbConsts } = await loadFlowBibleConsts([
+  'GLOBAL_RULES',
+  'GLOBAL_VOICE_OWNERSHIP',
+  'TOOL_FAILURE',
+]);
+
+const globalRulesArr = Array.isArray(fbConsts.GLOBAL_RULES?.rules)
+  ? fbConsts.GLOBAL_RULES.rules
+  : null;
+if (!globalRulesArr) throw new Error('Could not find GLOBAL_RULES.rules in flowBible.ts');
+const registry = fbConsts.GLOBAL_VOICE_OWNERSHIP;
+if (!Array.isArray(registry))
+  throw new Error('Could not find GLOBAL_VOICE_OWNERSHIP in flowBible.ts (F1-R registry required)');
+const toolFailure = fbConsts.TOOL_FAILURE ?? null;
+
+// Lane d (legacy, kept): any GLOBAL rule that DOES carry a voice field must be a
+// legal shape (shape-only, opportunistic).
 let globalRulesChecked = 0;
-for (const { value: rule, line } of globalRules) {
+const globalRulesById = {};
+for (const rule of globalRulesArr) {
+  if (rule && rule.id) globalRulesById[rule.id] = rule;
   if (rule.voice === undefined || rule.voice === null) continue;
   globalRulesChecked += 1;
   if (!isLegalVoiceShape(rule.voice)) {
     problems.push(
-      `flowBible.ts GLOBAL_RULES "${rule.id}" (line ${line}): voice "${rule.voice}" is not one ` +
-        `of the four legal shapes`,
+      `flowBible.ts GLOBAL_RULES "${rule.id}": voice "${rule.voice}" is not one of the four legal shapes`,
     );
   }
 }
 
+// Lane e (F1-R): the exhaustive ownership REQUIREMENT. Every declared global
+// dynamic spoken response (registry entry) must resolve to a real, legal owner at
+// its source, and no spoken global may be unregistered. Removing glob-out-of-scope's
+// voice owner, or corrupting TOOL_FAILURE.voicePath.voice, fails here.
+const ownershipProblems = validateGlobalVoiceOwnership({
+  registry,
+  globalRulesById,
+  toolFailure,
+});
+for (const p of ownershipProblems) problems.push(p);
+
 report(
   problems,
-  `audio-ownership-check passed (4 lanes): ${bibleBeats.length} bible-bearing beat(s); ` +
+  `audio-ownership-check passed (5 lanes): ${bibleBeats.length} bible-bearing beat(s); ` +
     `lane a perLine ownership holds; lane b ${branchesChecked} spoken branch reply(ies) owned; ` +
     `lane c ${edgesChecked} quoted-spoken edge(s) owned; ` +
-    `lane d ${globalRulesChecked} global-rule voice field(s) shape-valid.`,
+    `lane d ${globalRulesChecked} global-rule voice field(s) shape-valid; ` +
+    `lane e ${registry.length} global dynamic reply(ies) required-owned (registry-exhaustive).`,
 );

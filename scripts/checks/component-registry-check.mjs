@@ -75,24 +75,41 @@ for (const { beatId, value: beat, line } of bibleBeats) {
 }
 
 // 3. Declared component STATE vs the REAL component source (statically cheap).
-// Map a selection beat type -> its render component. Marker convention
-// (beatsSource.ts): a section describing UI the render lacks tags its prose
-// "ASSERTED SPEC ... does not implement yet". Assert that marker stays TRUTHFUL:
-// if the component now ships an advance/Continue affordance, the marker is stale.
-// TODO(runtime): render the mapped component in jsdom and assert the "n of N
-// selected" counter + Continue button nodes are actually absent (true DOM check).
+// Map a selection beat type -> its render component.
+//
+// F3-R: the prior version gated purely on the "ASSERTED SPEC ... does not
+// implement yet" marker text, so deleting the marker AND flipping the components
+// manifest to 'filled' bypassed both this check and bible-registry-check :428.
+// This version is a render assertion of the DECLARED state keyed off the components
+// MANIFEST STATUS + the DECLARED affordances + the actual component source, NOT the
+// deletable marker: a 'filled' components claim CANNOT pass when the mapped
+// component does not render the affordance the section declares.
 const TYPE_TO_COMPONENT = {
   'goals-list': 'src/components/flow-designer/beats/goalsList.tsx',
 };
 const ASSERTED_UNIMPLEMENTED_RE = /ASSERTED SPEC[\s\S]*?does not implement yet/i;
 const CONTINUE_AFFORDANCE_RE = /advance_step|onContinue|handleContinue|>\s*Continue\b/;
+const COUNTER_AFFORDANCE_RE =
+  /of\s*\{?\s*MAX_SUBCATEGORIES|of\s*\{?\s*max\b|selectedCount|of \d+ selected/i;
+const DECLARES_CONTINUE_RE = /Continue affordance/i;
+const DECLARES_COUNTER_RE = /n of \d+ selected/i;
 
 let stateChecked = 0;
-for (const { beatId, value: beat } of bibleBeats) {
+for (const { beatId, value: beat, line } of bibleBeats) {
   const componentPath = TYPE_TO_COMPONENT[beat.type ?? ''];
   const components = beat.bible?.components;
   if (!componentPath || !components) continue;
-  if (!ASSERTED_UNIMPLEMENTED_RE.test(JSON.stringify(components))) continue;
+
+  const componentsStr = JSON.stringify(components);
+  const manifestStatus = beat.bible?.sectionManifest?.components;
+  const declaresContinue = DECLARES_CONTINUE_RE.test(componentsStr);
+  const declaresCounter = DECLARES_COUNTER_RE.test(componentsStr);
+  const hasMarker = ASSERTED_UNIMPLEMENTED_RE.test(componentsStr);
+
+  // Only mapped selection components that DECLARE the not-yet-built affordances (or
+  // still carry the marker) need the render assertion.
+  if (!declaresContinue && !declaresCounter && !hasMarker) continue;
+
   let source;
   try {
     source = await readFile(path.join(ROOT, componentPath), 'utf8');
@@ -101,11 +118,35 @@ for (const { beatId, value: beat } of bibleBeats) {
     continue;
   }
   stateChecked += 1;
-  if (CONTINUE_AFFORDANCE_RE.test(source)) {
+  const implementsContinue = CONTINUE_AFFORDANCE_RE.test(source);
+  const implementsCounter = COUNTER_AFFORDANCE_RE.test(source);
+
+  // (a) Bypass closure, marker-INDEPENDENT: a 'filled' components claim requires the
+  // component to actually render every affordance the section declares.
+  if (manifestStatus === 'filled') {
+    if (declaresContinue && !implementsContinue) {
+      problems.push(
+        `${beatId} (line ${line}): bible.components manifest claims 'filled' but ${componentPath} ` +
+          `does not render the declared "Continue affordance" (no advance/Continue control) — ` +
+          `a filled components claim cannot pass when the component does not render it`,
+      );
+    }
+    if (declaresCounter && !implementsCounter) {
+      problems.push(
+        `${beatId} (line ${line}): bible.components manifest claims 'filled' but ${componentPath} ` +
+          `does not render the declared "n of N selected" counter — ` +
+          `a filled components claim cannot pass when the component does not render it`,
+      );
+    }
+  }
+
+  // (b) Stale-marker: if the beat still carries the ASSERTED-unimplemented marker but
+  // the component now DOES implement the affordance, the marker/manifest is stale.
+  if (hasMarker && (implementsContinue || implementsCounter)) {
     problems.push(
-      `${beatId}: bible.components marks the counter/Continue affordance ASSERTED-unimplemented, ` +
-        `but ${componentPath} appears to implement an advance affordance — the marker is stale, ` +
-        `update the manifest/marker to match the component`,
+      `${beatId} (line ${line}): bible.components marks the counter/Continue affordance ` +
+        `ASSERTED-unimplemented, but ${componentPath} appears to implement it — the marker is ` +
+        `stale, update the manifest/marker to match the component`,
     );
   }
 }
@@ -114,5 +155,6 @@ report(
   problems,
   `component-registry-check passed: ${bibleBeats.length} bible-bearing beat(s) checked, ` +
     `no-preselection and variant/props fidelity hold; ` +
-    `${stateChecked} asserted-unimplemented marker(s) verified truthful against component source.`,
+    `${stateChecked} declared-affordance component(s) verified against real component source ` +
+    `(a 'filled' claim cannot pass an unbuilt affordance).`,
 );

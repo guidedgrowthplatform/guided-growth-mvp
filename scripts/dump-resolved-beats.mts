@@ -10,6 +10,7 @@ import {
   BEAT_BY_ID,
   resolveBeatStructure,
   rulePrefix,
+  goalsSemanticTokens,
 } from '../src/components/flow-designer/beatsSource.ts';
 
 const out = BEATS_SOURCE.map((beat) => {
@@ -22,6 +23,11 @@ const out = BEATS_SOURCE.map((beat) => {
         rulePrefix: rulePrefix(head.id),
         id: head.id,
         screenId: head.screenId ?? null,
+        // Resolver-level SEMANTIC tokens (case-normalized) that free-text
+        // substitution missed: the head's lowercased category noun, its
+        // clip-family root, its beatId, and its category example label. No
+        // NON-head variant may carry any of these (B1-R semantic guard).
+        semanticTokens: head.props?.category ? goalsSemanticTokens(head.props.category) : [],
       }
     : null;
   return {
