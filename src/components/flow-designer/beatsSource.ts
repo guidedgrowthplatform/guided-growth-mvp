@@ -2622,6 +2622,255 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
+    // Archetype = interactive data-gate + tool (card-fill setup). The coach frames the
+    // daily check-in, the time/day/reminder picker reveals, then a short consistency
+    // nudge. conversation is { na } (card-fill, no branching turn); allowedTools is
+    // owner-filled (the two tools are known); persistence is pending-app-reconcile
+    // (the submit_morning_checkin write target is per-handler, not yet confirmed).
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: {
+          na: 'card-fill setup — the coach frames it once; the time/day/reminder picker is filled directly, no branching turn',
+        },
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'pending-app-reconcile',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'checkin' },
+          { label: 'name', value: 'Morning check-in setup' },
+          { label: 'order', value: '8' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'morning-checkin-setup' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-MORNING-SETUP' },
+          { surface: 'route', value: '/onboarding/morning-setup' },
+          { surface: 'persisted current_step', value: 'checkin' },
+          { surface: 'session_log value', value: 'checkin' },
+          { surface: 'data-beat-id', value: 'checkin' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'setup bubble on entry; no gate (first spoken line)',
+            timing: 'karaoke per-word on the bubble',
+          },
+          {
+            seq: 2,
+            reveal: 'the time picker blooms, GATED on seq 1 clip end',
+            timing: 'n/a (silent reveal)',
+          },
+          {
+            seq: 3,
+            reveal: 'the day picker blooms, GATED on seq 2 reveal',
+            timing: 'n/a (silent reveal)',
+          },
+          {
+            seq: 4,
+            reveal: 'the reminder toggle blooms, GATED on seq 3 reveal',
+            timing: 'n/a (silent reveal)',
+          },
+          {
+            seq: 5,
+            reveal: 'the consistency-nudge bubble, GATED on seq 4 reveal',
+            timing: 'karaoke per-word on the bubble',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'morning-checkin-setup' },
+          {
+            label: 'on-screen controls',
+            value: 'a daily time picker, a day picker, and a reminder toggle (ON by default)',
+          },
+          {
+            label: 'selection mode',
+            value: 'time + days set directly; reminder defaults ON; nothing else preselected',
+          },
+          {
+            label: 'exact state',
+            value:
+              'the coach recommends a time shortly after wake; the weekday preset is offered but not forced',
+          },
+        ],
+        watchOut:
+          'The reminder toggle defaults ON (a documented default for this ritual, not a tap-to-choose grid; this beat is not a grid/list selection type).',
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_morning_setup_1', liveAllowed: 'NO' },
+          { seq: 2, resolvesTo: 'silent reveal (no audio)', liveAllowed: 'n/a' },
+          { seq: 3, resolvesTo: 'silent reveal (no audio)', liveAllowed: 'n/a' },
+          { seq: 4, resolvesTo: 'silent reveal (no audio)', liveAllowed: 'n/a' },
+          { seq: 5, resolvesTo: 'recorded clip onboard_morning_setup_2', liveAllowed: 'NO' },
+        ],
+        assertion:
+          'No line here carries a live slot like {name}, so both spoken lines MUST resolve to recorded clips; the reveals are silent. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'checkin-verbatim-opener',
+          rule: 'Speaks the setup framing and the consistency nudge verbatim, no improvised lead-in',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'checkin-keep-it-quick',
+          rule: 'Keeps it quick; the point is that this is a simple first habit, not that it is morning',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+        {
+          id: 'checkin-no-platitudes',
+          rule: 'No filler or praise; recommend a time, let them set it, move on',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'checkin-tools-only',
+          rule: 'Only submit_morning_checkin and advance_step are callable on this beat',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'checkin-advance-on-tool',
+          rule: 'advance_step fires only after submit_morning_checkin captured the time and days',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'checkin-reveal-gates',
+          rule: 'each picker reveal gates on the prior line clip end, never a fixed timer',
+          severity: 'must',
+          enforcedBy: ['reveal-timing-check'],
+        },
+        {
+          id: 'checkin-audio-ownership',
+          rule: 'Every spoken line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'checkin-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Check-in time. The user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point is not that it is morning, it is that this is their first habit and it is simple. Recommend a time shortly after wake, offer the weekday preset, and let them set it.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      allowedTools: {
+        tools: ['submit_morning_checkin', 'advance_step'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: call once the time and days are set; only this beat tools.',
+        specs: [
+          {
+            tool: 'submit_morning_checkin',
+            args: '{ time: string, days: string[], reminder: boolean } (exact arg shape per the handler)',
+            when: 'once the daily time and days are set',
+            pending: true,
+          },
+          {
+            tool: 'advance_step',
+            args: '{}',
+            when: 'immediately after submit_morning_checkin returns',
+          },
+        ],
+        note: 'The daily check-in and the evening reflection are rituals, set here; no habit tools on this beat.',
+        enforcedBy: ['tool-contract-check'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'submit_morning_checkin fired with a time and days, then advance_step',
+          },
+          { label: 'upstream branch (into this beat)', value: 'state-check advances here' },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to the evening reflection setup (order 9)',
+          },
+          { label: 'gate', value: 'a daily time (and days) must be set before advancing' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'submit_morning_checkin errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" with the time retained. Voice path: one short coach line "That didn\'t go through, let me try again."',
+            voice: 'clip-family:onboard_morning_setup_edge_1 (pending recording)',
+          },
+          {
+            edge: 'no time set',
+            behavior: 'prompt once for the time; do not advance until a daily time is set',
+          },
+          {
+            edge: 'wants reminder off',
+            behavior:
+              'honor it: turn the reminder off if the user asks; default stays ON otherwise',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders the time picker, day picker, and reminder toggle (reminder ON by default)',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the setup framing and consistency nudge play verbatim',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'a time and days set via submit_morning_checkin, then advance_step',
+          },
+        ],
+        enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'the morning check-in setup configures the daily ritual time; it is not a profile gate, habit cap, or reflection-template decision, so none binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     // L5: morning reorder. Bubble 1 sets up the pick, then the picker reveals,
     // then bubble 2 (the shorter consistency nudge, R4) lands after the picker.
     script: [
@@ -2715,6 +2964,360 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
+    // Archetype = interactive data-gate + branching conversation (style pick + time,
+    // SILENT_OPTIONS). The coach frames the reflection, reads the three sample
+    // questions, then the styles + time picker fill. All 14 sections owner-filled
+    // (persistence is concrete: reflection_settings).
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: 'filled',
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'filled',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'reflection' },
+          { label: 'name', value: 'Evening reflection setup' },
+          { label: 'order', value: '9' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'reflection-card' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-BEGINNER-07' },
+          { surface: 'route', value: '/onboarding/beginner-07' },
+          { surface: 'persisted current_step', value: 'reflection' },
+          { surface: 'session_log value', value: 'reflection' },
+          { surface: 'data-beat-id', value: 'reflection' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'framing bubble on entry; no gate (first spoken line)',
+            timing: 'karaoke per-word on the bubble',
+          },
+          {
+            seq: 2,
+            reveal: 'the first sample question reveals, GATED on seq 1 clip end',
+            timing: 'karaoke per-word on the question',
+          },
+          {
+            seq: 3,
+            reveal: 'the second sample question reveals, GATED on seq 2 clip end',
+            timing: 'karaoke per-word on the question',
+          },
+          {
+            seq: 4,
+            reveal: 'the third sample question reveals, GATED on seq 3 clip end',
+            timing: 'karaoke per-word on the question',
+          },
+          {
+            seq: 5,
+            reveal: 'the make-your-own / freeform option reveals, GATED on seq 4 clip end',
+            timing: 'karaoke per-word on the line',
+          },
+          {
+            seq: 6,
+            reveal: 'the style selector blooms, GATED on seq 5 clip end',
+            timing: 'n/a (silent reveal)',
+          },
+          {
+            seq: 7,
+            reveal: 'the time recommendation line, GATED on seq 6 reveal',
+            timing: 'karaoke per-word on the line',
+          },
+          {
+            seq: 8,
+            reveal: 'the time picker blooms, GATED on seq 7 clip end',
+            timing: 'n/a (silent reveal)',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'reflection-card' },
+          {
+            label: 'on-screen controls',
+            value:
+              'a style selector (suggested template / your template / freeform), a time picker, and a reminder toggle (ON by default)',
+          },
+          {
+            label: 'selection mode',
+            value: 'single style select, nothing selected on entry; time set directly',
+          },
+          {
+            label: 'exact state',
+            value:
+              'the three styles show on the screen; the coach does not read them out; time recommended before wind-down',
+          },
+        ],
+        watchOut:
+          'The three styles are on the screen and must not be read aloud (SILENT_OPTIONS). "Your template" captures the user prompts verbatim so the daily reflection can ask them back.',
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_beginner_07_1', liveAllowed: 'NO' },
+          { seq: 2, resolvesTo: 'recorded clip reflect_proud', liveAllowed: 'NO' },
+          { seq: 3, resolvesTo: 'recorded clip reflect_forgive', liveAllowed: 'NO' },
+          { seq: 4, resolvesTo: 'recorded clip reflect_grateful', liveAllowed: 'NO' },
+          { seq: 5, resolvesTo: 'recorded clip reflect_alt', liveAllowed: 'NO' },
+          { seq: 6, resolvesTo: 'silent reveal (no audio)', liveAllowed: 'n/a' },
+          { seq: 7, resolvesTo: 'recorded clip reflect_time', liveAllowed: 'NO' },
+          { seq: 8, resolvesTo: 'silent reveal (no audio)', liveAllowed: 'n/a' },
+        ],
+        assertion:
+          'No line here carries a live slot like {name}, so every spoken line MUST resolve to a recorded clip; the style and time selectors are silent reveals. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'reflect-verbatim-opener',
+          rule: 'Speaks the framing, the three sample questions, and the time line verbatim, no improvised lead-in',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'reflect-no-read-styles',
+          rule: 'Never reads the three styles out loud; they are on the screen. Ask which feels right and let them pick',
+          severity: 'must',
+          enforcedBy: ['eval:no-read-options'],
+        },
+        {
+          id: 'reflect-no-per-style-coaching',
+          rule: 'Adds no coaching per style and never makes it feel like homework',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+        {
+          id: 'reflect-keep-light',
+          rule: 'If the user resists, keeps it light: it is two minutes a day. Sets it up, does not perform it now',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'reflect-tools-only',
+          rule: 'Only submit_reflection_config, submit_custom_prompts, and advance_step are callable on this beat',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'reflect-advance-on-tool',
+          rule: 'advance_step fires only after submit_reflection_config captured a style and time',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'reflect-reveal-gates',
+          rule: 'each question and selector reveal gates on the prior line clip end, never a fixed timer',
+          severity: 'must',
+          enforcedBy: ['reveal-timing-check'],
+        },
+        {
+          id: 'reflect-audio-ownership',
+          rule: 'Every spoken line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'reflect-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      conversation: {
+        opens: 'after the framing and the three sample questions (ask which style feels right)',
+        branches: [
+          {
+            on: 'picks the suggested template',
+            reply: 'none (silent after the pick); config = suggested template',
+            then: 'tool:submit_reflection_config',
+          },
+          {
+            on: 'picks freeform',
+            reply: 'none (silent after the pick); config = freeform',
+            then: 'tool:submit_reflection_config',
+          },
+          {
+            on: 'picks their own template',
+            reply:
+              'scripted: ask for their prompts and capture them verbatim (so the daily reflection can ask them back)',
+            then: 'tool:submit_custom_prompts',
+            voice: 'clip-family:onboard_beginner_07_your_template (pending recording)',
+          },
+          {
+            on: 'resists / hesitant',
+            reply: 'scripted: keep it light, it is a couple of minutes a day, then let them pick',
+            then: 'wait',
+            voice: 'clip-family:onboard_beginner_07_reassure (pending recording)',
+          },
+          {
+            on: 'off-topic or world question',
+            reply:
+              'global rule glob-out-of-scope: one brief acknowledgement, steer back to the reflection setup',
+            then: 'wait',
+            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+          },
+        ],
+        maxTurns: 4,
+        onMaxTurns: 'plain one-line re-ask of which style feels right and point to the tap path',
+      },
+      contextProse: {
+        prose:
+          'Evening reflection setup. Set it up, do not perform it now. The user picks one style and a time, reminder on by default. The three styles are on the screen (suggested template, your template, freeform); do not read them out. Ask which feels right and let them pick. If they choose your template, capture their prompts verbatim so the daily reflection can ask them back. Add no coaching per style and do not make it feel like homework.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      allowedTools: {
+        tools: ['submit_reflection_config', 'submit_custom_prompts', 'advance_step'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: submit_reflection_config once the style and time are set; submit_custom_prompts only for the your-template style, verbatim; only this beat tools.',
+        specs: [
+          {
+            tool: 'submit_reflection_config',
+            args: '{ style: "suggested" | "custom" | "freeform", time: string, reminder: boolean }',
+            when: 'once the user picks a style and sets a time',
+          },
+          {
+            tool: 'submit_custom_prompts',
+            args: '{ prompts: string[] } (verbatim, under the 280-char cap)',
+            when: 'only when the user picks the your-template style, to capture their prompts',
+          },
+          {
+            tool: 'advance_step',
+            args: '{}',
+            when: 'immediately after submit_reflection_config returns',
+          },
+        ],
+        note: 'No habit tools on this beat; the reflection is a ritual set here.',
+        enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'the reflection template style (config) and, for the your-template style, the custom prompts (customPrompts) verbatim',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'the daily evening reflection asks based on the saved config; the coach never re-asks the style',
+          },
+          {
+            label: 'resume key',
+            value:
+              'reflection_settings holds the config; current_step advanced past reflection proves this beat is done on refresh',
+          },
+        ],
+        watchOut:
+          'Custom prompts persist verbatim under the 280-char cap so the daily reflection can ask them exactly. Exact column shape in reflection_settings reconciled with the handler.',
+        enforcedBy: ['persistence-contract-check'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'submit_reflection_config fired with a style and time, then advance_step',
+          },
+          {
+            label: 'upstream branch (into this beat)',
+            value: 'the morning check-in setup advances here',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to the path fork (order 10)',
+          },
+          { label: 'gate', value: 'a style and time must be set before advancing' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'submit_reflection_config errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" with the style retained. Voice path: one short coach line "That didn\'t go through, let me try again."',
+            voice: 'clip-family:onboard_beginner_07_edge_1 (pending recording)',
+          },
+          {
+            edge: 'no style picked',
+            behavior:
+              'prompt once for which style feels right; do not advance until a style is set',
+          },
+          {
+            edge: 'your-template chosen but no prompts given',
+            behavior:
+              'ask once for at least one prompt; capture verbatim; do not invent prompts for them',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check:
+              'phone renders the style selector (suggested / your template / freeform), a time picker, and a reminder toggle',
+          },
+          {
+            criterion: 'says the right thing',
+            check:
+              'the framing, three questions, and time line play verbatim; the styles are not read aloud',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'a style and time captured via submit_reflection_config, then advance_step',
+          },
+          {
+            criterion: 'survives a refresh',
+            check: 'the config persists in reflection_settings, the beat is not re-asked',
+          },
+        ],
+        enforcedBy: [
+          'component-registry-check',
+          'advance-gate-check',
+          'persistence-contract-check',
+          'render-link-integrity-check',
+          'eval:edge-walk',
+        ],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '6, 7 (reflection: template styles + custom-prompt capture)',
+            binds: true,
+            how: 'this beat IS the render side of the reflection decisions; encoded as rules.context reflect-no-read-styles (the three styles on screen) and rules.code reflect-tools-only (submit_custom_prompts captures the your-template prompts verbatim)',
+          },
+          {
+            decision: '1, 2 (profile gates), 3 (women-art), 4/5 (habit caps)',
+            binds: false,
+            how: 'not this beat',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -2847,6 +3450,306 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
+    // Archetype = interactive data-gate + branching conversation. One framing bubble,
+    // then the two path cards appear as the fork question is spoken verbal-only; the
+    // answer routes beginner vs advanced. All 14 sections owner-filled (persistence is
+    // concrete: flow.path -> onboarding_states.data).
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: 'filled',
+        contextProse: 'filled',
+        allowedTools: 'filled',
+        persistence: 'filled',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'fork' },
+          { label: 'name', value: 'Path fork' },
+          { label: 'order', value: '10' },
+          { label: 'path', value: 'both' },
+          { label: 'type', value: 'path-selection' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-FORK--FORM' },
+          { surface: 'route', value: '/onboarding/fork' },
+          { surface: 'persisted current_step', value: 'fork' },
+          { surface: 'session_log value', value: 'fork' },
+          { surface: 'data-beat-id', value: 'fork' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal: 'framing bubble on entry; no gate (first spoken line)',
+            timing: 'karaoke per-word on the bubble',
+          },
+          {
+            seq: 2,
+            reveal:
+              'the two path cards bloom and the fork question is spoken, GATED on seq 1 clip end; the question is VERBAL ONLY (not a bubble)',
+            timing: 'karaoke per-word, no bubble',
+          },
+          {
+            seq: 3,
+            reveal: 'the second path card blooms, GATED on seq 2 reveal',
+            timing: 'n/a (silent reveal)',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'path-selection' },
+          {
+            label: 'on-screen cards',
+            value: 'two path cards: new to tracking (beginner) and already track habits (advanced)',
+          },
+          { label: 'selection mode', value: 'single-select, nothing selected on entry' },
+          {
+            label: 'exact state',
+            value: 'nothing selected on entry; both cards appear as the fork question is spoken',
+          },
+        ],
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_fork_form_1', liveAllowed: 'NO' },
+          { seq: 2, resolvesTo: 'recorded clip fork_question', liveAllowed: 'NO' },
+          { seq: 3, resolvesTo: 'silent reveal (no audio)', liveAllowed: 'n/a' },
+        ],
+        assertion:
+          'No line here carries a live slot like {name}, so both spoken lines MUST resolve to recorded clips; the second card reveal is silent. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'fork-verbatim-opener',
+          rule: 'Speaks the framing and the fork question verbatim, no improvised lead-in or filler tail',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'fork-no-read-options',
+          rule: 'Never reads the two choices aloud as a list; the cards show them, ask the question then wait',
+          severity: 'must',
+          enforcedBy: ['eval:no-read-options'],
+        },
+        {
+          id: 'fork-no-filler-tail',
+          rule: 'No "both are totally fine" or any reassurance tail after the question',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+        {
+          id: 'fork-one-line-wait',
+          rule: 'Asks the one fork question then waits; on unclear input, one short clarifying question',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'fork-tools-only',
+          rule: 'Only submit_path_choice, ask_clarification, and advance_step are callable on this beat',
+          severity: 'must',
+          enforcedBy: ['tool-contract-check'],
+        },
+        {
+          id: 'fork-advance-on-tool',
+          rule: 'advance_step fires only after submit_path_choice captured beginner or advanced',
+          severity: 'must',
+          enforcedBy: ['advance-gate-check'],
+        },
+        {
+          id: 'fork-reveal-gates',
+          rule: 'the path cards and the second card reveal gate on the prior line clip end, never a fixed timer',
+          severity: 'must',
+          enforcedBy: ['reveal-timing-check'],
+        },
+        {
+          id: 'fork-audio-ownership',
+          rule: 'Every spoken line resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'fork-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      conversation: {
+        opens:
+          'after the framing bubble and the fork question (do you already track habits or is this new)',
+        branches: [
+          {
+            on: 'new / tried and dropped off / wants guidance',
+            reply: 'none (silent after the choice); map to path = beginner',
+            then: 'tool:submit_path_choice',
+          },
+          {
+            on: 'has a list or a system already',
+            reply: 'none (silent after the choice); map to path = advanced',
+            then: 'tool:submit_path_choice',
+          },
+          {
+            on: 'unclear which path',
+            reply:
+              'scripted: one short clarifying question ("Do you have a list going now, or starting fresh?"), then take the answer',
+            then: 'wait',
+            voice: 'clip-family:onboard_fork_form_clarify (pending recording)',
+          },
+          {
+            on: 'off-topic or world question',
+            reply:
+              'global rule glob-out-of-scope: one brief acknowledgement, steer back with the fork question',
+            then: 'wait',
+            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+          },
+        ],
+        maxTurns: 3,
+        onMaxTurns: 'plain one-line re-ask of the fork question and point to the tap path',
+      },
+      contextProse: {
+        prose:
+          'Experience fork. The framing shows as one coach bubble. Then, as the two path cards appear, the fork question is spoken verbal only. New, tried and dropped off, or wants guidance routes to beginner. Has a list or a system already routes to advanced. If unclear, ask one short question. Do not read the two choices out loud, and add no reassurance tail.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      allowedTools: {
+        tools: ['submit_path_choice', 'ask_clarification', 'advance_step'],
+        callRules:
+          'Inherited from GLOBAL_CONTEXT, bound here: call submit_path_choice once the path is clear; ask_clarification only when the answer is genuinely ambiguous; only this beat tools.',
+        specs: [
+          {
+            tool: 'submit_path_choice',
+            args: '{ path: "beginner" | "advanced" }',
+            when: 'once the user answer maps to beginner or advanced',
+          },
+          {
+            tool: 'ask_clarification',
+            args: '{ field: "path" }',
+            when: 'only when the answer is genuinely ambiguous',
+          },
+          {
+            tool: 'advance_step',
+            args: '{}',
+            when: 'immediately after submit_path_choice returns',
+          },
+        ],
+        note: 'No category, goal, or habit tools on this beat; the fork only records the path.',
+        enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          { label: 'writes', value: 'the chosen path (beginner or advanced)' },
+          {
+            label: 'never re-ask',
+            value:
+              'the path, once captured, drives the branch; downstream beats read it, never re-ask',
+          },
+          {
+            label: 'resume key',
+            value:
+              'flow.path saved to onboarding_states.data; current_step advanced past fork proves this beat is done on refresh',
+          },
+        ],
+        enforcedBy: ['persistence-contract-check'],
+      },
+      flow: {
+        rows: [
+          {
+            label: 'advance condition',
+            value: 'submit_path_choice fired with beginner or advanced, then advance_step',
+          },
+          {
+            label: 'upstream branch (into this beat)',
+            value: 'evening reflection setup advances here',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'beginner -> category (order 11); advanced -> advanced-capture (order 54)',
+          },
+          { label: 'gate', value: 'a path must be chosen before advancing' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'tool failure',
+            behavior:
+              'submit_path_choice errors: retry once quietly. If it still fails, SURFACE it, never fail silently, and do not advance. Tap/text path: a toast "Couldn\'t save that, tap to retry" with the choice retained. Voice path: one short coach line "That didn\'t go through, let me try again."',
+            voice: 'clip-family:onboard_fork_form_edge_1 (pending recording)',
+          },
+          {
+            edge: 'ambiguous answer',
+            behavior:
+              'one short clarifying question (ask_clarification), then take the answer; never guess the path',
+          },
+          {
+            edge: 'off-topic input',
+            behavior: 'acknowledge briefly, steer back with the fork question, do not advance',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check: 'phone renders the two path cards, single-select, nothing preselected',
+          },
+          {
+            criterion: 'says the right thing',
+            check:
+              'framing spoken verbatim, fork question verbal-only, no read-aloud list, no filler tail',
+          },
+          {
+            criterion: 'advances correctly',
+            check:
+              'the path captured via submit_path_choice, then advance_step; routes beginner or advanced',
+          },
+          {
+            criterion: 'survives a refresh',
+            check: 'the path persists, the beat is not re-asked, current_step resumes past fork',
+          },
+        ],
+        enforcedBy: [
+          'component-registry-check',
+          'advance-gate-check',
+          'persistence-contract-check',
+          'eval:edge-walk',
+        ],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'the fork records the beginner/advanced path; it is not a profile gate, women-art, habit cap, or reflection decision, so none binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
+    },
     script: [
       {
         seq: 1,
@@ -4159,6 +5062,180 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: {
       kind: 'goal',
+    },
+    // Archetype = single free-entry data beat (one spoken prompt, the user names their
+    // own goal in the text input). conversation is { na } (a single capture, no branch);
+    // allowedTools + persistence are pending-app-reconcile (the save tool is unresolved
+    // per the io note).
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: { na: 'single free-entry — the user names one goal; no branching turn' },
+        contextProse: 'filled',
+        allowedTools: 'pending-app-reconcile',
+        persistence: 'pending-app-reconcile',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'goal-custom' },
+          { label: 'name', value: 'Create your own goal' },
+          { label: 'order', value: '21' },
+          { label: 'path', value: 'beginner' },
+          { label: 'type', value: 'custom-entry' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-BEGINNER-02-CUSTOM' },
+          { surface: 'route', value: '/onboarding/beginner-02-custom' },
+          { surface: 'persisted current_step', value: 'goal-custom' },
+          { surface: 'session_log value', value: 'goal-custom' },
+          { surface: 'data-beat-id', value: 'goal-custom' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal:
+              'opener prompt on entry alongside the text input; no gate (the one spoken line)',
+            timing: 'karaoke per-word on the prompt',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'custom-entry' },
+          { label: 'kind', value: 'goal (from source props.kind)' },
+          { label: 'on-screen', value: 'a single text input for the user to name their own goal' },
+          { label: 'selection mode', value: 'free text entry; nothing preselected' },
+        ],
+        watchOut:
+          'This beat is reached from the create-your-own category tile; the user types a goal in their own words.',
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_beginner_02_custom_1', liveAllowed: 'NO' },
+        ],
+        assertion:
+          'The prompt carries no live slot like {name}, so it MUST resolve to the recorded clip onboard_beginner_02_custom_1. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'goalcustom-verbatim-opener',
+          rule: 'Speaks the prompt verbatim, then waits for the user to name their goal',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'goalcustom-capture-their-words',
+          rule: 'Captures the goal in the user own words; never rewords or reframes it',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+        {
+          id: 'goalcustom-no-platitudes',
+          rule: 'No praise or commentary on the goal they name; take it and move on',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'goalcustom-audio-ownership',
+          rule: 'The prompt resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'goalcustom-clip-resolves',
+          rule: 'onboard_beginner_02_custom_1 resolves to a real asset',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'goalcustom-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Create your own goal. Reached from the create-your-own category tile. Speak the prompt, then let the user name their own goal in the text input, in their own words. Capture it verbatim, add no praise, and move on to the habits.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      flow: {
+        rows: [
+          { label: 'advance condition', value: 'the user submits a non-empty custom goal' },
+          {
+            label: 'upstream branch (into this beat)',
+            value: 'the create-your-own category tile routes here',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to the habits picker for the custom goal',
+          },
+          { label: 'gate', value: 'a non-empty goal must be entered before advancing' },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'empty submission',
+            behavior: 'do not advance on an empty entry; wait for the user to name a goal',
+          },
+          {
+            edge: 'save unresolved',
+            behavior:
+              'the save tool for a custom goal is not yet contracted (pending-app-reconcile); the render captures the text, the persistence path is reconciled app-side',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check: 'phone renders a single text input for the custom goal, nothing preselected',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the prompt plays verbatim from onboard_beginner_02_custom_1',
+          },
+          {
+            criterion: 'advances correctly',
+            check: 'a non-empty custom goal is captured, then the flow proceeds to habits',
+          },
+        ],
+        enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
+            binds: false,
+            how: 'the custom-goal entry captures a free-text goal; no profile gate, women-art, habit cap, or reflection decision binds here',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
     },
     script: [
       {
@@ -5727,6 +6804,195 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: {
       kind: 'habit',
+    },
+    // Archetype = single free-entry data beat (one spoken prompt, the user names their
+    // own habit in the text input). conversation is { na } (a single capture, no branch);
+    // allowedTools + persistence are pending-app-reconcile (the save tool is unresolved
+    // per the io note; habit cap 2 applies at the handler).
+    bible: {
+      sectionManifest: {
+        identity: 'filled',
+        scriptMeta: 'filled',
+        components: 'filled',
+        voice: 'filled',
+        rulesContext: 'filled',
+        rulesCode: 'filled',
+        conversation: { na: 'single free-entry — the user names one habit; no branching turn' },
+        contextProse: 'filled',
+        allowedTools: 'pending-app-reconcile',
+        persistence: 'pending-app-reconcile',
+        flow: 'filled',
+        edges: 'filled',
+        acceptance: 'filled',
+        applicableDecisions: 'filled',
+      },
+      identity: {
+        rows: [
+          { label: 'beatId (canonical)', value: 'habit-custom' },
+          { label: 'name', value: 'Create your own habit' },
+          { label: 'order', value: '52' },
+          { label: 'path', value: 'beginner' },
+          { label: 'type', value: 'custom-entry' },
+        ],
+        aliases: [
+          { surface: 'screenId', value: 'ONBOARD-BEGINNER-03-CUSTOM' },
+          { surface: 'route', value: '/onboarding/beginner-03-custom' },
+          { surface: 'persisted current_step', value: 'habit-custom' },
+          { surface: 'session_log value', value: 'habit-custom' },
+          { surface: 'data-beat-id', value: 'habit-custom' },
+        ],
+        enforcedBy: ['id-alias-check'],
+      },
+      scriptMeta: {
+        rows: [
+          {
+            seq: 1,
+            reveal:
+              'opener prompt on entry alongside the text input; no gate (the one spoken line)',
+            timing: 'karaoke per-word on the prompt',
+          },
+        ],
+        enforcedBy: ['render-link-integrity-check', 'reveal-timing-check'],
+      },
+      components: {
+        rows: [
+          { label: 'component (registry key)', value: 'custom-entry' },
+          { label: 'kind', value: 'habit (from source props.kind)' },
+          { label: 'on-screen', value: 'a single text input for the user to name their own habit' },
+          { label: 'selection mode', value: 'free text entry; nothing preselected' },
+        ],
+        watchOut:
+          'Reached from the create-your-own habit tile; the user types a habit in their own words. The 2-habit cap (decision 4/5) is enforced at the add_habit handler, not here.',
+        enforcedBy: ['component-registry-check'],
+      },
+      voice: {
+        rows: [
+          { label: 'engine', value: 'MP3' },
+          { label: 'mode', value: 'Verbatim (enum is Verbatim / Generative)' },
+        ],
+        perLine: [
+          { seq: 1, resolvesTo: 'recorded clip onboard_beginner_03_custom_1', liveAllowed: 'NO' },
+        ],
+        assertion:
+          'The prompt carries no live slot like {name}, so it MUST resolve to the recorded clip onboard_beginner_03_custom_1. No live Cartesia on this beat.',
+        enforcedBy: ['audio-ownership-check'],
+      },
+      rulesContext: [
+        {
+          id: 'habitcustom-verbatim-opener',
+          rule: 'Speaks the prompt verbatim, then waits for the user to name their habit',
+          severity: 'must',
+          enforcedBy: ['eval:verbatim-opener'],
+        },
+        {
+          id: 'habitcustom-capture-their-words',
+          rule: 'Captures the habit in the user own words; never rewords or reframes it',
+          severity: 'must',
+          enforcedBy: ['eval:one-line-then-wait'],
+        },
+        {
+          id: 'habitcustom-no-platitudes',
+          rule: 'No praise or commentary on the habit they name; take it and move on',
+          severity: 'must',
+          enforcedBy: ['eval:no-platitudes'],
+        },
+      ],
+      rulesCode: [
+        {
+          id: 'habitcustom-audio-ownership',
+          rule: 'The prompt resolves to a recorded clip; no live Cartesia (no {name} slot)',
+          severity: 'must',
+          enforcedBy: ['audio-ownership-check'],
+        },
+        {
+          id: 'habitcustom-clip-resolves',
+          rule: 'onboard_beginner_03_custom_1 resolves to a real asset',
+          severity: 'must',
+          enforcedBy: ['render-link-integrity-check'],
+        },
+        {
+          id: 'habitcustom-id-alias',
+          rule: 'beatId maps to the screenId / route / step / session_log / data-beat-id in identity',
+          severity: 'must',
+          enforcedBy: ['id-alias-check'],
+        },
+      ],
+      contextProse: {
+        prose:
+          'Create your own habit. Reached from the create-your-own habit tile. Speak the prompt, then let the user name their own habit in the text input, in their own words. Capture it verbatim, add no praise, and move on to setting the days.',
+        enforcedBy: ['eval:parity-walk'],
+      },
+      flow: {
+        rows: [
+          { label: 'advance condition', value: 'the user submits a non-empty custom habit' },
+          {
+            label: 'upstream branch (into this beat)',
+            value: 'the create-your-own habit tile routes here',
+          },
+          {
+            label: 'downstream branch (out of this beat)',
+            value: 'proceeds to the habit schedule (set the days)',
+          },
+          {
+            label: 'gate',
+            value:
+              'a non-empty habit must be entered before advancing (subject to the 2-habit cap)',
+          },
+        ],
+        enforcedBy: ['advance-gate-check'],
+      },
+      edges: {
+        rows: [
+          {
+            edge: 'empty submission',
+            behavior: 'do not advance on an empty entry; wait for the user to name a habit',
+          },
+          {
+            edge: 'cap reached',
+            behavior:
+              'the 2-habit cap (decision 4/5) is enforced at the add_habit handler; the render surfaces the cap',
+          },
+          {
+            edge: 'save unresolved',
+            behavior:
+              'the save tool for a custom habit is not yet contracted (pending-app-reconcile); the render captures the text, the persistence path is reconciled app-side',
+          },
+        ],
+        enforcedBy: ['eval:edge-walk'],
+      },
+      acceptance: {
+        rows: [
+          {
+            criterion: 'shows the right thing',
+            check: 'phone renders a single text input for the custom habit, nothing preselected',
+          },
+          {
+            criterion: 'says the right thing',
+            check: 'the prompt plays verbatim from onboard_beginner_03_custom_1',
+          },
+          {
+            criterion: 'advances correctly',
+            check:
+              'a non-empty custom habit is captured (within the 2-habit cap), then the flow proceeds to the schedule',
+          },
+        ],
+        enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
+      },
+      applicableDecisions: {
+        rows: [
+          {
+            decision: '4/5 (habit caps: max 2 habits)',
+            binds: false,
+            how: 'a custom habit counts against the 2-habit cap, but the cap is enforced at the add_habit handler, not by a rule on this render beat; the render only surfaces the cap',
+          },
+          {
+            decision: '1, 2 (profile gates), 3 (women-art), 6, 7 (reflection)',
+            binds: false,
+            how: 'not this beat',
+          },
+        ],
+        enforcedBy: ['decisions-coverage-check'],
+      },
     },
     script: [
       {
