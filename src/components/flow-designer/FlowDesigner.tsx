@@ -1103,6 +1103,119 @@ function SectionStatusRow({
   );
 }
 
+// Honest per-beat tally over the 14-key manifest (S3): badge label + counts are
+// computed, never hardcoded, so the fill claim is truthful per beat.
+function manifestCounts(manifest?: Readonly<Record<string, SectionFillStatus>>) {
+  const c = { filled: 0, derived: 0, na: 0, pending: 0, total: 0 };
+  if (!manifest) return c;
+  for (const s of Object.values(manifest)) {
+    c.total += 1;
+    if (s === 'filled') c.filled += 1;
+    else if (s === 'derived') c.derived += 1;
+    else if (s === 'pending-app-reconcile') c.pending += 1;
+    else if (s && typeof s === 'object') c.na += 1;
+  }
+  return c;
+}
+
+function ManifestBadge({ manifest }: { manifest?: Readonly<Record<string, SectionFillStatus>> }) {
+  const c = manifestCounts(manifest);
+  const fully = c.pending === 0;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: 4,
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 800,
+          color: '#135bec',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        Bible fill · {c.total} sections
+      </span>
+      <span
+        style={{
+          fontSize: 9.5,
+          fontWeight: 800,
+          padding: '1px 7px',
+          borderRadius: 99,
+          background: fully ? '#eaf1ff' : '#fffbeb',
+          color: fully ? '#135bec' : '#b45309',
+          border: `1px solid ${fully ? '#c7d8ff' : '#fcd34d'}`,
+          letterSpacing: '0.03em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {c.filled} filled · {c.derived} derived · {c.na} n/a · {c.pending} pending
+      </span>
+    </div>
+  );
+}
+
+// Compact 14-row contract for a beat with no authored/derived Bible: every section
+// is pending-app-reconcile. Rendered so ALL beats show their manifest, not only
+// bible-bearing ones (B1). Collapsible to keep the panel usable.
+function ManifestStatusList({
+  manifest,
+}: {
+  manifest?: Readonly<Record<string, SectionFillStatus>>;
+}) {
+  if (!manifest) return null;
+  const entries = Object.entries(manifest) as [string, SectionFillStatus][];
+  return (
+    <details
+      style={{
+        background: '#fff',
+        border: '1px solid #e2e8f0',
+        borderRadius: 14,
+        padding: '12px 14px',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+      }}
+    >
+      <summary
+        style={{
+          cursor: 'pointer',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 800,
+            color: '#475569',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}
+        >
+          Bible contract
+        </span>
+        <ManifestBadge manifest={manifest} />
+      </summary>
+      <div style={{ marginTop: 6 }}>
+        {entries.map(([key, status], i) => (
+          <SectionStatusRow
+            key={key}
+            title={`${i + 1} · ${key}`}
+            status={status as Exclude<SectionFillStatus, 'filled'>}
+          />
+        ))}
+      </div>
+    </details>
+  );
+}
+
 // Manifest-driven section slot (Yair/conductor 2026-07-09, LOCKED uniform-sections
 // rule): filled -> the accordion (children, as before); na / pending-app-reconcile
 // -> a compact status row, never an accordion. When the manifest doesn't cover
@@ -1763,6 +1876,7 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
             </ContextSection>
           </div>
         </div>
+        <ManifestStatusList manifest={resolved.sectionManifest} />
       </div>
     );
   }
@@ -1879,6 +1993,7 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
           <IOBlock io={resolved.io} inheritedFrom={resolved.inheritedFrom} />
         </ContextSection>
       </div>
+      <ManifestStatusList manifest={resolved.sectionManifest} />
     </div>
   );
 }

@@ -31,7 +31,7 @@ const out = BEATS_SOURCE.map((beat) => {
     hasOwnBible: Boolean(beat.bible),
     // section keys the beat AUTHORS itself (manifest excluded)
     ownBibleKeys: beat.bible ? Object.keys(beat.bible).filter((k) => k !== 'sectionManifest') : [],
-    resolvedManifest: resolved.bible?.sectionManifest ?? null,
+    resolvedManifest: resolved.sectionManifest ?? resolved.bible?.sectionManifest ?? null,
     resolvedBible: resolved.bible ?? null,
     derivedSections: resolved.derivedSections ?? [],
     // for the guard's leak scan: the head tokens that must NOT survive onto a

@@ -5092,17 +5092,36 @@ function deriveVariantVoice(
   };
 }
 
-// A variant's manifest is its OWN, never inherited: a section the variant AUTHORS
-// keeps the child's declared status; every section the resolver derives is
-// 'derived'. A variant therefore never claims 'filled' for a non-owned section.
+// Every-section pending-app-reconcile manifest: the honest "not yet contracted"
+// fill for a beat with no bible (or a variant whose head has none). Same token the
+// coverage gate treats as legally-pending, so runtime/render/check agree.
+function pendingManifest(): Readonly<Record<BibleSectionKey, SectionFillStatus>> {
+  const out = {} as Record<BibleSectionKey, SectionFillStatus>;
+  for (const key of BIBLE_SECTION_KEYS) out[key] = 'pending-app-reconcile';
+  return out;
+}
+
+// A variant's manifest is its OWN, never inherited as authorship: a section the
+// variant AUTHORS keeps the child's declared status; a derived section is 'derived'
+// — UNLESS the head marks it pending/na, which a derived section can't out-contract.
 function deriveVariantManifest(
   beat: BeatEntry,
+  head: BeatEntry | undefined,
 ): Readonly<Record<BibleSectionKey, SectionFillStatus>> {
   const childManifest = beat.bible?.sectionManifest;
+  const headManifest = head?.bible?.sectionManifest;
   const out = {} as Record<BibleSectionKey, SectionFillStatus>;
   for (const key of BIBLE_SECTION_KEYS) {
-    const ownsSection = Boolean(beat.bible && key in beat.bible);
-    out[key] = ownsSection ? (childManifest?.[key] ?? 'filled') : 'derived';
+    if (beat.bible && key in beat.bible) {
+      out[key] = childManifest?.[key] ?? 'filled';
+      continue;
+    }
+    const headStatus = headManifest?.[key];
+    out[key] =
+      headStatus === 'pending-app-reconcile' ||
+      (headStatus !== undefined && typeof headStatus === 'object')
+        ? headStatus
+        : 'derived';
   }
   return out;
 }
@@ -5124,12 +5143,24 @@ export function resolveBeatStructure(id: string): {
   readonly inheritedFrom?: string;
   readonly inheritedSections?: readonly string[];
   readonly derivedSections?: readonly string[];
+  // Complete 14-key manifest for EVERY beat (no-bible beats -> all pending-app-reconcile).
+  readonly sectionManifest?: Readonly<Record<BibleSectionKey, SectionFillStatus>>;
 } {
   const beat = BEAT_BY_ID[id];
   if (!beat) return {};
-  if (!beat.variantOf) return { io: beat.io, bible: beat.bible };
+  if (!beat.variantOf)
+    return {
+      io: beat.io,
+      bible: beat.bible,
+      sectionManifest: beat.bible?.sectionManifest ?? pendingManifest(),
+    };
   const head = BEAT_BY_ID[beat.variantOf];
-  if (!head) return { io: beat.io, bible: beat.bible };
+  if (!head)
+    return {
+      io: beat.io,
+      bible: beat.bible,
+      sectionManifest: beat.bible?.sectionManifest ?? pendingManifest(),
+    };
 
   const io = beat.io ?? head.io;
   const ioInherited = !beat.io && Boolean(head.io);
@@ -5182,11 +5213,12 @@ export function resolveBeatStructure(id: string): {
     }
 
     // manifest is per-variant, never inherited
-    resolved.sectionManifest = deriveVariantManifest(beat);
+    resolved.sectionManifest = deriveVariantManifest(beat, head);
     bible = resolved as unknown as BibleSections;
   }
 
   const inheritedFrom = ioInherited || derivedSections.length > 0 ? beat.variantOf : undefined;
+  const sectionManifest = bible?.sectionManifest ?? pendingManifest();
 
-  return { io, bible, inheritedFrom, inheritedSections, derivedSections };
+  return { io, bible, inheritedFrom, inheritedSections, derivedSections, sectionManifest };
 }

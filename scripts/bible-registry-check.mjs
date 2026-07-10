@@ -339,13 +339,17 @@ for (const beat of resolvedBeats) {
   const isVariant = Boolean(beat.variantOf);
   const owns = new Set(beat.ownBibleKeys);
 
-  // A beat with no bible and no variantOf: synthesized all-pending manifest.
-  // Legal (not yet contracted), but now EXPLICITLY tracked — never silently skipped.
+  // Safety net: the resolver now emits a real 14-key manifest for every beat, so a
+  // null here would mean a resolver regression, not a no-bible beat.
   if (!manifest) {
     coverage.allPending += 1;
     continue;
   }
-  if (isVariant) coverage.derivedVariant += 1;
+  // Classify by the REAL manifest content (not by bible presence): every-key-pending
+  // = all-pending; else variant = derived, else owner-filled.
+  const allPending = SECTION_KEYS.every((k) => manifest[k] === 'pending-app-reconcile');
+  if (allPending) coverage.allPending += 1;
+  else if (isVariant) coverage.derivedVariant += 1;
   else coverage.ownerFilled += 1;
 
   for (const key of SECTION_KEYS) {
