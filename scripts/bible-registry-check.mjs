@@ -408,16 +408,18 @@ for (const beat of resolvedBeats) {
   //    inherited sections fails here.
   if (isVariant && bible) {
     const ht = beat.headTokens;
-    // Namespace-prefix exemption: a head id / screenId that is a strict PREFIX of the
-    // variant's OWN id / screenId (e.g. head 'habits' vs variant
-    // 'habits-fall-asleep-earlier', or head screen 'ONBOARD-BEGINNER-03' vs
-    // 'ONBOARD-BEGINNER-03--FALL-ASLEEP-EARLIER') is not a leak: the variant
-    // legitimately carries its own namespaced id everywhere, and the bare head id may
-    // even coincide with a common word ('habits'). Only these two hierarchical
-    // identifiers are exempted, and only when the variant's own value extends the
-    // head's; every other head token (category, clip ids, rule prefix) still scans by
-    // plain substring. Goals is unaffected (its variant ids/screenIds do not extend
-    // the head's).
+    // Namespace-prefix exemption (beatId only): a head beatId that is a strict PREFIX
+    // of the variant's OWN beatId (e.g. head 'habits' vs variant
+    // 'habits-fall-asleep-earlier') is dropped wholesale, because the bare head beatId
+    // coincides with a common word ('habits') that legitimately appears in variant
+    // prose ("at most two habits total"); the typed-rebuild path protects that family.
+    // The head SCREENID is NOT dropped wholesale here — a wholesale drop hides a bare
+    // head-screenId leak. It is instead masked at the OCCURRENCE level below (the
+    // variant's own namespaced screenId is stripped from each section, then the bare
+    // head screenId is scanned), so a variant's legitimate 'ONBOARD-BEGINNER-03--<GOAL>'
+    // is suppressed while a BARE 'ONBOARD-BEGINNER-03' is still caught. Every other head
+    // token (category, clip ids, rule prefix, rule ids) still scans by plain substring.
+    // Goals is unaffected (its variant ids/screenIds do not extend the head's).
     const tokens = leakTokens(ht).filter((tok) => {
       if (
         ht &&
@@ -427,27 +429,52 @@ for (const beat of resolvedBeats) {
         beat.id.startsWith(ht.id)
       )
         return false;
-      if (
-        ht &&
-        tok === ht.screenId &&
-        typeof beat.screenId === 'string' &&
-        beat.screenId !== ht.screenId &&
-        beat.screenId.startsWith(ht.screenId)
-      )
-        return false;
       return true;
     });
     const semanticTokens = (beat.headTokens?.semanticTokens ?? []).filter(
       (t) => typeof t === 'string' && t.length > 0,
     );
+    // Head FULL rule ids (e.g. 'h-habit-cap'): only used when the head rule-prefix is
+    // too short to scan by prefix (<3 chars, e.g. the habits head's 'h'). These are
+    // scanned ONLY in freshly-REBUILT sections, never in inherited ones — an inherited
+    // section legitimately cross-references a shared head rule id in prose (e.g.
+    // applicableDecisions citing '(h-habit-cap)'), but a REBUILT builder section must
+    // emit the variant's OWN rule ids, so a builder hardcoding a head rule id is a leak.
+    const ruleIdTokens =
+      typeof ht?.rulePrefix === 'string' && ht.rulePrefix.length >= 3
+        ? []
+        : (ht?.ruleIds ?? []).filter((r) => typeof r === 'string' && r.length > 0);
+    const inheritedSections = new Set(beat.inheritedSections ?? []);
     for (const key of beat.derivedSections ?? []) {
-      const sectionStr = JSON.stringify(bible[key] ?? null);
+      let sectionStr = JSON.stringify(bible[key] ?? null);
+      // Occurrence-level exemption for the variant's OWN namespaced screenId: mask
+      // the variant's own screenId (which legitimately extends the head's, e.g.
+      // ONBOARD-BEGINNER-03--FALL-ASLEEP-EARLIER) BEFORE scanning, so a BARE head
+      // screenId (ONBOARD-BEGINNER-03 with no goal suffix) still surfaces as a leak.
+      if (
+        ht &&
+        typeof beat.screenId === 'string' &&
+        typeof ht.screenId === 'string' &&
+        beat.screenId !== ht.screenId &&
+        beat.screenId.startsWith(ht.screenId)
+      ) {
+        sectionStr = sectionStr.split(beat.screenId).join('<OWN>');
+      }
       const sectionLower = sectionStr.toLowerCase();
       for (const tok of tokens) {
         if (sectionStr.includes(tok)) {
           problems.push(
             `${beat.id}: derived section '${key}' leaks head token "${tok}" from ${beat.variantOf} (variant content must be per-variant, not the head's)`,
           );
+        }
+      }
+      if (!inheritedSections.has(key)) {
+        for (const tok of ruleIdTokens) {
+          if (sectionStr.includes(tok)) {
+            problems.push(
+              `${beat.id}: rebuilt section '${key}' leaks head rule id "${tok}" from ${beat.variantOf} (a rebuilt section must emit the variant's own rule ids, not the head's)`,
+            );
+          }
         }
       }
       for (const tok of semanticTokens) {

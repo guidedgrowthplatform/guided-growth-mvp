@@ -54,6 +54,29 @@ function headCanonicalSemanticTokens(head: BeatEntry): string[] | null {
   return null;
 }
 
+// The head's FULL rule ids (e.g. 'h-habit-cap'), recursively collected from its
+// resolved bible. leakTokens falls back to these when the head's rule-id prefix is
+// too short to scan safely (<3 chars, e.g. the habits head's 'h'), so a variant that
+// hardcodes a bare head rule id is still caught.
+function headRuleIds(head: BeatEntry): string[] {
+  const prefix = `${rulePrefix(head.id)}-`;
+  const ids = new Set<string>();
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v)) {
+      for (const x of v) walk(x);
+      return;
+    }
+    if (v && typeof v === 'object') {
+      for (const [k, val] of Object.entries(v)) {
+        if (k === 'id' && typeof val === 'string' && val.startsWith(prefix)) ids.add(val);
+        else walk(val);
+      }
+    }
+  };
+  walk(resolveBeatStructure(head.id).bible ?? null);
+  return [...ids];
+}
+
 const out = BEATS_SOURCE.map((beat) => {
   const resolved = resolveBeatStructure(beat.id);
   const head = beat.variantOf ? BEAT_BY_ID[beat.variantOf] : undefined;
@@ -62,6 +85,8 @@ const out = BEATS_SOURCE.map((beat) => {
         category: head.props?.category ?? null,
         clips: head.script.map((line) => line.clip).filter((c): c is string => Boolean(c)),
         rulePrefix: rulePrefix(head.id),
+        // The head's full rule ids; leakTokens uses these when rulePrefix is <3 chars.
+        ruleIds: headRuleIds(head),
         id: head.id,
         screenId: head.screenId ?? null,
         // Resolver-level SEMANTIC tokens (case-normalized) that free-text
