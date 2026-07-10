@@ -485,6 +485,39 @@ for (const beat of resolvedBeats) {
         }
       }
     }
+
+    // (3b) EXACT head rule-id rejection (Codex H1, 2026-07-10). This is a SEPARATE
+    // mechanism from the broad substring scans above and is deliberately NOT subject
+    // to their short-prefix or namespace exemptions — those exemptions exist only to
+    // stop the substring scans firing false positives, and an exact-string match has
+    // no such risk. A variant's DERIVED rulesContext / rulesCode is a typed rebuild
+    // that MUST author the variant's OWN rule ids; an EXACT head rule id appearing
+    // there is a leak. It slips the substring scans when the head prefix is too short
+    // to scan (habits' 'h', <3 chars) AND the head rule id is not a substring of any
+    // legitimate child id, so this closes that gap for EVERY family regardless of the
+    // head's prefix length. It inspects rule `id` fields ONLY, never prose, so the
+    // inherited applicableDecisions cross-reference that cites '(h-habit-cap)' in prose
+    // is unaffected (applicableDecisions is not a rulesContext/rulesCode rule array).
+    const headRuleIdSet = new Set(
+      (ht?.ruleIds ?? []).filter((r) => typeof r === 'string' && r.length > 0),
+    );
+    if (headRuleIdSet.size) {
+      const derived = new Set(beat.derivedSections ?? []);
+      for (const key of ['rulesContext', 'rulesCode']) {
+        if (!derived.has(key)) continue;
+        const rules = Array.isArray(bible[key]) ? bible[key] : [];
+        for (const rule of rules) {
+          const rid = rule && typeof rule === 'object' ? rule.id : undefined;
+          if (typeof rid === 'string' && headRuleIdSet.has(rid)) {
+            problems.push(
+              `${beat.id}: derived section '${key}' emits EXACT head rule id "${rid}" from ${beat.variantOf} ` +
+                `(a rebuilt section must author the variant's own rule ids, never reuse the head's; ` +
+                `exact-match rejection, independent of the head rule-prefix length)`,
+            );
+          }
+        }
+      }
+    }
   }
 }
 

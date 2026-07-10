@@ -65,26 +65,26 @@ function headCanonicalSemanticTokens(head: BeatEntry): string[] | null {
   return null;
 }
 
-// The head's FULL rule ids (e.g. 'h-habit-cap'), recursively collected from its
-// resolved bible. leakTokens falls back to these when the head's rule-id prefix is
-// too short to scan safely (<3 chars, e.g. the habits head's 'h'), so a variant that
-// hardcodes a bare head rule id is still caught.
+// The head's COMPLETE authored rule-id set, collected DIRECTLY from BOTH the head's
+// resolved rulesContext AND rulesCode sections (every BibleRule.id in each) — not via
+// a rule-prefix heuristic over a whole-bible walk (Codex H1, 2026-07-10). The guard's
+// EXACT head-rule-id rejection consumes this: because it matches exact strings, it is
+// independent of the head's computed rule prefix, so a head whose prefix is too short
+// for the broad substring scan (the habits head's 'h') is still fully covered.
+// Collecting straight from the two rule sections also means a head rule id that does
+// not start with the computed prefix is captured just the same — no short-prefix or
+// prefix-shape assumption survives in the set the exact rejection trusts.
 function headRuleIds(head: BeatEntry): string[] {
-  const prefix = `${rulePrefix(head.id)}-`;
+  const bible = resolveBeatStructure(head.id).bible as Record<string, unknown> | null | undefined;
   const ids = new Set<string>();
-  const walk = (v: unknown): void => {
-    if (Array.isArray(v)) {
-      for (const x of v) walk(x);
-      return;
+  for (const key of ['rulesContext', 'rulesCode']) {
+    const section = bible?.[key];
+    if (!Array.isArray(section)) continue;
+    for (const rule of section) {
+      if (rule && typeof rule === 'object' && typeof (rule as { id?: unknown }).id === 'string')
+        ids.add((rule as { id: string }).id);
     }
-    if (v && typeof v === 'object') {
-      for (const [k, val] of Object.entries(v)) {
-        if (k === 'id' && typeof val === 'string' && val.startsWith(prefix)) ids.add(val);
-        else walk(val);
-      }
-    }
-  };
-  walk(resolveBeatStructure(head.id).bible ?? null);
+  }
   return [...ids];
 }
 
@@ -96,7 +96,10 @@ const out = BEATS_SOURCE.map((beat) => {
         category: head.props?.category ?? null,
         clips: head.script.map((line) => line.clip).filter((c): c is string => Boolean(c)),
         rulePrefix: rulePrefix(head.id),
-        // The head's full rule ids; leakTokens uses these when rulePrefix is <3 chars.
+        // The head's COMPLETE authored rule-id set (both rule sections). The guard's
+        // EXACT rule-id rejection matches these verbatim against a variant's rebuilt
+        // rulesContext/rulesCode ids, unconditionally (any prefix length); the broad
+        // substring ruleId scan additionally uses them for short-prefix families.
         ruleIds: headRuleIds(head),
         id: head.id,
         screenId: head.screenId ?? null,

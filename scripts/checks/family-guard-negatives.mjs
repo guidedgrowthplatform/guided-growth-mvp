@@ -25,6 +25,18 @@
 //     presence of that diagnostic for a hasOwnBible variant is the unique fingerprint
 //     of the fix.
 //
+//   Test C (H1): a habits per-goal variant whose rebuilt rulesCode reuses the EXACT
+//     generic head rule id 'h-tools-only'. The habits head prefix 'h' (<3 chars) is
+//     too short for the broad substring scan and the id is not a substring of any
+//     legitimate child id, so it slipped both the registry and tool-contract checks.
+//     After the fix the EXACT head-rule-id rejection (independent of prefix length)
+//     flags it; the "emits EXACT head rule id" diagnostic is the fingerprint.
+//
+//   Test D (category token-drift): the category-grid head's exported semantic-token
+//     set drifted away from the canonical set recomputed from categoryData. The
+//     FAMILY CONTRACT integrity check must reject it (exported != canonical), proving
+//     the family-contract guard covers the category family, not only goals.
+//
 // Run: `node scripts/checks/family-guard-negatives.mjs` (or `npm run check:family-guard-negatives`).
 // Exits 0 only if the guard behaved correctly on all cases (green clean, red on both
 // mutations). This is NOT part of `check:beats` (which must stay green); it is the
@@ -83,7 +95,7 @@ function withMutation(name, edits, assertFn) {
   }
 }
 
-console.log('FAMILY-GUARD NEGATIVE TESTS (Codex G1/G2)\n');
+console.log('FAMILY-GUARD NEGATIVE TESTS (Codex G1/G2 + H1 rule-id + category drift)\n');
 
 // Baseline: clean tree must PASS.
 {
@@ -140,9 +152,58 @@ withMutation(
   },
 );
 
+// Test C (H1): a habits per-goal variant whose rebuilt rulesCode reuses an EXACT
+// generic head rule id ('h-tools-only') instead of its own per-goal id. The habits
+// head prefix is 'h' (<3 chars), too short for the broad substring prefix scan, and
+// the generic head rule id is not a substring of any legitimate child id — so before
+// the exact-match rejection this passed both the registry and tool-contract checks
+// green (Codex H1). The fixed guard rejects it by exact string match, independent of
+// the head prefix length. The UNIQUE fingerprint of the fix is the "emits EXACT head
+// rule id" diagnostic on the derived rulesCode section.
+withMutation(
+  'H1 habits child rulesCode reusing an exact head rule id fails the guard (rule-id leak)',
+  [['      id: `${p}-tools-only`,', "      id: 'h-tools-only', // ADVERSARIAL MUTATION (H1 negative test)"]],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — an exact head rule id in a rebuilt child rulesCode was accepted');
+    if (!/emits EXACT head rule id "h-tools-only"/.test(out))
+      throw new Error('the H1 exact-rule-id rejection did not fire on the rebuilt rulesCode');
+    if (!/derived section 'rulesCode'/.test(out))
+      throw new Error('H1 diagnostic did not identify the rebuilt rulesCode section');
+  },
+);
+
+// Test D (category token-drift): the category-grid head exports categorySemanticTokens()
+// (its generic opener clip). Drift that exported set away from the canonical set the
+// guard recomputes from categoryData, and the FAMILY CONTRACT integrity check must
+// reject it (exported != canonical) — proving the family-contract guard covers the
+// category family, not only goals. Its sole variant (category-women) authors its own
+// bible and derives nothing, so the mismatch surfaces solely as a FAMILY CONTRACT
+// failure, not a leak-scan hit.
+withMutation(
+  'category token-drift attack fails the guard (FAMILY CONTRACT)',
+  [
+    [
+      'export function categorySemanticTokens(): readonly string[] {\n  return [categoryData.headClip];\n}',
+      "export function categorySemanticTokens(): readonly string[] {\n  return ['drift-token']; // ADVERSARIAL MUTATION (category token-drift negative test)\n}",
+    ],
+  ],
+  ({ code, out }) => {
+    if (code === 0) throw new Error('guard exited 0 — a drifted category token set was accepted');
+    if (!/FAMILY CONTRACT/.test(out))
+      throw new Error('guard failed but not via the FAMILY CONTRACT integrity check');
+    if (!/head "category"/.test(out))
+      throw new Error('FAMILY CONTRACT diagnostic did not name the category family');
+    if (!/does NOT match the/.test(out))
+      throw new Error('FAMILY CONTRACT diagnostic did not report the exported/canonical mismatch');
+  },
+);
+
 console.log('');
 if (failures) {
   console.log(`FAMILY-GUARD NEGATIVE TESTS: ${failures} failure(s).`);
   process.exit(1);
 }
-console.log('FAMILY-GUARD NEGATIVE TESTS: all passed (guard bites on both G1 and G2).');
+console.log(
+  'FAMILY-GUARD NEGATIVE TESTS: all passed (guard bites on G1, G2, H1 rule-id leak, and category token-drift).',
+);
