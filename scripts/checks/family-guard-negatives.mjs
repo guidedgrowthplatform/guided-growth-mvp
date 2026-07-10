@@ -37,6 +37,14 @@
 //     FAMILY CONTRACT integrity check must reject it (exported != canonical), proving
 //     the family-contract guard covers the category family, not only goals.
 //
+//   Test E (cross-beat rule-id duplicate, Fable residual): category-women AUTHORS its
+//     own bible, so the per-beat exact-head-rule-id rejection (3b, derived-sections
+//     only) never inspects it. Point its authored rulesCode id 'catw-tools-only' at the
+//     head's 'cat-tools-only' and — before the (3d) global cross-beat uniqueness check —
+//     it passed both the registry and tool-contract checks. After the fix, (3d) rejects
+//     the same rule id claimed by two beats; the "CROSS-BEAT RULE-ID" diagnostic naming
+//     both beats is the fingerprint.
+//
 // Run: `node scripts/checks/family-guard-negatives.mjs` (or `npm run check:family-guard-negatives`).
 // Exits 0 only if the guard behaved correctly on all cases (green clean, red on both
 // mutations). This is NOT part of `check:beats` (which must stay green); it is the
@@ -199,11 +207,27 @@ withMutation(
   },
 );
 
+// Test E (cross-beat rule-id duplicate): an AUTHORED variant reusing an exact peer/head
+// rule id. category-women authors its own bible, so the derived-section scans never see
+// it; only the (3d) global cross-beat uniqueness check catches it.
+withMutation(
+  'E cross-beat duplicate authored rule id fails the guard (CROSS-BEAT RULE-ID)',
+  [["      id: 'catw-tools-only',", "      id: 'cat-tools-only', // ADVERSARIAL MUTATION (cross-beat rule-id negative test)"]],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — an authored variant reusing a peer beat rule id was accepted');
+    if (!/CROSS-BEAT RULE-ID: rule id "cat-tools-only"/.test(out))
+      throw new Error('the (3d) cross-beat uniqueness check did not flag the duplicate rule id');
+    if (!/\[category, category-women\]/.test(out))
+      throw new Error('the CROSS-BEAT RULE-ID diagnostic did not name both claiming beats');
+  },
+);
+
 console.log('');
 if (failures) {
   console.log(`FAMILY-GUARD NEGATIVE TESTS: ${failures} failure(s).`);
   process.exit(1);
 }
 console.log(
-  'FAMILY-GUARD NEGATIVE TESTS: all passed (guard bites on G1, G2, H1 rule-id leak, and category token-drift).',
+  'FAMILY-GUARD NEGATIVE TESTS: all passed (guard bites on G1, G2, H1 rule-id leak, category token-drift, and cross-beat rule-id duplicate).',
 );

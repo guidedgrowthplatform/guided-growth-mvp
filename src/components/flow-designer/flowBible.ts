@@ -13,6 +13,11 @@ export type SourceStatus = 'verified' | 'copy-pending' | 'app-reconcile-pending'
 
 export interface GlobalRule {
   readonly id: string;
+  // Behavior/precedence prose ONLY. It may quote a USER-input example (e.g. an
+  // off-topic question) but MUST NOT prescribe a spoken COACH line (a quoted line
+  // after a speech verb, e.g. reply "..."). Global dynamic response COPY lives in the
+  // typed GLOBAL_RESPONSES declaration and is owned in GLOBAL_VOICE_OWNERSHIP; a spoken
+  // line hidden in this prose is rejected by audio-ownership-check (B1-R).
   readonly rule: string;
   readonly severity: 'must' | 'should';
   readonly enforcedBy: readonly string[];
@@ -253,6 +258,51 @@ export const GLOBAL_VOICE_OWNERSHIP: readonly GlobalVoiceOwner[] = [
     id: 'tool-failure-voice',
     kind: 'tool-failure',
     source: 'TOOL_FAILURE.voicePath',
+    voice: 'clip-family:onboard_tool_failure_retry (pending recording)',
+  },
+];
+
+// ---------- 4d. Typed global dynamic-response declaration (B1-R) ----------
+//
+// The TYPED source of every GLOBAL dynamic response's COPY + modality. Before B1-R,
+// a global spoken reply could be encoded inside a free-text GlobalRule.rule string
+// (e.g. a rule that says: reply "..."), with no `voice` field and no registry entry,
+// and pass both audio-ownership-check (it skipped rules with no voice) and the
+// registry (exhaustiveness only bit rules that DECLARED a voice). So prescribed spoken
+// global behavior could be added with no owner while every gate stayed green (Codex
+// B1, whole-system QA 2026-07-10).
+//
+// This declaration closes that hole with THREE machine-enforced contracts, all inside
+// check:beats (check:audio-ownership):
+//   1. Every `modality: 'spoken'` row MUST carry a legal-shape voice owner.
+//   2. SET-EQUALITY: the set of spoken responses here EQUALS GLOBAL_VOICE_OWNERSHIP
+//      (every spoken response is owned; no owner without a declared response; no
+//      spoken response outside the registry). Voices must agree per id.
+//   3. A GlobalRule.rule may NOT prescribe a spoken coach line in its prose (a quoted
+//      line after a speech verb): global dynamic response copy lives ONLY here, so a
+//      spoken line cannot hide in rule prose.
+// The two pre-existing owned globals (glob-out-of-scope, TOOL_FAILURE.voicePath) are
+// migrated into this typed form below, meaning/copy unchanged.
+export type GlobalResponseModality = 'spoken' | 'text-only';
+
+export interface GlobalResponse {
+  readonly id: string; // for a spoken row, MUST match its GLOBAL_VOICE_OWNERSHIP entry id
+  readonly modality: GlobalResponseModality;
+  readonly line: string; // the APPROVED copy: a fixed sentence, or a family-level description for a clip-family owner
+  readonly voice?: string; // REQUIRED for 'spoken'; a legal voice shape, agreeing with the owner
+}
+
+export const GLOBAL_RESPONSES: readonly GlobalResponse[] = [
+  {
+    id: 'glob-out-of-scope',
+    modality: 'spoken',
+    line: 'Per-beat steer-back: brief acknowledgment then the beat own question again, recorded per beat (the clip family owns each variant, no single fixed sentence).',
+    voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+  },
+  {
+    id: 'tool-failure-voice',
+    modality: 'spoken',
+    line: "That didn't go through, let me try again.",
     voice: 'clip-family:onboard_tool_failure_retry (pending recording)',
   },
 ];

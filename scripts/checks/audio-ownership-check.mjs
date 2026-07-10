@@ -32,7 +32,12 @@ import {
   FLOWBIBLE_PATH,
   report,
 } from './lib/beats-ast.mjs';
-import { isLegalVoiceShape, validateGlobalVoiceOwnership } from './lib/globalVoiceOwnership.mjs';
+import {
+  isLegalVoiceShape,
+  validateGlobalVoiceOwnership,
+  validateGlobalResponses,
+  findGlobalRuleProseSpokenLines,
+} from './lib/globalVoiceOwnership.mjs';
 
 const problems = [];
 
@@ -195,6 +200,7 @@ const { out: fbConsts } = await loadFlowBibleConsts([
   'GLOBAL_RULES',
   'GLOBAL_VOICE_OWNERSHIP',
   'TOOL_FAILURE',
+  'GLOBAL_RESPONSES',
 ]);
 
 const globalRulesArr = Array.isArray(fbConsts.GLOBAL_RULES?.rules)
@@ -232,11 +238,30 @@ const ownershipProblems = validateGlobalVoiceOwnership({
 });
 for (const p of ownershipProblems) problems.push(p);
 
+// Lane f (B1-R): the TYPED global response declaration (GLOBAL_RESPONSES) is the only
+// permitted source of global dynamic response copy. Every modality:'spoken' row must
+// carry a legal owner, and the spoken-response set must EQUAL GLOBAL_VOICE_OWNERSHIP
+// (no spoken response outside the registry; no owner without a declared response).
+const globalResponses = fbConsts.GLOBAL_RESPONSES;
+if (!Array.isArray(globalResponses))
+  throw new Error('Could not find GLOBAL_RESPONSES in flowBible.ts (B1-R typed response declaration required)');
+const responseProblems = validateGlobalResponses({ responses: globalResponses, registry });
+for (const p of responseProblems) problems.push(p);
+
+// Lane g (B1-R): a GlobalRule.rule may not hide a prescribed spoken coach line in its
+// prose (a quoted line after a speech verb). This is the exact Codex B1 attack: a
+// spoken global reply added as rule prose with no voice field and no registry entry.
+const proseProblems = findGlobalRuleProseSpokenLines(globalRulesArr);
+for (const p of proseProblems) problems.push(p);
+
+const spokenResponses = globalResponses.filter((r) => r?.modality === 'spoken').length;
 report(
   problems,
-  `audio-ownership-check passed (5 lanes): ${bibleBeats.length} bible-bearing beat(s); ` +
+  `audio-ownership-check passed (7 lanes): ${bibleBeats.length} bible-bearing beat(s); ` +
     `lane a perLine ownership holds; lane b ${branchesChecked} spoken branch reply(ies) owned; ` +
     `lane c ${edgesChecked} quoted-spoken edge(s) owned; ` +
     `lane d ${globalRulesChecked} global-rule voice field(s) shape-valid; ` +
-    `lane e ${registry.length} global dynamic reply(ies) required-owned (registry-exhaustive).`,
+    `lane e ${registry.length} global dynamic reply(ies) required-owned (registry-exhaustive); ` +
+    `lane f ${spokenResponses} typed spoken response(s) owned + set-equal to the registry; ` +
+    `lane g ${globalRulesArr.length} global rule(s) prose-linted (no spoken line hidden in prose).`,
 );

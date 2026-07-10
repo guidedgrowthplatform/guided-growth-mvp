@@ -521,6 +521,41 @@ for (const beat of resolvedBeats) {
   }
 }
 
+// (3d) GLOBAL CROSS-BEAT RULE-ID UNIQUENESS (Fable residual, 2026-07-10).
+// The per-beat EXACT head-rule-id rejection (3b) and the leak scan (3) only inspect a
+// variant's DERIVED sections. A variant that AUTHORS its OWN rulesContext/rulesCode can
+// reuse an EXACT head (or any peer beat's) rule id and slip every per-beat scan, the
+// registry cross-check, AND the tool-contract check — proven: category-women authors
+// its own bible, and setting its authored rulesCode id catw-tools-only to the head's
+// cat-tools-only passed both registry and tool-contract. A rule id is the ownership
+// handle for a spoken/typed rule, so it MUST name exactly one beat. Build id ->
+// [beatId...] over EVERY resolved beat's rulesContext + rulesCode (authored OR derived)
+// and reject any id claimed by more than one beat.
+const ruleIdOwners = new Map();
+for (const beat of resolvedBeats) {
+  const bible = beat.resolvedBible;
+  if (!bible) continue;
+  for (const key of ['rulesContext', 'rulesCode']) {
+    const rules = Array.isArray(bible[key]) ? bible[key] : [];
+    for (const rule of rules) {
+      const rid = rule && typeof rule === 'object' ? rule.id : undefined;
+      if (typeof rid !== 'string' || !rid.length) continue;
+      if (!ruleIdOwners.has(rid)) ruleIdOwners.set(rid, new Set());
+      ruleIdOwners.get(rid).add(beat.id);
+    }
+  }
+}
+for (const [rid, owners] of ruleIdOwners) {
+  if (owners.size > 1) {
+    problems.push(
+      `CROSS-BEAT RULE-ID: rule id "${rid}" is claimed by ${owners.size} beats ` +
+        `[${[...owners].sort().join(', ')}] — every beat's rulesContext/rulesCode rule id must be globally ` +
+        `unique across beats. An AUTHORED variant reusing a head or peer rule id slips the per-beat ` +
+        `derived-section scans; the id is the ownership handle and must name exactly one beat.`,
+    );
+  }
+}
+
 // (3c) FAMILY TYPED-PATH GUARD (fill precondition, Fable finding #2).
 // The semantic-leak scan above can only bite a family whose head exposes a
 // non-empty semantic-token set AND whose variants are built from typed per-family
@@ -691,7 +726,7 @@ console.log(
     `${beatsWithBible} authored bible(s), ${beatsEnforcedByCount} enforcedBy refs in beatsSource.ts, all resolved. ` +
     `Coverage: ${resolvedBeats.length} beats resolved a manifest ` +
     `(${coverage.ownerFilled} owner-filled, ${coverage.derivedVariant} derived-variant, ${coverage.allPending} all-pending), ` +
-    `no variant leaked a head token, no non-owned 'filled' claim.` +
+    `no variant leaked a head token, ${ruleIdOwners.size} rule ids globally unique across beats, no non-owned 'filled' claim.` +
     (MODE === 'authoring'
       ? ' (Release mode --mode=release additionally requires every must-rule enforcer to be built/runnable.)'
       : ''),

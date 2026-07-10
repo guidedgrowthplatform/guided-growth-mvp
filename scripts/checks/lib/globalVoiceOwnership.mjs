@@ -97,3 +97,124 @@ export function validateGlobalVoiceOwnership({ registry, globalRulesById, toolFa
 
   return problems;
 }
+
+// ---- B1-R: typed global dynamic-response ownership (GLOBAL_RESPONSES) ----
+//
+// The typed GLOBAL_RESPONSES declaration is the ONLY permitted source for global
+// dynamic response copy. This validator enforces, over plain objects (so the Vitest
+// test can pass mutated copies), the three B1-R contracts:
+//   1. every `modality: 'spoken'` row carries a legal-shape voice owner;
+//   2. SET-EQUALITY between the spoken responses and GLOBAL_VOICE_OWNERSHIP (every
+//      spoken response is owned; every owner has a declared spoken response; no spoken
+//      response lives outside the registry) with per-id voice agreement;
+//   3. unknown modality values are rejected.
+export function validateGlobalResponses({ responses, registry }) {
+  const problems = [];
+
+  if (!Array.isArray(responses)) {
+    problems.push(
+      'GLOBAL_RESPONSES is missing or not an array — the typed global dynamic-response declaration is required (B1-R)',
+    );
+    return problems;
+  }
+
+  const spokenIds = new Set();
+  const spokenVoiceById = new Map();
+
+  for (const resp of responses) {
+    const label = `GLOBAL_RESPONSES "${resp?.id ?? '(no id)'}"`;
+    if (resp?.modality === 'spoken') {
+      if (!resp.id) {
+        problems.push(
+          `${label}: a spoken response must carry an id matching its GLOBAL_VOICE_OWNERSHIP owner`,
+        );
+      } else {
+        spokenIds.add(resp.id);
+        spokenVoiceById.set(resp.id, resp.voice);
+      }
+      if (!isLegalVoiceShape(resp?.voice)) {
+        problems.push(
+          `${label}: modality 'spoken' but voice "${resp?.voice}" is not one of the four legal shapes ` +
+            `(every spoken global response must be owned)`,
+        );
+      }
+    } else if (resp?.modality === 'text-only') {
+      // A text-only declared response carries no voice owner by definition — fine.
+    } else {
+      problems.push(`${label}: unknown modality "${resp?.modality}" (must be 'spoken' or 'text-only')`);
+    }
+  }
+
+  // SET-EQUALITY with the ownership registry.
+  const registeredIds = new Set(
+    Array.isArray(registry) ? registry.map((e) => e?.id).filter(Boolean) : [],
+  );
+  for (const id of spokenIds) {
+    if (!registeredIds.has(id)) {
+      problems.push(
+        `GLOBAL_RESPONSES spoken response "${id}" has NO matching GLOBAL_VOICE_OWNERSHIP entry ` +
+          `(a spoken response outside the ownership registry is unowned)`,
+      );
+    }
+  }
+  for (const id of registeredIds) {
+    if (!spokenIds.has(id)) {
+      problems.push(
+        `GLOBAL_VOICE_OWNERSHIP entry "${id}" has NO matching spoken GLOBAL_RESPONSES row ` +
+          `(every owned global reply must declare its typed spoken response)`,
+      );
+    }
+  }
+
+  // Per-id voice agreement between the typed response and its declared owner.
+  if (Array.isArray(registry)) {
+    for (const entry of registry) {
+      if (!entry?.id || !spokenVoiceById.has(entry.id)) continue;
+      const rv = spokenVoiceById.get(entry.id);
+      if (rv !== entry.voice) {
+        problems.push(
+          `GLOBAL_RESPONSES "${entry.id}" voice "${rv}" disagrees with its GLOBAL_VOICE_OWNERSHIP ` +
+            `owner "${entry.voice}"`,
+        );
+      }
+    }
+  }
+
+  return problems;
+}
+
+// ---- B1-R: prose lint — a GlobalRule.rule must not hide a spoken coach line ----
+//
+// A quoted line (>2 words) that appears after a speech verb (say/reply/respond/tell/
+// speak/utter/answer, and inflections) inside a GlobalRule.rule is a prescribed spoken
+// coach line hidden in free-text prose. This is the exact Codex B1 attack shape
+// (`... say "Let us get back to your onboarding" ...`). Global dynamic response copy
+// must live in the typed GLOBAL_RESPONSES declaration and be owned, so this is rejected.
+//
+// It is deliberately anchored on a QUOTE preceded by a SPEECH VERB, so it does NOT fire
+// on a rule that quotes a USER-input EXAMPLE (glob-out-of-scope's "who won the game
+// yesterday", glob-invalid-value's "my gender is yellow" — those follow nouns like
+// "questions"/"values", not a speech verb), nor on a speech verb with no quote
+// (glob-no-machinery's "Never says beat...", glob-ack-where-declared's "speak the
+// recorded acknowledgment line").
+const SPEECH_VERB_QUOTE_RE =
+  /\b(say|says|said|saying|reply|replies|replied|respond|responds|responded|tell|tells|told|speak|speaks|spoke|spoken|utter|utters|uttered|answer|answers|answered)\b(?:\s+\w+){0,3}\s*["“]([^"”]+)["”]/i;
+
+export function findGlobalRuleProseSpokenLines(globalRulesArr) {
+  const problems = [];
+  if (!Array.isArray(globalRulesArr)) return problems;
+  for (const rule of globalRulesArr) {
+    const text = rule && typeof rule.rule === 'string' ? rule.rule : '';
+    if (!text) continue;
+    const m = SPEECH_VERB_QUOTE_RE.exec(text);
+    if (!m) continue;
+    const inner = (m[2] ?? '').trim();
+    if (inner.split(/\s+/).filter(Boolean).length <= 2) continue;
+    problems.push(
+      `GLOBAL_RULES "${rule.id}": rule prose prescribes a spoken coach line ("${inner}") in free text ` +
+        `(a quoted line after the speech verb "${m[1]}"). Global dynamic response copy must live in the typed ` +
+        `GLOBAL_RESPONSES declaration and be owned in GLOBAL_VOICE_OWNERSHIP — a spoken line may not hide in rule prose (B1-R).`,
+    );
+  }
+  return problems;
+}
