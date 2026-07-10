@@ -2591,11 +2591,12 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       category: 'Sleep better',
     },
     bible: {
-      // uniform shape: all 14 sections filled (multi-turn beat, Yair 2026-07-09: conversation = filled)
+      // components pending-app-reconcile: the "n of 2 selected" counter + Continue affordance
+      // are ASSERTED SPEC the render component does not build yet (see components.watchOut).
       sectionManifest: {
         identity: 'filled',
         scriptMeta: 'filled',
-        components: 'filled',
+        components: 'pending-app-reconcile',
         voice: 'filled',
         rulesContext: 'filled',
         rulesCode: 'filled',

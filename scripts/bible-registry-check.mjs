@@ -36,6 +36,11 @@ const dumpScript = path.join('scripts', 'dump-resolved-beats.mts');
 
 const MODE = process.argv.includes('--mode=release') ? 'release' : 'authoring';
 
+// Marker convention (beatsSource.ts): a section describing UI the render does NOT
+// build yet tags its prose "ASSERTED SPEC ... does not implement yet". Release mode
+// forbids such a section from also claiming manifest status 'filled'.
+const ASSERTED_UNIMPLEMENTED_RE = /ASSERTED SPEC[\s\S]*?does not implement yet/i;
+
 // The 14 uniform section keys (mirrors BibleSectionKey / beatsSource BIBLE_SECTION_KEYS).
 const SECTION_KEYS = [
   'identity',
@@ -421,6 +426,24 @@ function enforceableInRelease(id) {
 }
 
 if (MODE === 'release') {
+  // (4a) Honesty gate: a 'filled' section whose resolved content carries the
+  // asserted-but-unimplemented marker is a false claim — reject it.
+  for (const beat of resolvedBeats) {
+    const manifest = beat.resolvedManifest;
+    const bible = beat.resolvedBible;
+    if (!manifest || !bible) continue;
+    for (const key of SECTION_KEYS) {
+      if (manifest[key] !== 'filled') continue;
+      if (ASSERTED_UNIMPLEMENTED_RE.test(JSON.stringify(bible[key] ?? null))) {
+        problems.push(
+          `RELEASE: ${beat.id} manifest.${key} claims 'filled' but its content carries an ` +
+            `asserted-but-unimplemented marker ("ASSERTED SPEC ... does not implement yet") — ` +
+            `a section describing UI the render does not build cannot be 'filled'`,
+        );
+      }
+    }
+  }
+
   const mustRules = [
     ...collectMustRules(flowBibleSf, flowBibleSf, 'flowBible.ts'),
     ...collectMustRules(beatsArrayNode, beatsSf, 'beatsSource.ts'),

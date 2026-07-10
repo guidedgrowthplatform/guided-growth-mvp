@@ -18,7 +18,9 @@
 //      tiles) — this check guards any OWN-authored components block against
 //      silently drifting from the beat's own props.
 
-import { ownBibleBeats, loadBeats, report } from './lib/beats-ast.mjs';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { ownBibleBeats, loadBeats, report, ROOT } from './lib/beats-ast.mjs';
 
 const problems = [];
 
@@ -72,8 +74,45 @@ for (const { beatId, value: beat, line } of bibleBeats) {
   }
 }
 
+// 3. Declared component STATE vs the REAL component source (statically cheap).
+// Map a selection beat type -> its render component. Marker convention
+// (beatsSource.ts): a section describing UI the render lacks tags its prose
+// "ASSERTED SPEC ... does not implement yet". Assert that marker stays TRUTHFUL:
+// if the component now ships an advance/Continue affordance, the marker is stale.
+// TODO(runtime): render the mapped component in jsdom and assert the "n of N
+// selected" counter + Continue button nodes are actually absent (true DOM check).
+const TYPE_TO_COMPONENT = {
+  'goals-list': 'src/components/flow-designer/beats/goalsList.tsx',
+};
+const ASSERTED_UNIMPLEMENTED_RE = /ASSERTED SPEC[\s\S]*?does not implement yet/i;
+const CONTINUE_AFFORDANCE_RE = /advance_step|onContinue|handleContinue|>\s*Continue\b/;
+
+let stateChecked = 0;
+for (const { beatId, value: beat } of bibleBeats) {
+  const componentPath = TYPE_TO_COMPONENT[beat.type ?? ''];
+  const components = beat.bible?.components;
+  if (!componentPath || !components) continue;
+  if (!ASSERTED_UNIMPLEMENTED_RE.test(JSON.stringify(components))) continue;
+  let source;
+  try {
+    source = await readFile(path.join(ROOT, componentPath), 'utf8');
+  } catch {
+    problems.push(`${beatId}: maps type "${beat.type}" to ${componentPath}, which does not exist`);
+    continue;
+  }
+  stateChecked += 1;
+  if (CONTINUE_AFFORDANCE_RE.test(source)) {
+    problems.push(
+      `${beatId}: bible.components marks the counter/Continue affordance ASSERTED-unimplemented, ` +
+        `but ${componentPath} appears to implement an advance affordance — the marker is stale, ` +
+        `update the manifest/marker to match the component`,
+    );
+  }
+}
+
 report(
   problems,
   `component-registry-check passed: ${bibleBeats.length} bible-bearing beat(s) checked, ` +
-    `no-preselection and variant/props fidelity both hold.`,
+    `no-preselection and variant/props fidelity hold; ` +
+    `${stateChecked} asserted-unimplemented marker(s) verified truthful against component source.`,
 );
