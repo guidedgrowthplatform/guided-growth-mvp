@@ -179,7 +179,13 @@ function metadataPropsForBeat(type: string, screenId?: string): Record<string, s
 // (the goals-list and habit-picker variants) renders the right on-screen grid,
 // not the fixed demo default. Beats without the seed keep the demo values.
 function useIsolatedFlowState(seed?: { category?: string; goals?: string[] }): FlowState {
-  const [path, setPath] = useState<'new' | 'exp' | null>('new');
+  // glob-no-preselection: the fork (path-selection) has no default pick either.
+  // 'new' used to seed here, so the fork beat rendered with "I'm new to this"
+  // already selected (blue border) on entry in Play, reading as a shipped
+  // default (bug: FlowDesigner.tsx useIsolatedFlowState, path pre-fix). No other
+  // beat reads flow.path (only path-selection.tsx itself does), and every mount
+  // gets its own isolated state, so this default affects nothing downstream.
+  const [path, setPath] = useState<'new' | 'exp' | null>(null);
   // glob-no-preselection: no fallback default here. A category/category-women
   // mount never passes seed.category (it's the beat that PICKS one), so a
   // 'Sleep better' fallback used to leak in as a false preselection on first

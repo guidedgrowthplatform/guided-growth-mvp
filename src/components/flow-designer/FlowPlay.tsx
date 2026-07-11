@@ -28,6 +28,26 @@ import {
 // between the openers in place, the same model as the annotated concept groups.
 const PLAY_RUNS = buildConceptRuns(BEATS);
 
+// A handful of variant beats (today just category / category-women, the men's-
+// and women's-art picker) intentionally share one screenId: same screen, same
+// script, only the art swaps by gender. The run label below normally shows just
+// the screenId, so those two consecutive steps read as the same screen twice
+// with no cue that anything changed. Flag every screenId that more than one
+// step in this flow carries, so the label can append the beat id and make the
+// two steps tell apart.
+const SHARED_SCREEN_IDS = new Set<string>(
+  Object.entries(
+    PLAY_RUNS.flatMap((run) => run.beats)
+      .filter((b) => b.screenId)
+      .reduce<Record<string, number>>((acc, b) => {
+        acc[b.screenId as string] = (acc[b.screenId as string] ?? 0) + 1;
+        return acc;
+      }, {}),
+  )
+    .filter(([, count]) => count > 1)
+    .map(([screenId]) => screenId),
+);
+
 export function FlowPlay() {
   // The play step (a concept run), and, per run, which variation is selected.
   const [itemIdx, setItemIdx] = useState(0);
@@ -225,6 +245,7 @@ export function FlowPlay() {
         </label>
         <span style={{ fontSize: 12, color: '#94a3b8' }}>
           {itemIdx + 1} / {PLAY_RUNS.length} · {beat.screenId ?? beat.id}
+          {beat.screenId && SHARED_SCREEN_IDS.has(beat.screenId) ? ` (${beat.id})` : ''}
         </span>
         {beat.engine && (
           <span
