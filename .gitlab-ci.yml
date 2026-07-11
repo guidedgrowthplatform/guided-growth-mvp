@@ -102,6 +102,13 @@ deploy_builder:
     url: https://gg-onboarding-render.pages.dev
   variables:
     npm_config_cache: '$CI_PROJECT_DIR/.npm'
+    # Not a secret (it's just the account identifier shown in any Cloudflare
+    # dashboard URL for this account). Setting it explicitly makes wrangler
+    # skip its /memberships lookup for account selection, a call our scoped
+    # API token isn't granted (User-level Membership Read) and doesn't need
+    # to be: the token already has account-scoped Pages access, verified
+    # directly against /accounts/<id>/pages/projects/gg-onboarding-render.
+    CLOUDFLARE_ACCOUNT_ID: 'c11595208c0ced5b8ffea39d4eb9e077'
   cache:
     key:
       files:
