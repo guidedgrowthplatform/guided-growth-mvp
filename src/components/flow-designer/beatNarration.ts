@@ -439,6 +439,15 @@ export async function runBeatScript(opts: {
     await wait(120);
     if (shouldStop()) return;
   }
+  // Terminal reveal: the beat's narration is done, so show its full component.
+  // All-bubble beats (plan, custom-entry) never hit the card branch's
+  // setStepReveal(99), so without this their component (the plan cards, the
+  // custom-entry input) stays hidden the whole beat. Safe for every path: the
+  // grid branch already returned; card/reveal beats are already at 99 (no-op);
+  // a trailing-bubble beat (checkin ask2, advanced-frequency confirm) has just
+  // finished speaking, so raising to 99 only completes the reveal, never hides;
+  // pure conversation beats just keep all bubbles shown.
+  setStepReveal(99);
   setSyncWords(null);
   await wait(500);
 }

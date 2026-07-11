@@ -2916,8 +2916,15 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         words:
           "Every day is great, but doing it on weekdays consistently beats doing it every day only occasionally. That's what I recommend to start.",
         bindsTo: {
+          // Absolute step position, not bubble ordinal: this is the 2nd coach
+          // bubble but the 3rd BeatPlayer step (ask, card, THEN this), because the
+          // check-in card sits between the two bubbles. Naming it bubble-2 made the
+          // driver call setStepReveal(2), which reveals only [ask, card] and hides
+          // this bubble at index 2 exactly while it speaks. bubble-3 reveals it and
+          // lets it karaoke. (advanced-frequency's trailing bubble uses the same
+          // absolute-step convention: bubble-4 for its 4th step.)
           kind: 'bubble',
-          element: 'bubble-2',
+          element: 'bubble-3',
           screen: 'ONBOARD-MORNING-SETUP',
         },
         voice: 'mp3',
