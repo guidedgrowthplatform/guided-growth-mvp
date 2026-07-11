@@ -329,13 +329,15 @@ function scriptTarget(line: ScriptLine): { bubbleStep: number | null; reveal: nu
   return { bubbleStep: null, reveal: null };
 }
 
-// Play a single line's audio. L8: clip-by-text is the default resolve. The line's
-// words are looked up in the text -> clip map first (derived from every line's
-// words + clipPath), falling back to its own clipPath, so a broken or missing
-// clipPath can never silently drop a recorded line to the browser voice.
+// Play a single line's audio. The line's OWN clipPath is the source of truth
+// (beat-specific, unambiguous), so a line always voices its own recorded clip.
+// The text -> clip map is only a fallback for lines that carry no clipPath: two
+// beats can share the same sentence (e.g. beginner schedule vs advanced frequency),
+// and a text-keyed lookup would collide and play the wrong beat's clip. Preferring
+// clipPath first fixes that collision while still resolving clipPath-less lines.
 function playLine(line: ScriptLine, muted: boolean, onWord?: (n: number) => void): Promise<void> {
   const words = sample(line.words);
-  const src = line.voice !== null ? (clipSrc(line.words) ?? line.clipPath) : null;
+  const src = line.voice !== null ? (line.clipPath ?? clipSrc(line.words)) : null;
   if (src) return playClip(src, words, muted, onWord);
   return speak(words, muted, onWord);
 }
