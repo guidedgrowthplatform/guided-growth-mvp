@@ -20,6 +20,7 @@ export interface UserPreferences {
   recordingMode: RecordingMode;
   defaultView: DbUserPreferences['default_view'];
   spreadsheetRange: DbUserPreferences['spreadsheet_range'];
+  timezone: string;
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -35,6 +36,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   recordingMode: 'auto-stop',
   defaultView: 'spreadsheet',
   spreadsheetRange: 'month',
+  timezone: '',
 };
 
 export const SETTINGS_STORAGE_KEY = 'mvp03_page_settings';

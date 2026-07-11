@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { rescheduleFromPrefs } from '@/lib/localReminders';
@@ -17,6 +17,9 @@ export type { UserPreferences };
 export { DEFAULT_PREFERENCES };
 
 const REMINDER_KEYS = ['morningTime', 'nightTime', 'pushNotifications'] as const;
+
+// Once-per-session guard for the boot timezone capture (server writer/read-for-context need it).
+let bootTzCaptured = false;
 
 // reschedule from resolved `next` (not the snapshot) to avoid a write/read race
 function maybeReschedule(partial: Partial<UserPreferences>, next: UserPreferences): void {
@@ -38,6 +41,7 @@ const CAMEL_TO_SNAKE: Record<keyof UserPreferences, keyof DbUserPreferences> = {
   recordingMode: 'recording_mode',
   defaultView: 'default_view',
   spreadsheetRange: 'spreadsheet_range',
+  timezone: 'timezone',
 };
 
 function fromWire(row: WirePreferences): UserPreferences {
@@ -176,6 +180,21 @@ export function useUserPreferences() {
     },
     [qc, persistOrDegradeToLocal, user],
   );
+
+  // Persist the device IANA timezone once per session so the server-side calendar
+  // writer + read-for-context resolve local times correctly. Degrades to local on failure.
+  useEffect(() => {
+    // Wait for the SERVER row (query.data is truthy from initialData/local snapshot),
+    // else we'd compare against stale local data and write a redundant upsert.
+    if (bootTzCaptured || !user || !query.isFetched || !query.data) return;
+    bootTzCaptured = true;
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz && tz !== query.data.timezone) void updatePreference('timezone', tz);
+    } catch {
+      // ignore — tz capture is best-effort
+    }
+  }, [user, query.isFetched, query.data, updatePreference]);
 
   return {
     preferences: query.data ?? DEFAULT_PREFERENCES,

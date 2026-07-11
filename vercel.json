@@ -43,6 +43,7 @@
     { "source": "/api/session_log", "destination": "/api/session_log/__index" },
     { "source": "/api/context", "destination": "/api/context/__index" },
     { "source": "/api/llm", "destination": "/api/llm/__index" },
+    { "source": "/api/calendar", "destination": "/api/calendar/__index" },
     {
       "source": "/ingest/static/(.*)",
       "destination": "https://us-assets.i.posthog.com/static/$1"

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { deleteAccount } from '@/api/onboarding';
 import { ReminderSheet } from '@/components/home/ReminderSheet';
+import { CalendarIntegrationSection } from '@/components/settings/CalendarIntegrationSection';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import {
   coachingStyles,
@@ -251,6 +252,9 @@ export function SettingsPage() {
           />
         </SettingsCard>
       </section>
+
+      {/* Integrations */}
+      <CalendarIntegrationSection />
 
       {/* Privacy & Account */}
       <section className="mt-8">

@@ -66,7 +66,11 @@ if (Capacitor.isNativePlatform()) {
     const code = urlObj.searchParams.get('code');
     if (code) {
       lastHandledUrl = url;
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      const cal = await import('@/api/calendar');
+      // Consume the fallback flag unconditionally (bounded TTL) alongside the query param.
+      const isCalendar =
+        urlObj.searchParams.get('intent') === 'calendar' || cal.consumeCalendarConnectPending();
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
       const { Browser } = await import('@capacitor/browser');
       Browser.close().catch(() => {});
@@ -74,6 +78,22 @@ if (Capacitor.isNativePlatform()) {
       if (error) {
         setPendingAuthError(error.message);
         window.dispatchEvent(new CustomEvent('auth:error'));
+        return;
+      }
+
+      // Calendar grant (not a login): capture the Google refresh token, stay on Settings.
+      // Native has no page reload, so refetch the calendar status so the UI flips to connected.
+      if (isCalendar) {
+        const refreshToken = data.session?.provider_refresh_token;
+        if (refreshToken) {
+          try {
+            await cal.connectCalendar(refreshToken);
+            const { queryClient, queryKeys } = await import('@/lib/query');
+            void queryClient.invalidateQueries({ queryKey: queryKeys.calendar.all });
+          } catch (e) {
+            console.warn('[calendar] connect POST failed', e);
+          }
+        }
       }
       return;
     }
