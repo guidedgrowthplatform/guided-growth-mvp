@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@iconify/react';
-import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
+import { useEffect, useRef, useState } from 'react';
 import { classifyHabitPolarity } from '@/components/onboarding/habitPolarity';
+import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
 import { BeatPlayer, useAnimations, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY as BLUE, INK, SUBTLE, SURFACE, BORDER, SPACE } from './_beatStyle';
@@ -58,7 +58,10 @@ function CardList({
   return (
     <div className="flex w-full max-w-[360px] flex-col gap-3">
       {entries.map((e, idx) => (
-        <div key={e.name} style={animate ? { animation: 'ggCardIn 300ms ease-out both' } : undefined}>
+        <div
+          key={e.name}
+          style={animate ? { animation: 'ggCardIn 300ms ease-out both' } : undefined}
+        >
           <HabitScheduleCard
             habitName={e.name}
             polarity={e.polarity}
@@ -105,11 +108,20 @@ function ListeningHeader({ listening, current }: { listening: boolean; current?:
           transition: 'background 200ms ease-out',
         }}
       >
-        <Icon icon="mdi:microphone" width={20} height={20} style={{ color: listening ? '#fff' : BLUE }} />
+        <Icon
+          icon="mdi:microphone"
+          width={20}
+          height={20}
+          style={{ color: listening ? '#fff' : BLUE }}
+        />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: FONT, fontSize: 14.5, fontWeight: 600, color: INK }}>
-          {listening ? (current ? 'Got it, keep going...' : 'Listening for your habits...') : 'All captured'}
+          {listening
+            ? current
+              ? 'Got it, keep going...'
+              : 'Listening for your habits...'
+            : 'All captured'}
         </div>
         {listening && current && (
           <div style={{ fontFamily: FONT, fontSize: 13, color: SUBTLE, marginTop: 2 }}>
@@ -243,7 +255,9 @@ function TypeInstead() {
         ref={textareaRef}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder={'One habit per line, for example:\n10-minute walk after lunch\nNo screens after 10 PM'}
+        placeholder={
+          'One habit per line, for example:\n10-minute walk after lunch\nNo screens after 10 PM'
+        }
         rows={5}
         style={{
           fontFamily: FONT,
@@ -280,7 +294,9 @@ function TypeInstead() {
           textAlign: 'center',
         }}
       >
-        {lines.length ? `Save ${lines.length} habit${lines.length === 1 ? '' : 's'}` : 'Add at least one habit'}
+        {lines.length
+          ? `Save ${lines.length} habit${lines.length === 1 ? '' : 's'}`
+          : 'Add at least one habit'}
       </button>
     </div>
   );
@@ -328,7 +344,7 @@ function AdvancedCaptureBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+        "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
     },
     {
       // Capture surface: cards form live (mic) or from typed lines (mic-off),

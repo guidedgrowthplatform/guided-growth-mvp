@@ -688,7 +688,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-ADVANCED: Brain Dump',
     props: {
       coachLine:
-        'Read me the habits you already track. Less is more to start, you can always build on it.',
+        "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
       closeCoachLine:
         "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
     },

@@ -54,6 +54,11 @@ const DENYLIST = [
     token: 'brainstorm-then-yield',
     retired: 'eval:brainstorm-then-yield (GLOBAL_CONTEXT brainstorming eval, removed 2026-07-10)',
   },
+  {
+    token: "In the next step we'll talk about which days",
+    retired:
+      'pre-lock advanced-capture opener fallback in advancedCapture.tsx (superseded by the row-68 locked line, removed 2026-07-11)',
+  },
 ];
 
 async function walk(dir) {
