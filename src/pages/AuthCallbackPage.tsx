@@ -16,8 +16,9 @@ export function AuthCallbackPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const type = params.get('type');
-    // Consume the flag unconditionally (bounded TTL) so it can't leak to a later login.
-    const calendarConnect = params.get('intent') === 'calendar' || consumeCalendarConnectPending();
+    // Consume first (bounded TTL) so it can't leak to a later login — `||` would short-circuit it.
+    const pendingConnect = consumeCalendarConnectPending();
+    const calendarConnect = params.get('intent') === 'calendar' || pendingConnect;
     const errorDescription = params.get('error_description');
     const hasAuthParam = Boolean(params.get('code') || params.get('token_hash'));
 

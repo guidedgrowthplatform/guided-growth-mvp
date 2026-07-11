@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { identify, resetIdentity, track } from '@/analytics';
-import { markCalendarConnectPending } from '@/api/calendar';
+import { CALENDAR_SCOPES, markCalendarConnectPending } from '@/api/calendar';
 import { authScheme } from '@/lib/appVariant';
 import { setAuthReturnTo } from '@/lib/auth/authHandoff';
 import { clearPkceVerifier } from '@/lib/clearPkceVerifier';
@@ -484,8 +484,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
         options: {
           redirectTo,
           skipBrowserRedirect: isNative,
-          scopes:
-            'https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/calendar.events',
+          scopes: CALENDAR_SCOPES,
           queryParams: { access_type: 'offline', prompt: 'consent' },
         },
       });
