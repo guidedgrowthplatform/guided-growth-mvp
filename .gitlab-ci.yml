@@ -1,6 +1,15 @@
 stages:
   - sync
   - verify
+  - deploy
+
+# Name of the branch that builds and auto-deploys the render to Cloudflare
+# Pages. A plain variable (not a CI/CD project variable) so renaming the
+# builder branch later is a one-line edit here, or an override via a project
+# variable of the same name if the rename needs to ship before this file is
+# touched.
+variables:
+  BUILDER_DEPLOY_BRANCH: 'builder/converge-beat-spec'
 
 # Render guard: runs the render's own static checks (consistency, link
 # integrity, rules-registry — see package.json's check:beats, which itself
@@ -69,6 +78,41 @@ render_app_parity:
     - npm ci --prefer-offline --no-audit --no-fund
     - npm run build:flow
     - npm run check:app-parity
+
+# Builder deploy: on every push to the builder branch, build the render
+# (same build:flow that render_guards/render_app_parity already run) and
+# publish dist-flow straight to Cloudflare Pages via wrangler direct-upload.
+# Runs on the self-hosted oci-arm-shared runner, never on Yair's laptop, and
+# Cloudflare Pages direct-upload has no build-minute billing, so this costs
+# $0. Gated on check:beats before the build even starts: if the gate fails
+# the job fails right there (GitLab CI stops a script list on the first
+# failing line) and build:flow / wrangler never run, so a broken builder
+# never reaches Cloudflare. CLOUDFLARE_API_TOKEN is a masked CI/CD variable;
+# it is NOT protected because this branch isn't a protected branch (a
+# protected variable would be invisible to jobs running on it).
+deploy_builder:
+  stage: deploy
+  image: node:20
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $BUILDER_DEPLOY_BRANCH'
+  interruptible: false
+  timeout: 15 minutes
+  environment:
+    name: builder-render
+    url: https://gg-onboarding-render.pages.dev
+  variables:
+    npm_config_cache: '$CI_PROJECT_DIR/.npm'
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  script:
+    - npm ci --prefer-offline --no-audit --no-fund
+    - npm run check:beats
+    - npm run build:flow
+    - npx --yes wrangler@4 pages deploy dist-flow --project-name=gg-onboarding-render --branch=main --commit-dirty=true
 
 voice-sync:
   stage: sync
