@@ -454,12 +454,6 @@ export function buildGoalsRulesContext(data: GoalsCategoryData): readonly BibleR
       severity: 'must',
       enforcedBy: ['eval:selection-cap'],
     },
-    {
-      id: `${p}-stay-open`,
-      rule: 'If the user is unsure, stays open and helps them land, no lecture',
-      severity: 'must',
-      enforcedBy: ['eval:brainstorm-then-yield'],
-    },
   ];
 }
 
@@ -485,13 +479,6 @@ export function buildGoalsConversation(data: GoalsCategoryData): BeatConversatio
         reply: 'scripted: "If you had to pick one, what bothers you most?"',
         then: 'wait',
         voice: `clip-family:${root}_3 (pending recording)`,
-      },
-      {
-        on: 'unsure / cannot decide',
-        reply:
-          'scripted help-you-decide prompt set (e.g. "What\'s been weighing on you most lately?"); yields the instant they lean toward one',
-        then: 'wait',
-        voice: `clip-family:${root}_4 (pending recording)`,
       },
       {
         on: 'off-topic or world question',
@@ -552,9 +539,8 @@ export function buildGoalsEdges(data: GoalsCategoryData): NonNullable<BibleSecti
       },
       {
         edge: 'skip / decline',
-        behavior: `user will not choose: stay open, help them think it through (${goalsRulePrefix(
-          data,
-        )}-stay-open), never force a pick`,
+        behavior:
+          'user will not choose: falls to the plain one-line re-ask and the tap path (max-turns behavior, no brainstorm; copy-decisions 2026-07-10), never force a pick',
       },
       {
         edge: 'empty state',
@@ -3842,7 +3828,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'category-grid',
     screenId: 'ONBOARD-BEGINNER-01',
     context:
-      'BEAT: Focus area.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nCollect one category. The opener "Let\'s choose one area of your life that you\'d like to improve on. Here are our recommended categories." shows as a coach bubble, then the category tiles appear. When the "Create your own" option appears at the end, "Or you can create your own" is spoken VERBAL ONLY (not a bubble). Ask what they most want to work on, then wait. If they\'re unsure, you can talk it through with them and help them land on one, you stay open here. If they name several, ask which feels most urgent. Keep the response specific to their pick.\n\nDO NOT:\n- Read the categories out loud. They\'re on the screen.\n- Add commentary per category ("sleep is the foundation", and the like).\n- Praise the pick ("great choice", "love that").\n- Allow more than one. If they name two, ask which feels most urgent.\n- Say anything after they pick except calling submit_category and advance_step.',
+      'BEAT: Focus area.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nCollect one category. The opener "Let\'s choose one area of your life that you\'d like to improve on. Here are our recommended categories." shows as a coach bubble, then the category tiles appear. When the "Create your own" option appears at the end, "Or you can create your own" is spoken VERBAL ONLY (not a bubble). Ask what they most want to work on, then wait. If they name several, ask which feels most urgent. Keep the response specific to their pick.\n\nDO NOT:\n- Read the categories out loud. They\'re on the screen.\n- Add commentary per category ("sleep is the foundation", and the like).\n- Praise the pick ("great choice", "love that").\n- Allow more than one. If they name two, ask which feels most urgent.\n- Say anything after they pick except calling submit_category and advance_step.',
     allowedTools: 'submit_category, advance_step',
     expectedResponse: 'Names or picks one category',
     voiceEngine: 'MP3',
@@ -3974,12 +3960,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           severity: 'must',
           enforcedBy: ['eval:single-select'],
         },
-        {
-          id: 'cat-stay-open',
-          rule: 'If the user is unsure, stays open and helps them land on one, no lecture',
-          severity: 'must',
-          enforcedBy: ['eval:brainstorm-then-yield'],
-        },
       ],
       rulesCode: [
         {
@@ -4048,13 +4028,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             voice: 'clip-family:onboard_category_3 (pending recording)',
           },
           {
-            on: 'unsure / cannot decide',
-            reply:
-              'scripted help-you-decide prompt set (e.g. "What\'s been weighing on you most lately?"); yields the instant they lean toward one',
-            then: 'wait',
-            voice: 'clip-family:onboard_category_4 (pending recording)',
-          },
-          {
             on: 'off-topic or world question',
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back with the category question',
@@ -4067,7 +4040,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       },
       contextProse: {
         prose:
-          'Focus area. Collect one category. The opener shows as a coach bubble, then the category tiles appear (default illustration set). When the create-your-own option appears at the end, "Or you can create your own" is spoken verbal only. Ask what they most want to work on, then wait. If they are unsure, you can talk it through with them and help them land on one. If they name several, ask which feels most urgent. Keep the response specific to their pick.',
+          'Focus area. Collect one category. The opener shows as a coach bubble, then the category tiles appear (default illustration set). When the create-your-own option appears at the end, "Or you can create your own" is spoken verbal only. Ask what they most want to work on, then wait. If they name several, ask which feels most urgent. Keep the response specific to their pick.',
         pending: true,
         enforcedBy: ['eval:parity-walk'],
       },
@@ -4150,7 +4123,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             edge: 'skip / decline',
             behavior:
-              'user will not choose: stay open, help them think it through (cat-stay-open), never force',
+              'user will not choose: falls to the plain one-line re-ask and the tap path (max-turns behavior, no brainstorm; copy-decisions 2026-07-10), never force',
           },
           {
             edge: 'empty state',
@@ -4306,7 +4279,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     variantOf: 'category',
     screenId: 'ONBOARD-BEGINNER-01',
     context:
-      'BEAT: Focus area.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nCollect one category. The opener "Let\'s choose one area of your life that you\'d like to improve on. Here are our recommended categories." shows as a coach bubble, then the category tiles appear. When the "Create your own" option appears at the end, "Or you can create your own" is spoken VERBAL ONLY (not a bubble). Ask what they most want to work on, then wait. If they\'re unsure, you can talk it through with them and help them land on one, you stay open here. If they name several, ask which feels most urgent. Keep the response specific to their pick.\n\nDO NOT:\n- Read the categories out loud. They\'re on the screen.\n- Add commentary per category ("sleep is the foundation", and the like).\n- Praise the pick ("great choice", "love that").\n- Allow more than one. If they name two, ask which feels most urgent.\n- Say anything after they pick except calling submit_category and advance_step.',
+      'BEAT: Focus area.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nCollect one category. The opener "Let\'s choose one area of your life that you\'d like to improve on. Here are our recommended categories." shows as a coach bubble, then the category tiles appear. When the "Create your own" option appears at the end, "Or you can create your own" is spoken VERBAL ONLY (not a bubble). Ask what they most want to work on, then wait. If they name several, ask which feels most urgent. Keep the response specific to their pick.\n\nDO NOT:\n- Read the categories out loud. They\'re on the screen.\n- Add commentary per category ("sleep is the foundation", and the like).\n- Praise the pick ("great choice", "love that").\n- Allow more than one. If they name two, ask which feels most urgent.\n- Say anything after they pick except calling submit_category and advance_step.',
     allowedTools: 'submit_category, advance_step',
     expectedResponse: 'Names or picks one category',
     voiceEngine: 'MP3',
@@ -4440,12 +4413,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           severity: 'must',
           enforcedBy: ['eval:single-select'],
         },
-        {
-          id: 'catw-stay-open',
-          rule: 'If the user is unsure, stays open and helps them land on one, no lecture',
-          severity: 'must',
-          enforcedBy: ['eval:brainstorm-then-yield'],
-        },
       ],
       rulesCode: [
         {
@@ -4514,13 +4481,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             voice: 'clip-family:onboard_category_women_3 (pending recording)',
           },
           {
-            on: 'unsure / cannot decide',
-            reply:
-              'scripted help-you-decide prompt set (e.g. "What\'s been weighing on you most lately?"); yields the instant they lean toward one',
-            then: 'wait',
-            voice: 'clip-family:onboard_category_women_4 (pending recording)',
-          },
-          {
             on: 'off-topic or world question',
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back with the category question',
@@ -4533,7 +4493,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       },
       contextProse: {
         prose:
-          'Focus area. Collect one category. The opener shows as a coach bubble, then the category tiles appear (women-art illustration set). When the create-your-own option appears at the end, "Or you can create your own" is spoken verbal only. Ask what they most want to work on, then wait. If they are unsure, you can talk it through with them and help them land on one. If they name several, ask which feels most urgent. Keep the response specific to their pick.',
+          'Focus area. Collect one category. The opener shows as a coach bubble, then the category tiles appear (women-art illustration set). When the create-your-own option appears at the end, "Or you can create your own" is spoken verbal only. Ask what they most want to work on, then wait. If they name several, ask which feels most urgent. Keep the response specific to their pick.',
         pending: true,
         enforcedBy: ['eval:parity-walk'],
       },
@@ -4616,7 +4576,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             edge: 'skip / decline',
             behavior:
-              'user will not choose: stay open, help them think it through (catw-stay-open), never force',
+              'user will not choose: falls to the plain one-line re-ask and the tap path (max-turns behavior, no brainstorm; copy-decisions 2026-07-10), never force',
           },
           {
             edge: 'empty state',
@@ -4924,12 +4884,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           severity: 'must',
           enforcedBy: ['eval:selection-cap'],
         },
-        {
-          id: 'gsleep-stay-open',
-          rule: 'If the user is unsure, stays open and helps them land, no lecture',
-          severity: 'must',
-          enforcedBy: ['eval:brainstorm-then-yield'],
-        },
       ],
       rulesCode: [
         {
@@ -5008,13 +4962,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             reply: 'scripted: "If you had to pick one, what bothers you most?"',
             then: 'wait',
             voice: 'clip-family:onboard_goals_sleep_3 (pending recording)',
-          },
-          {
-            on: 'unsure / cannot decide',
-            reply:
-              'scripted help-you-decide prompt set (e.g. "What\'s been weighing on you most lately?"); yields the instant they lean toward one',
-            then: 'wait',
-            voice: 'clip-family:onboard_goals_sleep_4 (pending recording)',
           },
           {
             on: 'off-topic or world question',
@@ -5115,7 +5062,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             edge: 'skip / decline',
             behavior:
-              'user will not choose: stay open, help them think it through (gsleep-stay-open), never force a pick',
+              'user will not choose: falls to the plain one-line re-ask and the tap path (max-turns behavior, no brainstorm; copy-decisions 2026-07-10), never force a pick',
           },
           {
             edge: 'empty state',

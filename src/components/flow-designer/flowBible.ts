@@ -63,7 +63,7 @@ export interface ImprovisationLaw {
 
 export const IMPROVISATION: ImprovisationLaw = {
   default: 'OFF',
-  law: 'Improvisation is OFF for onboarding (Yair 2026-07-09, LOCKED). The LLM never improvises: every spoken or shown coach line is a scripted verbatim line. No per-beat improvise windows exist and none may be authored. Not improvisation: the one live {name} line (live TTS of a scripted shape, governed by the voice/audio-ownership rule) and custom-entry fallbacks (the pre-authored generic line, copy-flow rule 14). The one real runtime case, user goes off topic, is handled by the GLOBAL off-topic rule (glob-out-of-scope), not a window. Tension RESOLVED (Yair 2026-07-09): the stay-open/help-them-land behavior (eval:brainstorm-then-yield, MUST) runs on SCRIPTED PROMPTS, a small pre-written help-you-decide line set the coach picks from (example: "What\'s been weighing on you most lately?"). Fully scripted, no generative window; the fill authors the bounded prompt set per picker beat, homed in that beat\'s section 13 branches.',
+  law: 'Improvisation is OFF for onboarding (Yair 2026-07-09, LOCKED). The LLM never improvises: every spoken or shown coach line is a scripted verbatim line. No per-beat improvise windows exist and none may be authored. Not improvisation: the one live {name} line (live TTS of a scripted shape, governed by the voice/audio-ownership rule) and custom-entry fallbacks (the pre-authored generic line, copy-flow rule 14). The one real runtime case, user goes off topic, is handled by the GLOBAL off-topic rule (glob-out-of-scope), not a window.',
   windows: [],
   enforcedBy: ['eval:verbatim-opener', 'eval:one-line-then-wait'],
 };
@@ -764,14 +764,6 @@ export const ENFORCER_REGISTRY: readonly EnforcerEntry[] = [
     owner: 'fleet',
   },
   {
-    id: 'eval:brainstorm-then-yield',
-    kind: 'qa-eval',
-    status: 'planned',
-    meaning:
-      'helps an unsure user decide using the beat scripted help-you-decide prompt set only (no generation, Yair 2026-07-09), yields when sure (replaces eval:stay-open-unsure)',
-    owner: 'fleet',
-  },
-  {
     id: 'eval:single-select',
     kind: 'qa-eval',
     status: 'planned',
@@ -833,11 +825,12 @@ export const ENFORCER_REGISTRY: readonly EnforcerEntry[] = [
 ];
 
 // RETIRED ids (unification; do not use): eval:no-contrarian-turn -> eval:no-contrarian,
-// eval:stay-open-unsure -> eval:brainstorm-then-yield, eval:no-praise-pick -> eval:silent-after-pick,
-// bare parity-walk -> eval:parity-walk, compound strings -> arrays.
+// eval:no-praise-pick -> eval:silent-after-pick, bare parity-walk -> eval:parity-walk,
+// compound strings -> arrays. eval:stay-open-unsure's later rename is itself now cut
+// entirely (Yair 2026-07-10, help-you-decide removed from the script), not renamed
+// again, so the chain stops here rather than pointing at a still-registered id.
 export const RETIRED_ENFORCER_IDS: Readonly<Record<string, string>> = {
   'eval:no-contrarian-turn': 'eval:no-contrarian',
-  'eval:stay-open-unsure': 'eval:brainstorm-then-yield',
   'eval:no-praise-pick': 'eval:silent-after-pick',
   'parity-walk': 'eval:parity-walk',
 };
