@@ -38,6 +38,9 @@ const ResetPlayerPage = lazyWithRetry(() =>
 const ResetFlowPreview = lazyWithRetry(() =>
   import('@/pages/ResetFlowPreview').then((m) => ({ default: m.ResetFlowPreview })),
 );
+const ResetNudgePreview = lazyWithRetry(() =>
+  import('@/pages/ResetNudgePreview').then((m) => ({ default: m.ResetNudgePreview })),
+);
 const SettingsPage = lazyWithRetry(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -228,6 +231,7 @@ export function AppRoutes() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/__reset-flow" element={<ResetFlowPreview />} />
         <Route path="/__reset-browse" element={<ResetLibraryPage />} />
+        <Route path="/__reset-nudge" element={<ResetNudgePreview />} />
 
         {/* Onboarding (protected, no Layout) */}
         <Route
