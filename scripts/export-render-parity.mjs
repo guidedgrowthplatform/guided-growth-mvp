@@ -13,6 +13,9 @@ const headers = `/
 /parity.json
   Cache-Control: no-store
   Content-Type: application/json; charset=utf-8
+/onboarding-contract.json
+  Cache-Control: no-store
+  Content-Type: application/json; charset=utf-8
 /play/*
   Cache-Control: no-store
 /assets/*

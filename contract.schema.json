@@ -1,0 +1,280 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://guidedgrowth/onboarding-contract.schema.json",
+  "title": "Onboarding builder-to-engine contract",
+  "description": "The versioned seam the builder (beatsSource.ts) exports and the engine is generated from. Variants are resolved flat at export: every beat here is a concrete, runnable projection, never an inheritance rule the engine must re-run. RUNNABLE data only crosses this seam; spec-only material (applicable decisions, identity narrative, scriptMeta) stays builder-side. Acceptance is carried in a separate top-level block for later test generation, never mixed into the runnable beats.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "source", "generatedAt", "idMap", "beats", "acceptance"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "Bumps whenever a field is added, renamed, or removed so an engine-side consumer detects a shape it does not know how to read instead of silently misreading it."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beats"],
+      "properties": {
+        "beats": { "type": "string" }
+      }
+    },
+    "generatedAt": {
+      "type": ["string", "null"],
+      "description": "Provenance timestamp. Deterministic: the ISO commit time of beatsSource.ts (or the CONTRACT_GENERATED_AT override), not wall-clock, so a rebuild of the same source is byte-for-byte reproducible. Never participates in the staleness comparison."
+    },
+    "idMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["screens", "clips"],
+      "properties": {
+        "screens": {
+          "type": "object",
+          "description": "screenId -> beatId. The bridge id map kept until the screenId->beatId rename fully lands.",
+          "additionalProperties": { "type": "string" }
+        },
+        "clips": {
+          "type": "object",
+          "description": "clip id -> public clipPath, aggregated across every beat. The raw material for P4 rename safety.",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "beats": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/beatContract" }
+    },
+    "acceptance": {
+      "type": "array",
+      "description": "SPEC-ONLY, kept separate from the runnable beats. Per-beat Shows / Says / Advances / Survives-refresh criteria, for test generation later. Never becomes runtime code.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["beatId", "rows"],
+        "properties": {
+          "beatId": { "type": "string" },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["criterion", "check"],
+              "properties": {
+                "criterion": { "type": "string" },
+                "check": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "proseText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "text"],
+      "properties": {
+        "kind": { "const": "prose" },
+        "text": { "type": ["string", "null"] }
+      }
+    },
+    "proseEdges": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "rows"],
+      "properties": {
+        "kind": { "const": "prose" },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["edge", "behavior"],
+            "properties": {
+              "edge": { "type": "string" },
+              "behavior": { "type": "string" },
+              "voice": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "structured": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": true,
+      "properties": {
+        "kind": { "const": "structured" }
+      },
+      "description": "The Phase 3.3 target shape. The union exists now so formalization fills a beat's advanceWhen / branches / edges with structured data later without a schema break. additionalProperties is open on purpose: the exact structured fields are defined in docs/contract-schema.md and filled per-beat in 3.3."
+    },
+    "scriptLine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seq", "speaker", "words", "bindsTo", "voice", "clipPath"],
+      "properties": {
+        "seq": { "type": "integer" },
+        "speaker": {
+          "const": "coach",
+          "description": "Every script line is a coach utterance; beatsSource has no per-line speaker field, so this is a constant. The user's expected reply lives on the beat (expectedResponse), not here."
+        },
+        "words": { "type": "string" },
+        "bindsTo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "element", "screen"],
+          "properties": {
+            "kind": { "enum": ["bubble", "component"] },
+            "element": { "type": "string" },
+            "screen": { "type": "string" }
+          }
+        },
+        "voice": { "enum": ["verbatim", "mp3", "cartesia", null] },
+        "clipPath": {
+          "type": ["string", "null"],
+          "description": "The resolvable public path. Its basename is the clip id; the clip id -> clipPath pairs are also collected in the beat's assets.clips and the top-level idMap.clips."
+        }
+      }
+    },
+    "beatContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "order",
+        "screenId",
+        "variantOf",
+        "path",
+        "component",
+        "script",
+        "opener",
+        "voiceEngine",
+        "voiceMode",
+        "context",
+        "allowedTools",
+        "persistence",
+        "flow",
+        "edges",
+        "assets"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "order": { "type": "integer" },
+        "screenId": { "type": ["string", "null"] },
+        "variantOf": {
+          "type": ["string", "null"],
+          "description": "The head beat id this beat derived from, or null. Provenance only: this beat's content is already resolved flat, the engine never re-runs inheritance."
+        },
+        "path": { "enum": ["beginner", "advanced", "both"] },
+        "component": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["key", "props", "config", "elements"],
+          "properties": {
+            "key": {
+              "type": "string",
+              "description": "The stable component registry key (the beat's type). The engine keeps the component CODE app-side behind this key; only the key + data cross the seam."
+            },
+            "props": {
+              "type": ["object", "null"],
+              "additionalProperties": { "type": "string" }
+            },
+            "config": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["hideOrb"],
+              "properties": {
+                "hideOrb": { "type": "boolean" }
+              }
+            },
+            "elements": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "script": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scriptLine" }
+        },
+        "opener": { "type": ["string", "null"] },
+        "voiceEngine": { "enum": ["MP3", "Cartesia", "Vapi", "Silent"] },
+        "voiceMode": { "enum": ["Verbatim", "Generative", null] },
+        "context": {
+          "type": ["string", "null"],
+          "description": "The per-beat coach context prose the LLM reads. Primary source is the resolved contextProse section (variant-flattened); falls back to the beat's top-level context when no contextProse is contracted."
+        },
+        "allowedTools": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["writes", "reads"],
+          "properties": {
+            "writes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["key", "writtenBy"],
+                "properties": {
+                  "key": { "type": "string" },
+                  "writtenBy": { "type": ["string", "null"] }
+                }
+              }
+            },
+            "reads": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["key"],
+                "properties": {
+                  "key": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "flow": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["advanceWhen", "branches"],
+          "properties": {
+            "advanceWhen": {
+              "oneOf": [{ "$ref": "#/$defs/proseText" }, { "$ref": "#/$defs/structured" }]
+            },
+            "branches": {
+              "oneOf": [{ "$ref": "#/$defs/proseText" }, { "$ref": "#/$defs/structured" }]
+            }
+          }
+        },
+        "edges": {
+          "oneOf": [{ "$ref": "#/$defs/proseEdges" }, { "$ref": "#/$defs/structured" }]
+        },
+        "assets": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["clips"],
+          "properties": {
+            "clips": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["clip", "clipPath"],
+                "properties": {
+                  "clip": { "type": "string" },
+                  "clipPath": { "type": ["string", "null"] }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
