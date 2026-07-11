@@ -19,7 +19,7 @@ export function CalendarIntegrationSection() {
       <SettingSectionHeader title="Integrations" />
       <SettingsCard>
         <div className="flex w-full items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <div className="rounded-2xl bg-primary/5 p-2">
               <Icon icon="logos:google-calendar" width={24} />
             </div>
@@ -41,7 +41,7 @@ export function CalendarIntegrationSection() {
             <button
               type="button"
               onClick={() => void connect()}
-              className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition-all duration-300 ease-in-out active:bg-primary-dark"
+              className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition-all duration-300 ease-in-out hover:bg-primary-dark active:bg-primary-dark"
             >
               Connect
             </button>
