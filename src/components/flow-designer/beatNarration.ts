@@ -324,6 +324,16 @@ function scriptTarget(line: ScriptLine): { bubbleStep: number | null; reveal: nu
   }
   // component
   if (el === 'opener' || el === 'opener-line') return { bubbleStep: 1, reveal: null };
+  // Profile asks (ONBOARD-01--FORM--ASKS): the age and gender lines each own one
+  // BeatPlayer step of the profile component, so they map to that step's absolute
+  // reveal index instead of dumping the whole card at step 99. On this beat the
+  // greeting half is empty, so the steps are [age(0), gender(1), voice-hint, reply]
+  // and stepReveal N shows the first N steps: age -> 1, gender -> 2. Driving
+  // stepReveal per line (via the bubble branch) blooms each element with its own
+  // clip and gates gender on the age line finishing. The profile-greeting beat
+  // uses element 'opener' (handled above), so it is unaffected.
+  if (el === 'age') return { bubbleStep: 1, reveal: null };
+  if (el === 'gender') return { bubbleStep: 2, reveal: null };
   const r = /^reveal-(\d+)$/.exec(el);
   if (r) return { bubbleStep: null, reveal: Number(r[1]) };
   return { bubbleStep: null, reveal: null };

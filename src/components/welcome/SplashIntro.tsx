@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Orb, type OrbMic } from '@/components/orb/Orb';
-import { orbIdle, orbSpeaking as orbSpeakingProps } from '@/components/orb/orbView';
 import { BEAT3_PULSE } from '@/components/orb/orbConfig';
+import { orbIdle, orbSpeaking as orbSpeakingProps } from '@/components/orb/orbView';
 import { CoachIntroBubble } from '@/components/welcome/CoachIntroBubble';
 import { SPLASH_CAPTIONS } from '@/components/welcome/splashCaptions';
 
@@ -13,7 +13,15 @@ const PHASE_ORB_SETTLE = 700;
 const PHASE_READY_HOLD = 500;
 const LOOP_PAUSE = 1800;
 
-const FALLBACK_SPEAK_MS = 2600;
+// When no clip is wired to this component (the flow builder greeting relies on the
+// shared narration driver for the actual audio), the orb must still stay up and
+// speak for the WHOLE greeting, not a short fixed beat. Size the fallback to the
+// caption track length so the orb settles only after the line finishes, instead of
+// collapsing early. The recorded greeting runs ~13s; the captions end at ~12.96s.
+const CAPTIONS_END_S = SPLASH_CAPTIONS.length
+  ? SPLASH_CAPTIONS[SPLASH_CAPTIONS.length - 1].end
+  : 2.6;
+const FALLBACK_SPEAK_MS = Math.round(CAPTIONS_END_S * 1000) + 400;
 const MAX_SPEAK_MS = 16000;
 const REDUCED_HOLD_MS = 280;
 
@@ -72,9 +80,7 @@ export function SplashIntro({
   skipSplash = false,
 }: SplashIntroProps) {
   ensureStyles();
-  const [phase, setPhase] = useState<Phase>(
-    autoPlay ? (skipSplash ? 'orb' : 'splash') : 'done',
-  );
+  const [phase, setPhase] = useState<Phase>(autoPlay ? (skipSplash ? 'orb' : 'splash') : 'done');
   const [intensity, setIntensity] = useState(0);
   // Shows a tap affordance when the browser blocks audio until a gesture.
   const [needsTap, setNeedsTap] = useState(false);
@@ -330,7 +336,14 @@ export function SplashIntro({
       className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden"
       aria-label="Guided Growth introduction"
     >
-      <audio ref={audioRef} src={audioSrc} preload="auto" playsInline muted={muted} className="hidden" />
+      <audio
+        ref={audioRef}
+        src={audioSrc}
+        preload="auto"
+        playsInline
+        muted={muted}
+        className="hidden"
+      />
 
       {/* Soft blue glow around the screen edge, breathing with the voice
           (a calm take on the new Siri look). */}
@@ -466,7 +479,9 @@ export function SplashIntro({
               />
 
               {orbSpeaking ? (
-                <Orb {...orbSpeakingProps(ORB_SIZE, 'coach', { mic: orbAmp, pulse: BEAT3_PULSE })} />
+                <Orb
+                  {...orbSpeakingProps(ORB_SIZE, 'coach', { mic: orbAmp, pulse: BEAT3_PULSE })}
+                />
               ) : (
                 <Orb {...orbIdle(ORB_SIZE, true, true)} />
               )}

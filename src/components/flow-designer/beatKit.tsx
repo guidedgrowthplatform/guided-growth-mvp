@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 // True only while a beat is rendered inside Play (live), so a beat can autoplay
 // audio or run a timed animation in Play but stay quiet as a static design tile.
@@ -56,11 +56,30 @@ export function Karaoke({ text, active }: { text: string; active: boolean }) {
   const parts = text.split(/(\s+)/);
   const total = parts.filter((p) => /\S/.test(p)).length;
   const [n, setN] = useState(active ? 0 : total);
+  // True once the voice (Play-mode word count) has driven this bubble. When the
+  // voice then stops (the line finished, spoken -> null) the bubble must settle at
+  // its full text, NOT restart the self-timed reveal. Without this, a just-spoken
+  // final bubble re-types from zero when the driver clears syncWords: a visible
+  // double reveal on any beat whose last shown step is a voice-driven coach bubble
+  // (e.g. the profile greeting).
+  const voiceDroveRef = useRef(false);
   useEffect(() => {
-    // Voice-driven (Play mode): the word count from the browser voice drives the
-    // reveal, so the text lands in step with the audio. No timer.
-    if (spoken != null) return;
+    // A fresh line clears the voice-driven memory so it re-types on the next play.
+    voiceDroveRef.current = false;
+  }, [text]);
+  useEffect(() => {
+    // Voice-driven (Play mode): the word count from the voice drives the reveal,
+    // so the text lands in step with the audio. No timer.
+    if (spoken != null) {
+      voiceDroveRef.current = true;
+      return;
+    }
     if (!active) {
+      setN(total);
+      return;
+    }
+    if (voiceDroveRef.current) {
+      // The voice just finished this bubble: hold it whole, do not re-type it.
       setN(total);
       return;
     }
@@ -75,8 +94,15 @@ export function Karaoke({ text, active }: { text: string; active: boolean }) {
   }, [text, active, total, spoken]);
   // Only the actively-speaking bubble follows the voice; a bubble that already
   // finished (not active) shows whole, so an earlier bubble does not get truncated
-  // when a later one is being spoken.
-  const shownCount = !active ? total : spoken != null ? Math.min(spoken, total) : n;
+  // when a later one is being spoken. A bubble the voice just finished (spoken back
+  // to null while still active) also shows whole rather than restarting from zero.
+  const shownCount = !active
+    ? total
+    : spoken != null
+      ? Math.min(spoken, total)
+      : voiceDroveRef.current
+        ? total
+        : n;
   const words = parts.filter((p) => /\S/.test(p));
   const shown = words.slice(0, shownCount);
   const head = shown.slice(0, -1).join(' ');

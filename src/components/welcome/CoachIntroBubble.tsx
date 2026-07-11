@@ -32,11 +32,36 @@ export function CoachIntroBubble({ audioRef, lines, active, top = '12px' }: Coac
     wordsRef.current = flatten(lines);
   }, [lines]);
 
+  // A wall clock used only when the audio element is not actually advancing (no
+  // src wired, a blocked autoplay, or a stalled clip). It keeps the transcript
+  // filling on the caption timings so the words never freeze at word one.
+  const virtualStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    // Reset the fallback clock whenever the bubble (re)activates so a replay
+    // refills from the top.
+    if (!active) virtualStartRef.current = null;
+  }, [active]);
+
   useEffect(() => {
     let raf = 0;
     const tick = () => {
       const el = audioRef.current;
-      const t = el ? el.currentTime : 0;
+      const realT = el ? el.currentTime : 0;
+      const audioLive = !!el && !el.paused && realT > 0.02;
+      let t: number;
+      if (audioLive) {
+        // The clip is actually playing: ride its own clock for exact sync.
+        virtualStartRef.current = null;
+        t = realT;
+      } else if (active) {
+        // No advancing audio here (the builder greeting has no audioSrc and lets
+        // the shared narration driver own the sound): fall back to a wall clock
+        // keyed on the caption word times so the transcript still completes.
+        if (virtualStartRef.current == null) virtualStartRef.current = performance.now();
+        t = (performance.now() - virtualStartRef.current) / 1000;
+      } else {
+        t = realT;
+      }
       const ws = wordsRef.current;
       let c = 0;
       for (let i = 0; i < ws.length; i++) {
@@ -48,7 +73,7 @@ export function CoachIntroBubble({ audioRef, lines, active, top = '12px' }: Coac
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [audioRef]);
+  }, [audioRef, active]);
 
   const ws = wordsRef.current;
   const text = ws
