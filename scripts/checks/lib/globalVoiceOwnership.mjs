@@ -5,14 +5,26 @@
 // imported TS values, mutated). One validator, so the committed negative tests
 // exercise the exact logic the check runs.
 
-// The four legal voice shapes (VOICE_OWNERSHIP, flowBible.ts).
+// The five legal voice shapes (VOICE_OWNERSHIP, flowBible.ts).
 const CLIP_RE = /^clip:[a-z0-9_]+$/;
 const CLIP_FAMILY_RE = /^clip-family:[a-z0-9_]+ \(pending recording\)$/;
+// RECORDED-ROTATION family (F1-R reactive toolkit, 2026-07-11). A named clip family of N
+// RECORDED clips (onboard_<name>_1..N.wav), any of which may play at runtime (random
+// rotation). This is a FIRST-CLASS OWNED shape — a spoken response owned by it PASSES
+// ownership — distinct from a single `clip:` (no rotation) and from a `(pending recording)`
+// family (declared but not yet recorded). The pool SIZE N is carried IN the shape so a
+// malformed owner with an EMPTY/zero pool is rejected BY CONSTRUCTION right here (N must be
+// a positive integer), not left to a downstream check. It is parallel in form to the pending
+// shape, so a family declared `(pending recording)` flips to `(recorded, N clips)` once its
+// clips exist, with no other structural change. It ADDS an accepted form and weakens no
+// rejection: every prior illegal value still fails, because it matches none of the branches.
+const CLIP_ROTATION_RE = /^clip-family:[a-z0-9_]+ \(recorded, [1-9][0-9]* clips\)$/;
 export function isLegalVoiceShape(v) {
   return (
     typeof v === 'string' &&
     (CLIP_RE.test(v) ||
       CLIP_FAMILY_RE.test(v) ||
+      CLIP_ROTATION_RE.test(v) ||
       v === 'text-only' ||
       v === 'live-exception:name-greeting')
   );
@@ -44,7 +56,7 @@ export function validateGlobalVoiceOwnership({ registry, globalRulesById, toolFa
     // The registry entry itself must declare a legal-shape owner.
     if (!isLegalVoiceShape(entry?.voice)) {
       problems.push(
-        `${label}: registry voice "${entry?.voice}" is not one of the four legal shapes`,
+        `${label}: registry voice "${entry?.voice}" is not one of the five legal shapes`,
       );
     }
 
@@ -80,7 +92,7 @@ export function validateGlobalVoiceOwnership({ registry, globalRulesById, toolFa
         );
       } else if (!isLegalVoiceShape(vp.voice)) {
         problems.push(
-          `${label}: TOOL_FAILURE.voicePath.voice "${vp.voice}" is not one of the four legal shapes`,
+          `${label}: TOOL_FAILURE.voicePath.voice "${vp.voice}" is not one of the five legal shapes`,
         );
       }
     } else {
@@ -143,7 +155,7 @@ export function validateGlobalResponses({ responses, registry }) {
       }
       if (!isLegalVoiceShape(resp?.voice)) {
         problems.push(
-          `${label}: modality 'spoken' but voice "${resp?.voice}" is not one of the four legal shapes ` +
+          `${label}: modality 'spoken' but voice "${resp?.voice}" is not one of the five legal shapes ` +
             `(every spoken global response must be owned)`,
         );
       }

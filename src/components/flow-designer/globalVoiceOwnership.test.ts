@@ -64,7 +64,7 @@ describe('F1-R: global dynamic-reply ownership is REQUIRED, not optional', () =>
       toolFailure: corrupted,
     });
     expect(problems.length).toBeGreaterThan(0);
-    expect(problems.join('\n')).toMatch(/TOOL_FAILURE\.voicePath\.voice.*not one of the four/i);
+    expect(problems.join('\n')).toMatch(/TOOL_FAILURE\.voicePath\.voice.*not one of the five/i);
   });
 
   it('FAILS when the TOOL_FAILURE owner is removed entirely', () => {
@@ -187,7 +187,7 @@ describe('B1-R: typed GLOBAL_RESPONSES ownership + set-equality with the registr
       registry: GLOBAL_VOICE_OWNERSHIP,
     });
     expect(problems.join('\n')).toMatch(
-      /tool-failure-voice.*modality 'spoken' but voice.*not one of the four legal shapes/i,
+      /tool-failure-voice.*modality 'spoken' but voice.*not one of the five legal shapes/i,
     );
   });
 
@@ -226,7 +226,7 @@ describe('B1-R: typed GLOBAL_RESPONSES ownership + set-equality with the registr
   it('FAILS when a response voice disagrees with its owner', () => {
     const mutated = baseResponses.map((r) =>
       r.id === 'tool-failure-voice'
-        ? { ...r, voice: 'clip-family:onboard_offtopic_steerback (pending recording)' }
+        ? { ...r, voice: 'clip-family:onboard_offtopic (recorded, 6 clips)' } // legal shape, but the WRONG owner's voice
         : { ...r },
     );
     const problems = validateGlobalResponses({
@@ -308,5 +308,73 @@ describe('B1-R2: prose lint — a GlobalRule.rule may carry NO quoted string at 
       },
     ];
     expect(findGlobalRuleProseQuotes(clean)).toEqual([]);
+  });
+});
+
+describe('F1-R recorded-rotation: the reactive-toolkit ownership shape (2026-07-11)', () => {
+  it('isLegalVoiceShape ACCEPTS a recorded-rotation family (N recorded clips)', () => {
+    expect(isLegalVoiceShape('clip-family:onboard_offtopic (recorded, 6 clips)')).toBe(true);
+    expect(isLegalVoiceShape('clip-family:onboard_toolfail_voice (recorded, 3 clips)')).toBe(true);
+    expect(isLegalVoiceShape('clip-family:onboard_reask (recorded, 4 clips)')).toBe(true);
+    expect(isLegalVoiceShape('clip-family:onboard_gender (recorded, 12 clips)')).toBe(true);
+  });
+
+  it('REJECTS an empty (0-clip) or otherwise malformed recorded rotation', () => {
+    expect(isLegalVoiceShape('clip-family:onboard_x (recorded, 0 clips)')).toBe(false); // empty pool
+    expect(isLegalVoiceShape('clip-family:onboard_x (recorded, clips)')).toBe(false); // no count
+    expect(isLegalVoiceShape('clip-family:onboard_x (recorded)')).toBe(false); // no pool at all
+    expect(isLegalVoiceShape('clip-family:onboard_x (recorded, -3 clips)')).toBe(false); // negative
+    expect(isLegalVoiceShape('clip-family:onboard_x (recorded, 3 clip)')).toBe(false); // singular token
+    expect(isLegalVoiceShape('clip-family:ONBOARD_X (recorded, 3 clips)')).toBe(false); // uppercase family
+  });
+
+  it('is DISTINCT from single-clip and from a pending family (all three still owned)', () => {
+    expect(isLegalVoiceShape('clip:onboard_offtopic_1')).toBe(true); // single clip, unchanged
+    expect(isLegalVoiceShape('clip-family:onboard_offtopic (pending recording)')).toBe(true); // pending, unchanged
+    expect(isLegalVoiceShape('clip-family:onboard_offtopic (recorded, 6 clips)')).toBe(true); // recorded rotation
+    // a recorded rotation is neither of the earlier two forms:
+    expect('clip-family:onboard_offtopic (recorded, 6 clips)').not.toBe(
+      'clip-family:onboard_offtopic (pending recording)',
+    );
+  });
+
+  it('all 8 production reactive-toolkit families are OWNED and recorded (no all-pending)', () => {
+    for (const entry of GLOBAL_VOICE_OWNERSHIP) {
+      expect(isLegalVoiceShape(entry.voice), `${entry.id} owner must be a legal shape`).toBe(true);
+      expect(entry.voice, `${entry.id} must be recorded, not pending`).not.toMatch(
+        /pending recording/,
+      );
+    }
+    const spoken = GLOBAL_RESPONSES.filter((r) => r.modality === 'spoken');
+    expect(spoken).toHaveLength(8);
+    for (const r of spoken) {
+      expect(isLegalVoiceShape(r.voice), `${r.id} response voice must be a legal shape`).toBe(true);
+    }
+  });
+
+  it('a recorded rotation with NO ownership entry fails set-equality (unowned)', () => {
+    const responses = [
+      ...GLOBAL_RESPONSES,
+      {
+        id: 'glob-rotation-orphan',
+        modality: 'spoken',
+        line: 'A recorded rotation with no owner.',
+        voice: 'clip-family:onboard_rotation_orphan (recorded, 3 clips)',
+      },
+    ];
+    const problems = validateGlobalResponses({ responses, registry: GLOBAL_VOICE_OWNERSHIP });
+    expect(problems.join('\n')).toMatch(
+      /glob-rotation-orphan.*NO matching GLOBAL_VOICE_OWNERSHIP entry/i,
+    );
+  });
+
+  it('a spoken response whose recorded rotation has an EMPTY pool is rejected as an illegal shape', () => {
+    const responses = GLOBAL_RESPONSES.map((r) =>
+      r.id === 'glob-narrow'
+        ? { ...r, voice: 'clip-family:onboard_narrow (recorded, 0 clips)' }
+        : { ...r },
+    );
+    const problems = validateGlobalResponses({ responses, registry: GLOBAL_VOICE_OWNERSHIP });
+    expect(problems.join('\n')).toMatch(/glob-narrow.*not one of the five legal shapes/i);
   });
 });

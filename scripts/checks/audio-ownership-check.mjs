@@ -12,14 +12,15 @@
 //      have liveAllowed 'NO' exactly.
 //   3. perLine must cover every spoken script seq and reference no missing seq.
 // Lane b (section-13 conversation branches): every spoken branch reply carries a
-//   `voice` field in one of the four legal shapes.
+//   `voice` field in one of the five legal shapes.
 // Lane c (edge rows): every edge whose `behavior` contains a quoted spoken coach
 //   line carries a legal `voice` field.
 // Lane d (flowBible.ts global rules): any GlobalRule carrying a `voice` field has
 //   a legal shape.
 //
-// The four legal shapes (any voice field, all lanes):
+// The five legal shapes (any voice field, all lanes):
 //   'clip:<id>' | 'clip-family:<family> (pending recording)' |
+//   'clip-family:<family> (recorded, <n> clips)' |
 //   'text-only' | 'live-exception:name-greeting'
 
 import ts from 'typescript';
@@ -42,7 +43,7 @@ import {
 
 const problems = [];
 
-// The four-shape voice validator (isLegalVoiceShape) is shared by every lane and
+// The five-shape voice validator (isLegalVoiceShape) is shared by every lane and
 // by the global-ownership validator, imported from ./lib/globalVoiceOwnership.mjs.
 
 // Lane b: conservative — a branch reply is SPOKEN unless it clearly denotes
@@ -141,7 +142,7 @@ for (const { beatId, value: beat, line } of bibleBeats) {
     } else if (!isLegalVoiceShape(voice)) {
       problems.push(
         `${beatId} (line ${line}) conversation branch ${i + 1} ("${branch.on}"): voice ` +
-          `"${voice}" is not one of the four legal shapes`,
+          `"${voice}" is not one of the five legal shapes`,
       );
     }
   });
@@ -164,7 +165,7 @@ for (const { beatId, value: beat, line } of bibleBeats) {
     } else if (!isLegalVoiceShape(voice)) {
       problems.push(
         `${beatId} (line ${line}) edge ${i + 1} ("${row.edge}"): voice "${voice}" is not one of ` +
-          `the four legal shapes`,
+          `the five legal shapes`,
       );
     }
   });

@@ -42,6 +42,13 @@
 //   Test E (duplicate GLOBAL_RULES id, QA hardening 2026-07-11): two GLOBAL_RULES rules
 //     sharing an id. Mirrors Test D but for rule ids (validateGlobalRuleEffects), which
 //     had no uniqueness check before this hardening pass.
+//   Test G (recorded-rotation MISSING OWNER, F1-R reactive toolkit 2026-07-11): a spoken
+//     row whose voice is a LEGAL recorded-rotation shape but with no GLOBAL_VOICE_OWNERSHIP
+//     entry. Set-equality (lane e) rejects it — the new shape adds an accepted form without
+//     opening an ownership hole.
+//   Test H (recorded-rotation EMPTY POOL, F1-R 2026-07-11): a recorded rotation flipped to a
+//     0-clip pool. The shape carries N and requires a positive integer, so an empty pool is
+//     an illegal shape rejected by construction (not left to a downstream check).
 //   Bypass class 8 (interior contraction, QA hardening 2026-07-11): the word-boundary
 //     anchoring added to fix bypass classes 5-7's sibling apostrophe false positive
 //     reopened a hole — a single-quoted response line with a contraction INSIDE it (say
@@ -476,7 +483,7 @@ withMutation(
   'a modality:spoken GLOBAL_RESPONSES row with no voice owner fails the guard',
   [
     [
-      "    id: 'tool-failure-voice',\n    modality: 'spoken',\n    line: \"That didn't go through, let me try again.\",\n    voice: 'clip-family:onboard_tool_failure_retry (pending recording)',",
+      "    id: 'tool-failure-voice',\n    modality: 'spoken',\n    line: \"That didn't go through, let me try again.\",\n    voice: 'clip-family:onboard_toolfail_voice (recorded, 3 clips)',",
       "    id: 'tool-failure-voice',\n    modality: 'spoken',\n    line: \"That didn't go through, let me try again.\",",
     ],
   ],
@@ -484,7 +491,7 @@ withMutation(
     if (code === 0) throw new Error('guard exited 0 — a spoken response with no owner was accepted');
     if (!/tool-failure-voice/.test(out))
       throw new Error('the guard failed but did not name the unowned spoken response');
-    if (!/modality 'spoken' but voice .* is not one of the four legal shapes/.test(out))
+    if (!/modality 'spoken' but voice .* is not one of the five legal shapes/.test(out))
       throw new Error('the B1-R lane-f ownership requirement did not fire');
   },
 );
@@ -529,7 +536,7 @@ withMutation(
         "    id: 'glob-out-of-scope',\n" +
         "    modality: 'spoken',\n" +
         "    line: 'Duplicate row with the same id (ambiguous copy source).',\n" +
-        "    voice: 'clip-family:onboard_offtopic_steerback (pending recording)',\n" +
+        "    voice: 'clip-family:onboard_offtopic (recorded, 6 clips)',\n" +
         '  },',
     ],
   ],
@@ -538,6 +545,60 @@ withMutation(
       throw new Error('guard exited 0 — two GLOBAL_RESPONSES rows with the same id were accepted');
     if (!/GLOBAL_RESPONSES "glob-out-of-scope": duplicate id/.test(out))
       throw new Error('the GLOBAL_RESPONSES uniqueness check did not fire on the duplicate id');
+  },
+);
+
+// Test G (recorded-rotation MISSING OWNER, F1-R reactive toolkit, 2026-07-11): add a spoken
+// GLOBAL_RESPONSES row whose voice is a LEGAL recorded-rotation shape (so the failure is NOT
+// an illegal shape) but with no matching GLOBAL_VOICE_OWNERSHIP entry. Lane e set-equality
+// must reject it: a recorded rotation with no owner is unowned, exactly like any other
+// unregistered spoken response. Proves the new shape adds an accepted form without opening an
+// ownership hole (the shape being valid is the point — the ONLY reason it fails is the missing
+// owner).
+withMutation(
+  'a recorded-rotation spoken response with NO ownership entry fails the guard (unowned)',
+  [
+    [
+      'export const GLOBAL_RESPONSES: readonly GlobalResponse[] = [',
+      "export const GLOBAL_RESPONSES: readonly GlobalResponse[] = [\n" +
+        "  {\n" +
+        "    id: 'glob-rotation-orphan',\n" +
+        "    modality: 'spoken',\n" +
+        "    line: 'A recorded rotation with no owner.',\n" +
+        "    voice: 'clip-family:onboard_rotation_orphan (recorded, 3 clips)',\n" +
+        "  },",
+    ],
+  ],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — a recorded-rotation spoken response with no owner was accepted');
+    if (!/glob-rotation-orphan/.test(out))
+      throw new Error('the guard failed but did not name the unowned recorded-rotation response');
+    if (!/NO matching GLOBAL_VOICE_OWNERSHIP entry/.test(out))
+      throw new Error('the recorded-rotation missing-owner set-equality guard did not fire');
+  },
+);
+
+// Test H (recorded-rotation EMPTY POOL, F1-R, 2026-07-11): flip a real owner's recorded
+// rotation to an empty (0-clip) pool. The shape carries N in the string and requires a
+// POSITIVE integer, so a 0-clip pool is rejected BY CONSTRUCTION as an illegal shape (not
+// left to a downstream check). Mutate the glob-reask OWNER (the first occurrence of its voice
+// is the GLOBAL_VOICE_OWNERSHIP entry, anchored via its source line to be unambiguous).
+withMutation(
+  'a recorded rotation with an EMPTY (0-clip) pool fails the guard (positive-integer N)',
+  [
+    [
+      "source: 'GLOBAL_RULES.glob-reask',\n    voice: 'clip-family:onboard_reask (recorded, 4 clips)',",
+      "source: 'GLOBAL_RULES.glob-reask',\n    voice: 'clip-family:onboard_reask (recorded, 0 clips)',",
+    ],
+  ],
+  ({ code, out }) => {
+    if (code === 0)
+      throw new Error('guard exited 0 — a recorded rotation with an empty (0-clip) pool was accepted');
+    if (!/glob-reask/.test(out))
+      throw new Error('the guard failed but did not name the empty-pool owner');
+    if (!/not one of the five legal shapes/.test(out))
+      throw new Error('the recorded-rotation empty-pool rejection (positive-integer N) did not fire');
   },
 );
 
@@ -554,6 +615,7 @@ console.log(
     'beyond-enumeration quote marks), the fail-closed allow-list lock cases (angle-quote ' +
     'ornaments U+276E/F, Pi/Pf paraphrase brackets U+2E1C/D, modifier double apostrophe ' +
     'U+02EE, reversed double prime U+2036, Hebrew gershayim U+05F4), an unowned spoken ' +
-    'response, a spoken response outside the registry, a duplicate GLOBAL_RESPONSES id, and ' +
-    'a duplicate GLOBAL_RULES id).',
+    'response, a spoken response outside the registry, a duplicate GLOBAL_RESPONSES id, ' +
+    'a duplicate GLOBAL_RULES id, a recorded-rotation response with no ownership entry, and ' +
+    'a recorded rotation with an empty (0-clip) pool).',
 );

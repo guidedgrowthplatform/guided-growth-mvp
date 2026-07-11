@@ -146,6 +146,55 @@ export const GLOBAL_RULES: GlobalRulesLayer = {
       status: 'needs-yair',
       effect: { kind: 'constraint' },
     },
+    // Reactive-toolkit global rules (LOCKED 2026-07-10, Yair; onboarding-copy-decisions
+    // Section 4). Six small GLOBAL slots reused at every beat, not per-beat lines. Each
+    // EMITS its recorded-rotation response (a few variants played at RANDOM so it never
+    // feels stale); the copy lives in the GLOBAL_RESPONSES row named by effect, the voice
+    // is owned by the matching GLOBAL_VOICE_OWNERSHIP recorded-rotation family, and
+    // audio-ownership-check gates the whole link. Slots off-topic (glob-out-of-scope) and
+    // tool-failure (TOOL_FAILURE.voicePath) are the two already declared above.
+    {
+      id: 'glob-reask',
+      rule: 'Unclear or unparseable input at any beat (a value not understood, an invalid age, an unclear answer): one warm re-ask of the beat own question, then wait; never store a value that was not understood',
+      severity: 'must',
+      enforcedBy: ['audio-ownership-check'],
+      effect: { kind: 'response', responseId: 'glob-reask' },
+    },
+    {
+      id: 'glob-empty-state',
+      rule: 'When a picker or capture surface has nothing entered yet: one light nudge to what to do next, then wait; never advance on an empty surface',
+      severity: 'must',
+      enforcedBy: ['audio-ownership-check'],
+      effect: { kind: 'response', responseId: 'glob-empty-state' },
+    },
+    {
+      id: 'glob-narrow',
+      rule: 'When the user names too many items at a category or goals beat: one line asking them to pick the one that matters most right now, then wait',
+      severity: 'must',
+      enforcedBy: ['audio-ownership-check'],
+      effect: { kind: 'response', responseId: 'glob-narrow' },
+    },
+    {
+      id: 'glob-create-own',
+      rule: 'When the user wants something that is not on the shown list: one line inviting them to add their own, then capture it',
+      severity: 'must',
+      enforcedBy: ['audio-ownership-check'],
+      effect: { kind: 'response', responseId: 'glob-create-own' },
+    },
+    {
+      id: 'glob-nudge-tap',
+      rule: 'When the user is stuck, skipping, or has reached the turn cap: one line pointing to the tap path, then wait; also covers the max-turns case',
+      severity: 'must',
+      enforcedBy: ['audio-ownership-check'],
+      effect: { kind: 'response', responseId: 'glob-nudge-tap' },
+    },
+    {
+      id: 'glob-gender',
+      rule: 'At the profile beat, the second ask after age: one gender follow-up, asked once; never re-ask a value already given',
+      severity: 'must',
+      enforcedBy: ['audio-ownership-check'],
+      effect: { kind: 'response', responseId: 'glob-gender' },
+    },
   ],
 };
 
@@ -173,7 +222,7 @@ export const TOOL_FAILURE: ToolFailureContract = {
     'Second failure on the voice path: one short coach line, APPROVED copy verbatim: "That didn\'t go through, let me try again." Then retry; if it still fails, keep it surfaced and offer the tap path. The beat never advances on a failed write.',
   voicePath: {
     line: "That didn't go through, let me try again.",
-    voice: 'clip-family:onboard_tool_failure_retry (pending recording)',
+    voice: 'clip-family:onboard_toolfail_voice (recorded, 3 clips)',
   },
   textOrTap:
     'Second failure on the text/tap path: a toast (existing Toast system), APPROVED copy verbatim: "Couldn\'t save that, tap to retry." No coach line; the beat stays put.',
@@ -236,14 +285,16 @@ export interface VoiceOwnership {
 // name-greeting exception. No unowned spoken line anywhere (Yair). Carried on
 // TurnBranch.voice (section 13), BibleEdge.voice (spoken edges), and GlobalRule.voice.
 export const VOICE_OWNERSHIP: VoiceOwnership = {
-  rule: 'Every dynamic coach reply is MP3-clip-owned OR declared text-only OR THE one name-greeting live exception. No unowned spoken line anywhere: a spoken section-13 branch reply, a spoken edge behavior, and a spoken-line global rule each carry a voice field in one of the four legal shapes.',
+  rule: 'Every dynamic coach reply is MP3-clip-owned OR declared text-only OR THE one name-greeting live exception. No unowned spoken line anywhere: a spoken section-13 branch reply, a spoken edge behavior, and a spoken-line global rule each carry a voice field in one of the five legal shapes.',
   shapes: [
     'clip:<id> - one recorded clip owns the line',
     'clip-family:<family> (pending recording) - a named clip family owns it, not yet recorded',
+    'clip-family:<family> (recorded, <n> clips) - a RECORDED rotation of n clips (onboard_<slot>_1..n.wav) played at random; the reactive-toolkit form, first-class owned',
     'text-only - declared non-spoken (chat / tap surface only)',
     'live-exception:name-greeting - THE single live-TTS exception (the {name} slot)',
   ],
-  familyNaming: 'onboard_<type>_<beat-or-global>_<n> (lowercase letters, digits, underscores only)',
+  familyNaming:
+    'onboard_<type>_<beat-or-global>_<n> (lowercase letters, digits, underscores only); reactive-toolkit families are onboard_<slot> with clips onboard_<slot>_<n>.wav',
   liveException:
     'The name-greeting {name} slot is the ONLY line that may go live. Everything else resolves to a clip or is text-only.',
   enforcedBy: ['audio-ownership-check'],
@@ -281,13 +332,52 @@ export const GLOBAL_VOICE_OWNERSHIP: readonly GlobalVoiceOwner[] = [
     id: 'glob-out-of-scope',
     kind: 'global-rule',
     source: 'GLOBAL_RULES.glob-out-of-scope',
-    voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+    voice: 'clip-family:onboard_offtopic (recorded, 6 clips)',
   },
   {
     id: 'tool-failure-voice',
     kind: 'tool-failure',
     source: 'TOOL_FAILURE.voicePath',
-    voice: 'clip-family:onboard_tool_failure_retry (pending recording)',
+    voice: 'clip-family:onboard_toolfail_voice (recorded, 3 clips)',
+  },
+  // Reactive-toolkit owners (2026-07-11): the six new GLOBAL slots, each owned by a
+  // recorded-rotation clip family. kind 'global-rule' because each is EMITTED by the
+  // matching GLOBAL_RULES rule of the same id (effect: { kind: 'response', responseId }).
+  {
+    id: 'glob-reask',
+    kind: 'global-rule',
+    source: 'GLOBAL_RULES.glob-reask',
+    voice: 'clip-family:onboard_reask (recorded, 4 clips)',
+  },
+  {
+    id: 'glob-empty-state',
+    kind: 'global-rule',
+    source: 'GLOBAL_RULES.glob-empty-state',
+    voice: 'clip-family:onboard_empty (recorded, 3 clips)',
+  },
+  {
+    id: 'glob-narrow',
+    kind: 'global-rule',
+    source: 'GLOBAL_RULES.glob-narrow',
+    voice: 'clip-family:onboard_narrow (recorded, 4 clips)',
+  },
+  {
+    id: 'glob-create-own',
+    kind: 'global-rule',
+    source: 'GLOBAL_RULES.glob-create-own',
+    voice: 'clip-family:onboard_createown (recorded, 3 clips)',
+  },
+  {
+    id: 'glob-nudge-tap',
+    kind: 'global-rule',
+    source: 'GLOBAL_RULES.glob-nudge-tap',
+    voice: 'clip-family:onboard_nudge (recorded, 3 clips)',
+  },
+  {
+    id: 'glob-gender',
+    kind: 'global-rule',
+    source: 'GLOBAL_RULES.glob-gender',
+    voice: 'clip-family:onboard_gender (recorded, 3 clips)',
   },
 ];
 
@@ -331,13 +421,54 @@ export const GLOBAL_RESPONSES: readonly GlobalResponse[] = [
     id: 'glob-out-of-scope',
     modality: 'spoken',
     line: 'Per-beat steer-back: brief acknowledgment then the beat own question again, recorded per beat (the clip family owns each variant, no single fixed sentence).',
-    voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+    voice: 'clip-family:onboard_offtopic (recorded, 6 clips)',
   },
   {
     id: 'tool-failure-voice',
     modality: 'spoken',
     line: "That didn't go through, let me try again.",
-    voice: 'clip-family:onboard_tool_failure_retry (pending recording)',
+    voice: 'clip-family:onboard_toolfail_voice (recorded, 3 clips)',
+  },
+  // Reactive-toolkit responses (LOCKED 2026-07-10, Yair; onboarding-copy-decisions §4).
+  // Each is a recorded rotation: the family owns a few variants played at random, so the
+  // `line` is a family-level description, not one fixed sentence (the variant sentences
+  // live in the App Master Sheet reactive-toolkit rows). Every row is spoken + owned + set-
+  // equal to GLOBAL_VOICE_OWNERSHIP, and its emitting GLOBAL_RULES rule links it by id.
+  {
+    id: 'glob-reask',
+    modality: 'spoken',
+    line: 'Re-ask toolkit: one warm re-ask of the beat own question when input was not understood (invalid age, unclear answer, anything). The clip family owns a few variants played at random, no single fixed sentence.',
+    voice: 'clip-family:onboard_reask (recorded, 4 clips)',
+  },
+  {
+    id: 'glob-empty-state',
+    modality: 'spoken',
+    line: 'Empty-state toolkit: one light nudge when nothing is entered yet on a picker or capture surface. The clip family owns a few variants played at random, no single fixed sentence.',
+    voice: 'clip-family:onboard_empty (recorded, 3 clips)',
+  },
+  {
+    id: 'glob-narrow',
+    modality: 'spoken',
+    line: 'Narrow-it toolkit: one line asking the user to pick the one that matters most when they name too many at category or goals. The clip family owns a few variants played at random, no single fixed sentence.',
+    voice: 'clip-family:onboard_narrow (recorded, 4 clips)',
+  },
+  {
+    id: 'glob-create-own',
+    modality: 'spoken',
+    line: 'Create-your-own toolkit: one line inviting the user to add their own when nothing on the list fits. The clip family owns a few variants played at random, no single fixed sentence.',
+    voice: 'clip-family:onboard_createown (recorded, 3 clips)',
+  },
+  {
+    id: 'glob-nudge-tap',
+    modality: 'spoken',
+    line: 'Tap-nudge toolkit: one line pointing to the tap path when the user is stuck, skipping, or at the turn cap. The clip family owns a few variants played at random, no single fixed sentence.',
+    voice: 'clip-family:onboard_nudge (recorded, 3 clips)',
+  },
+  {
+    id: 'glob-gender',
+    modality: 'spoken',
+    line: 'Gender follow-up toolkit: the profile beat second ask, after age. The clip family owns a few variants played at random, no single fixed sentence.',
+    voice: 'clip-family:onboard_gender (recorded, 3 clips)',
   },
 ];
 
@@ -516,7 +647,7 @@ export const ENFORCER_REGISTRY: readonly EnforcerEntry[] = [
     kind: 'static',
     status: 'built',
     meaning:
-      'voice ownership across four lanes (VOICE_OWNERSHIP): (a) script perLine — only {name} lines may be live, all else resolves to clips; (b) section-13 conversation branches — every spoken reply owned; (c) edge rows — every quoted spoken behavior owned; (d) global-rule voice fields — shape-valid. Each spoken line carries one legal shape: clip / clip-family pending / text-only / name-greeting live exception',
+      'voice ownership across four lanes (VOICE_OWNERSHIP): (a) script perLine — only {name} lines may be live, all else resolves to clips; (b) section-13 conversation branches — every spoken reply owned; (c) edge rows — every quoted spoken behavior owned; (d) global-rule voice fields — shape-valid. Each spoken line carries one legal shape: clip / clip-family pending / clip-family recorded-rotation / text-only / name-greeting live exception',
     owner: 'render guards lane',
   },
   {
