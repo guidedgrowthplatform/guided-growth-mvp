@@ -2914,7 +2914,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       {
         seq: 5,
         words:
-          "Every day is great, but weekdays consistently beats every day occasionally. That's what I recommend to start.",
+          "Every day is great, but doing it on weekdays consistently beats doing it every day only occasionally. That's what I recommend to start.",
         bindsTo: {
           kind: 'bubble',
           element: 'bubble-2',
@@ -8310,7 +8310,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       {
         seq: 2,
         words:
-          'Not every habit needs to be done every day. Specific days in the week is great as well. Once a week for a certain habit, also great.',
+          'Not every habit needs to be done every day. Three specific days in the week is great as well. Once a week for a certain habit, also great.',
         bindsTo: {
           kind: 'bubble',
           element: 'bubble-2',
