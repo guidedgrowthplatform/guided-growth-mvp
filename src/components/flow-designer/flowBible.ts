@@ -949,7 +949,7 @@ export const OPEN_DECISIONS: readonly OpenDecision[] = [
       'Four minimal windows (name slot, pre-pick brainstorm, custom-entry fallback, edge one-liner), pending a dedicated Yair discussion.',
     decider: 'Yair',
     decided:
-      'OFF for onboarding (Yair 2026-07-09, LOCKED). No per-beat improvise windows at all; off-topic input is handled by the GLOBAL off-topic rule (acknowledge briefly, steer back with the beat own question, never chase, never advance). Windows removed from IMPROVISATION. Follow-up resolved: stay-open runs on SCRIPTED PROMPTS (pre-written help-you-decide lines per picker beat), no generative exception.',
+      'OFF for onboarding (Yair 2026-07-09, LOCKED). No per-beat improvise windows at all; off-topic input is handled by the GLOBAL off-topic rule (acknowledge briefly, steer back with the beat own question, never chase, never advance). Windows removed from IMPROVISATION. Follow-up resolved: an unsure user at a picker gets no brainstorm; they fall to the plain one-line re-ask plus the tap path (max-turns behavior), help-you-decide removed from the script (Yair 2026-07-10).',
   },
   {
     id: 'uniform-sections',

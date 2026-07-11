@@ -617,7 +617,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-BEGINNER-07: Evening Reflection Setup',
     props: {
       coachLine:
-        'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
+        'One more. An evening reflection, a minute and a half to close the day. How do you want to do it, and when?',
     },
   },
   {

@@ -41,25 +41,152 @@ export interface BeatContextMeta {
   readonly perElement?: readonly BeatElementLine[];
 }
 export const BEAT_METADATA: Record<string, BeatContextMeta> = {
-  "COACH-GREETING": {"spokenContent": "Hey. I'm your coach inside Guided Growth. Give me two minutes and we'll set up something that actually sticks.", "openerShowsAsBubble": false},
-  "MIC-PERMISSION": {"spokenContent": "I'd love to actually talk with you. If you let me use your mic, you can just speak.", "openerShowsAsBubble": false},
-  "ONBOARD-01--FORM": {"spokenContent": "Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?", "variable": true, "openerShowsAsBubble": true},
-  "ONBOARD-ADVANCED": {"spokenContent": "Read me the habits you already track. Less is more to start, you can always build on it.", "openerShowsAsBubble": true},
-  "ONBOARD-ADVANCED-FREQUENCY": {"spokenContent": "Now the days. Tell me how often each one runs and I'll fill them in.", "openerShowsAsBubble": true},
-  "ONBOARD-AUTH--FORM": {"openerShowsAsBubble": false},
-  "ONBOARD-BEGINNER-01": {"spokenContent": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.", "openerShowsAsBubble": true},
-  "ONBOARD-BEGINNER-02": {"spokenContent": "Within that, what's the piece you want to start with?", "openerShowsAsBubble": true},
-  "ONBOARD-BEGINNER-03": {"spokenContent": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.", "openerShowsAsBubble": true},
-  "ONBOARD-BEGINNER-04": {"openerMode": "A", "openerShowsAsBubble": false, "perElement": [{"elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 1, "showsAsBubble": false}, {"elementId": "when", "line": "What time?", "order": 2, "showsAsBubble": false}, {"elementId": "how-often", "line": "Or your own days.", "order": 3, "showsAsBubble": false}, {"elementId": "reminder", "line": "Want a reminder?", "order": 4, "showsAsBubble": false}]},
-  "ONBOARD-BEGINNER-07": {"spokenContent": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?", "openerMode": "B", "openerShowsAsBubble": true, "perElement": [{"elementId": "prompts", "line": "Three questions to close the day.", "order": 1, "showsAsBubble": false}, {"elementId": "mode", "line": "Or freeform, just talk.", "order": 2, "showsAsBubble": false}, {"elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 3, "showsAsBubble": false}, {"elementId": "when", "line": "What time?", "order": 4, "showsAsBubble": false}, {"elementId": "how-often", "line": "Or your own days.", "order": 5, "showsAsBubble": false}, {"elementId": "reminder", "line": "Want a reminder?", "order": 6, "showsAsBubble": false}]},
-  "ONBOARD-COMPLETE": {"spokenContent": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?", "openerShowsAsBubble": true},
-  "ONBOARD-FORK--FORM": {"spokenContent": "For the next part of the process, I'd like to know: Do you already track habits or is this new to you?", "openerShowsAsBubble": true},
-  "ONBOARD-MORNING-SETUP": {"openerMode": "A", "openerShowsAsBubble": false, "perElement": [{"elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 1, "showsAsBubble": false}, {"elementId": "when", "line": "What time?", "order": 2, "showsAsBubble": false}, {"elementId": "how-often", "line": "Or your own days.", "order": 3, "showsAsBubble": false}, {"elementId": "reminder", "line": "Want a reminder when it's time?", "order": 4, "showsAsBubble": false}]},
-  "ONBOARD-STATE-CHECK": {"spokenContent": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.", "openerShowsAsBubble": true, "perElement": [{"elementId": "sleep", "line": "How did you sleep?", "order": 1, "showsAsBubble": false}, {"elementId": "mood", "line": "How's your mood?", "order": 2, "showsAsBubble": false}, {"elementId": "energy", "line": "How's your energy?", "order": 3, "showsAsBubble": false}, {"elementId": "stress", "line": "And your stress?", "order": 4, "showsAsBubble": false}]},
-  "ONBOARD-WEEKLY-PROJECTION-BLANK": {"spokenContent": "This is your week. Blank, starting today.", "openerShowsAsBubble": false},
-  "ONBOARD-WEEKLY-PROJECTION-FULL": {"spokenContent": "Best case, every day green. Every streak going strong. That would be amazing.", "openerShowsAsBubble": false},
-  "ONBOARD-WEEKLY-PROJECTION-GAPS": {"spokenContent": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.", "openerShowsAsBubble": false},
-  "ONBOARD-WEEKLY-PROJECTION-P36": {"spokenContent": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.", "openerShowsAsBubble": false},
-  "ONBOARD-WEEKLY-PROJECTION-P78": {"spokenContent": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.", "openerShowsAsBubble": false},
-  "ONBOARD-WHY-INTRO": {"spokenContent": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.", "openerShowsAsBubble": false},
+  'COACH-GREETING': {
+    spokenContent:
+      "Hey. I'm your coach inside Guided Growth. Give me two minutes and we'll set up something that actually sticks.",
+    openerShowsAsBubble: false,
+  },
+  'MIC-PERMISSION': {
+    spokenContent:
+      "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+    openerShowsAsBubble: false,
+  },
+  'ONBOARD-01--FORM': {
+    spokenContent:
+      'Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?',
+    variable: true,
+    openerShowsAsBubble: true,
+  },
+  'ONBOARD-ADVANCED': {
+    spokenContent:
+      'Read me the habits you already track. Less is more to start, you can always build on it.',
+    openerShowsAsBubble: true,
+  },
+  'ONBOARD-ADVANCED-FREQUENCY': {
+    spokenContent: "Now the days. Tell me how often each one runs and I'll fill them in.",
+    openerShowsAsBubble: true,
+  },
+  'ONBOARD-AUTH--FORM': { openerShowsAsBubble: false },
+  'ONBOARD-BEGINNER-01': {
+    spokenContent:
+      "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+    openerShowsAsBubble: true,
+  },
+  'ONBOARD-BEGINNER-02': {
+    spokenContent: "Within that, what's the piece you want to start with?",
+    openerShowsAsBubble: true,
+  },
+  'ONBOARD-BEGINNER-03': {
+    spokenContent:
+      "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+    openerShowsAsBubble: true,
+  },
+  'ONBOARD-BEGINNER-04': {
+    openerMode: 'A',
+    openerShowsAsBubble: false,
+    perElement: [
+      {
+        elementId: 'schedule',
+        line: 'Weekdays, weekends, or every day?',
+        order: 1,
+        showsAsBubble: false,
+      },
+      { elementId: 'when', line: 'What time?', order: 2, showsAsBubble: false },
+      { elementId: 'how-often', line: 'Or your own days.', order: 3, showsAsBubble: false },
+      { elementId: 'reminder', line: 'Want a reminder?', order: 4, showsAsBubble: false },
+    ],
+  },
+  'ONBOARD-BEGINNER-07': {
+    spokenContent:
+      'One more. An evening reflection, a minute and a half to close the day. How do you want to do it, and when?',
+    openerMode: 'B',
+    openerShowsAsBubble: true,
+    perElement: [
+      {
+        elementId: 'prompts',
+        line: 'Three questions to close the day.',
+        order: 1,
+        showsAsBubble: false,
+      },
+      { elementId: 'mode', line: 'Or freeform, just talk.', order: 2, showsAsBubble: false },
+      {
+        elementId: 'schedule',
+        line: 'Weekdays, weekends, or every day?',
+        order: 3,
+        showsAsBubble: false,
+      },
+      { elementId: 'when', line: 'What time?', order: 4, showsAsBubble: false },
+      { elementId: 'how-often', line: 'Or your own days.', order: 5, showsAsBubble: false },
+      { elementId: 'reminder', line: 'Want a reminder?', order: 6, showsAsBubble: false },
+    ],
+  },
+  'ONBOARD-COMPLETE': {
+    spokenContent:
+      "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+    openerShowsAsBubble: true,
+  },
+  'ONBOARD-FORK--FORM': {
+    spokenContent:
+      'One more question before we set up your habits. Do you already track habits or is this new to you?',
+    openerShowsAsBubble: true,
+  },
+  'ONBOARD-MORNING-SETUP': {
+    openerMode: 'A',
+    openerShowsAsBubble: false,
+    perElement: [
+      {
+        elementId: 'schedule',
+        line: 'Weekdays, weekends, or every day?',
+        order: 1,
+        showsAsBubble: false,
+      },
+      { elementId: 'when', line: 'What time?', order: 2, showsAsBubble: false },
+      { elementId: 'how-often', line: 'Or your own days.', order: 3, showsAsBubble: false },
+      {
+        elementId: 'reminder',
+        line: "Want a reminder when it's time?",
+        order: 4,
+        showsAsBubble: false,
+      },
+    ],
+  },
+  'ONBOARD-STATE-CHECK': {
+    spokenContent:
+      "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+    openerShowsAsBubble: true,
+    perElement: [
+      { elementId: 'sleep', line: 'How did you sleep?', order: 1, showsAsBubble: false },
+      { elementId: 'mood', line: "How's your mood?", order: 2, showsAsBubble: false },
+      { elementId: 'energy', line: "How's your energy?", order: 3, showsAsBubble: false },
+      { elementId: 'stress', line: 'And your stress?', order: 4, showsAsBubble: false },
+    ],
+  },
+  'ONBOARD-WEEKLY-PROJECTION-BLANK': {
+    spokenContent: 'This is your week. Blank, starting today.',
+    openerShowsAsBubble: false,
+  },
+  'ONBOARD-WEEKLY-PROJECTION-FULL': {
+    spokenContent: 'Best case, every day green. Every streak going strong. That would be amazing.',
+    openerShowsAsBubble: false,
+  },
+  'ONBOARD-WEEKLY-PROJECTION-GAPS': {
+    spokenContent:
+      'The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.',
+    openerShowsAsBubble: false,
+  },
+  'ONBOARD-WEEKLY-PROJECTION-P36': {
+    spokenContent:
+      "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+    openerShowsAsBubble: false,
+  },
+  'ONBOARD-WEEKLY-PROJECTION-P78': {
+    spokenContent:
+      "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+    openerShowsAsBubble: false,
+  },
+  'ONBOARD-WHY-INTRO': {
+    spokenContent:
+      "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+    openerShowsAsBubble: false,
+  },
 };

@@ -971,7 +971,7 @@
       "path": "advanced",
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
-      "opener": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+      "opener": "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
       "clips": [
         {
           "clip": "onboard_advanced_1",

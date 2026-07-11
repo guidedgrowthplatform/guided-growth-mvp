@@ -480,7 +480,7 @@ export function buildGoalsConversation(data: GoalsCategoryData): BeatConversatio
         reply:
           'global rule glob-out-of-scope: one brief acknowledgement, steer back with the goal question',
         then: 'wait',
-        voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+        voice: 'clip-family:onboard_offtopic (pending recording)',
       },
     ],
     maxTurns: 4,
@@ -735,18 +735,11 @@ export function buildHabitsConversation(data: HabitsGoalData): BeatConversation 
         voice: `clip-family:${root}_3 (pending recording)`,
       },
       {
-        on: 'vague or unsure which habit',
-        reply:
-          'scripted help-you-decide prompt (e.g. "What is one small thing you could actually keep?"); yields the instant they lean toward one',
-        then: 'wait',
-        voice: `clip-family:${root}_4 (pending recording)`,
-      },
-      {
         on: 'off-topic or world question',
         reply:
           'global rule glob-out-of-scope: one brief acknowledgement, steer back with the habit question',
         then: 'wait',
-        voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+        voice: 'clip-family:onboard_offtopic (pending recording)',
       },
     ],
     maxTurns: 4,
@@ -2132,7 +2125,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back to the age/gender asks',
             then: 'wait',
-            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+            voice: 'clip-family:onboard_offtopic (pending recording)',
           },
         ],
         maxTurns: 4,
@@ -2352,27 +2345,22 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             seq: 2,
-            reveal: 'second framing bubble, GATED on seq 1 clip end',
-            timing: 'karaoke per-word on the bubble',
-          },
-          {
-            seq: 3,
-            reveal: 'the sleep card blooms, GATED on seq 2 clip end',
+            reveal: 'the sleep card blooms, GATED on seq 1 clip end',
             timing: 'karaoke per-word on the sleep question',
           },
           {
-            seq: 4,
-            reveal: 'the mood card blooms, GATED on seq 3 clip end',
+            seq: 3,
+            reveal: 'the mood card blooms, GATED on seq 2 clip end',
             timing: 'karaoke per-word on the mood question',
           },
           {
-            seq: 5,
-            reveal: 'the energy card blooms, GATED on seq 4 clip end',
+            seq: 4,
+            reveal: 'the energy card blooms, GATED on seq 3 clip end',
             timing: 'karaoke per-word on the energy question',
           },
           {
-            seq: 6,
-            reveal: 'the stress card blooms, GATED on seq 5 clip end',
+            seq: 5,
+            reveal: 'the stress card blooms, GATED on seq 4 clip end',
             timing: 'karaoke per-word on the stress question',
           },
         ],
@@ -2406,10 +2394,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         ],
         perLine: [
           { seq: 1, resolvesTo: 'recorded clip onboard_state_check_1', liveAllowed: 'NO' },
-          { seq: 3, resolvesTo: 'recorded clip state_sleep', liveAllowed: 'NO' },
-          { seq: 4, resolvesTo: 'recorded clip state_mood', liveAllowed: 'NO' },
-          { seq: 5, resolvesTo: 'recorded clip state_energy', liveAllowed: 'NO' },
-          { seq: 6, resolvesTo: 'recorded clip state_stress', liveAllowed: 'NO' },
+          { seq: 2, resolvesTo: 'recorded clip state_sleep', liveAllowed: 'NO' },
+          { seq: 3, resolvesTo: 'recorded clip state_mood', liveAllowed: 'NO' },
+          { seq: 4, resolvesTo: 'recorded clip state_energy', liveAllowed: 'NO' },
+          { seq: 5, resolvesTo: 'recorded clip state_stress', liveAllowed: 'NO' },
         ],
         assertion:
           'No line here carries a live slot like {name}, so all five spoken lines MUST resolve to recorded clips. No live Cartesia on this beat.',
@@ -2546,7 +2534,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: '/voice/ob/onboard_state_check_1.wav',
       },
       {
-        seq: 3,
+        seq: 2,
         words: "How's your sleep?",
         bindsTo: {
           kind: 'component',
@@ -2558,7 +2546,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: '/voice/ob/state_sleep.wav',
       },
       {
-        seq: 4,
+        seq: 3,
         words: "How's your mood?",
         bindsTo: {
           kind: 'component',
@@ -2570,7 +2558,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: '/voice/ob/state_mood.wav',
       },
       {
-        seq: 5,
+        seq: 4,
         words: "How's your energy?",
         bindsTo: {
           kind: 'component',
@@ -2582,7 +2570,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: '/voice/ob/state_energy.wav',
       },
       {
-        seq: 6,
+        seq: 5,
         words: "How's your stress?",
         bindsTo: {
           kind: 'component',
@@ -3177,7 +3165,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back to the reflection setup',
             then: 'wait',
-            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+            voice: 'clip-family:onboard_offtopic (pending recording)',
           },
         ],
         maxTurns: 4,
@@ -3443,7 +3431,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'path-selection',
     screenId: 'ONBOARD-FORK--FORM',
     context:
-      'BEAT: Experience fork.\n\nSPEAK MODE: VERBATIM_OPENER + VERBAL_QUESTION\n\nThe framing "For the next part of the process, I\'d like to know:" shows as one coach bubble. Then, as the two path cards appear, the question "Do you already track habits or is this new to you?" is spoken VERBAL ONLY (not a bubble). New, tried and dropped off, or wants guidance, route to beginner. Has a list or a system already, route to advanced. If unclear, ask one short question.\n\nDO NOT:\n- Read the two choices out loud as a list. The cards show them. Ask the question, then wait.\n- Add "both are totally fine" or any filler tail.',
+      'BEAT: Experience fork.\n\nSPEAK MODE: VERBATIM_OPENER + VERBAL_QUESTION\n\nThe framing "One more question before we set up your habits." shows as one coach bubble. Then, as the two path cards appear, the question "Do you already track habits or is this new to you?" is spoken VERBAL ONLY (not a bubble). New, tried and dropped off, or wants guidance, route to beginner. Has a list or a system already, route to advanced. If unclear, ask one short question.\n\nDO NOT:\n- Read the two choices out loud as a list. The cards show them. Ask the question, then wait.\n- Add "both are totally fine" or any filler tail.',
     allowedTools: 'submit_path_choice, ask_clarification, advance_step',
     expectedResponse: 'New, or I already track habits',
     voiceEngine: 'MP3',
@@ -3622,7 +3610,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back with the fork question',
             then: 'wait',
-            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+            voice: 'clip-family:onboard_offtopic (pending recording)',
           },
         ],
         maxTurns: 3,
@@ -4013,7 +4001,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back with the category question',
             then: 'wait',
-            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+            voice: 'clip-family:onboard_offtopic (pending recording)',
           },
         ],
         maxTurns: 4,
@@ -4466,7 +4454,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back with the category question',
             then: 'wait',
-            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+            voice: 'clip-family:onboard_offtopic (pending recording)',
           },
         ],
         maxTurns: 4,
@@ -4949,7 +4937,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back with the goal question',
             then: 'wait',
-            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+            voice: 'clip-family:onboard_offtopic (pending recording)',
           },
         ],
         maxTurns: 4,
@@ -5868,18 +5856,11 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             voice: 'clip-family:onboard_beginner_03_3 (pending recording)',
           },
           {
-            on: 'vague or unsure which habit',
-            reply:
-              'scripted help-you-decide prompt (e.g. "What is one small thing you could actually keep?"); yields the instant they lean toward one',
-            then: 'wait',
-            voice: 'clip-family:onboard_beginner_03_4 (pending recording)',
-          },
-          {
             on: 'off-topic or world question',
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back with the habit question',
             then: 'wait',
-            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+            voice: 'clip-family:onboard_offtopic (pending recording)',
           },
         ],
         maxTurns: 4,
@@ -7887,7 +7868,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back to the habit list',
             then: 'wait',
-            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+            voice: 'clip-family:onboard_offtopic (pending recording)',
           },
         ],
         maxTurns: 6,
@@ -7990,7 +7971,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       {
         seq: 1,
         words:
-          "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+          "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
         bindsTo: {
           kind: 'bubble',
           element: 'bubble-1',
@@ -8538,7 +8519,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             reply:
               'global rule glob-out-of-scope: one brief acknowledgement, steer back to the plan confirm',
             then: 'wait',
-            voice: 'clip-family:onboard_offtopic_steerback (pending recording)',
+            voice: 'clip-family:onboard_offtopic (pending recording)',
           },
         ],
         maxTurns: 5,

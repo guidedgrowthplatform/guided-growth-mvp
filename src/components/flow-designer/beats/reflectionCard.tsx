@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
-import { Toggle } from '@/components/ui/Toggle';
-import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
-import { DayPicker } from '@/components/ui/DayPicker';
+import { useEffect, useState } from 'react';
 import { WEEKDAYS, toggleSetItem } from '@/components/onboarding/constants';
+import { DayPicker } from '@/components/ui/DayPicker';
+import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
+import { Toggle } from '@/components/ui/Toggle';
 import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY as BLUE, INK, SUBTLE } from './_beatStyle';
@@ -18,7 +18,7 @@ const EVENING_BORDER = 'rgba(100, 74, 185, 0.15)';
 // The spec requires: "suggested template" | "your template" | "freeform"
 type ReflectionStyle = 'suggested template' | 'your template' | 'freeform';
 
-const DEFAULT_PROMPTS = ["I'm proud of...", "I forgive...", "I'm grateful for..."];
+const DEFAULT_PROMPTS = ["I'm proud of...", 'I forgive...', "I'm grateful for..."];
 
 // The suggested-template questions, shown as their own components (not a label) when
 // the suggested template is chosen.
@@ -64,7 +64,9 @@ function SuggestedPrompts({ reveal }: { reveal: number }) {
             >
               {i + 1}
             </div>
-            <span style={{ fontFamily: FONT, fontSize: 14.5, fontWeight: 600, color: INK }}>{p}</span>
+            <span style={{ fontFamily: FONT, fontSize: 14.5, fontWeight: 600, color: INK }}>
+              {p}
+            </span>
           </div>
         </Bloom>
       ))}
@@ -180,9 +182,7 @@ function StyleDescription({ style }: { style: ReflectionStyle }) {
         <Icon icon={m.icon} width={20} height={20} style={{ color: EVENING_ICON_COLOR }} />
       </div>
       <div>
-        <div style={{ fontFamily: FONT, fontSize: 15, fontWeight: 700, color: INK }}>
-          {m.title}
-        </div>
+        <div style={{ fontFamily: FONT, fontSize: 15, fontWeight: 700, color: INK }}>{m.title}</div>
         <div
           style={{
             fontFamily: FONT,
@@ -290,8 +290,7 @@ function EveningSetupCard({
           padding: '22px 20px',
           background: '#fff',
           border: `1.5px solid ${EVENING_BORDER}`,
-          boxShadow:
-            '0 4px 16px -4px rgba(100,74,185,0.12), 0 1px 4px rgba(0,0,0,0.04)',
+          boxShadow: '0 4px 16px -4px rgba(100,74,185,0.12), 0 1px 4px rgba(0,0,0,0.04)',
         }}
       >
         {/* Header */}
@@ -316,13 +315,17 @@ function EveningSetupCard({
             />
           </div>
           <div>
-            <div
-              style={{ fontFamily: FONT, fontSize: 18, fontWeight: 800, color: INK }}
-            >
+            <div style={{ fontFamily: FONT, fontSize: 18, fontWeight: 800, color: INK }}>
               Evening Reflection
             </div>
             <div
-              style={{ fontFamily: FONT, fontSize: 13.5, fontWeight: 500, color: SUBTLE, marginTop: 2 }}
+              style={{
+                fontFamily: FONT,
+                fontSize: 13.5,
+                fontWeight: 500,
+                color: SUBTLE,
+                marginTop: 2,
+              }}
             >
               Wind down and close your day
             </div>
@@ -330,7 +333,14 @@ function EveningSetupCard({
         </div>
 
         {/* Divider */}
-        <div style={{ height: 1, background: 'rgba(15,23,42,0.06)', marginLeft: -20, marginRight: -20 }} />
+        <div
+          style={{
+            height: 1,
+            background: 'rgba(15,23,42,0.06)',
+            marginLeft: -20,
+            marginRight: -20,
+          }}
+        />
 
         {/* The reflection itself. The default is the three suggested questions,
             each blooming as its clip plays. "Make your own" swaps in editable
@@ -399,7 +409,14 @@ function EveningSetupCard({
         </Bloom>
 
         {/* Divider */}
-        <div style={{ height: 1, background: 'rgba(15,23,42,0.06)', marginLeft: -20, marginRight: -20 }} />
+        <div
+          style={{
+            height: 1,
+            background: 'rgba(15,23,42,0.06)',
+            marginLeft: -20,
+            marginRight: -20,
+          }}
+        />
 
         {/* Days */}
         <Bloom show={reveal > 4}>
@@ -409,7 +426,14 @@ function EveningSetupCard({
         </Bloom>
 
         {/* Divider */}
-        <div style={{ height: 1, background: 'rgba(15,23,42,0.06)', marginLeft: -20, marginRight: -20 }} />
+        <div
+          style={{
+            height: 1,
+            background: 'rgba(15,23,42,0.06)',
+            marginLeft: -20,
+            marginRight: -20,
+          }}
+        />
 
         {/* Time */}
         <Bloom show={reveal > 5}>
@@ -463,10 +487,16 @@ function EveningSetupCard({
               <div style={{ fontFamily: FONT, fontSize: 15, fontWeight: 600, color: INK }}>
                 Remind me
               </div>
-              <div style={{ fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: SUBTLE, marginTop: 1 }}>
-                {reminder
-                  ? `Notification at ${formatTime12(time)}`
-                  : 'Notifications off'}
+              <div
+                style={{
+                  fontFamily: FONT,
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  color: SUBTLE,
+                  marginTop: 1,
+                }}
+              >
+                {reminder ? `Notification at ${formatTime12(time)}` : 'Notifications off'}
               </div>
             </div>
             <Toggle checked={reminder} onChange={onReminderChange} />
@@ -514,7 +544,7 @@ function ReflectionCardBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        'One more. An evening reflection, a couple of minutes to close out your day. Use these three questions, make it your own, or just talk freely.',
+        'One more. An evening reflection, a minute and a half to close out your day. Use these three questions, make it your own, or just talk freely.',
     },
   ];
   // Optional second coach bubble (the time recommendation, before bed).

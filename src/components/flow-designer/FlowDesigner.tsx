@@ -1047,6 +1047,33 @@ function InheritedSectionChip({ head }: { head: string }) {
   );
 }
 
+// Section resolved per-variant from the head Bible + this beat's own props/script
+// (resolveBeatStructure). Distinct from InheritedSectionChip: those pass the head's
+// content through substitution; a derived section is rebuilt from typed per-variant
+// facts (components tiles, voice clips, per-goal rules). Shown so it reads as
+// resolved, not hand-authored, and never as an empty pending stub.
+function DerivedSectionChip({ head }: { head: string }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '1px 7px',
+        borderRadius: 99,
+        border: '1px solid #c7d2fe',
+        background: '#eef2ff',
+        color: '#4338ca',
+        fontSize: 9.5,
+        fontWeight: 800,
+        letterSpacing: '0.02em',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      derived from {head}
+    </span>
+  );
+}
+
 // Identity (section 1) is never inherited — it's always either the beat's own or
 // freshly derived from the beat's fields (deriveVariantIdentity). This marks the
 // derived case so it doesn't read as hand-authored.
@@ -1268,7 +1295,11 @@ function BibleSectionSlot({
   badge?: ReactNode;
   children: ReactNode;
 }) {
-  if (status && status !== 'filled') {
+  // pending-app-reconcile / { na } -> compact status row; nothing to expand into.
+  // 'derived' is NOT routed here: resolveBeatStructure fills bible.<key> with the
+  // resolved/inherited content, so a derived section renders its real spec (with a
+  // "derived from <head>" badge), never the empty pending stub (B1 blocker fix).
+  if (status && status !== 'filled' && status !== 'derived') {
     return <SectionStatusRow title={title} status={status} />;
   }
   if (!hasData) return null;
@@ -1310,8 +1341,16 @@ function BiblePanel({
     rulesCode.filter((r) => r.severity === 'should').length;
   const manifest = bible.sectionManifest;
   const isInherited = (key: BibleSectionKey) => inheritedSections?.includes(key) ?? false;
-  const inheritedBadge = (key: BibleSectionKey) =>
-    variantOf && isInherited(key) ? <InheritedSectionChip head={variantOf} /> : undefined;
+  // Per-section derivation badge: pass-through-inherited sections carry the amber
+  // "inherited from <head>" chip; other 'derived' sections (rebuilt per-variant:
+  // components, voice, per-goal rules) carry the "derived from <head>" chip. Both
+  // mark the section as resolved, not hand-authored.
+  const inheritedBadge = (key: BibleSectionKey) => {
+    if (!variantOf) return undefined;
+    if (isInherited(key)) return <InheritedSectionChip head={variantOf} />;
+    if (manifest?.[key] === 'derived') return <DerivedSectionChip head={variantOf} />;
+    return undefined;
+  };
 
   return (
     <div
