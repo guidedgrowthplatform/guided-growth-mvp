@@ -32,6 +32,7 @@ import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { queryKeys } from '@/lib/query';
+import { isScreenTimeAvailable } from '@/lib/services/screenTime';
 import { FIRST_OPEN, setFlag } from '@/lib/storage/persistentFlags';
 import { useVoiceSettingsStore, type SttProvider } from '@/stores/voiceSettingsStore';
 import type { RecordingMode } from '@gg/shared/types';
@@ -276,6 +277,24 @@ export function SettingsPage() {
 
       {/* Integrations */}
       <CalendarIntegrationSection />
+
+      {/* Digital Wellbeing — iOS only: backed by Apple's Screen Time APIs */}
+      {isScreenTimeAvailable() && (
+        <section className="mt-8">
+          <SettingSectionHeader title="Digital Wellbeing" />
+          <SettingsCard>
+            <SettingRow
+              icon="mdi:cellphone-lock"
+              label="Screen Time"
+              isFirst
+              onClick={() => navigate('/screen-time')}
+              right={
+                <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
+              }
+            />
+          </SettingsCard>
+        </section>
+      )}
 
       {/* Privacy & Account */}
       <section className="mt-8">

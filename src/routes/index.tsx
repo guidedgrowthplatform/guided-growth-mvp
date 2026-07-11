@@ -32,6 +32,9 @@ const FocusPage = lazyWithRetry(() =>
 const SettingsPage = lazyWithRetry(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
+const ScreenTimePage = lazyWithRetry(() =>
+  import('@/pages/ScreenTimePage').then((m) => ({ default: m.ScreenTimePage })),
+);
 const PrivacyPolicyPage = lazyWithRetry(() =>
   import('@/pages/PrivacyPolicyPage').then((m) => ({ default: m.PrivacyPolicyPage })),
 );
@@ -261,6 +264,7 @@ export function AppRoutes() {
           <Route path="habits" element={<HabitsPage />} />
           <Route path="add-habit" element={<AddHabitPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="screen-time" element={<ScreenTimePage />} />
           <Route path="journal" element={<JournalFlowPage />} />
           <Route path="reflections" element={<ReflectionsListPage />} />
           <Route path="reflections/:id" element={<ReflectionDetailPage />} />
