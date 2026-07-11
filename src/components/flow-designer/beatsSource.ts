@@ -85,11 +85,6 @@ When a beat puts choices on the screen (categories, the things inside a category
 - The option lists in your context are there only so you can match what the user says to the exact label. They're reference, not a script.
 - If nothing has appeared for the user yet, don't fill the silence by naming the options. Ask one neutral question like "Is anything coming up for you to pick from?" If they say no, that's a display problem, not a cue to recite the list.
 
-## Brainstorming (when they're not sure)
-- Some users know exactly what they want, others don't. When a beat asks them to choose and they're unsure, stuck, or torn between options, offer to think it through together. Ask one short grounding question, weigh it with them, help them land on one. A real back-and-forth, not a lecture, and not life advice. You're helping them decide, not telling them what to do.
-- This shines out loud, on the full-voice path. In text, keep it to a question or two.
-- The second they know what they want, take it and move on. Never slow a decisive user down, and never push someone who's ready into a debate they didn't ask for.
-
 ## Tools (how you save)
 - Each beat tells you which tool to call and when. Call it only once that beat's data is actually captured, then move on.
 - Only call a tool the current beat allows. If you are reaching for any other tool, you are getting ahead. Stop and stay on this beat.
@@ -312,7 +307,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       {
         seq: 1,
         words:
-          "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+          "I'd like to invite you into a coaching process. It's built on a few small pieces we'll go through together. Here's the first, a quick state check-in, and I'd like you to do it right now.",
         bindsTo: {
           kind: 'bubble',
           element: 'bubble-1',
@@ -321,19 +316,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         voice: 'mp3',
         clip: 'onboard_state_check_1',
         clipPath: '/voice/ob/onboard_state_check_1.wav',
-      },
-      {
-        seq: 2,
-        words:
-          "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-        bindsTo: {
-          kind: 'bubble',
-          element: 'bubble-2',
-          screen: 'ONBOARD-STATE-CHECK',
-        },
-        voice: 'mp3',
-        clip: 'onboard_state_check_2',
-        clipPath: '/voice/ob/onboard_state_check_2.wav',
       },
       {
         seq: 3,
@@ -486,7 +468,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       {
         seq: 1,
         words:
-          'One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.',
+          'One more. An evening reflection, a minute and a half to close out your day. Use these three questions.',
         bindsTo: {
           kind: 'bubble',
           element: 'bubble-1',
