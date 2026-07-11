@@ -284,7 +284,7 @@
       "componentType": "state-check",
       "componentProps": {},
       "voice": {
-        "openerText": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+        "openerText": "I'd like to invite you into a coaching process. It's built on a few small pieces we'll go through together. Here's the first, a quick state check-in, and I'd like you to do it right now.",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -297,14 +297,7 @@
               "id": "onboard_state_check_1",
               "label": "onboard_state_check_1",
               "file": "/voice/ob/onboard_state_check_1.wav",
-              "transcript": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
-              "timing": "opener"
-            },
-            {
-              "id": "onboard_state_check_2",
-              "label": "onboard_state_check_2",
-              "file": "/voice/ob/onboard_state_check_2.wav",
-              "transcript": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
+              "transcript": "I'd like to invite you into a coaching process. It's built on a few small pieces we'll go through together. Here's the first, a quick state check-in, and I'd like you to do it right now.",
               "timing": "opener"
             },
             {
@@ -343,7 +336,7 @@
           "lines": [
             {
               "id": "onboard-state-check-line-1",
-              "text": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process. Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
+              "text": "I'd like to invite you into a coaching process. It's built on a few small pieces we'll go through together. Here's the first, a quick state check-in, and I'd like you to do it right now.",
               "voiceOnly": false,
               "onScreen": true,
               "engine": "mp3",
@@ -402,14 +395,8 @@
         {
           "kind": "bubble",
           "n": 1,
-          "say": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+          "say": "I'd like to invite you into a coaching process. It's built on a few small pieces we'll go through together. Here's the first, a quick state check-in, and I'd like you to do it right now.",
           "clip": "onboard_state_check_1"
-        },
-        {
-          "kind": "bubble",
-          "n": 2,
-          "say": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-          "clip": "onboard_state_check_2"
         },
         {
           "kind": "reveal",
@@ -585,7 +572,7 @@
         "showModePicker": true
       },
       "voice": {
-        "openerText": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+        "openerText": "One more. An evening reflection, a minute and a half to close out your day. Use these three questions.",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -598,7 +585,7 @@
               "id": "onboard_beginner_07_1",
               "label": "onboard_beginner_07_1",
               "file": "/voice/ob/onboard_beginner_07_1.wav",
-              "transcript": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+              "transcript": "One more. An evening reflection, a minute and a half to close out your day. Use these three questions.",
               "timing": "opener"
             },
             {
@@ -645,7 +632,7 @@
           "lines": [
             {
               "id": "onboard-beginner-07-line-1",
-              "text": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+              "text": "One more. An evening reflection, a minute and a half to close out your day. Use these three questions.",
               "voiceOnly": false,
               "onScreen": true,
               "engine": "mp3",
@@ -704,7 +691,7 @@
         {
           "kind": "bubble",
           "n": 1,
-          "say": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+          "say": "One more. An evening reflection, a minute and a half to close out your day. Use these three questions.",
           "clip": "onboard_beginner_07_1"
         },
         {
@@ -793,7 +780,7 @@
         ]
       },
       "voice": {
-        "openerText": "For the next part of the process, I'd like to know:",
+        "openerText": "One more question before we set up your habits.",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -806,7 +793,7 @@
               "id": "onboard_fork_form_1",
               "label": "onboard_fork_form_1",
               "file": "/voice/ob/onboard_fork_form_1.wav",
-              "transcript": "For the next part of the process, I'd like to know:",
+              "transcript": "One more question before we set up your habits.",
               "timing": "opener"
             },
             {
@@ -821,7 +808,7 @@
           "lines": [
             {
               "id": "onboard-fork-form-line-1",
-              "text": "For the next part of the process, I'd like to know:",
+              "text": "One more question before we set up your habits.",
               "voiceOnly": false,
               "onScreen": true,
               "engine": "mp3",
@@ -881,7 +868,7 @@
         {
           "kind": "bubble",
           "n": 1,
-          "say": "For the next part of the process, I'd like to know:",
+          "say": "One more question before we set up your habits.",
           "clip": "onboard_fork_form_1"
         },
         {
@@ -1352,7 +1339,7 @@
         "placeholder": "Tell me everything on your mind, what you want to build, drop, or change."
       },
       "voice": {
-        "openerText": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+        "openerText": "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -1365,7 +1352,7 @@
               "id": "onboard_advanced_1",
               "label": "onboard_advanced_1",
               "file": "/voice/ob/onboard_advanced_1.wav",
-              "transcript": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+              "transcript": "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
               "timing": "opener"
             },
             {
@@ -1379,7 +1366,7 @@
           "lines": [
             {
               "id": "onboard-advanced-line-1",
-              "text": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+              "text": "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
               "voiceOnly": false,
               "onScreen": true,
               "engine": "mp3",
@@ -1438,7 +1425,7 @@
         {
           "kind": "bubble",
           "n": 1,
-          "say": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+          "say": "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
           "clip": "onboard_advanced_1"
         },
         {
@@ -2105,7 +2092,7 @@
         "kind": "goal"
       },
       "voice": {
-        "openerText": "Tell me the goal you want to add, and I'll set it up.",
+        "openerText": "What goal do you want to work toward?",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -2118,14 +2105,14 @@
               "id": "onboard_beginner_02_custom_1",
               "label": "onboard_beginner_02_custom_1",
               "file": "/voice/ob/onboard_beginner_02_custom_1.wav",
-              "transcript": "Tell me the goal you want to add, and I'll set it up.",
+              "transcript": "What goal do you want to work toward?",
               "timing": "opener"
             }
           ],
           "lines": [
             {
               "id": "onboard-beginner-02-custom-line-1",
-              "text": "Tell me the goal you want to add, and I'll set it up.",
+              "text": "What goal do you want to work toward?",
               "voiceOnly": false,
               "onScreen": true,
               "engine": "mp3",
@@ -2191,7 +2178,7 @@
         "kind": "habit"
       },
       "voice": {
-        "openerText": "Tell me the habit you want to add, and I'll set it up.",
+        "openerText": "What habit do you want to build?",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -2204,14 +2191,14 @@
               "id": "onboard_beginner_03_custom_1",
               "label": "onboard_beginner_03_custom_1",
               "file": "/voice/ob/onboard_beginner_03_custom_1.wav",
-              "transcript": "Tell me the habit you want to add, and I'll set it up.",
+              "transcript": "What habit do you want to build?",
               "timing": "opener"
             }
           ],
           "lines": [
             {
               "id": "onboard-beginner-03-custom-line-1",
-              "text": "Tell me the habit you want to add, and I'll set it up.",
+              "text": "What habit do you want to build?",
               "voiceOnly": false,
               "onScreen": true,
               "engine": "mp3",

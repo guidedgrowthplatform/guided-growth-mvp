@@ -235,13 +235,12 @@
       "transition": null,
       "context": "",
       "props": {
-        "coachLine": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
-        "coachLine2": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now."
+        "coachLine": "I'd like to invite you into a coaching process. It's built on a few small pieces we'll go through together. Here's the first, a quick state check-in, and I'd like you to do it right now."
       },
       "meta": {
         "voiceEngine": "MP3",
         "voiceMode": "Verbatim",
-        "spokenContent": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process. Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
+        "spokenContent": "I'd like to invite you into a coaching process. It's built on a few small pieces we'll go through together. Here's the first, a quick state check-in, and I'd like you to do it right now.",
         "allowedTools": "record_checkin, advance_step",
         "openerShowsAsBubble": true,
         "expectedResponse": "Fills sleep, mood, energy, stress on the same cards",
@@ -280,14 +279,7 @@
             "id": "onboard_state_check_1",
             "label": "onboard_state_check_1",
             "file": "/voice/ob/onboard_state_check_1.wav",
-            "transcript": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
-            "timing": "opener"
-          },
-          {
-            "id": "onboard_state_check_2",
-            "label": "onboard_state_check_2",
-            "file": "/voice/ob/onboard_state_check_2.wav",
-            "transcript": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
+            "transcript": "I'd like to invite you into a coaching process. It's built on a few small pieces we'll go through together. Here's the first, a quick state check-in, and I'd like you to do it right now.",
             "timing": "opener"
           },
           {
@@ -332,14 +324,8 @@
         {
           "kind": "bubble",
           "n": 1,
-          "say": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+          "say": "I'd like to invite you into a coaching process. It's built on a few small pieces we'll go through together. Here's the first, a quick state check-in, and I'd like you to do it right now.",
           "clip": "onboard_state_check_1"
-        },
-        {
-          "kind": "bubble",
-          "n": 2,
-          "say": "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-          "clip": "onboard_state_check_2"
         },
         {
           "kind": "reveal",
@@ -465,12 +451,12 @@
       "transition": null,
       "context": "",
       "props": {
-        "coachLine": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions."
+        "coachLine": "One more. An evening reflection, a minute and a half to close out your day. Use these three questions."
       },
       "meta": {
         "voiceEngine": "MP3",
         "voiceMode": "Verbatim",
-        "spokenContent": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+        "spokenContent": "One more. An evening reflection, a minute and a half to close out your day. Use these three questions.",
         "openerMode": "B",
         "allowedTools": "submit_reflection_config, submit_custom_prompts, advance_step",
         "openerShowsAsBubble": true,
@@ -537,7 +523,7 @@
             "id": "onboard_beginner_07_1",
             "label": "onboard_beginner_07_1",
             "file": "/voice/ob/onboard_beginner_07_1.wav",
-            "transcript": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+            "transcript": "One more. An evening reflection, a minute and a half to close out your day. Use these three questions.",
             "timing": "opener"
           },
           {
@@ -587,7 +573,7 @@
         {
           "kind": "bubble",
           "n": 1,
-          "say": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+          "say": "One more. An evening reflection, a minute and a half to close out your day. Use these three questions.",
           "clip": "onboard_beginner_07_1"
         },
         {
@@ -641,12 +627,12 @@
       "transition": null,
       "context": "BEAT: Experience fork.\n\nCollect whether the user is new to habit tracking or already has habits they want to bring in. Route first-timers, people who tried and dropped off, or people who want guidance to beginner. Route users with an existing habit list or tracking system to advanced. If unclear, ask one short clarifying question.\n\nPATHS\n\nSame question and same routing on every path. Only the answer changes.\nPath 1 (full voice): Ask it conversationally, the user answers by talking, you route.\nPath 2 (half voice): Speak the question once and let them tap new vs experienced, or let them say it and confirm in text.\nPath 3 (typing): Show the question and two choices, the user taps one.",
       "props": {
-        "coachLine": "For the next part of the process, I'd like to know:"
+        "coachLine": "One more question before we set up your habits."
       },
       "meta": {
         "voiceEngine": "MP3",
         "voiceMode": "Verbatim",
-        "spokenContent": "For the next part of the process, I'd like to know:",
+        "spokenContent": "One more question before we set up your habits.",
         "allowedTools": "submit_path_choice, ask_clarification, advance_step",
         "openerShowsAsBubble": true,
         "expectedResponse": "New, or I already track habits",
@@ -663,7 +649,7 @@
             "id": "onboard_fork_form_1",
             "label": "onboard_fork_form_1",
             "file": "/voice/ob/onboard_fork_form_1.wav",
-            "transcript": "For the next part of the process, I'd like to know:",
+            "transcript": "One more question before we set up your habits.",
             "timing": "opener"
           },
           {
@@ -690,7 +676,7 @@
         {
           "kind": "bubble",
           "n": 1,
-          "say": "For the next part of the process, I'd like to know:",
+          "say": "One more question before we set up your habits.",
           "clip": "onboard_fork_form_1"
         },
         {
@@ -836,12 +822,12 @@
       "context": "",
       "props": {
         "kind": "goal",
-        "coachLine": "Tell me the goal you want to add, and I'll set it up."
+        "coachLine": "What goal do you want to work toward?"
       },
       "meta": {
         "voiceEngine": "MP3",
         "voiceMode": "Verbatim",
-        "spokenContent": "Tell me the goal you want to add, and I'll set it up.",
+        "spokenContent": "What goal do you want to work toward?",
         "openerShowsAsBubble": true,
         "expectedResponse": "Names their own goal",
         "variable": false,
@@ -850,7 +836,7 @@
             "id": "onboard_beginner_02_custom_1",
             "label": "onboard_beginner_02_custom_1",
             "file": "/voice/ob/onboard_beginner_02_custom_1.wav",
-            "transcript": "Tell me the goal you want to add, and I'll set it up.",
+            "transcript": "What goal do you want to work toward?",
             "timing": "opener"
           }
         ],
@@ -924,12 +910,12 @@
       "context": "",
       "props": {
         "kind": "habit",
-        "coachLine": "Tell me the habit you want to add, and I'll set it up."
+        "coachLine": "What habit do you want to build?"
       },
       "meta": {
         "voiceEngine": "MP3",
         "voiceMode": "Verbatim",
-        "spokenContent": "Tell me the habit you want to add, and I'll set it up.",
+        "spokenContent": "What habit do you want to build?",
         "openerShowsAsBubble": true,
         "expectedResponse": "Names their own habit",
         "variable": false,
@@ -938,7 +924,7 @@
             "id": "onboard_beginner_03_custom_1",
             "label": "onboard_beginner_03_custom_1",
             "file": "/voice/ob/onboard_beginner_03_custom_1.wav",
-            "transcript": "Tell me the habit you want to add, and I'll set it up.",
+            "transcript": "What habit do you want to build?",
             "timing": "opener"
           }
         ],
@@ -1028,13 +1014,13 @@
       "transition": null,
       "context": "",
       "props": {
-        "coachLine": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+        "coachLine": "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
         "closeCoachLine": "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next."
       },
       "meta": {
         "voiceEngine": "MP3",
         "voiceMode": "Verbatim",
-        "spokenContent": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+        "spokenContent": "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
         "allowedTools": "submit_brain_dump, advance_step",
         "openerShowsAsBubble": true,
         "expectedResponse": "Reads or types their habits",
@@ -1051,7 +1037,7 @@
             "id": "onboard_advanced_1",
             "label": "onboard_advanced_1",
             "file": "/voice/ob/onboard_advanced_1.wav",
-            "transcript": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+            "transcript": "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
             "timing": "opener"
           },
           {
@@ -1068,7 +1054,7 @@
         {
           "kind": "bubble",
           "n": 1,
-          "say": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+          "say": "Read me the habits you already track. We'll pick days next. For now just the list, and I recommend starting small, you can always add more.",
           "clip": "onboard_advanced_1"
         },
         {
