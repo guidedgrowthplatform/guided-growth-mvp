@@ -54,3 +54,7 @@ export function setCalendarTarget(target: 'own' | 'gg'): Promise<{ ok: boolean }
 export function setCalendarEnabled(enabled: boolean): Promise<{ ok: boolean }> {
   return apiPost('/api/calendar/toggle', { enabled });
 }
+
+export function syncCalendar(): Promise<{ ok: boolean; written?: number; deleted?: number }> {
+  return apiPost('/api/calendar/sync', {});
+}

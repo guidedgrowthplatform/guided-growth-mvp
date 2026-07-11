@@ -5,6 +5,7 @@ import {
   getCalendarStatus,
   setCalendarEnabled,
   setCalendarTarget,
+  syncCalendar,
   type CalendarStatus,
 } from '@/api/calendar';
 import { useToast } from '@/contexts/ToastContext';
@@ -72,7 +73,11 @@ export function useCalendar() {
       if (ctx?.previous) qc.setQueryData(queryKeys.calendar.all, ctx.previous);
       addToast('error', 'Could not update. Please try again.');
     },
-    onSuccess: invalidate,
+    // Switching target moves events to the other calendar — re-materialize.
+    onSuccess: () => {
+      invalidate();
+      void syncCalendar().catch(() => {});
+    },
   });
 
   const enabledMutation = useMutation({
@@ -87,7 +92,11 @@ export function useCalendar() {
       if (ctx?.previous) qc.setQueryData(queryKeys.calendar.all, ctx.previous);
       addToast('error', 'Could not update. Please try again.');
     },
-    onSuccess: invalidate,
+    // Re-enable re-materializes events; disable is a pause (events left in place).
+    onSuccess: (_data, enabled: boolean) => {
+      invalidate();
+      if (enabled) void syncCalendar().catch(() => {});
+    },
   });
 
   const status = query.data ?? DEFAULT_STATUS;

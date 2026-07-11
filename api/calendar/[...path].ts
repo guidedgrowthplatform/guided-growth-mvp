@@ -1,4 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
+import { waitUntil } from '@vercel/functions';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser, handlePreflight } from '../_lib/auth.js';
 import {
@@ -7,8 +8,11 @@ import {
   CalendarNotConnectedError,
   CalendarReauthRequiredError,
   getValidAccessToken,
+  refreshAccessToken,
   revokeToken,
 } from '../_lib/calendar/google.js';
+import { deleteEvent } from '../_lib/calendar/events.js';
+import { runSync } from '../_lib/calendar/writer.js';
 import pool from '../_lib/db.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -26,6 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route === 'disconnect' && req.method === 'POST') return disconnect(req, res, user.anonId);
   if (route === 'target' && req.method === 'POST') return setTarget(req, res, user.anonId);
   if (route === 'toggle' && req.method === 'POST') return setEnabled(req, res, user.anonId);
+  if (route === 'sync' && req.method === 'POST') return sync(req, res, user.anonId);
   if (route === 'test' && req.method === 'POST') return testCall(req, res, user.anonId);
 
   return res.status(404).json({ error: 'Not found' });
@@ -71,15 +76,36 @@ async function status(_req: VercelRequest, res: VercelResponse, anonId: string) 
 }
 
 async function disconnect(_req: VercelRequest, res: VercelResponse, anonId: string) {
-  // Grab the token to revoke the grant at Google, then drop our copy.
-  // CASCADE clears calendar_event_map. (Best-effort delete of GG events lands with A6.)
   const { rows } = await pool.query(
     `SELECT refresh_token FROM calendar_connections WHERE anon_id = $1`,
     [anonId],
   );
+  const token = rows[0]?.refresh_token as string | undefined;
+
+  // A6: best-effort remove the events we created, BEFORE the CASCADE wipes the map.
+  // Refresh directly (not getValidAccessToken) so cleanup still runs when disabled.
+  if (token) {
+    try {
+      const map = await pool.query(
+        `SELECT calendar_id, google_event_id FROM calendar_event_map WHERE anon_id = $1`,
+        [anonId],
+      );
+      if (map.rows.length > 0) {
+        const { access_token } = await refreshAccessToken(token);
+        await Promise.allSettled(
+          (map.rows as { calendar_id: string; google_event_id: string }[]).map((r) =>
+            deleteEvent(access_token, r.calendar_id, r.google_event_id),
+          ),
+        );
+      }
+    } catch (err) {
+      console.warn('[calendar] disconnect event cleanup failed (best-effort)', err);
+    }
+  }
+
   await pool.query(`DELETE FROM calendar_connections WHERE anon_id = $1`, [anonId]);
-  const token = rows[0]?.refresh_token;
-  if (token) void revokeToken(token);
+  // waitUntil so the revoke survives the response flush (serverless freeze).
+  if (token) waitUntil(revokeToken(token));
   return res.status(200).json({ ok: true });
 }
 
@@ -108,7 +134,29 @@ async function setEnabled(req: VercelRequest, res: VercelResponse, anonId: strin
     [anonId, enabled],
   );
   if (!rowCount) return res.status(404).json({ error: 'not connected' });
+  // Re-materialize on re-enable via the client's syncCalendar() (fired in useCalendar's
+  // onSuccess) — not a server-side fire-and-forget, which a serverless freeze can truncate.
   return res.status(200).json({ ok: true });
+}
+
+// POST 'sync' — write the user's rituals to their calendar (idempotent).
+async function sync(_req: VercelRequest, res: VercelResponse, anonId: string) {
+  try {
+    const result = await runSync(anonId);
+    return res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    if (err instanceof CalendarNotConnectedError) {
+      return res.status(409).json({ error: 'not_connected' });
+    }
+    if (err instanceof CalendarDisabledError) {
+      return res.status(409).json({ error: 'disabled' });
+    }
+    if (err instanceof CalendarReauthRequiredError) {
+      return res.status(401).json({ error: 'reauth_required' });
+    }
+    console.error('[calendar] sync failed', err);
+    return res.status(502).json({ error: 'google_error' });
+  }
 }
 
 // POST 'test' — secret-gated dev route: prove refresh + Bearer + scope end to end.
