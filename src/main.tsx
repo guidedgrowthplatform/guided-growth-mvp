@@ -88,6 +88,7 @@ if (Capacitor.isNativePlatform()) {
         if (refreshToken) {
           try {
             await cal.connectCalendar(refreshToken);
+            cal.markCalendarJustConnected();
             // First connect: materialize events (creates the GG calendar).
             void cal.syncCalendar().catch(() => {});
             const { queryClient, queryKeys } = await import('@/lib/query');

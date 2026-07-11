@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './client';
+import { ApiError, apiGet, apiPost } from './client';
 
 export const CALENDAR_SCOPES =
   'https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/calendar.events';
@@ -29,10 +29,42 @@ export function consumeCalendarConnectPending(): boolean {
   }
 }
 
+// One-shot "Calendar connected" confirmation, read by Settings after the redirect.
+const CONNECTED_FLAG = 'gg_calendar_just_connected';
+
+export function markCalendarJustConnected(): void {
+  try {
+    sessionStorage.setItem(CONNECTED_FLAG, String(Date.now()));
+  } catch {
+    // sessionStorage unavailable — skip the toast
+  }
+}
+
+export function consumeCalendarJustConnected(): boolean {
+  try {
+    const raw = sessionStorage.getItem(CONNECTED_FLAG);
+    if (!raw) return false;
+    sessionStorage.removeItem(CONNECTED_FLAG);
+    return Date.now() - Number(raw) < CONNECT_FLAG_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
+// A calendar ApiError meaning the Google refresh token is dead → reconnect needed.
+export function isReauthError(err: unknown): boolean {
+  return (
+    err instanceof ApiError &&
+    err.status === 401 &&
+    (err.body as { error?: string } | undefined)?.error === 'reauth_required'
+  );
+}
+
 export interface CalendarStatus {
   connected: boolean;
   target: 'own' | 'gg';
   enabled: boolean;
+  needsReauth: boolean;
 }
 
 export function connectCalendar(refreshToken: string): Promise<{ ok: boolean }> {
@@ -55,6 +87,11 @@ export function setCalendarEnabled(enabled: boolean): Promise<{ ok: boolean }> {
   return apiPost('/api/calendar/toggle', { enabled });
 }
 
-export function syncCalendar(): Promise<{ ok: boolean; written?: number; deleted?: number }> {
+export function syncCalendar(): Promise<{
+  ok: boolean;
+  written?: number;
+  deleted?: number;
+  skipped?: boolean;
+}> {
   return apiPost('/api/calendar/sync', {});
 }

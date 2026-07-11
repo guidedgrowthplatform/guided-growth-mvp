@@ -1,6 +1,6 @@
 import pool, { type Queryable } from '../db.js';
 import { CalendarApiError, getValidAccessToken } from './google.js';
-import { readReflectionSettings } from '../reflection/reflectionSettings.js';
+import { readRawWeeklyDay, readReflectionSettings } from '../reflection/reflectionSettings.js';
 import { validateTimezone } from '../validation.js';
 import { buildRrule, buildWeeklyRrule } from './rrule.js';
 import {
@@ -55,6 +55,7 @@ async function buildDesiredRituals(
       summary: 'Morning check-in',
       time: prefs.morning_time,
       rrule: buildRrule(null),
+      days: null,
     });
   }
   if (prefs?.night_time) {
@@ -63,6 +64,7 @@ async function buildDesiredRituals(
       summary: 'Evening check-in',
       time: prefs.night_time,
       rrule: buildRrule(null),
+      days: null,
     });
   }
 
@@ -73,22 +75,19 @@ async function buildDesiredRituals(
       summary: 'Evening reflection',
       time: rs.time,
       rrule: buildRrule(rs.days),
+      days: rs.days,
     });
   }
 
-  // The Weekly has no reminder flag — its only signal is weekly_day. NULL = "not
-  // chosen yet" (migration 055), which readReflectionSettings collapses to 0, so
-  // read it raw and only write when the user actually picked a day.
-  const wd = await db.query(`SELECT weekly_day FROM reflection_settings WHERE anon_id = $1`, [
-    anonId,
-  ]);
-  const rawWeeklyDay = (wd.rows[0] as { weekly_day: number | null } | undefined)?.weekly_day;
+  // Only when a weekly_day was actually chosen (NULL = never).
+  const rawWeeklyDay = await readRawWeeklyDay(anonId);
   if (rawWeeklyDay != null) {
     out.push({
       ritual_type: 'weekly',
       summary: 'The Weekly',
       time: rs.time ?? DEFAULT_WEEKLY_TIME,
       rrule: buildWeeklyRrule(rawWeeklyDay),
+      days: [rawWeeklyDay],
     });
   }
 
@@ -101,10 +100,12 @@ async function buildDesiredRituals(
   for (const h of habits.rows as HabitRow[]) {
     if (h.reminder_enabled && h.reminder_time) {
       out.push({
-        ritual_type: `habit:${h.id}`,
+        // h: not habit: — fit VARCHAR(40) with a 36-char UUID
+        ritual_type: `h:${h.id}`,
         summary: h.name || 'Habit',
         time: h.reminder_time,
         rrule: buildRrule(h.schedule_days),
+        days: h.schedule_days,
       });
     }
   }
@@ -112,8 +113,7 @@ async function buildDesiredRituals(
   return out;
 }
 
-// Prevents two overlapping syncs for one user (rapid double-trigger) from both
-// inserting — which would duplicate events / create two GG calendars.
+// Same-instance guard; the advisory lock below covers cross-instance.
 const inFlight = new Set<string>();
 
 // Throws CalendarNotConnected/Disabled/Reauth (getValidAccessToken) — caller maps to HTTP.
@@ -124,9 +124,31 @@ export async function runSync(
   if (inFlight.has(anonId)) return { written: 0, deleted: 0, skipped: true };
   inFlight.add(anonId);
   try {
-    return await runSyncInner(anonId, db);
+    // Cross-instance guard — skip if another instance holds it.
+    const lock = await db.query(`SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS locked`, [
+      anonId,
+    ]);
+    if (!(lock.rows[0] as { locked?: boolean } | undefined)?.locked) {
+      return { written: 0, deleted: 0, skipped: true };
+    }
+    try {
+      return await runSyncInner(anonId, db);
+    } finally {
+      await db
+        .query(`SELECT pg_advisory_unlock(hashtextextended($1, 0))`, [anonId])
+        .catch(() => {});
+    }
   } finally {
     inFlight.delete(anonId);
+  }
+}
+
+// Best-effort — a map-write blip must not abort the whole sync.
+async function safeDbWrite(fn: () => Promise<unknown>, label: string): Promise<void> {
+  try {
+    await fn();
+  } catch (e) {
+    console.warn('[calendar] map write failed, continuing', label, e);
   }
 }
 
@@ -172,6 +194,11 @@ async function runSyncInner(
       [anonId, ritualType, calendarId, eventId, rrule],
     );
 
+  const doInsert = async (d: DesiredRitual, resource: Record<string, unknown>) => {
+    const eventId = await insertEvent(token, calendarId, resource);
+    await safeDbWrite(() => upsertMap(d.ritual_type, eventId, d.rrule), d.ritual_type);
+  };
+
   let written = 0;
   for (const d of desired) {
     const resource = buildEventResource(d, tz);
@@ -182,25 +209,25 @@ async function runSyncInner(
       if (prior) {
         const patched = await patchEvent(token, calendarId, prior.google_event_id, resource);
         if (patched) {
-          await db.query(
-            `UPDATE calendar_event_map SET rrule = $4, updated_at = now()
-              WHERE anon_id = $1 AND ritual_type = $2 AND calendar_id = $3`,
-            [anonId, d.ritual_type, calendarId, d.rrule],
+          await safeDbWrite(
+            () =>
+              db.query(
+                `UPDATE calendar_event_map SET rrule = $4, updated_at = now()
+                  WHERE anon_id = $1 AND ritual_type = $2 AND calendar_id = $3`,
+                [anonId, d.ritual_type, calendarId, d.rrule],
+              ),
+            d.ritual_type,
           );
         } else {
           // User deleted the event at Google — recreate it and re-point the map.
-          const eventId = await insertEvent(token, calendarId, resource);
-          await upsertMap(d.ritual_type, eventId, d.rrule);
+          await doInsert(d, resource);
         }
       } else {
-        const eventId = await insertEvent(token, calendarId, resource);
-        await upsertMap(d.ritual_type, eventId, d.rrule);
+        await doInsert(d, resource);
       }
       written++;
     } catch (err) {
-      // A Google API failure on one ritual (e.g. its calendar was deleted) must not
-      // abort the whole sync — skip it, let the rest + reap proceed. Auth failures
-      // and real bugs still propagate (route maps reauth → 401).
+      // One ritual's Google error skips it, not the whole sync; auth errors rethrow.
       if (err instanceof CalendarApiError && err.status !== 401 && err.status !== 403) {
         console.warn('[calendar] ritual sync failed, skipped', d.ritual_type, err.status);
         continue;
@@ -217,9 +244,13 @@ async function runSyncInner(
     // Keep the map row if the delete truly failed (transient) so a later sync retries.
     const gone = await deleteEvent(token, e.calendar_id, e.google_event_id);
     if (!gone) continue;
-    await db.query(
-      `DELETE FROM calendar_event_map WHERE anon_id = $1 AND ritual_type = $2 AND calendar_id = $3`,
-      [anonId, e.ritual_type, e.calendar_id],
+    await safeDbWrite(
+      () =>
+        db.query(
+          `DELETE FROM calendar_event_map WHERE anon_id = $1 AND ritual_type = $2 AND calendar_id = $3`,
+          [anonId, e.ritual_type, e.calendar_id],
+        ),
+      e.ritual_type,
     );
     deleted++;
   }

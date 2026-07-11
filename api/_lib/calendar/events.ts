@@ -24,6 +24,28 @@ export interface RitualEvent {
   summary: string;
   time: string; // 'HH:MM' or 'HH:MM:SS'
   rrule: string;
+  days?: number[] | null; // 0=Sun..6=Sat; null/empty = daily
+}
+
+const WEEKDAY: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+// First date >= today whose tz-local weekday is in `days` — keeps a weekly
+// DTSTART on-pattern so Google adds no phantom first occurrence.
+function firstOnOrAfterToday(tz: string, days?: number[] | null): string {
+  const today = todayStr(tz);
+  const set = new Set((days ?? []).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6));
+  if (set.size === 0 || set.size >= 7) return today;
+  const wd = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short' }).format(
+    new Date(),
+  );
+  const todayDow = WEEKDAY[wd] ?? 0;
+  const [y, m, d] = today.split('-').map(Number);
+  for (let off = 0; off < 7; off++) {
+    if (set.has((todayDow + off) % 7)) {
+      return new Date(Date.UTC(y, m - 1, d + off)).toISOString().slice(0, 10);
+    }
+  }
+  return today;
 }
 
 interface GEvent {
@@ -59,7 +81,7 @@ function addMinutesWallClock(
 }
 
 export function buildEventResource(ritual: RitualEvent, tz: string): Record<string, unknown> {
-  const date = todayStr(tz);
+  const date = firstOnOrAfterToday(tz, ritual.days);
   const { h, m, s } = normalizeTime(ritual.time);
   const startTime = `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
   const end = addMinutesWallClock(date, startTime, DEFAULT_DURATION_MIN);
@@ -83,11 +105,18 @@ export async function ensureGgCalendar(
     method: 'POST',
     body: JSON.stringify({ summary: GG_CALENDAR_SUMMARY, timeZone: tz }),
   });
-  await db.query(
-    `UPDATE calendar_connections SET gg_calendar_id = $2, updated_at = now() WHERE anon_id = $1`,
+  // Claim only if unset — a concurrent sync may have won; then use its id.
+  const upd = await db.query(
+    `UPDATE calendar_connections SET gg_calendar_id = $2, updated_at = now()
+      WHERE anon_id = $1 AND gg_calendar_id IS NULL
+      RETURNING gg_calendar_id`,
     [anonId, created.id],
   );
-  return created.id;
+  if (upd.rows.length > 0) return created.id;
+  const cur = await db.query(`SELECT gg_calendar_id FROM calendar_connections WHERE anon_id = $1`, [
+    anonId,
+  ]);
+  return (cur.rows[0] as { gg_calendar_id?: string } | undefined)?.gg_calendar_id ?? created.id;
 }
 
 export async function insertEvent(
@@ -153,6 +182,19 @@ export interface UpcomingEvent {
 interface GListItem {
   summary?: string;
   start?: { dateTime?: string; date?: string };
+}
+
+// Titles are attacker-controlled (invites auto-add to primary) and reach the
+// system prompt — strip newlines/markdown markers, cap length.
+function sanitizeSummary(raw: string | undefined): string {
+  const s = (raw ?? '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^[#>\-*]+\s*/, '')
+    .slice(0, 80)
+    .trim();
+  return s || '(busy)';
 }
 
 // tz offset (minutes) for an instant — used to bound "today" in the user's zone.
@@ -231,7 +273,7 @@ export async function listUpcomingEvents(
           hour12: false,
         }).format(new Date(item.start.dateTime))
       : 'all day',
-    summary: item.summary?.trim() || '(busy)',
+    summary: sanitizeSummary(item.summary),
   }));
 
   if (anonId) {
@@ -253,8 +295,14 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 // Short negative cache so non-connected users (the majority) don't pay a
 // calendar_connections lookup on every gated LLM turn.
 const NOT_CONNECTED_TTL_MS = 2 * 60_000;
-const READ_BUDGET_MS = 2500;
+const READ_BUDGET_MS = 1000; // off the LLM latency-critical path
 const notConnectedUntil = new Map<string, number>();
+
+// Drop cached state on connect so a freshly-connected user isn't stale.
+export function clearEventCaches(anonId: string): void {
+  notConnectedUntil.delete(anonId);
+  cache.delete(anonId);
+}
 
 // Read-for-context entry point: today's events or [] on any non-happy path
 // (not connected / disabled / reauth / outage / timeout). Never throws.

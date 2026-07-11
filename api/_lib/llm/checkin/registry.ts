@@ -94,6 +94,12 @@ export function isReadOnlyCheckinScreen(screenId: string | null | undefined): bo
   );
 }
 
+// Screens where the coach may read the user's calendar events. Excludes
+// onboarding (unscrubbed PII path, Gotcha #8).
+export function shouldReadCalendarForContext(screenId: string | null | undefined): boolean {
+  return isCheckinScreen(screenId) || isReadOnlyCheckinScreen(screenId);
+}
+
 // Returns the read-only check-in tools (query_habits, get_summary) for the
 // screens isReadOnlyCheckinScreen accepts.
 export function getReadOnlyCheckinTools(

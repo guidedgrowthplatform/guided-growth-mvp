@@ -11,7 +11,7 @@ import {
   refreshAccessToken,
   revokeToken,
 } from '../_lib/calendar/google.js';
-import { deleteEvent } from '../_lib/calendar/events.js';
+import { clearEventCaches, deleteEvent } from '../_lib/calendar/events.js';
 import { runSync } from '../_lib/calendar/writer.js';
 import pool from '../_lib/db.js';
 
@@ -59,6 +59,7 @@ async function connect(req: VercelRequest, res: VercelResponse, anonId: string) 
            updated_at = now()`,
     [anonId, refreshToken, scopes],
   );
+  clearEventCaches(anonId);
   return res.status(200).json({ ok: true });
 }
 
@@ -68,11 +69,33 @@ async function status(_req: VercelRequest, res: VercelResponse, anonId: string) 
     [anonId],
   );
   const row = rows[0];
-  return res.status(200).json({
-    connected: !!row,
-    target: row?.target ?? 'gg',
-    enabled: row?.enabled ?? false,
-  });
+  if (!row) {
+    return res
+      .status(200)
+      .json({ connected: false, target: 'gg', enabled: false, needsReauth: false });
+  }
+  // Paused: token health is irrelevant, and probing a disabled row would throw.
+  if (row.enabled === false) {
+    return res
+      .status(200)
+      .json({ connected: true, target: row.target ?? 'gg', enabled: false, needsReauth: false });
+  }
+  // Probe the token — usually free (cached access token, no Google call).
+  let needsReauth = false;
+  try {
+    await getValidAccessToken(anonId);
+  } catch (err) {
+    if (err instanceof CalendarReauthRequiredError) needsReauth = true;
+    else if (err instanceof CalendarNotConnectedError) {
+      return res
+        .status(200)
+        .json({ connected: false, target: 'gg', enabled: false, needsReauth: false });
+    }
+    // Google 5xx / network → no false alarm.
+  }
+  return res
+    .status(200)
+    .json({ connected: true, target: row.target ?? 'gg', enabled: true, needsReauth });
 }
 
 async function disconnect(_req: VercelRequest, res: VercelResponse, anonId: string) {
@@ -82,8 +105,8 @@ async function disconnect(_req: VercelRequest, res: VercelResponse, anonId: stri
   );
   const token = rows[0]?.refresh_token as string | undefined;
 
-  // A6: best-effort remove the events we created, BEFORE the CASCADE wipes the map.
-  // Refresh directly (not getValidAccessToken) so cleanup still runs when disabled.
+  // Best-effort delete of the events we created. Refresh directly (not
+  // getValidAccessToken) so cleanup still runs when disabled.
   if (token) {
     try {
       const map = await pool.query(
@@ -103,8 +126,10 @@ async function disconnect(_req: VercelRequest, res: VercelResponse, anonId: stri
     }
   }
 
+  // Both tables key off profiles(anon_id), so no FK cascade between them — drop each.
+  await pool.query(`DELETE FROM calendar_event_map WHERE anon_id = $1`, [anonId]);
   await pool.query(`DELETE FROM calendar_connections WHERE anon_id = $1`, [anonId]);
-  // waitUntil so the revoke survives the response flush (serverless freeze).
+  clearEventCaches(anonId);
   if (token) waitUntil(revokeToken(token));
   return res.status(200).json({ ok: true });
 }

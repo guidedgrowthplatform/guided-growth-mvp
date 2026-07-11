@@ -1,7 +1,12 @@
 import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { connectCalendar, consumeCalendarConnectPending, syncCalendar } from '@/api/calendar';
+import {
+  connectCalendar,
+  consumeCalendarConnectPending,
+  markCalendarJustConnected,
+  syncCalendar,
+} from '@/api/calendar';
 import { AuthResultScreen } from '@/components/auth';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { consumeAuthReturnTo } from '@/lib/auth/authHandoff';
@@ -50,6 +55,7 @@ export function AuthCallbackPage() {
       if (refreshToken) {
         // First connect: store token, then materialize events (creates the GG calendar).
         void connectCalendar(refreshToken).then(() => {
+          markCalendarJustConnected();
           void syncCalendar().catch(() => {});
           done();
         }, done);

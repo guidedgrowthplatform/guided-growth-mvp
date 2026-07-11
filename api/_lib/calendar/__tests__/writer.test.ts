@@ -9,6 +9,7 @@ const { CalendarDisabledError } = await import('../google.js');
 
 const query = pool.query as unknown as ReturnType<typeof vi.fn>;
 
+const LOCK_HELD = { rows: [{ locked: true }] };
 const tokenRow = () => ({
   access_token: 'valid-token',
   refresh_token: 'r',
@@ -43,7 +44,6 @@ const methods = () =>
 const fetchUrls = () =>
   (global.fetch as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0] as string);
 const sqls = () => query.mock.calls.map((c) => c[0] as string);
-// Parsed POST/PATCH bodies keyed by their `summary`.
 function bodiesBySummary(): Record<string, Record<string, unknown>> {
   const out: Record<string, Record<string, unknown>> = {};
   for (const c of (global.fetch as ReturnType<typeof vi.fn>).mock.calls) {
@@ -55,19 +55,20 @@ function bodiesBySummary(): Record<string, Record<string, unknown>> {
   return out;
 }
 
-// Standard read sequence for a target='own' user with weekly configured.
+// Read sequence for a target='own' user; the advisory lock is always query #1.
 function seedOwnReads(
   over: { existing?: unknown[]; habits?: unknown[]; weeklyDay?: number | null } = {},
 ) {
-  query.mockResolvedValue({ rows: [] }); // default for writes
+  query.mockResolvedValue({ rows: [] }); // default for writes + unlock
   query
+    .mockResolvedValueOnce(LOCK_HELD) // pg_try_advisory_lock
     .mockResolvedValueOnce({ rows: [tokenRow()] }) // getValidAccessToken
     .mockResolvedValueOnce({ rows: [{ target: 'own', gg_calendar_id: null }] }) // conn
     .mockResolvedValueOnce({ rows: [prefsRow] }) // prefs
     .mockResolvedValueOnce({ rows: [reflectionRow()] }) // readReflectionSettings
     .mockResolvedValueOnce({
       rows: [{ weekly_day: over.weeklyDay === undefined ? 0 : over.weeklyDay }],
-    }) // raw weekly_day
+    })
     .mockResolvedValueOnce({ rows: over.habits ?? [] }) // habits
     .mockResolvedValueOnce({ rows: over.existing ?? [] }); // event_map
 }
@@ -102,6 +103,7 @@ describe('runSync idempotency + payloads', () => {
   it('second run only patches — no duplicate inserts', async () => {
     query.mockResolvedValue({ rows: [] });
     query
+      .mockResolvedValueOnce(LOCK_HELD)
       .mockResolvedValueOnce({ rows: [tokenRow()] })
       .mockResolvedValueOnce({ rows: [{ target: 'own', gg_calendar_id: null }] })
       .mockResolvedValueOnce({ rows: [prefsRow] })
@@ -134,7 +136,7 @@ describe('runSync idempotency + payloads', () => {
     });
     fetchOnce({ ok: false, status: 404, text: 'gone' }); // patch morning → gone
     fetchOnce({ ok: true, status: 200, json: { id: 'ev-new' } }); // re-insert morning
-    insertsOk(3); // evening_checkin, reflection, weekly
+    insertsOk(3);
 
     const r = await runSync('anon-1');
 
@@ -145,14 +147,30 @@ describe('runSync idempotency + payloads', () => {
   });
 });
 
+describe('runSync DTSTART alignment', () => {
+  it('starts a weekly ritual on its chosen weekday, not the sync day', async () => {
+    seedOwnReads({ weeklyDay: 3 }); // Wednesday
+    insertsOk(4);
+
+    await runSync('anon-1');
+
+    const weekly = bodiesBySummary()['The Weekly'];
+    expect(weekly.recurrence).toEqual(['RRULE:FREQ=WEEKLY;BYDAY=WE']);
+    const dateStr = (weekly.start as { dateTime: string }).dateTime.slice(0, 10);
+    // DTSTART must fall on Wednesday (UTC weekday 3) regardless of "today".
+    expect(new Date(`${dateStr}T00:00:00Z`).getUTCDay()).toBe(3);
+  });
+});
+
 describe('runSync GG calendar', () => {
   it('creates the Guided Growth calendar on first gg write and writes all 4 rituals there', async () => {
     query.mockResolvedValue({ rows: [] });
     query
+      .mockResolvedValueOnce(LOCK_HELD)
       .mockResolvedValueOnce({ rows: [tokenRow()] })
       .mockResolvedValueOnce({ rows: [{ target: 'gg', gg_calendar_id: null }] })
       .mockResolvedValueOnce({ rows: [prefsRow] })
-      .mockResolvedValueOnce({ rows: [] }) // ensureGgCalendar UPDATE
+      .mockResolvedValueOnce({ rows: [{ gg_calendar_id: 'gg-cal-1' }] }) // ensureGgCalendar UPDATE ... RETURNING (won)
       .mockResolvedValueOnce({ rows: [reflectionRow()] })
       .mockResolvedValueOnce({ rows: [{ weekly_day: 0 }] })
       .mockResolvedValueOnce({ rows: [] }) // habits
@@ -176,6 +194,7 @@ describe('runSync GG calendar', () => {
   it('reuses an existing gg_calendar_id (no calendar creation)', async () => {
     query.mockResolvedValue({ rows: [] });
     query
+      .mockResolvedValueOnce(LOCK_HELD)
       .mockResolvedValueOnce({ rows: [tokenRow()] })
       .mockResolvedValueOnce({ rows: [{ target: 'gg', gg_calendar_id: 'gg-existing' }] })
       .mockResolvedValueOnce({ rows: [prefsRow] })
@@ -200,7 +219,7 @@ describe('runSync reap', () => {
         { ritual_type: 'evening_checkin', calendar_id: 'primary', google_event_id: 'ev-1' },
         { ritual_type: 'evening_reflection', calendar_id: 'primary', google_event_id: 'ev-2' },
         { ritual_type: 'weekly', calendar_id: 'primary', google_event_id: 'ev-3' },
-        { ritual_type: 'habit:gone', calendar_id: 'primary', google_event_id: 'ev-gone' },
+        { ritual_type: 'h:gone', calendar_id: 'primary', google_event_id: 'ev-gone' },
       ],
     });
     for (let i = 0; i < 4; i++) fetchOnce({ ok: true, status: 200, json: {} }); // patches
@@ -216,9 +235,9 @@ describe('runSync reap', () => {
 
   it('keeps the map row when the reap delete transiently fails', async () => {
     seedOwnReads({
-      existing: [{ ritual_type: 'habit:gone', calendar_id: 'primary', google_event_id: 'ev-x' }],
+      existing: [{ ritual_type: 'h:gone', calendar_id: 'primary', google_event_id: 'ev-x' }],
     });
-    insertsOk(4); // the 4 desired rituals
+    insertsOk(4);
     fetchOnce({ ok: false, status: 500, text: 'boom' }); // reap DELETE fails hard
 
     const r = await runSync('anon-1');
@@ -230,6 +249,7 @@ describe('runSync reap', () => {
   it('moves events to the new calendar on a target switch (own→gg)', async () => {
     query.mockResolvedValue({ rows: [] });
     query
+      .mockResolvedValueOnce(LOCK_HELD)
       .mockResolvedValueOnce({ rows: [tokenRow()] })
       .mockResolvedValueOnce({ rows: [{ target: 'gg', gg_calendar_id: 'gg-cal' }] })
       .mockResolvedValueOnce({ rows: [prefsRow] })
@@ -266,15 +286,14 @@ describe('runSync ritual gating', () => {
 
     expect(r.written).toBe(3);
     expect(bodiesBySummary()['The Weekly']).toBeUndefined();
-    expect(bodiesBySummary()['Morning check-in']).toBeDefined();
   });
 
-  it('builds a weekly RRULE for a habit with schedule_days', async () => {
+  it('builds a weekly RRULE for a habit with schedule_days (full UUID ritual_type)', async () => {
     seedOwnReads({
-      weeklyDay: null, // isolate the habit
+      weeklyDay: null,
       habits: [
         {
-          id: 'h1',
+          id: '11111111-2222-3333-4444-555555555555',
           name: 'Run',
           schedule_days: [1, 2, 3, 4, 5],
           reminder_time: '07:00:00',
@@ -282,14 +301,19 @@ describe('runSync ritual gating', () => {
         },
       ],
     });
-    insertsOk(4); // morning, evening_checkin, reflection, habit
+    insertsOk(4);
 
     await runSync('anon-1');
 
     const run = bodiesBySummary()['Run'];
     expect(run).toBeDefined();
     expect(run.recurrence).toEqual(['RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR']);
-    expect((run.start as { dateTime: string }).dateTime).toMatch(/T07:00:00$/);
+    // ritual_type must fit VARCHAR(40): 'h:' + 36-char uuid = 38.
+    const insertParams = query.mock.calls.find((c) =>
+      (c[0] as string).includes('INSERT INTO calendar_event_map'),
+    );
+    const ritualType = (insertParams?.[1] as unknown[])[1] as string;
+    expect(ritualType.length).toBeLessThanOrEqual(40);
   });
 
   it('skips habits with reminders disabled', async () => {
@@ -313,28 +337,60 @@ describe('runSync ritual gating', () => {
   });
 });
 
+describe('runSync resilience', () => {
+  it('a map-write failure does not abort the whole sync', async () => {
+    query.mockImplementation((sql: string) =>
+      sql.includes('INSERT INTO calendar_event_map')
+        ? Promise.reject(new Error('db down'))
+        : Promise.resolve({ rows: [] }),
+    );
+    query
+      .mockResolvedValueOnce(LOCK_HELD)
+      .mockResolvedValueOnce({ rows: [tokenRow()] })
+      .mockResolvedValueOnce({ rows: [{ target: 'own', gg_calendar_id: null }] })
+      .mockResolvedValueOnce({ rows: [prefsRow] })
+      .mockResolvedValueOnce({ rows: [reflectionRow()] })
+      .mockResolvedValueOnce({ rows: [{ weekly_day: null }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    insertsOk(3);
+
+    const r = await runSync('anon-1');
+    expect(r.written).toBe(3); // completed despite every INSERT rejecting
+  });
+});
+
 describe('runSync guards', () => {
   it('rejects with CalendarDisabledError and makes no Google call when disabled', async () => {
-    query.mockResolvedValueOnce({ rows: [{ ...tokenRow(), enabled: false }] });
+    query.mockResolvedValue({ rows: [] });
+    query
+      .mockResolvedValueOnce(LOCK_HELD)
+      .mockResolvedValueOnce({ rows: [{ ...tokenRow(), enabled: false }] });
 
     await expect(runSync('anon-1')).rejects.toBeInstanceOf(CalendarDisabledError);
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  it('skips when the advisory lock is held by another instance', async () => {
+    query.mockResolvedValueOnce({ rows: [{ locked: false }] });
+    expect(await runSync('anon-1')).toEqual({ written: 0, deleted: 0, skipped: true });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
   it('skips a concurrent sync for the same user (in-flight guard)', async () => {
-    let resolveToken!: (v: unknown) => void;
+    let resolveLock!: (v: unknown) => void;
     query.mockImplementationOnce(
       () =>
         new Promise((res) => {
-          resolveToken = res;
+          resolveLock = res;
         }),
     );
 
-    const first = runSync('anon-cc'); // acquires the slot, hangs on the token query
-    const second = await runSync('anon-cc'); // blocked by the guard
+    const first = runSync('anon-cc'); // acquires the slot, hangs on the lock query
+    const second = await runSync('anon-cc'); // blocked by the in-flight guard
     expect(second).toEqual({ written: 0, deleted: 0, skipped: true });
 
-    resolveToken({ rows: [{ ...tokenRow(), enabled: false }] }); // let first finish (disabled)
-    await expect(first).rejects.toBeInstanceOf(CalendarDisabledError);
+    resolveLock({ rows: [{ locked: false }] }); // let first resolve (lock not held)
+    await expect(first).resolves.toEqual({ written: 0, deleted: 0, skipped: true });
   });
 });

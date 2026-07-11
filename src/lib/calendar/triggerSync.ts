@@ -1,9 +1,14 @@
-import { syncCalendar } from '@/api/calendar';
+import { isReauthError, syncCalendar, type CalendarStatus } from '@/api/calendar';
+import { queryClient, queryKeys } from '@/lib/query';
 
-// Fire-and-forget calendar re-sync after a schedule-affecting change.
-// Fires unconditionally: the server 409s (not_connected / disabled) are cheap and
-// swallowed. Gating on the cached calendar status silently dropped syncs whenever
-// that query wasn't warm (e.g. the Home reminder sheet, or a fresh app launch).
+// Fire-and-forget calendar re-sync after a schedule-affecting change. Fires
+// unconditionally (a cheap 409 when not connected is swallowed); a dead token
+// flips the reconnect banner. No-op on a cold cache.
 export function triggerCalendarSync(): void {
-  void syncCalendar().catch(() => {});
+  void syncCalendar().catch((err) => {
+    if (!isReauthError(err)) return;
+    queryClient.setQueryData<CalendarStatus>(queryKeys.calendar.all, (prev) =>
+      prev ? { ...prev, needsReauth: true } : prev,
+    );
+  });
 }
