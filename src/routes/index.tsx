@@ -35,6 +35,9 @@ const ResetLibraryPage = lazyWithRetry(() =>
 const ResetPlayerPage = lazyWithRetry(() =>
   import('@/pages/ResetPlayerPage').then((m) => ({ default: m.ResetPlayerPage })),
 );
+const ResetFlowPreview = lazyWithRetry(() =>
+  import('@/pages/ResetFlowPreview').then((m) => ({ default: m.ResetFlowPreview })),
+);
 const SettingsPage = lazyWithRetry(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -223,6 +226,7 @@ export function AppRoutes() {
         {/* Auth callbacks (no auth guard) */}
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/__reset-flow" element={<ResetFlowPreview />} />
 
         {/* Onboarding (protected, no Layout) */}
         <Route
