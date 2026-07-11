@@ -16,6 +16,9 @@ export const queryKeys = {
   notifications: {
     all: ['notifications'] as const,
   },
+  calendar: {
+    all: ['calendar'] as const,
+  },
   checkins: {
     all: ['checkins'] as const,
     byDate: (date: string) => ['checkins', date] as const,

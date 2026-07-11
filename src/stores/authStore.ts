@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { identify, resetIdentity, track } from '@/analytics';
+import { CALENDAR_SCOPES, markCalendarConnectPending } from '@/api/calendar';
 import { authScheme } from '@/lib/appVariant';
 import { setAuthReturnTo } from '@/lib/auth/authHandoff';
 import { clearPkceVerifier } from '@/lib/clearPkceVerifier';
@@ -213,6 +214,7 @@ export interface AuthState {
   signInAsGuest: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
+  connectGoogleCalendar: () => Promise<{ error: string | null }>;
   signInWithApple: () => Promise<{ error: string | null }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
@@ -453,6 +455,37 @@ export const useAuthStore = create<AuthState>((set, get) => {
         options: {
           redirectTo,
           skipBrowserRedirect: isNative,
+        },
+      });
+
+      if (error) return { error: friendlyError(error) };
+
+      if (isNative && data?.url) {
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url: data.url });
+      }
+
+      return { error: null };
+    },
+
+    // Separate calendar-authorization grant (NOT a login): its own consent with
+    // the calendar scopes on a distinct ?intent=calendar callback that returns to Settings.
+    connectGoogleCalendar: async () => {
+      const isNative = Capacitor.isNativePlatform();
+      const base = isNative
+        ? `${await authScheme()}://auth/callback`
+        : `${getWebOrigin()}/auth/callback`;
+      const redirectTo = `${base}?intent=calendar`;
+      // Fallback in case the query param doesn't survive the redirect round-trip.
+      markCalendarConnectPending();
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: isNative,
+          scopes: CALENDAR_SCOPES,
+          queryParams: { access_type: 'offline', prompt: 'consent' },
         },
       });
 
