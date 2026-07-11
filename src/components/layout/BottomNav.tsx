@@ -54,7 +54,7 @@ function useSoftKeyboardOpen(): boolean {
   return open;
 }
 
-type NavDestination = 'home' | 'progress' | 'focus' | 'profile';
+type NavDestination = 'home' | 'progress' | 'reset' | 'profile';
 
 interface NavTabProps {
   icon: string;
@@ -282,11 +282,11 @@ export function BottomNav() {
             />
             <div />
             <NavTab
-              icon="mingcute:stopwatch-fill"
-              label="Focus"
-              path="/focus"
-              isActive={isActive('/focus')}
-              destination="focus"
+              icon="ph:waves-bold"
+              label="Reset"
+              path="/reset"
+              isActive={isActive('/reset')}
+              destination="reset"
               onNavigate={dismissOverlay}
             />
             <NavTab

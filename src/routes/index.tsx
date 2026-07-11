@@ -29,6 +29,12 @@ const InsightsPage = lazyWithRetry(() =>
 const FocusPage = lazyWithRetry(() =>
   import('@/pages/FocusPage').then((m) => ({ default: m.FocusPage })),
 );
+const ResetLibraryPage = lazyWithRetry(() =>
+  import('@/pages/ResetLibraryPage').then((m) => ({ default: m.ResetLibraryPage })),
+);
+const ResetPlayerPage = lazyWithRetry(() =>
+  import('@/pages/ResetPlayerPage').then((m) => ({ default: m.ResetPlayerPage })),
+);
 const SettingsPage = lazyWithRetry(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -249,6 +255,8 @@ export function AppRoutes() {
           <Route index element={<HomePage />} />
           <Route path="home" element={<HomePage />} />
           <Route path="focus" element={<FocusPage />} />
+          <Route path="reset" element={<ResetLibraryPage />} />
+          <Route path="reset/:trackId" element={<ResetPlayerPage />} />
           <Route path="report" element={<InsightsPage />} />
           <Route path="report/calendar" element={<CalendarPage />} />
           <Route path="habits" element={<HabitsPage />} />
