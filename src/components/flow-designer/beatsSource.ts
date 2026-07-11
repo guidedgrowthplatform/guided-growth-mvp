@@ -2406,14 +2406,13 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         ],
         perLine: [
           { seq: 1, resolvesTo: 'recorded clip onboard_state_check_1', liveAllowed: 'NO' },
-          { seq: 2, resolvesTo: 'recorded clip onboard_state_check_2', liveAllowed: 'NO' },
           { seq: 3, resolvesTo: 'recorded clip state_sleep', liveAllowed: 'NO' },
           { seq: 4, resolvesTo: 'recorded clip state_mood', liveAllowed: 'NO' },
           { seq: 5, resolvesTo: 'recorded clip state_energy', liveAllowed: 'NO' },
           { seq: 6, resolvesTo: 'recorded clip state_stress', liveAllowed: 'NO' },
         ],
         assertion:
-          'No line here carries a live slot like {name}, so all six spoken lines MUST resolve to recorded clips. No live Cartesia on this beat.',
+          'No line here carries a live slot like {name}, so all five spoken lines MUST resolve to recorded clips. No live Cartesia on this beat.',
         enforcedBy: ['audio-ownership-check'],
       },
       rulesContext: [
@@ -2536,7 +2535,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       {
         seq: 1,
         words:
-          "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+          "I'd like to invite you into a coaching process. It's built on a few small pieces we'll go through together. Here's the first, a quick state check-in, and I'd like you to do it right now.",
         bindsTo: {
           kind: 'bubble',
           element: 'bubble-1',
@@ -2545,19 +2544,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         voice: 'mp3',
         clip: 'onboard_state_check_1',
         clipPath: '/voice/ob/onboard_state_check_1.wav',
-      },
-      {
-        seq: 2,
-        words:
-          "Whether you've never done something like this before or you already track a lot, it is built for you. I'll explain each part as we go. This is the first part, a quick state check-in. And I'd like you to do it right now.",
-        bindsTo: {
-          kind: 'bubble',
-          element: 'bubble-2',
-          screen: 'ONBOARD-STATE-CHECK',
-        },
-        voice: 'mp3',
-        clip: 'onboard_state_check_2',
-        clipPath: '/voice/ob/onboard_state_check_2.wav',
       },
       {
         seq: 3,
@@ -3336,7 +3322,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       {
         seq: 1,
         words:
-          'One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.',
+          'One more. An evening reflection, a minute and a half to close out your day. Use these three questions.',
         bindsTo: {
           kind: 'bubble',
           element: 'bubble-1',

@@ -116,15 +116,11 @@
       "path": "both",
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
-      "opener": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+      "opener": "I'd like to invite you into a coaching process. It's built on a few small pieces we'll go through together. Here's the first, a quick state check-in, and I'd like you to do it right now.",
       "clips": [
         {
           "clip": "onboard_state_check_1",
           "clipPath": "/voice/ob/onboard_state_check_1.wav"
-        },
-        {
-          "clip": "onboard_state_check_2",
-          "clipPath": "/voice/ob/onboard_state_check_2.wav"
         },
         {
           "clip": "state_sleep",
@@ -174,7 +170,7 @@
       "path": "both",
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
-      "opener": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+      "opener": "One more. An evening reflection, a minute and a half to close out your day. Use these three questions.",
       "clips": [
         {
           "clip": "onboard_beginner_07_1",

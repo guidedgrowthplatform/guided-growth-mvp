@@ -1233,7 +1233,7 @@ function ManifestStatusList({
             textTransform: 'uppercase',
           }}
         >
-          Bible contract
+          Beat spec
         </span>
         <ManifestBadge manifest={manifest} />
       </summary>
@@ -1326,6 +1326,20 @@ function BiblePanel({
         gap: 10,
       }}
     >
+      {/* Panel title (Yair 2026-07-11, LOCKED name: "Beat spec"). Read-only eyebrow
+          above the header; additive, does not replace the beat name/type header. */}
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          color: '#475569',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+        }}
+      >
+        Beat spec
+      </div>
+
       {/* Card header: the beat's name + type ARE the header. Identity (section 1)
           sits directly below and carries beatId/order/path/screenId/route, so the
           old separate metadata panel above this card is redundant and removed. */}
