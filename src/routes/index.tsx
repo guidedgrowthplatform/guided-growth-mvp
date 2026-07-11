@@ -65,6 +65,9 @@ const AuthCallbackPage = lazyWithRetry(() =>
 const ResetPasswordPage = lazyWithRetry(() =>
   import('@/pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })),
 );
+const CalendarStatesPreview = lazyWithRetry(() =>
+  import('@/pages/CalendarStatesPreview').then((m) => ({ default: m.CalendarStatesPreview })),
+);
 const JournalFlowPage = lazyWithRetry(() =>
   import('@/pages/JournalFlowPage').then((m) => ({ default: m.JournalFlowPage })),
 );
@@ -191,6 +194,7 @@ export function AppRoutes() {
         {import.meta.env.DEV && <Route path="/flow-designer" element={<FlowDesignerPage />} />}
 
         <Route path="/splash" element={<SplashScreenPage />} />
+        <Route path="/__calendar-states" element={<CalendarStatesPreview />} />
 
         {/* Auth-free QA render of the unified chat-native onboarding engine (QA/dev
             builds only): gated behind QA_SCREEN_ENABLED, same as the other QA-only
