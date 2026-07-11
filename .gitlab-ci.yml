@@ -79,3 +79,40 @@ deploy_qa_preview:
           echo "Preview built for $CI_COMMIT_REF_NAME (feature branch, no Mattermost notify)"
           ;;
       esac
+
+# gg-engine on Azure Container Apps. Builds the image in ACR (az acr build runs
+# in Azure's cloud, so no runner-side docker) and rolls the container app. The
+# runtime secrets already live on the app, so this only rebuilds (baking the dev
+# VITE_* values) and swaps the image. Manual for now; flip `when: manual` to
+# `on_success` once Azure is the chosen QA home. SP creds + VITE values are CI
+# variables (AZURE_* and GG_VITE_*).
+deploy_azure_qa:
+  stage: deploy
+  image: mcr.microsoft.com/azure-cli:latest
+  needs: ['verify']
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+      when: manual
+      allow_failure: true
+  variables:
+    RG: gg-engine
+    APP: gg-engine
+    ACR: ggengineacr66665
+    ENGINE_URL: https://gg-engine.kindwave-3cbdee63.eastus2.azurecontainerapps.io
+  script:
+    - az login --service-principal -u "$AZURE_CLIENT_ID" -p "$AZURE_CLIENT_SECRET" --tenant "$AZURE_TENANT_ID"
+    - az account set -s "$AZURE_SUBSCRIPTION_ID"
+    - >
+      az acr build --registry "$ACR" --image "gg-engine:$CI_COMMIT_SHORT_SHA" -f Dockerfile
+      --build-arg SKIP_SPA=0
+      --build-arg VITE_SUPABASE_URL="$GG_VITE_SUPABASE_URL"
+      --build-arg VITE_SUPABASE_ANON_KEY="$GG_VITE_SUPABASE_ANON_KEY"
+      --build-arg VITE_PUBLIC_WEB_ORIGIN="$ENGINE_URL"
+      --build-arg VITE_VAPI_PUBLIC_KEY="$GG_VITE_VAPI_PUBLIC_KEY"
+      --build-arg VITE_VAPI_ASSISTANT_ID="$GG_VITE_VAPI_ASSISTANT_ID"
+      --build-arg VITE_POSTHOG_KEY="$GG_VITE_POSTHOG_KEY"
+      --build-arg VITE_POSTHOG_HOST="https://us.i.posthog.com"
+      --build-arg VITE_SENTRY_DSN="$GG_VITE_SENTRY_DSN"
+      .
+    - az containerapp update -n "$APP" -g "$RG" --image "$ACR.azurecr.io/gg-engine:$CI_COMMIT_SHORT_SHA"
+    - echo "Deployed $ENGINE_URL"
