@@ -13,8 +13,12 @@ interface ResetTrackRowProps {
 
 function formatDuration(sec: number): string {
   if (sec < 60) return `${sec}s`;
-  const min = Math.round(sec / 60);
-  return `${min}m`;
+  const min = Math.floor(sec / 60);
+  const rem = sec % 60;
+  // Whole-minute tracks read as "2m"; off-minute ones (e.g. 90s) keep the
+  // seconds as "1:30" instead of rounding away to a wrong "2m".
+  if (rem === 0) return `${min}m`;
+  return `${min}:${String(rem).padStart(2, '0')}`;
 }
 
 export function ResetTrackRow({

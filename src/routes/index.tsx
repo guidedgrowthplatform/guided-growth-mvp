@@ -227,6 +227,7 @@ export function AppRoutes() {
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/__reset-flow" element={<ResetFlowPreview />} />
+        <Route path="/__reset-browse" element={<ResetLibraryPage />} />
 
         {/* Onboarding (protected, no Layout) */}
         <Route
