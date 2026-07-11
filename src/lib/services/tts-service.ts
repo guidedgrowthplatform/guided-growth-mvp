@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { COACH_VOICE_ID, type VoiceGender } from '@/config/voiceConfig';
+import { apiBaseOverride } from '@/lib/apiBase';
 import { registerCoachAudioElement, unregisterCoachAudioElement } from '@/lib/audio/coachAudioBus';
 import { getAuthHeaders } from '@/lib/services/api-auth';
 import { isVoiceOutEnabled } from './voiceGate';
@@ -31,6 +32,8 @@ function getCartesiaVoiceId(): string {
 // ─── API Base ───────────────────────────────────────────────────────────────
 
 function getApiBase(): string {
+  const override = apiBaseOverride();
+  if (override) return override;
   if (Capacitor.isNativePlatform()) {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     console.error('[TTS] VITE_API_URL not set — TTS will fail on native');

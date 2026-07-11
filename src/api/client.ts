@@ -1,8 +1,11 @@
 import { Capacitor } from '@capacitor/core';
 import { authedFetch } from '@/api/authedFetch';
+import { apiBaseOverride } from '@/lib/apiBase';
 import { Sentry } from '@/lib/sentry';
 
 const getApiUrl = (): string => {
+  const override = apiBaseOverride();
+  if (override) return override;
   if (Capacitor.isNativePlatform()) {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     console.error('[API] VITE_API_URL is not set on native platform — API calls will fail');

@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { apiBaseOverride } from '@/lib/apiBase';
 import { isTraceOn, startTurnTrace } from '@/lib/debug/traceConsole';
 import { getAuthHeaders } from '@/lib/services/api-auth';
 import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
@@ -7,6 +8,8 @@ import type { LLMRequest, LLMStreamEvent } from '@gg/shared/types/llm';
 export type { LLMRequest, LLMStreamEvent } from '@gg/shared/types/llm';
 
 function getApiUrl(): string {
+  const override = apiBaseOverride();
+  if (override) return override;
   if (Capacitor.isNativePlatform()) {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   }

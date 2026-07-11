@@ -1,8 +1,11 @@
 import { Capacitor } from '@capacitor/core';
+import { apiBaseOverride } from '@/lib/apiBase';
 import { getFreshToken } from '@/lib/auth/tokenStore';
 import { sessionReady } from '@/lib/supabase';
 
 export function getApiBase(): string {
+  const override = apiBaseOverride();
+  if (override) return override;
   if (Capacitor.isNativePlatform()) {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     console.error('[STT] VITE_API_URL not set — STT will fail on native');

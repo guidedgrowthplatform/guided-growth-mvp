@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { apiBaseOverride } from '@/lib/apiBase';
 import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 
 // Fire-and-forget warmup: hit the LLM function + Cartesia TTS function once at
@@ -8,8 +9,11 @@ import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 // render). Never blocks render, never throws, never surfaces to the user.
 
 // Same base-URL resolution as src/api/llm.ts's getApiUrl — native builds hit
-// the deployed API via VITE_API_URL, web serves same-origin.
+// the deployed API via VITE_API_URL, web serves same-origin, unless
+// VITE_API_BASE overrides it on either platform.
 function getApiUrl(): string {
+  const override = apiBaseOverride();
+  if (override) return override;
   if (Capacitor.isNativePlatform()) {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   }

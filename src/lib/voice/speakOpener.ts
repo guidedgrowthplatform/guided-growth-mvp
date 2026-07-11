@@ -21,6 +21,7 @@
  */
 import { Capacitor } from '@capacitor/core';
 import { COACH_VOICE_ID } from '@/config/voiceConfig';
+import { apiBaseOverride } from '@/lib/apiBase';
 import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
 import { float32ToWavBlob } from '@/lib/audio/float32ToWavBlob';
 import { parseSse } from '@/lib/services/cartesiaVoice';
@@ -36,6 +37,8 @@ import {
 const SSE_SAMPLE_RATE = 24000;
 
 function getApiBase(): string {
+  const override = apiBaseOverride();
+  if (override) return override;
   if (Capacitor.isNativePlatform()) {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL as string;
     console.error('[opener] VITE_API_URL not set, opener TTS will fail on native');
