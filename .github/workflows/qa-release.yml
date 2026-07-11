@@ -82,6 +82,8 @@ jobs:
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_SENTRY_ENVIRONMENT: staging
+          # QA builds must not consume Sentry Replay quota (50 per cycle on free plan)
+          VITE_DISABLE_REPLAY: '1'
         run: npm run build
 
       - uses: actions/upload-artifact@v4
