@@ -360,8 +360,13 @@ function stableStringify(contract: unknown): string {
   return `${JSON.stringify(contract, null, 2)}\n`;
 }
 
-function stripGeneratedAt(contract: Record<string, unknown>): Record<string, unknown> {
-  const { generatedAt: _drop, ...rest } = contract;
+// Strip build-time metadata that is intentionally NOT reproducible from source
+// content alone: generatedAt (a build timestamp) and provenance (its sourceCommit
+// is HEAD, which moves the moment the manifest itself is committed). Provenance is
+// validated separately by render-provenance-check, so the reproduce guard compares
+// semantic content only.
+function stripProvenanceMeta(contract: Record<string, unknown>): Record<string, unknown> {
+  const { generatedAt: _gen, provenance: _prov, ...rest } = contract;
   return rest;
 }
 
@@ -397,8 +402,8 @@ if (isCheck) {
     process.exit(1);
   }
   const committed = JSON.parse(committedRaw) as Record<string, unknown>;
-  const freshContent = stableStringify(stripGeneratedAt(contract as unknown as Record<string, unknown>));
-  const committedContent = stableStringify(stripGeneratedAt(committed));
+  const freshContent = stableStringify(stripProvenanceMeta(contract as unknown as Record<string, unknown>));
+  const committedContent = stableStringify(stripProvenanceMeta(committed));
   if (freshContent !== committedContent) {
     console.error(
       `export-contract --check: ${path.relative(ROOT, OUTPUT_PATH)} is STALE, it does not reproduce from beatsSource.ts. Run \`npm run build:flow\` and commit the result.`,
