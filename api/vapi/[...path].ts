@@ -22,7 +22,7 @@
  * Stays under Vercel's 12-function limit — this is the 9th top-level api/ file.
  * Future routes added as new branches in this catch-all, NOT new files.
  */
-import { waitUntil } from '@vercel/functions';
+import { waitUntil } from '../_lib/waitUntil.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { verifyVapiSecret } from '../_lib/vapi/verifySecret.js';

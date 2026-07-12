@@ -22,12 +22,18 @@ export function handleCors(req: VercelRequest, res: VercelResponse): boolean {
 
   // Team slug pinned — bare project names are attacker-registerable on vercel.app.
   const isVercelPreview =
-    /^https:\/\/guided-growth-(mvp|qa)-[a-z0-9-]+-guided-growths-projects\.vercel\.app$/.test(origin);
+    /^https:\/\/guided-growth-(mvp|qa)-[a-z0-9-]+-guided-growths-projects\.vercel\.app$/.test(
+      origin,
+    );
+
+  // Self-hosted review apps (one subdomain per branch, own DNS — not attacker-registerable).
+  const isSelfHostedPreview = /^https:\/\/[a-z0-9-]+\.preview\.guidedgrowthapp\.com$/.test(origin);
 
   if (
     ALLOWED_ORIGINS.includes(origin) ||
     (vercelOrigin && origin === vercelOrigin) ||
-    isVercelPreview
+    isVercelPreview ||
+    isSelfHostedPreview
   ) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');

@@ -1,4 +1,4 @@
-import { waitUntil } from '@vercel/functions';
+import { waitUntil } from '../_lib/waitUntil.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';

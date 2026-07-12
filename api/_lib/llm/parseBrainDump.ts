@@ -1,4 +1,4 @@
-import { waitUntil } from '@vercel/functions';
+import { waitUntil } from '../waitUntil.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../db.js';
 import { normalizeParsedHabits } from './normalizeParsedHabits.js';

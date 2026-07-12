@@ -47,6 +47,70 @@ verify:
     - npx vitest run
     - npm run build
 
+# Self-hosted review apps: every branch gets a container on the OCI host at
+# https://<slug>.preview.guidedgrowthapp.com. The runner mounts docker.sock and
+# /srv/gg-preview (env file + nginx conf.d); a host systemd path unit reloads
+# nginx when conf.d changes. Stopping the environment removes everything.
+deploy_preview:
+  stage: deploy
+  image: docker:27-cli
+  needs: ['verify']
+  rules: *branch_push_rules
+  resource_group: preview/$CI_COMMIT_REF_SLUG
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: https://$CI_COMMIT_REF_SLUG.preview.guidedgrowthapp.com
+    on_stop: stop_preview
+    auto_stop_in: 1 week
+  variables:
+    PREVIEW_HOST: $CI_COMMIT_REF_SLUG.preview.guidedgrowthapp.com
+    PREVIEW_ENV_FILE: /srv/gg-preview/preview.env
+  script:
+    - PORT=$((42000 + $(printf '%s' "$CI_COMMIT_REF_SLUG" | cksum | cut -d' ' -f1) % 1000))
+    - echo "deploying $PREVIEW_HOST on 127.0.0.1:$PORT"
+    - docker build
+      --secret id=envfile,src=$PREVIEW_ENV_FILE
+      --build-arg VITE_PUBLIC_WEB_ORIGIN=https://$PREVIEW_HOST
+      --build-arg VITE_APP_VERSION=$CI_COMMIT_SHORT_SHA
+      -t gg-preview:$CI_COMMIT_REF_SLUG .
+    - docker rm -f gg-preview-$CI_COMMIT_REF_SLUG 2>/dev/null || true
+    - docker run -d --name gg-preview-$CI_COMMIT_REF_SLUG
+      --restart unless-stopped --memory 512m --cpus 1
+      -p 127.0.0.1:$PORT:3000
+      --env-file $PREVIEW_ENV_FILE
+      -e VERCEL_URL=$PREVIEW_HOST -e VERCEL_ENV=preview
+      gg-preview:$CI_COMMIT_REF_SLUG
+    - sed -e "s/__HOST__/$PREVIEW_HOST/g" -e "s/__PORT__/$PORT/g" deploy/preview-vhost.template > /srv/gg-preview/conf.d/$CI_COMMIT_REF_SLUG.conf
+    - |
+      for i in $(seq 1 30); do
+        if docker run --rm --network container:gg-preview-$CI_COMMIT_REF_SLUG curlimages/curl -sf http://localhost:3000/healthz >/dev/null 2>&1; then
+          echo "healthy"; break
+        fi
+        [ "$i" = 30 ] && { echo "container never became healthy"; docker logs --tail 50 gg-preview-$CI_COMMIT_REF_SLUG; exit 1; }
+        sleep 2
+      done
+    - |
+      if [ -n "$MATTERMOST_WEBHOOK_URL" ]; then
+        docker run --rm curlimages/curl -s -X POST "$MATTERMOST_WEBHOOK_URL" -H 'Content-Type: application/json' -d "{\"text\": \":eyes: Preview for \`${CI_COMMIT_REF_NAME}\` by ${GITLAB_USER_NAME}\nhttps://${PREVIEW_HOST}\n> ${CI_COMMIT_TITLE}\"}" || true
+      fi
+
+stop_preview:
+  stage: deploy
+  image: docker:27-cli
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+      when: manual
+  allow_failure: true
+  variables:
+    GIT_STRATEGY: none
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+  script:
+    - docker rm -f gg-preview-$CI_COMMIT_REF_SLUG 2>/dev/null || true
+    - docker image rm gg-preview:$CI_COMMIT_REF_SLUG 2>/dev/null || true
+    - rm -f /srv/gg-preview/conf.d/$CI_COMMIT_REF_SLUG.conf
+
 # gg-qa deploy: deploy only main/stable to the QA-live Vercel env (gg-qa-iota)
 # and post the URL to the Deployments channel. No per-branch previews, so
 # Vercel stays at exactly two environments (QA-live + Production). Token +

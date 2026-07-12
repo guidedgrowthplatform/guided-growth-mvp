@@ -1,0 +1,50 @@
+# Rendered per review-app by deploy_preview (sed: __HOST__, __PORT__).
+# Included by /etc/nginx/conf.d/gg-preview.conf on the OCI host.
+server {
+    listen 80;
+    server_name __HOST__;
+    return 301 https://$host$request_uri;
+}
+server {
+    listen 443 ssl http2;
+    server_name __HOST__;
+
+    ssl_certificate     /etc/letsencrypt/live/preview.guidedgrowthapp.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/preview.guidedgrowthapp.com/privkey.pem;
+
+    client_max_body_size 25m;
+
+    # Parity with vercel.json headers.
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(self), geolocation=(), microphone=(self)" always;
+    add_header Content-Security-Policy "frame-ancestors 'none'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.vapi.ai wss://api.vapi.ai https://*.daily.co wss://*.daily.co https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://*.ingest.sentry.io https://*.sentry.io wss://stt-rt.soniox.com https://stt-rt.soniox.com https://api.cartesia.ai wss://api.cartesia.ai" always;
+
+    # PostHog reverse proxy (parity with vercel.json /ingest rewrites).
+    location /ingest/static/ {
+        proxy_pass https://us-assets.i.posthog.com/static/;
+        proxy_set_header Host us-assets.i.posthog.com;
+        proxy_ssl_server_name on;
+    }
+    location /ingest/ {
+        proxy_pass https://us.i.posthog.com/;
+        proxy_set_header Host us.i.posthog.com;
+        proxy_ssl_server_name on;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:__PORT__;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $http_upgrade;
+        # SSE (LLM stream, TTS stream) must not be buffered.
+        proxy_buffering off;
+        proxy_read_timeout 3600;
+    }
+}

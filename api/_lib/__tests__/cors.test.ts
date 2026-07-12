@@ -33,11 +33,15 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('handleCors origin allowlist', () => {
   it('allows the prod web origin', () => {
-    expect(allowed('https://guided-growth-mvp.vercel.app')).toBe('https://guided-growth-mvp.vercel.app');
+    expect(allowed('https://guided-growth-mvp.vercel.app')).toBe(
+      'https://guided-growth-mvp.vercel.app',
+    );
   });
 
   it('allows the QA web origin', () => {
-    expect(allowed('https://guided-growth-qa.vercel.app')).toBe('https://guided-growth-qa.vercel.app');
+    expect(allowed('https://guided-growth-qa.vercel.app')).toBe(
+      'https://guided-growth-qa.vercel.app',
+    );
   });
 
   it('allows native Capacitor origins', () => {
@@ -50,6 +54,17 @@ describe('handleCors origin allowlist', () => {
     const qa = 'https://guided-growth-qa-git-staging-guided-growths-projects.vercel.app';
     expect(allowed(mvp)).toBe(mvp);
     expect(allowed(qa)).toBe(qa);
+  });
+
+  it('allows self-hosted review-app origins', () => {
+    const preview = 'https://feat-self-hosted-previews.preview.guidedgrowthapp.com';
+    expect(allowed(preview)).toBe(preview);
+  });
+
+  it('rejects lookalike self-hosted preview origins', () => {
+    expect(allowed('https://x.preview.guidedgrowthapp.com.evil.com')).toBeUndefined();
+    expect(allowed('http://x.preview.guidedgrowthapp.com')).toBeUndefined();
+    expect(allowed('https://a.b.preview.guidedgrowthapp.com')).toBeUndefined();
   });
 
   it('rejects attacker-registerable *.vercel.app origins (no team slug)', () => {
