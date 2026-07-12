@@ -17,13 +17,16 @@ ARG VITE_API_URL=""
 ARG VITE_PUBLIC_WEB_ORIGIN
 ARG VITE_SENTRY_ENVIRONMENT="preview"
 ARG VITE_APP_VERSION="preview"
+# Source only VITE_* lines (simple single-line values) to avoid dash choking on
+# multiline secrets like FIREBASE_SERVICE_ACCOUNT that the SPA doesn't need.
 RUN --mount=type=secret,id=envfile \
-    set -a && . /run/secrets/envfile && set +a && \
+    grep -E '^VITE_' /run/secrets/envfile > /tmp/vite.env 2>/dev/null || true; \
+    set -a && . /tmp/vite.env && set +a && \
     VITE_API_URL="$VITE_API_URL" \
     VITE_PUBLIC_WEB_ORIGIN="$VITE_PUBLIC_WEB_ORIGIN" \
     VITE_SENTRY_ENVIRONMENT="$VITE_SENTRY_ENVIRONMENT" \
     VITE_APP_VERSION="$VITE_APP_VERSION" \
-    npm run build
+    npm run build; rm -f /tmp/vite.env
 
 RUN npx esbuild server/index.ts --bundle --platform=node --target=node20 \
     --format=esm --packages=external --outfile=dist-server/index.mjs

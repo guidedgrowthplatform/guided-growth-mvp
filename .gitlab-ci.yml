@@ -62,10 +62,13 @@ seed_preview_env:
     VERCEL_ORG_ID: $VERCEL_ORG_ID
     VERCEL_PROJECT_ID: $VERCEL_PROJECT_ID
   script:
+    # gg-qa's "production" env is the QA-live app (gg-qa-iota) — the canonical
+    # QA values. Its "preview" env is unused/empty. VERCEL_ENV is overridden to
+    # "preview" at container run so the app behaves as a preview.
     - npm i -g vercel@latest
-    - vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
-    - vercel env pull /srv/gg-preview/preview.env --environment=preview --token "$VERCEL_TOKEN" --yes
-    - printf '\nVERCEL_ENV=preview\nPUSH_CRON_ENABLED=false\nNODE_ENV=production\n' >> /srv/gg-preview/preview.env
+    - vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+    - vercel env pull /srv/gg-preview/preview.env --environment=production --token "$VERCEL_TOKEN" --yes
+    - printf '\nPUSH_CRON_ENABLED=false\nNODE_ENV=production\n' >> /srv/gg-preview/preview.env
     - chmod 600 /srv/gg-preview/preview.env
     - echo "seeded $(grep -c = /srv/gg-preview/preview.env) vars"
     - 'grep -E "^(SUPABASE_URL|VITE_SUPABASE_URL)=" /srv/gg-preview/preview.env | sed -E "s#(https://[a-z0-9]{6})[a-z0-9]*#\1***#" || true'
@@ -98,12 +101,21 @@ deploy_preview:
       --build-arg VITE_APP_VERSION=$CI_COMMIT_SHORT_SHA
       -t gg-preview:$CI_COMMIT_REF_SLUG .
     - docker rm -f gg-preview-$CI_COMMIT_REF_SLUG 2>/dev/null || true
-    - docker run -d --name gg-preview-$CI_COMMIT_REF_SLUG
-      --restart unless-stopped --memory 512m --cpus 1
-      -p 127.0.0.1:$PORT:3000
-      --env-file $PREVIEW_ENV_FILE
-      -e VERCEL_URL=$PREVIEW_HOST -e VERCEL_ENV=preview
-      gg-preview:$CI_COMMIT_REF_SLUG
+    # Source the env (shell parses quotes/multiline correctly) and pass each var
+    # by name — docker --env-file mishandles quoted/multiline values like the
+    # FIREBASE_SERVICE_ACCOUNT JSON.
+    - |
+      set -a; . "$PREVIEW_ENV_FILE"; set +a
+      ENVARGS=""
+      for k in $(grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' "$PREVIEW_ENV_FILE" | sed 's/=$//'); do
+        ENVARGS="$ENVARGS -e $k"
+      done
+      docker run -d --name gg-preview-$CI_COMMIT_REF_SLUG \
+        --restart unless-stopped --memory 512m --cpus 1 \
+        -p 127.0.0.1:$PORT:3000 \
+        $ENVARGS \
+        -e VERCEL_URL=$PREVIEW_HOST -e VERCEL_ENV=preview \
+        gg-preview:$CI_COMMIT_REF_SLUG
     - sed -e "s/__HOST__/$PREVIEW_HOST/g" -e "s/__PORT__/$PORT/g" deploy/preview-vhost.template > /srv/gg-preview/conf.d/$CI_COMMIT_REF_SLUG.conf
     - |
       for i in $(seq 1 30); do
