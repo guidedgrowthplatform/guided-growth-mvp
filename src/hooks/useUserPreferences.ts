@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSessionLog } from '@/hooks/useSessionLog';
+import { triggerCalendarSync } from '@/lib/calendar/triggerSync';
 import { rescheduleFromPrefs } from '@/lib/localReminders';
 import {
   DEFAULT_PREFERENCES,
@@ -17,6 +18,9 @@ export type { UserPreferences };
 export { DEFAULT_PREFERENCES };
 
 const REMINDER_KEYS = ['morningTime', 'nightTime', 'pushNotifications'] as const;
+
+// Schedule-affecting keys that should re-materialize calendar events.
+const CALENDAR_SYNC_KEYS = ['morningTime', 'nightTime', 'timezone'] as const;
 
 // Once-per-session guard for the boot timezone capture (server writer/read-for-context need it).
 let bootTzCaptured = false;
@@ -122,6 +126,9 @@ export function useUserPreferences() {
           { field: key, old_value: oldValue, new_value: newValue },
           'SETTINGS',
         );
+      }
+      if (Object.keys(partial).some((k) => (CALENDAR_SYNC_KEYS as readonly string[]).includes(k))) {
+        triggerCalendarSync();
       }
     },
   });

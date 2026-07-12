@@ -75,6 +75,15 @@ export async function readReflectionSettings(anonId: string): Promise<Reflection
   return mapRow(result.rows[0] as SettingsRow);
 }
 
+// NULL = never chosen (mapRow collapses to 0); writer needs the distinction.
+export async function readRawWeeklyDay(anonId: string): Promise<number | null> {
+  const result = await pool.query(`SELECT weekly_day FROM reflection_settings WHERE anon_id = $1`, [
+    anonId,
+  ]);
+  const raw = (result.rows[0] as { weekly_day: number | null } | undefined)?.weekly_day;
+  return Number.isInteger(raw) ? (raw as number) : null;
+}
+
 export async function upsertReflectionSettings(
   anonId: string,
   settings: ReflectionSettings,

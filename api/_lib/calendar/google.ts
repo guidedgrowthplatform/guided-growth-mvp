@@ -31,6 +31,16 @@ export class CalendarReauthRequiredError extends Error {
   }
 }
 
+// Non-2xx from the Calendar API — carries status so callers can branch (404/410 = gone).
+export class CalendarApiError extends Error {
+  status: number;
+  constructor(status: number, path: string) {
+    super(`google calendar API ${path} failed: ${status}`);
+    this.name = 'CalendarApiError';
+    this.status = status;
+  }
+}
+
 interface RefreshResult {
   access_token: string;
   expires_in: number;
@@ -153,7 +163,7 @@ export async function calendarFetch<T = unknown>(
       path,
       body: errBody.slice(0, 500),
     });
-    throw new Error(`google calendar API ${path} failed: ${response.status}`);
+    throw new CalendarApiError(response.status, path);
   }
 
   if (response.status === 204) return undefined as T;
