@@ -26,12 +26,15 @@ import {
   WEEKDAYS,
 } from '@/components/onboarding/constants';
 import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard';
+import {
+  EveningReflectionCard,
+  type ReflectionStyle,
+} from '@/components/onboarding/EveningReflectionCard';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
 import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
-import { ReflectionModeEditor } from '@/components/onboarding/ReflectionModeEditor';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { Button } from '@/components/ui/Button';
@@ -1263,12 +1266,19 @@ function MorningCheckinAdapter({ answers, onCapture, readOnly }: BeatAdapterProp
 
 /* ------------------------------------------------------------- reflection */
 
-// Evening reflection beat: schedule (time + days + reminder) PLUS the style
-// (guided prompts, custom prompts, or freeform) via the real ReflectionModeEditor.
-// The mode + custom prompts ride into the submit_reflection_config payload (the
-// tool already accepts a `mode` param and the handler already reads it).
-function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
-  const props = node.componentProps as { showModePicker?: boolean };
+// Evening reflection beat: the indigo evening chrome (EveningReflectionCard) —
+// style picker (suggested / your template / freeform) + day picker + time +
+// reminder. Style maps to the 2-value reflectionMode + customPrompts at submit;
+// the schedule rides in reflectionConfig (submit_reflection_config).
+const padTo3 = (arr: string[]): string[] => [arr[0] ?? '', arr[1] ?? '', arr[2] ?? ''];
+const styleFrom = (mode: ReflectionMode, customPrompts: string[]): ReflectionStyle =>
+  mode === 'freeform'
+    ? 'freeform'
+    : customPrompts.some((p) => p.trim())
+      ? 'your template'
+      : 'suggested template';
+
+function ReflectionAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const saved = answers.reflectionConfig as
     | { time: string; days: number[]; reminder: boolean; schedule: string }
     | undefined;
@@ -1280,10 +1290,15 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
   const [schedule, setSchedule] = useState<ScheduleOption>(
     (saved?.schedule as ScheduleOption) ?? 'Weekday',
   );
-  const [mode, setMode] = useState<ReflectionMode>(
-    (answers.reflectionMode as ReflectionMode) ?? 'prompts',
+  const [style, setStyle] = useState<ReflectionStyle>(() =>
+    styleFrom(
+      (answers.reflectionMode as ReflectionMode) ?? 'prompts',
+      (answers.customPrompts as string[]) ?? [],
+    ),
   );
-  const [prompts, setPrompts] = useState<string[]>(() => (answers.customPrompts as string[]) ?? []);
+  const [prompts, setPrompts] = useState<string[]>(() =>
+    padTo3((answers.customPrompts as string[]) ?? []),
+  );
 
   // B53 / G08 / G14: all initial state is seeded once at mount. Resync each
   // field when the persisted answers update so voice saves for days, time,
@@ -1329,23 +1344,19 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedSchedule]);
 
+  // Recompute the 3-way style from the persisted (mode, customPrompts) when
+  // either changes, so a voice save lands without a manual tap.
   const savedMode = (answers.reflectionMode as ReflectionMode) ?? 'prompts';
-  const lastSyncedMode = useRef(savedMode);
+  const savedPrompts = (answers.customPrompts as string[]) ?? [];
+  const savedStyleKey = `${savedMode}|${savedPrompts.join('\x00')}`;
+  const lastSyncedStyleKey = useRef(savedStyleKey);
   useEffect(() => {
-    if (savedMode === lastSyncedMode.current) return;
-    lastSyncedMode.current = savedMode;
-    setMode(savedMode);
-  }, [savedMode]);
-
-  const savedPromptsKey = ((answers.customPrompts as string[]) ?? []).join('\x00');
-  const lastSyncedPromptsKey = useRef(savedPromptsKey);
-  useEffect(() => {
-    if (savedPromptsKey === lastSyncedPromptsKey.current) return;
-    lastSyncedPromptsKey.current = savedPromptsKey;
-    const ps = (answers.customPrompts as string[]) ?? [];
-    if (ps.length > 0) setPrompts(ps);
+    if (savedStyleKey === lastSyncedStyleKey.current) return;
+    lastSyncedStyleKey.current = savedStyleKey;
+    setStyle(styleFrom(savedMode, savedPrompts));
+    if (savedPrompts.length > 0) setPrompts(padTo3(savedPrompts));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedPromptsKey]);
+  }, [savedStyleKey]);
 
   const changeSchedule = (value: ScheduleOption) => {
     setSchedule(value);
@@ -1380,16 +1391,28 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
     if (typeof p.reminder === 'boolean') setReminder(p.reminder);
     if (p.schedule === 'Weekday' || p.schedule === 'Weekend' || p.schedule === 'Every day')
       changeSchedule(p.schedule);
-    if (p.mode === 'prompts' || p.mode === 'freeform') setMode(p.mode);
-    if (Array.isArray(p.prompts)) {
-      const ps = p.prompts.filter((x) => typeof x === 'string');
-      if (ps.length > 0) setPrompts(ps);
-    }
+    const ps = Array.isArray(p.prompts)
+      ? p.prompts.filter((x): x is string => typeof x === 'string')
+      : [];
+    if (p.mode === 'freeform') setStyle('freeform');
+    else if (p.mode === 'prompts')
+      setStyle(ps.some((x) => x.trim()) ? 'your template' : 'suggested template');
+    else if (ps.length > 0) setStyle('your template');
+    if (ps.length > 0) setPrompts(padTo3(ps));
   });
 
+  const handlePromptChange = (i: number, v: string) =>
+    setPrompts((prev) => {
+      const next = [...prev];
+      next[i] = v;
+      return next;
+    });
+
   const submit = () => {
-    // Custom prompts only carry when the user chose prompts mode and authored some.
-    const customPrompts = mode === 'prompts' ? prompts.filter((p) => p.trim()) : [];
+    const mode: ReflectionMode = style === 'freeform' ? 'freeform' : 'prompts';
+    // Custom prompts only carry under "your template" and only the non-empty ones.
+    const customPrompts =
+      style === 'your template' ? prompts.map((p) => p.trim()).filter(Boolean) : [];
     onCapture({
       data: {
         reflectionConfig: { time, days: [...days], reminder, schedule },
@@ -1401,22 +1424,18 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
 
   return (
     <CardShell frozen={readOnly}>
-      <DailyReflectionCard
-        time={time}
-        onTimeChange={setTime}
+      <EveningReflectionCard
+        style={style}
+        onStyleChange={setStyle}
+        prompts={prompts}
+        onPromptChange={handlePromptChange}
         days={days}
         onToggleDay={toggleDay}
+        time={time}
+        onTimeChange={setTime}
         reminder={reminder}
-        onToggleReminder={setReminder}
+        onReminderChange={setReminder}
       />
-      {props.showModePicker && (
-        <ReflectionModeEditor
-          mode={mode}
-          onModeChange={setMode}
-          prompts={prompts}
-          onPromptsChange={setPrompts}
-        />
-      )}
       {!readOnly && <Cta label="Continue" onClick={submit} />}
     </CardShell>
   );
