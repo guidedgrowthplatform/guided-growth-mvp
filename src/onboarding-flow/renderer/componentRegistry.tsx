@@ -1105,7 +1105,9 @@ const habitTypeToPolarity = (t: HabitType | undefined): HabitPolarity =>
 // Build/Break polarity. Population is per-habit — each habit keeps its own days
 // and habitType, and its existing time/reminder/schedule are preserved (never
 // overwritten by one shared value). Edit renames a habit; delete removes it.
-function HabitScheduleAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
+// Exported for the Gate 3 production-adapter preservation test
+// (renderer/__tests__/habitScheduleAdapter.preservation.test.tsx).
+export function HabitScheduleAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const existing = (answers.habitConfigs ?? {}) as Record<string, HabitConfigSerialized>;
   const [order, setOrder] = useState<string[]>(() => Object.keys(existing));
   const [cfgs, setCfgs] = useState<Record<string, { days: Set<number>; polarity: HabitPolarity }>>(
