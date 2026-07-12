@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
+import { consumeCalendarJustConnected } from '@/api/calendar';
 import { deleteAccount } from '@/api/onboarding';
 import { ReminderSheet } from '@/components/home/ReminderSheet';
 import { CalendarIntegrationSection } from '@/components/settings/CalendarIntegrationSection';
@@ -60,6 +61,11 @@ export function SettingsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [micBusy, setMicBusy] = useState(false);
+
+  // One-shot confirmation after the calendar OAuth redirect lands back here.
+  useEffect(() => {
+    if (consumeCalendarJustConnected()) addToast('success', 'Calendar connected');
+  }, [addToast]);
 
   const micAllowed = pageSettings.micPermission === true;
 
