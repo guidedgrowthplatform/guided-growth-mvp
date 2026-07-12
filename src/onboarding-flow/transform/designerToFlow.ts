@@ -425,7 +425,7 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
     componentProps: {},
     voice: {
       openerText:
-        "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+        "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
       expectsInput: false,
       directLlmAllowed: true,
     },

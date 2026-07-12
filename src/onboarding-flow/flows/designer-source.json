@@ -1148,13 +1148,13 @@
       "transition": null,
       "context": "",
       "props": {
-        "coachLine": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+        "coachLine": "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
         "buttonLabel": "Start"
       },
       "meta": {
         "voiceEngine": "MP3",
         "voiceMode": "Verbatim",
-        "spokenContent": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+        "spokenContent": "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
         "allowedTools": "add_habit, remove_habit, update_habit, confirm_plan",
         "openerShowsAsBubble": true,
         "expectedResponse": "Looks good, or an edit",
@@ -1163,7 +1163,7 @@
             "id": "onboard_complete_1",
             "label": "onboard_complete_1",
             "file": "/voice/ob/onboard_complete_1.wav",
-            "transcript": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+            "transcript": "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
             "timing": "opener"
           }
         ],

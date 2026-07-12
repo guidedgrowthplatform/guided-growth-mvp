@@ -1040,14 +1040,14 @@
               "id": "onboard_complete_1",
               "label": "onboard_complete_1",
               "file": "/voice/ob/onboard_complete_1.wav",
-              "transcript": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+              "transcript": "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
               "timing": "opener"
             }
           ],
           "lines": [
             {
               "id": "onboard-complete-line-1",
-              "text": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+              "text": "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
               "voiceOnly": false,
               "onScreen": true,
               "engine": "mp3",

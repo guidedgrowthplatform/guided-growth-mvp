@@ -397,7 +397,7 @@ One confirm. Show the whole plan: the check-in time, the evening reflection time
     // Matches the flow overlay.
     allowedTools: ['add_habit', 'remove_habit', 'update_habit', 'confirm_plan'],
     opener:
-      "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+      "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
   },
 
   // ---------------------------------------------------------------------------
