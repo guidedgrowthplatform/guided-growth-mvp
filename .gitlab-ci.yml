@@ -47,6 +47,29 @@ verify:
     - npx vitest run
     - npm run build
 
+# One-off (manual): pull the QA environment from Vercel into the host env file
+# that every preview container reads. Uses VERCEL_* CI variables; the token
+# never leaves CI. Re-run whenever the QA env changes.
+seed_preview_env:
+  stage: deploy
+  image: node:20
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+      when: manual
+  allow_failure: true
+  variables:
+    GIT_STRATEGY: none
+    VERCEL_ORG_ID: $VERCEL_ORG_ID
+    VERCEL_PROJECT_ID: $VERCEL_PROJECT_ID
+  script:
+    - npm i -g vercel@latest
+    - vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
+    - vercel env pull /srv/gg-preview/preview.env --environment=preview --token "$VERCEL_TOKEN" --yes
+    - printf '\nVERCEL_ENV=preview\nPUSH_CRON_ENABLED=false\nNODE_ENV=production\n' >> /srv/gg-preview/preview.env
+    - chmod 600 /srv/gg-preview/preview.env
+    - echo "seeded $(grep -c = /srv/gg-preview/preview.env) vars"
+    - 'grep -E "^(SUPABASE_URL|VITE_SUPABASE_URL)=" /srv/gg-preview/preview.env | sed -E "s#(https://[a-z0-9]{6})[a-z0-9]*#\1***#" || true'
+
 # Self-hosted review apps: every branch gets a container on the OCI host at
 # https://<slug>.preview.guidedgrowthapp.com. The runner mounts docker.sock and
 # /srv/gg-preview (env file + nginx conf.d); a host systemd path unit reloads
@@ -66,6 +89,7 @@ deploy_preview:
     PREVIEW_HOST: $CI_COMMIT_REF_SLUG.preview.guidedgrowthapp.com
     PREVIEW_ENV_FILE: /srv/gg-preview/preview.env
   script:
+    - test -s "$PREVIEW_ENV_FILE" || { echo "preview env not seeded — run the manual seed_preview_env job first"; exit 1; }
     - PORT=$((42000 + $(printf '%s' "$CI_COMMIT_REF_SLUG" | cksum | cut -d' ' -f1) % 1000))
     - echo "deploying $PREVIEW_HOST on 127.0.0.1:$PORT"
     - docker build
