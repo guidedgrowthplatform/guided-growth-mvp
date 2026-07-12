@@ -53,7 +53,10 @@ deploy_qa_preview:
   stage: deploy
   image: node:20
   needs: ['verify']
-  rules: *branch_push_rules
+  # Server-side Vercel deploy guard: only main|stable may deploy. A feature-branch
+  # push must never trigger a per-branch Vercel preview, even without ci.skip.
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "stable"'
   script:
     - npm i -g vercel@latest
     - |
