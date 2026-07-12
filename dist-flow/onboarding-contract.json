@@ -4,12 +4,12 @@
     "beats": "src/components/flow-designer/beatsSource.ts#BEATS_SOURCE"
   },
   "provenance": {
-    "sourceCommit": "987f0be94c2ac792ff4d742e8e715e35b244b824",
+    "sourceCommit": "d3c1f83af829a765560f54640fed89609d4ce568",
     "branch": "render-integrity-closers",
-    "buildSha": "f543ac5a0541b0c1ad6bce38147ff86975149bc94abb8039c6c04c2a21bfbd16",
-    "artifactHash": "7ad3d5fdc160dfcbf45fedd2687a1d56040d0b8ba3a56530bd520ea31e718d11"
+    "buildSha": "58901b062357dd4c38f3ae597d346bf899e2201092a120c7ef526e7376e7bba3",
+    "artifactHash": "7744d2ceed54cceb50838133db6a80c9280c81a0606e946c0c77a42c8b157209"
   },
-  "generatedAt": "2026-07-12T22:58:29+03:00",
+  "generatedAt": "2026-07-12T23:36:54+03:00",
   "idMap": {
     "screens": {
       "COACH-GREETING": "coach-greeting",
