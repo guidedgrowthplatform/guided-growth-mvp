@@ -9600,9 +9600,42 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
 export const BEAT_BY_ID: Record<string, BeatEntry> = Object.fromEntries(
   BEATS_SOURCE.map((b) => [b.id, b]),
 );
-export const BEAT_BY_SCREEN_ID: Record<string, BeatEntry> = Object.fromEntries(
-  BEATS_SOURCE.filter((b) => b.screenId).map((b) => [b.screenId as string, b]),
-);
+// Screen IDs that are intentionally SHARED by more than one beat (variant-resolved
+// at runtime, e.g. category + category-women resolved by gender). Any duplicate
+// screenId NOT in this set is an accidental collision and throws, instead of one
+// beat silently shadowing the other (the old Object.fromEntries last-wins hazard).
+const SHARED_SCREEN_IDS: ReadonlySet<string> = new Set<string>(['ONBOARD-BEGINNER-01']);
+
+// Single-beat lookup. For a shared screenId, keeps the FIRST (base) beat
+// deterministically; variant-aware consumers use BEATS_BY_SCREEN_ID below.
+export const BEAT_BY_SCREEN_ID: Record<string, BeatEntry> = (() => {
+  const map: Record<string, BeatEntry> = {};
+  for (const b of BEATS_SOURCE) {
+    if (!b.screenId) continue;
+    const sid = b.screenId as string;
+    if (sid in map) {
+      if (!SHARED_SCREEN_IDS.has(sid)) {
+        throw new Error(
+          `Duplicate screenId "${sid}" (beats "${map[sid].id}" and "${b.id}"): screenId must be unique unless explicitly variant-shared in SHARED_SCREEN_IDS.`,
+        );
+      }
+      continue;
+    }
+    map[sid] = b;
+  }
+  return map;
+})();
+
+// All beats per screenId, for variant-aware consumers (e.g. gender-resolved category).
+export const BEATS_BY_SCREEN_ID: Record<string, BeatEntry[]> = (() => {
+  const map: Record<string, BeatEntry[]> = {};
+  for (const b of BEATS_SOURCE) {
+    if (!b.screenId) continue;
+    const sid = b.screenId as string;
+    (map[sid] ??= []).push(b);
+  }
+  return map;
+})();
 
 // Identity (section 1) is GENERATED from the beat's own fields, never copied
 // from the head: beatId, order, path, type, screenId are per-beat facts, and
