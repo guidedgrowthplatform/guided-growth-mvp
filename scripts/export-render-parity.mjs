@@ -2,6 +2,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import ts from 'typescript';
 
+import { resolveRenderProvenance, withArtifactHash } from './render-provenance.mjs';
+
 const root = process.cwd();
 const beatsSourcePath = path.join(root, 'src/components/flow-designer/beatsSource.ts');
 const outputPath = path.join(root, 'dist-flow/parity.json');
@@ -136,17 +138,20 @@ const exportBeats = beats.map((beat, index) => ({
   clips: distinctClips(beat),
 }));
 
+const provenance = resolveRenderProvenance(root);
+
 await mkdir(path.dirname(outputPath), { recursive: true });
 await writeFile(
   outputPath,
   `${JSON.stringify(
-    {
+    withArtifactHash({
       schemaVersion: SCHEMA_VERSION,
       source: {
         beats: 'src/components/flow-designer/beatsSource.ts#BEATS_SOURCE',
       },
+      provenance,
       beats: exportBeats,
-    },
+    }),
     null,
     2,
   )}\n`,

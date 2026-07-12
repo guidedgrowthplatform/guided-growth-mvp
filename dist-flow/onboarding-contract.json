@@ -3,7 +3,13 @@
   "source": {
     "beats": "src/components/flow-designer/beatsSource.ts#BEATS_SOURCE"
   },
-  "generatedAt": "2026-07-11T18:18:21+03:00",
+  "provenance": {
+    "sourceCommit": "6e39a58e69f5b91fcaf059e15e0a5b0ce8d252be",
+    "branch": "render-integrity-closers",
+    "buildSha": "f543ac5a0541b0c1ad6bce38147ff86975149bc94abb8039c6c04c2a21bfbd16",
+    "artifactHash": "6801d79a8b4bcc12d9f251d1c9ec8cdef6555b232ba2ecbec6d0adb4a97a6179"
+  },
+  "generatedAt": "2026-07-12T22:58:29+03:00",
   "idMap": {
     "screens": {
       "COACH-GREETING": "coach-greeting",

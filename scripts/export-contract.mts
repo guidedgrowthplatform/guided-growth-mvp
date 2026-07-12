@@ -24,6 +24,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 
+import { resolveRenderProvenance, withArtifactHash } from './render-provenance.mjs';
+
 import {
   BEATS_SOURCE,
   resolveBeatStructure,
@@ -238,14 +240,15 @@ function buildContract() {
     (a): a is NonNullable<typeof a> => a !== null,
   );
 
-  return {
+  return withArtifactHash({
     schemaVersion: SCHEMA_VERSION,
     source: { beats: BEATS_SOURCE_REF },
+    provenance: resolveRenderProvenance(ROOT),
     generatedAt: resolveGeneratedAt(),
     idMap: { screens, clips },
     beats,
     acceptance,
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------
