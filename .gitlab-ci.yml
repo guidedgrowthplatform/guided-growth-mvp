@@ -47,6 +47,53 @@ verify:
     - npx vitest run
     - npm run build
 
+# Reconciled annotated-render contracts. These stay report-only until the
+# source-to-FlowBuilder seam is removed and planted-defect proof authorizes a
+# blocking gate in the later stale-override removal step.
+render_guards:
+  stage: verify
+  image: node:20
+  rules: *branch_push_rules
+  interruptible: true
+  allow_failure: true
+  timeout: 15 minutes
+  variables:
+    npm_config_cache: '$CI_PROJECT_DIR/.npm'
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  script:
+    - npm ci --prefer-offline --no-audit --no-fund
+    - node scripts/bible-registry-check.mjs
+    - npm run check:render
+    - npm run check:links
+    - npm run check:beats
+
+# Cross-check the published render contract with app-consumed order, copy, and
+# shipped audio. It is report-only while known render and app drift remains.
+render_app_parity:
+  stage: verify
+  image: node:20
+  rules: *branch_push_rules
+  interruptible: true
+  allow_failure: true
+  timeout: 15 minutes
+  variables:
+    npm_config_cache: '$CI_PROJECT_DIR/.npm'
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  script:
+    - npm ci --prefer-offline --no-audit --no-fund
+    - npm run build:flow
+    - npm run check:app-parity
+
 # gg-qa deploy: deploy only main/stable to the QA-live Vercel env (gg-qa-iota)
 # and post the URL to the Deployments channel. No per-branch previews, so
 # Vercel stays at exactly two environments (QA-live + Production). Token +
