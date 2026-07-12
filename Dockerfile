@@ -38,6 +38,7 @@ ARG VITE_POSTHOG_HOST
 ARG VITE_SENTRY_DSN
 ARG VITE_QA_PASSWORD
 ARG VITE_QA_SCREEN_ENABLED
+ARG VITE_STATE3_ENABLED
 ARG VERCEL_ENV=production
 RUN if [ "$SKIP_SPA" != "1" ]; then npm run build; else echo "skipping SPA build"; fi
 
