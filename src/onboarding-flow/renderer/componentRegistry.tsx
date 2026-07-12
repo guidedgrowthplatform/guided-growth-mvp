@@ -9,6 +9,7 @@
  * as a short user-answer summary (see summarizeBeat) by BeatView.
  */
 import { Capacitor } from '@capacitor/core';
+import { Clock } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import { WeeklyHabitsSummary } from '@/components/habit-detail/WeeklyHabitsSummary';
@@ -27,7 +28,7 @@ import {
 import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
-import { HabitScheduleCard } from '@/components/onboarding/HabitScheduleCard';
+import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { ReflectionModeEditor } from '@/components/onboarding/ReflectionModeEditor';
@@ -35,7 +36,9 @@ import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { Button } from '@/components/ui/Button';
 import { ChipSelect } from '@/components/ui/ChipSelect';
+import { DayPicker } from '@/components/ui/DayPicker';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { formatTime12 } from '@/components/ui/TimePicker';
 import { MicPermission } from '@/components/welcome/MicPermission';
 import {
   type OnboardingVoiceResult,
@@ -46,7 +49,7 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useWeekData } from '@/hooks/useWeekData';
 import { unlockTTS } from '@/lib/services/tts-service';
 import { recommendedWeekdayPreset, recommendedWeeklyDay } from '@/utils/weeklyDay';
-import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
+import type { CheckInDimension, HabitDayStatus, HabitType, ReflectionMode } from '@gg/shared/types';
 import { BrainDumpCapture } from '../BrainDumpCapture';
 import {
   FLOW_CATEGORIES,
@@ -80,7 +83,13 @@ export interface BeatAdapterProps {
   readOnly?: boolean;
 }
 
-type HabitConfigSerialized = { days: number[]; time: string; reminder: boolean; schedule: string };
+type HabitConfigSerialized = {
+  days: number[];
+  time: string;
+  reminder: boolean;
+  schedule: string;
+  habitType?: HabitType;
+};
 
 const DEFAULT_HABIT_CONFIG: Omit<HabitConfigSerialized, never> = {
   days: [...WEEKDAYS],
@@ -1081,35 +1090,127 @@ function ScheduleCard({
 
 /* ------------------------------------------------------- habit schedule */
 
-// Habit schedule beat: pick when the chosen habits happen. The captured schedule
-// is applied to every selected habit's config (one shared schedule for the start
-// plan; per-habit tweaks happen later on plan-review).
+const polarityToHabitType = (p: HabitPolarity): HabitType =>
+  p === 'break' ? 'binary_avoid' : 'binary_do';
+const habitTypeToPolarity = (t: HabitType | undefined): HabitPolarity =>
+  t === 'binary_avoid' ? 'break' : 'build';
+
+// Habit schedule beat: one card per chosen habit, each with its OWN day-set and
+// Build/Break polarity. Population is per-habit — each habit keeps its own days
+// and habitType, and its existing time/reminder/schedule are preserved (never
+// overwritten by one shared value). Edit renames a habit; delete removes it.
 function HabitScheduleAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const existing = (answers.habitConfigs ?? {}) as Record<string, HabitConfigSerialized>;
-  const names = Object.keys(existing);
-  const first = names.length > 0 ? existing[names[0]] : undefined;
-  const submit = (s: ScheduleState) => {
-    const base = { days: s.days, time: s.time, reminder: s.reminder, schedule: s.schedule };
-    const habitConfigs: Record<string, HabitConfigSerialized> =
-      names.length > 0
-        ? Object.fromEntries(names.map((n) => [n, { ...existing[n], ...base }]))
-        : { ...existing };
+  const [order, setOrder] = useState<string[]>(() => Object.keys(existing));
+  const [cfgs, setCfgs] = useState<Record<string, { days: Set<number>; polarity: HabitPolarity }>>(
+    () =>
+      Object.fromEntries(
+        Object.entries(existing).map(([name, c]) => [
+          name,
+          {
+            days: new Set<number>(Array.isArray(c.days) && c.days.length ? c.days : WEEKDAYS),
+            polarity: habitTypeToPolarity(c.habitType),
+          },
+        ]),
+      ),
+  );
+  const [editing, setEditing] = useState<string | null>(null);
+  const [renameText, setRenameText] = useState('');
+  const submittedRef = useRef(false);
+  const fallback = () => ({ days: new Set<number>(WEEKDAYS), polarity: 'build' as HabitPolarity });
+
+  // Coach's shared set_habit_schedule (no per-habit target) seeds the same
+  // day-set onto every habit; per-habit taps then diverge them.
+  useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (readOnly || result.action !== 'set_habit_schedule') return;
+    const p = result.params as { days?: number[] };
+    if (!Array.isArray(p.days)) return;
+    const ds = p.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+    if (ds.length === 0) return;
+    setCfgs((prev) =>
+      Object.fromEntries(Object.entries(prev).map(([n, c]) => [n, { ...c, days: new Set(ds) }])),
+    );
+  });
+
+  const patchPolarity = (name: string, polarity: HabitPolarity) =>
+    setCfgs((prev) => ({ ...prev, [name]: { ...(prev[name] ?? fallback()), polarity } }));
+  const toggleDay = (name: string, day: number) =>
+    setCfgs((prev) => {
+      const cur = prev[name] ?? fallback();
+      return { ...prev, [name]: { ...cur, days: toggleSetItem(cur.days, day) } };
+    });
+  const removeHabit = (name: string) => {
+    setOrder((prev) => prev.filter((n) => n !== name));
+    setCfgs((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+    if (editing === name) setEditing(null);
+  };
+  const commitRename = (name: string) => {
+    const trimmed = renameText.trim();
+    setEditing(null);
+    if (!trimmed || trimmed === name || order.includes(trimmed)) return;
+    setOrder((prev) => prev.map((n) => (n === name ? trimmed : n)));
+    setCfgs((prev) => {
+      const next: Record<string, { days: Set<number>; polarity: HabitPolarity }> = {};
+      for (const [n, c] of Object.entries(prev)) next[n === name ? trimmed : n] = c;
+      return next;
+    });
+  };
+
+  const submit = () => {
+    if (readOnly || submittedRef.current) return;
+    submittedRef.current = true;
+    const habitConfigs: Record<string, HabitConfigSerialized> = {};
+    for (const name of order) {
+      const local = cfgs[name] ?? fallback();
+      const prev = existing[name];
+      habitConfigs[name] = {
+        days: [...local.days].sort((a, b) => a - b),
+        time: prev?.time ?? DEFAULT_HABIT_CONFIG.time,
+        reminder: prev?.reminder ?? DEFAULT_HABIT_CONFIG.reminder,
+        schedule: prev?.schedule ?? DEFAULT_HABIT_CONFIG.schedule,
+        habitType: polarityToHabitType(local.polarity),
+      };
+    }
     onCapture({ data: { habitConfigs } });
   };
+
   return (
-    // title/subtitle copy provisional — pending Yair.
-    <ScheduleCard
-      initialTime={first?.time ?? '09:00'}
-      initialDays={first?.days}
-      initialReminder={first?.reminder}
-      initialSchedule={(first?.schedule as ScheduleOption) ?? 'Weekday'}
-      voiceAction="set_habit_schedule"
-      ctaLabel="Continue"
-      title="Habit Schedule"
-      subtitle="When you'll do these"
-      readOnly={readOnly}
-      onSubmit={submit}
-    />
+    <CardShell frozen={readOnly}>
+      {order.map((name) => {
+        const cfg = cfgs[name] ?? fallback();
+        return (
+          <div key={name} className="flex flex-col gap-2">
+            {!readOnly && editing === name && (
+              <OnboardingInput
+                icon="mdi:pencil-outline"
+                placeholder="Rename habit"
+                value={renameText}
+                onChange={setRenameText}
+                onEnter={() => commitRename(name)}
+              />
+            )}
+            <HabitScheduleCard
+              habitName={name}
+              polarity={cfg.polarity}
+              selectedDays={cfg.days}
+              onChangePolarity={(pol) => !readOnly && patchPolarity(name, pol)}
+              onToggleDay={(d) => !readOnly && toggleDay(name, d)}
+              onEdit={() => {
+                if (readOnly) return;
+                setRenameText(name);
+                setEditing((cur) => (cur === name ? null : name));
+              }}
+              onDelete={readOnly ? undefined : () => removeHabit(name)}
+            />
+          </div>
+        );
+      })}
+      {!readOnly && <Cta label="Continue" disabled={order.length === 0} onClick={submit} />}
+    </CardShell>
   );
 }
 
@@ -1420,14 +1521,51 @@ function WeeklyDayPickerAdapter({ answers, onCapture, readOnly }: BeatAdapterPro
 
 /* ------------------------------------------------------------- into the app */
 
-// Terminal completion beat. A real node now (replaces the hardcoded "You're all
-// set" line in FlowRenderer): the coach line plays as the beat opener and the
-// user taps in. Captures {} to complete the flow.
-function IntoAppAdapter({ node, onCapture, readOnly }: BeatAdapterProps) {
-  const props = node.componentProps as { ctaLabel?: string };
-  // Voice leg of the tap CTA (B32): the addendum has the coach call confirm_plan
-  // on "let's go", but the tool is validate-only server-side — without this
-  // listener the machine never leaves into-app and the finale dead-ends.
+const EVERY_DAY_SET = new Set([0, 1, 2, 3, 4, 5, 6]);
+
+// Read-only plan-recap card: name, optional time chip, inert day circles. No
+// pencil, no delete, no polarity toggle — the recap is read-only; edits happen
+// back on habit-schedule.
+function ReadOnlyPlanCard({
+  name,
+  days,
+  time,
+}: {
+  name: string;
+  days: Set<number>;
+  time?: string;
+}) {
+  return (
+    <div className="w-full overflow-clip rounded-[20px] border-2 border-primary bg-surface p-[2px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)]">
+      <div className="px-[16px] pb-[10px] pt-[12px]">
+        <div className="flex items-center justify-between gap-[8px]">
+          <span className="min-w-0 flex-1 text-[15px] font-bold leading-[20px] text-content">
+            {name}
+          </span>
+          {time && (
+            <span className="flex shrink-0 items-center gap-[4px] rounded-full border border-primary/30 bg-primary/10 px-[8px] py-[3px] text-[11px] font-semibold text-primary">
+              <Clock className="size-[12px]" />
+              {time}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="h-px w-full bg-border-light" />
+      <div className="bg-surface-secondary/50 px-[16px] py-[8px]">
+        <DayPicker selectedDays={days} onToggleDay={() => {}} disabled />
+      </div>
+    </div>
+  );
+}
+
+// Terminal completion beat: a READ-ONLY recap of the whole plan — morning
+// check-in, each habit with its own days, evening check-in, evening reflection —
+// ending on a single Start button. Reads answers only (habitConfigs /
+// morningCheckin / reflectionConfig); writes nothing new. Captures {} to finish.
+function IntoAppAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
+  // Voice leg of the tap CTA (B32): the coach calls confirm_plan on "start", but
+  // the tool is validate-only server-side — without this listener the machine
+  // never leaves into-app and the finale dead-ends.
   const advancedRef = useRef(false);
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
     if (readOnly || advancedRef.current) return;
@@ -1435,11 +1573,33 @@ function IntoAppAdapter({ node, onCapture, readOnly }: BeatAdapterProps) {
     advancedRef.current = true;
     onCapture({ data: {} });
   });
+
+  const habitConfigs = (answers.habitConfigs ?? {}) as Record<
+    string,
+    { days: number[] | Set<number> }
+  >;
+  const morning = answers.morningCheckin as { time?: string; days?: number[] } | undefined;
+  const reflection = answers.reflectionConfig as { time?: string; days?: number[] } | undefined;
+  const morningTime = formatTime12(morning?.time ?? '08:00');
+  const eveningTime = formatTime12(reflection?.time ?? '21:30');
+  const toDaySet = (d: number[] | Set<number>) => (d instanceof Set ? d : new Set(d));
+  const morningDays = morning?.days?.length ? new Set(morning.days) : EVERY_DAY_SET;
+  const reflectionDays = reflection?.days?.length ? new Set(reflection.days) : EVERY_DAY_SET;
+
   return (
-    <CardShell>
-      {!readOnly && (
-        <Cta label={props.ctaLabel ?? "Let's go"} onClick={() => onCapture({ data: {} })} />
-      )}
+    <CardShell frozen={readOnly}>
+      <div className="flex flex-col gap-3">
+        <span className="text-[13px] font-semibold uppercase tracking-wide text-primary">
+          Your plan
+        </span>
+        <ReadOnlyPlanCard name="Morning check-in" days={morningDays} time={morningTime} />
+        {Object.entries(habitConfigs).map(([name, cfg]) => (
+          <ReadOnlyPlanCard key={name} name={name} days={toDaySet(cfg.days)} />
+        ))}
+        <ReadOnlyPlanCard name="Evening check-in" days={EVERY_DAY_SET} time={eveningTime} />
+        <ReadOnlyPlanCard name="Evening reflection" days={reflectionDays} time={eveningTime} />
+      </div>
+      {!readOnly && <Cta label="Start" onClick={() => onCapture({ data: {} })} />}
     </CardShell>
   );
 }
