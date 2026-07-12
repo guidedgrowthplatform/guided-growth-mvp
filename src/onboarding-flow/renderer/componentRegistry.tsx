@@ -701,6 +701,7 @@ interface PathOption {
   value: string;
   label: string;
   description?: string;
+  icon?: string;
 }
 
 function PathSelectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
@@ -739,6 +740,8 @@ function PathSelectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapte
       {options.map((o) => (
         <SelectionCard
           key={o.value}
+          icon={o.icon}
+          iconBg="rgba(19,91,235,0.10)"
           title={o.label}
           description={o.description ?? ''}
           selected={selected === o.value}
@@ -1802,14 +1805,21 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
   });
 
   const anyFilled = Object.keys(values).length > 0;
-  const submit = () => onCapture({ data: { checkin: values } as Record<string, unknown> });
+  const [done, setDone] = useState(false);
+  const submit = () => {
+    if (done) return;
+    setDone(true);
+    onCapture({ data: { checkin: values } as Record<string, unknown> });
+  };
 
   return (
     <CardShell>
       <div className="flex w-full flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
         {visibleDims.map((dim) => (
           <div key={dim.key} className="flex animate-fade-in flex-col gap-1.5">
-            <span className="text-[13px] font-medium text-content-subtle">{dim.label}</span>
+            <span className="text-[12px] font-bold uppercase tracking-[0.04em] text-content-subtle">
+              {dim.label}
+            </span>
             <div className="flex w-full justify-between">
               {dim.options.map((o) => (
                 <EmojiOptionButton
@@ -1826,7 +1836,7 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
         ))}
       </div>
       {visibleDims.length === dims.length && (
-        <Cta label="Continue" disabled={!anyFilled} onClick={submit} />
+        <Cta label={done ? 'Got it' : 'Done'} disabled={!anyFilled || done} onClick={submit} />
       )}
     </CardShell>
   );

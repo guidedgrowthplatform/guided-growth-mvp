@@ -211,14 +211,16 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
       bindsTo: 'path',
       options: [
         {
-          value: 'simple',
-          label: "I'm new to habit tracking",
-          description: "I'll help you step by step",
+          value: 'braindump',
+          label: 'I already track habits',
+          description: "Read me your list and we'll get it organized.",
+          icon: 'mdi:format-list-checks',
         },
         {
-          value: 'braindump',
-          label: 'I already have experience',
-          description: "Tell me your habits and I'll organize them",
+          value: 'simple',
+          label: "I'm new to this",
+          description: "We'll start fresh and build your first habits together.",
+          icon: 'mdi:sprout-outline',
         },
       ],
     },
