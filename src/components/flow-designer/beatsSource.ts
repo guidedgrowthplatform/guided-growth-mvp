@@ -211,7 +211,7 @@ export interface BeatEntry {
   readonly type: string;
   readonly variantOf?: string; // sub-beat: inherits bible/io/structure from the named head beat, overrides only what differs (Yair 2026-07-09)
   readonly screenId: string | null;
-  readonly context: string | null;
+  readonly context?: string | null;
   readonly allowedTools: string | null;
   readonly expectedResponse: string | null;
   readonly voiceEngine: VoiceEngine;
@@ -1127,8 +1127,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'splash-intro',
     screenId: 'COACH-GREETING',
-    context:
-      'BEAT: First hello.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe orb blooms and you speak for the first time. One warm line that lands the surprise of a real voice and invites them in. Then the flow moves on.',
     allowedTools: null,
     expectedResponse: 'Auto-advances',
     voiceEngine: 'MP3',
@@ -1316,8 +1314,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'auth-signup',
     screenId: 'ONBOARD-AUTH--FORM',
-    context:
-      'BEAT: Auth.\n\nThe user signs up or logs in by tapping (Apple, Google, or email). This is also where their name is captured. Stay silent. Do not greet, narrate, or call any tool. The flow advances on its own once the user is authenticated.',
     allowedTools: null,
     expectedResponse: 'Taps Apple, Google, or email sign-in',
     voiceEngine: 'Silent',
@@ -1527,8 +1523,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'mic-permission',
     screenId: 'MIC-PERMISSION',
-    context:
-      "BEAT: Mic permission.\n\nSPEAK MODE: VERBATIM_OPENER\n\nAsk for the mic so the user can talk to you. Keep it light, optional, no pressure. If they skip it, they can still type, and that's completely fine.",
     allowedTools: null,
     expectedResponse: 'Taps Allow or Not now',
     voiceEngine: 'MP3',
@@ -1749,8 +1743,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'profile-beat',
     screenId: 'ONBOARD-01--FORM',
-    context:
-      "BEAT: Profile greeting.\n\nSPEAK MODE: VERBATIM_OPENER\n\nYou already know the user's name from sign-in. Greet them by name, warmly, and set up the two quick things you're about to collect (age and gender). This beat is only the greeting, spoken live in their name. The asks come next.",
     allowedTools: null,
     expectedResponse: 'Auto-advances',
     voiceEngine: 'Cartesia',
@@ -1959,8 +1951,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'profile-beat',
     screenId: 'ONBOARD-01--FORM--ASKS',
-    context:
-      "BEAT: Profile.\n\nSPEAK MODE: VERBATIM_OPENER\n\nCollect two things: their age and their gender. Ask gender plainly, and never let them skip or decline it. Accept voice or taps. If they give one, ask for the other. Both are required before moving on, gender included. Don't ask for anything else.",
     allowedTools: 'submit_profile, advance_step',
     expectedResponse: 'Says or taps age and gender',
     voiceEngine: 'MP3',
@@ -2287,8 +2277,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'state-check',
     screenId: 'ONBOARD-STATE-CHECK',
-    context:
-      "BEAT: Check-in (opener for the whole process, plus the first state check).\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe opener frames the whole coaching process: it is built on a few small pieces we go through together on the way in, it is built light for everyone (never done this, or tracks a lot), and each part gets explained as we reach it. Then this first piece: a quick state check-in, done right now. The four questions at the end (how's your sleep, mood, energy, and your stress) are the sync points, each blooms its card as it is asked, said once. Then the same cards are the check-in the user fills.\n\nDO NOT:\n- Say the four twice. They are asked once, as the four questions at the end.\n- Render a second set of cards. These cards ARE the check-in.\n- Give advice on what they report. One warm line, then move on.",
     allowedTools: 'record_checkin, advance_step',
     expectedResponse: 'Fills sleep, mood, energy, stress on the same cards',
     voiceEngine: 'MP3',
@@ -2602,8 +2590,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'morning-checkin-setup',
     screenId: 'ONBOARD-MORNING-SETUP',
-    context:
-      "BEAT: Check-in time.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point isn't that it's morning, it's that this is their first habit and it's simple.",
     allowedTools: 'submit_morning_checkin, advance_step',
     expectedResponse: 'Sets a time and days',
     voiceEngine: 'MP3',
@@ -2951,8 +2937,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'reflection-card',
     screenId: 'ONBOARD-BEGINNER-07',
-    context:
-      "BEAT: Evening reflection setup.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nSet it up, don't perform it now. The user picks one style and a time, reminder on by default. The three styles are on the screen: suggested template, your template, freeform. Don't read them out. Ask which feels right and let them pick. If they resist, keep it light, it's two minutes a day.\n\nPERSISTS: whatever they pick IS saved as their reflection template, and the daily evening reflection asks based on it, exactly: suggested template -> the three questions (what am I proud of, what do I forgive myself for, what am I grateful for); your template -> their own saved prompts, in order; freeform -> no questions, just talk. If they choose your template, capture their prompts here so the daily reflection can ask them verbatim.\n\nDO NOT:\n- Read the three styles out loud. They're on the screen.\n- Add coaching per style.\n- Make it feel like homework.",
     allowedTools: 'submit_reflection_config, submit_custom_prompts, advance_step',
     expectedResponse: 'Picks a style and time',
     voiceEngine: 'MP3',
@@ -3437,8 +3421,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'path-selection',
     screenId: 'ONBOARD-FORK--FORM',
-    context:
-      'BEAT: Experience fork.\n\nSPEAK MODE: VERBATIM_OPENER + VERBAL_QUESTION\n\nThe framing "One more question before we set up your habits." shows as one coach bubble. Then, as the two path cards appear, the question "Do you already track habits or is this new to you?" is spoken VERBAL ONLY (not a bubble). New, tried and dropped off, or wants guidance, route to beginner. Has a list or a system already, route to advanced. If unclear, ask one short question.\n\nDO NOT:\n- Read the two choices out loud as a list. The cards show them. Ask the question, then wait.\n- Add "both are totally fine" or any filler tail.',
     allowedTools: 'submit_path_choice, ask_clarification, advance_step',
     expectedResponse: 'New, or I already track habits',
     voiceEngine: 'MP3',
@@ -3803,8 +3785,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'beginner',
     type: 'category-grid',
     screenId: 'ONBOARD-BEGINNER-01',
-    context:
-      'BEAT: Focus area.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nCollect one category. The opener "Let\'s choose one area of your life that you\'d like to improve on. Here are our recommended categories." shows as a coach bubble, then the category tiles appear. When the "Create your own" option appears at the end, "Or you can create your own" is spoken VERBAL ONLY (not a bubble). Ask what they most want to work on, then wait. If they name several, ask which feels most urgent. Keep the response specific to their pick.\n\nDO NOT:\n- Read the categories out loud. They\'re on the screen.\n- Add commentary per category ("sleep is the foundation", and the like).\n- Praise the pick ("great choice", "love that").\n- Allow more than one. If they name two, ask which feels most urgent.\n- Say anything after they pick except calling submit_category and advance_step.',
     allowedTools: 'submit_category, advance_step',
     expectedResponse: 'Names or picks one category',
     voiceEngine: 'MP3',
@@ -4254,8 +4234,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'category-grid',
     variantOf: 'category',
     screenId: 'ONBOARD-BEGINNER-01',
-    context:
-      'BEAT: Focus area.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nCollect one category. The opener "Let\'s choose one area of your life that you\'d like to improve on. Here are our recommended categories." shows as a coach bubble, then the category tiles appear. When the "Create your own" option appears at the end, "Or you can create your own" is spoken VERBAL ONLY (not a bubble). Ask what they most want to work on, then wait. If they name several, ask which feels most urgent. Keep the response specific to their pick.\n\nDO NOT:\n- Read the categories out loud. They\'re on the screen.\n- Add commentary per category ("sleep is the foundation", and the like).\n- Praise the pick ("great choice", "love that").\n- Allow more than one. If they name two, ask which feels most urgent.\n- Say anything after they pick except calling submit_category and advance_step.',
     allowedTools: 'submit_category, advance_step',
     expectedResponse: 'Names or picks one category',
     voiceEngine: 'MP3',
@@ -4708,8 +4686,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'beginner',
     type: 'goals-list',
     screenId: 'ONBOARD-BEGINNER-02--SLEEP',
-    context:
-      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
     allowedTools: 'submit_goals, advance_step',
     expectedResponse: 'Names or picks 1 to 2 goals',
     voiceEngine: 'MP3',
@@ -5151,8 +5127,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'goals-list',
     variantOf: 'goals-sleep',
     screenId: 'ONBOARD-BEGINNER-02--MOVE',
-    context:
-      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
     allowedTools: 'submit_goals, advance_step',
     expectedResponse: 'Names or picks 1 to 2 goals',
     voiceEngine: 'MP3',
@@ -5187,8 +5161,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'goals-list',
     variantOf: 'goals-sleep',
     screenId: 'ONBOARD-BEGINNER-02--EAT',
-    context:
-      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
     allowedTools: 'submit_goals, advance_step',
     expectedResponse: 'Names or picks 1 to 2 goals',
     voiceEngine: 'MP3',
@@ -5223,8 +5195,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'goals-list',
     variantOf: 'goals-sleep',
     screenId: 'ONBOARD-BEGINNER-02--ENERGY',
-    context:
-      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
     allowedTools: 'submit_goals, advance_step',
     expectedResponse: 'Names or picks 1 to 2 goals',
     voiceEngine: 'MP3',
@@ -5259,8 +5229,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'goals-list',
     variantOf: 'goals-sleep',
     screenId: 'ONBOARD-BEGINNER-02--STRESS',
-    context:
-      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
     allowedTools: 'submit_goals, advance_step',
     expectedResponse: 'Names or picks 1 to 2 goals',
     voiceEngine: 'MP3',
@@ -5295,8 +5263,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'goals-list',
     variantOf: 'goals-sleep',
     screenId: 'ONBOARD-BEGINNER-02--FOCUS',
-    context:
-      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
     allowedTools: 'submit_goals, advance_step',
     expectedResponse: 'Names or picks 1 to 2 goals',
     voiceEngine: 'MP3',
@@ -5331,8 +5297,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'goals-list',
     variantOf: 'goals-sleep',
     screenId: 'ONBOARD-BEGINNER-02--BREAK',
-    context:
-      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
     allowedTools: 'submit_goals, advance_step',
     expectedResponse: 'Names or picks 1 to 2 goals',
     voiceEngine: 'MP3',
@@ -5367,8 +5331,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'goals-list',
     variantOf: 'goals-sleep',
     screenId: 'ONBOARD-BEGINNER-02--ORGANIZE',
-    context:
-      'BEAT: Goals.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nInside the chosen category, collect one or two goals (the screen labels them "Goals"). The valid goals for their category are on the screen and in your reference list. Map what they say to the exact label. If they speak generally, map to the closest one or ask one short question. One or two, no more.\n\nBRANCH THIS SETS UP: two goals means the next beat gives one habit per goal (one each). One goal means the next beat allows one or two habits. Save the count so the habit beat can branch.\n\nDO NOT:\n- Read the goals out loud. They\'re on the screen.\n- Invent, rename, or shorten a label. Use the exact strings from the reference list.\n- Allow more than two. If they name three, ask which two matter most.\n- Coach or explain per goal.',
     allowedTools: 'submit_goals, advance_step',
     expectedResponse: 'Names or picks 1 to 2 goals',
     voiceEngine: 'MP3',
@@ -5617,8 +5579,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'beginner',
     type: 'habit-picker',
     screenId: 'ONBOARD-BEGINNER-03',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6093,8 +6053,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--FALL-ASLEEP-EARLIER',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6129,8 +6087,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--WAKE-EARLIER',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6165,8 +6121,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--SLEEP-CONSISTENTLY',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6201,8 +6155,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--SLEEP-DEEPLY',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6237,8 +6189,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--WALK-MORE',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6273,8 +6223,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--EXERCISE-CONSISTENTLY',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6309,8 +6257,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--MOBILITY',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6345,8 +6291,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--EAT-INTENTIONALLY',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6381,8 +6325,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--REDUCE-OVEREATING',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6417,8 +6359,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--PLAN-FOOD',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6453,8 +6393,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--MORNING-ENERGY',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6489,8 +6427,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--AVOID-CRASHES',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6525,8 +6461,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--STABLE-ENERGY',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6561,8 +6495,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--CALMER-DAY',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6597,8 +6529,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--EVENING-STRESS',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6633,8 +6563,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--LESS-OVERWHELMED',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6669,8 +6597,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--START-WORK',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6705,8 +6631,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--DEEPER-WORK',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6741,8 +6665,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--PROCRASTINATE-LESS',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6777,8 +6699,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--SMOKING',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6813,8 +6733,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--WEED',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6849,8 +6767,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--ALCOHOL',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6885,8 +6801,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--PORN',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6921,8 +6835,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--PHONE-USE',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6957,8 +6869,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--LATE-SNACKING',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -6994,8 +6904,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--CAFFEINE',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -7030,8 +6938,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--STAY-ON-TASKS',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -7066,8 +6972,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--TIDY-SPACES',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -7102,8 +7006,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-picker',
     variantOf: 'habits',
     screenId: 'ONBOARD-BEGINNER-03--LIFE-ADMIN',
-    context:
-      "BEAT: Habit selection.\n\nSPEAK MODE: VERBATIM_OPENER + SILENT_OPTIONS\n\nBRANCHES ON THE GOALS PICKED:\n- Two goals chosen: one habit per goal (two total, one each). Show one panel per goal and collect exactly one habit from each.\n- One goal chosen: one or two habits for that goal.\n\nThe habit options for the user's goals are on the screen and in your reference list. That list is for matching the user's words to a canonical habit name only. It is not a list to read aloud, not in full, not in part, not the sub-lists either. Match what they say to the closest canonical name. Accept a custom habit only if they offer something not on the list (\"Create your own\"). At least one to continue. Less is more: the check-in is already a habit, so one or two more is plenty, and one is totally fine. Keep it small on purpose, they can build on it later.\n\nDO NOT:\n- Read the habit list out loud, in full or in part, not even one as an example. The screen shows them.\n- Read sub-lists or anything the screen isn't currently showing.\n- Name or describe habits beyond what the user has picked.\n- Invent habit names not on the list.\n- With two goals, take more than one habit for a single goal. One per goal.\n- Add commentary or motivation after each pick.",
     allowedTools: 'add_habit, remove_habit, advance_step',
     expectedResponse: 'Picks habits: one per goal if two goals, one or two if one goal',
     voiceEngine: 'MP3',
@@ -7367,8 +7269,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'beginner',
     type: 'habit-schedule',
     screenId: 'ONBOARD-BEGINNER-04',
-    context:
-      'BEAT: Habit schedule.\n\nSPEAK MODE: VERBATIM_OPENER\n\nShows ALL the habits the user just picked, each as its own card with the habit name and its day picker (the frequency). The daily check-in and the evening reflection are NOT here, they are rituals, not habits. For each habit, set which days. Recommend weekdays to start. Days default to the weekday preset by locale. Per-habit reminders are OFF by default, on only if the user asks.\n\nDO NOT:\n- Turn a per-habit reminder on unless they ask.\n- Re-ask a piece they already gave.\n- Include the check-in or the reflection as habits here.',
     allowedTools: 'add_habit, update_habit, advance_step',
     expectedResponse: 'Sets the days per habit',
     voiceEngine: 'MP3',
@@ -7684,8 +7584,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'advanced',
     type: 'advanced-capture',
     screenId: 'ONBOARD-ADVANCED',
-    context:
-      "BEAT: Advanced capture.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe user already has habits. Let them read or type them all, in their own words. Each one forms on screen as a card, and each card is auto marked build or break (avoidance wording reads as break, everything else as build). You do NOT ask build or break per habit. Capture verbatim, don't reorganize as they talk. Less is more, especially at the start, they can build on it later. When they finish, name the build and break read once over the whole set and ask for a single yes. If they flag one as wrong, fix that one. Then the days get set on the next beat.\n\nDO NOT:\n- Ask build or break for each habit. The cards already mark it.\n- Reword or reorganize what they said.\n- Push for more. Less is more.",
     allowedTools: 'submit_brain_dump, advance_step',
     expectedResponse: 'Reads or types their habits',
     voiceEngine: 'MP3',
@@ -8033,8 +7931,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'advanced',
     type: 'advanced-frequency',
     screenId: 'ONBOARD-ADVANCED-FREQUENCY',
-    context:
-      "BEAT: Habit days, advanced.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe habits are already captured as cards. Now set how often each one runs. The day circles grow out of the same cards. Parse a full answer when they give one, ask only for what's missing. Per-habit reminders OFF by default. Go through them, then the plan is ready.\n\nDO NOT:\n- Re-ask anything already captured.\n- Turn a reminder on unless they ask.",
     allowedTools: 'add_habit, update_habit, advance_step',
     expectedResponse: 'Says the days per habit',
     voiceEngine: 'MP3',
@@ -8373,8 +8269,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'into-app',
     screenId: 'ONBOARD-COMPLETE',
-    context:
-      'BEAT: Full plan.\n\nSPEAK MODE: VERBATIM_OPENER\n\nOne confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. Ask if it looks right or if they want to change anything. On approval, they enter the app. This is a high-investment moment, make the line real and specific, not generic.\n\nBUTTONS (L7): tap path only. If the user is in voice, no buttons, they just say what they want. On the tap path, show two buttons, "Approve and start" and "I want to change something." Editing is voice-driven, the add / edit / delete component surfaces. Instrument users who never tap a button.',
     allowedTools: 'update_habit, confirm_plan',
     expectedResponse: 'Looks good, or an edit',
     voiceEngine: 'MP3',
@@ -8663,8 +8557,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-BLANK',
-    context:
-      "BEAT: Weekly projection, frame 1 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe week grid animates on screen. This single line is verbatim and timed to the frame, an MP3 candidate (Cartesia, Yair Pro Clone). Say it as written, don't improvise or add. The five frames together carry the message: reporting itself is the win, weekly reassessment is the loop, a miss still counts, the one thing to avoid is the unreported gap.\n\nDO NOT:\n- Improvise or add to the line.\n- Describe the grid.",
     allowedTools: null,
     expectedResponse: 'Taps Next',
     voiceEngine: 'MP3',
@@ -8875,8 +8767,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-FULL',
-    context:
-      "BEAT: Weekly projection, frame 2 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe week grid fills green on screen. Verbatim, timed to the frame, an MP3 candidate. Say it as written, don't improvise. This is the best-case frame, hold it lightly, the realistic frames come next.\n\nDO NOT:\n- Improvise or add.\n- Promise this is what will happen.",
     allowedTools: null,
     expectedResponse: 'Taps Next',
     voiceEngine: 'MP3',
@@ -9084,8 +8974,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-P78',
-    context:
-      'BEAT: Weekly projection, frame 3 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe grid shows mostly green with a few misses. Verbatim, timed to the frame, an MP3 candidate. Say it as written. This is the realistic win frame, the one that matters most.\n\nDO NOT:\n- Improvise or add.',
     allowedTools: null,
     expectedResponse: 'Taps Next',
     voiceEngine: 'MP3',
@@ -9295,8 +9183,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-P36',
-    context:
-      'BEAT: Weekly projection, frame 4 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe grid shows a rough week, one streak surviving. Verbatim, timed to the frame, an MP3 candidate. Say it as written. The message: a rough week is still building, we reassess, no guilt.\n\nDO NOT:\n- Improvise or add.\n- Make a rough week sound like failure.',
     allowedTools: null,
     expectedResponse: 'Taps Next',
     voiceEngine: 'MP3',
@@ -9506,8 +9392,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'weekly-projection',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-GAPS',
-    context:
-      'BEAT: Weekly projection, frame 5 of 5.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe grid shows empty, unreported days. Verbatim, timed to the frame, an MP3 candidate. Say it as written. This is the close: the only thing to avoid is the unreported gap, even a miss counts when you report it.\n\nDO NOT:\n- Improvise or add.\n- Shame the user. The point is reporting, not perfection.',
     allowedTools: null,
     expectedResponse: 'Taps Next',
     voiceEngine: 'MP3',

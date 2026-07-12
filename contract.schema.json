@@ -203,7 +203,7 @@
         "voiceMode": { "enum": ["Verbatim", "Generative", null] },
         "context": {
           "type": ["string", "null"],
-          "description": "The per-beat coach context prose the LLM reads. Primary source is the resolved contextProse section (variant-flattened); falls back to the beat's top-level context when no contextProse is contracted."
+          "description": "The per-beat coach context prose the LLM reads, resolved from the canonical bible.contextProse section after variant inheritance."
         },
         "allowedTools": {
           "type": "array",
