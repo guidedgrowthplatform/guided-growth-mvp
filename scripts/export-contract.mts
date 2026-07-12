@@ -139,9 +139,11 @@ function buildBeat(beat: BeatEntry) {
   const bible = resolved.bible;
   const io = resolved.io;
 
-  // context: prefer resolved contextProse (variant-flattened), else top-level.
+  // context: bible.contextProse is the only authoring source. It is resolved
+  // through variant inheritance before export, so every concrete contract beat
+  // carries the canonical prose without a second top-level copy that can drift.
   const contextProse = bible?.contextProse?.prose ?? null;
-  const context = contextProse ?? beat.context ?? null;
+  const context = contextProse;
 
   // allowedTools: prefer resolved bible tools, else parse the top-level string.
   const bibleTools = bible?.allowedTools?.tools ? [...bible.allowedTools.tools] : null;
@@ -156,9 +158,9 @@ function buildBeat(beat: BeatEntry) {
       );
     }
   }
-  if (contextProse && beat.context && contextProse.trim() !== beat.context.trim()) {
+  if (contextProse && beat.context != null) {
     divergences.push(
-      `${beat.id}: context has two authored sources (top-level context vs bible contextProse); exported contextProse`,
+      `${beat.id}: context has two authored sources (top-level context vs bible contextProse); remove top-level context`,
     );
   }
 
@@ -374,10 +376,9 @@ if (errors.length) {
 }
 
 if (divergences.length) {
-  console.warn(
-    `export-contract: ${divergences.length} field-source divergence(s) (Phase 3.3 reconciliation items):`,
-  );
-  for (const d of divergences) console.warn(`  ~ ${d}`);
+  console.error(`export-contract: ${divergences.length} field-source divergence(s):`);
+  for (const d of divergences) console.error(`  - ${d}`);
+  process.exit(1);
 }
 
 if (isCheck) {
