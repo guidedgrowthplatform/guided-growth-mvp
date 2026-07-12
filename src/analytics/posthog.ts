@@ -1,7 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import posthog, { type CaptureOptions, type EventName, type Properties } from 'posthog-js';
 import { getCurrentInputMethod } from '@/contexts/inputMethodContextDef';
-import { isReplayDisabled } from '@/lib/replayGuard';
 
 // `ui_host` drives the "View session in PostHog" dashboard links. The
 // previous `VITE_POSTHOG_HOST` env var held the *ingest* host
@@ -43,10 +42,11 @@ export function initAnalytics(): void {
     ui_host: UI_HOST,
     capture_pageview: false, // handled manually via usePageTracking
     persistence: 'localStorage',
-    // Session replay is the product-learning tool for watching real onboardings
-    // (free tier is 5,000 recordings/month). QA, TestFlight/APK, and browser QA
-    // (?noreplay=1) are excluded via the shared guard so testing stays out of it.
-    disable_session_recording: isReplayDisabled(),
+    // Record every session, production and QA. Free tier is 5,000 recordings
+    // per month; well under that we want full coverage to learn from real
+    // onboardings, so recording is on unconditionally (QA included). Revisit
+    // sampling only if volume approaches ~1,000/month.
+    disable_session_recording: false,
     session_recording: {
       // It is a personal-reflection app, so mask all text and inputs. Replays
       // show layout, taps, and flow, never the words people reflect on.
