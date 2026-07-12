@@ -21,6 +21,11 @@ export interface BeatContextMeta {
   readonly openerShowsAsBubble?: boolean;
   readonly expectedResponse?: string;
   readonly perElement?: readonly BeatElementLine[];
+  readonly variant?: 'qa';
+  readonly utility?: boolean;
+  readonly productionExcluded?: boolean;
+  readonly orbHidden?: boolean;
+  readonly chatBubble?: boolean;
 }
 export const BEAT_METADATA: Record<string, BeatContextMeta> = {
   "COACH-GREETING": {"voiceEngine": "MP3", "voiceMode": "Verbatim", "spokenContent": "Hey. I'm your coach inside Guided Growth. Give me two minutes and we'll set up something that actually sticks.", "openerShowsAsBubble": false, "expectedResponse": "Auto-advances"},
@@ -44,4 +49,6 @@ export const BEAT_METADATA: Record<string, BeatContextMeta> = {
   "ONBOARD-WEEKLY-PROJECTION-P36": {"voiceEngine": "MP3", "voiceMode": "Verbatim", "spokenContent": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.", "openerShowsAsBubble": false, "expectedResponse": "Taps Next"},
   "ONBOARD-WEEKLY-PROJECTION-P78": {"voiceEngine": "MP3", "voiceMode": "Verbatim", "spokenContent": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.", "openerShowsAsBubble": false, "expectedResponse": "Taps Next"},
   "ONBOARD-WHY-INTRO": {"voiceEngine": "MP3", "voiceMode": "Verbatim", "spokenContent": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.", "openerShowsAsBubble": false, "expectedResponse": "Auto-advances"},
+  // qa-variant utility beat, hand-authored in render, NOT from Master Sheet, EXCLUDED from production generation
+  "QA-CONTROL": {"voiceEngine": "None", "variant": "qa", "utility": true, "productionExcluded": true, "orbHidden": true, "chatBubble": false, "openerShowsAsBubble": false, "expectedResponse": "Selects a QA action"},
 };

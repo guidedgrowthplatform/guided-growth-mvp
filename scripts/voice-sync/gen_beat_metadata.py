@@ -158,11 +158,20 @@ def main() -> int:
         "  readonly openerShowsAsBubble?: boolean;",
         "  readonly expectedResponse?: string;",
         "  readonly perElement?: readonly BeatElementLine[];",
+        "  readonly variant?: 'qa';",
+        "  readonly utility?: boolean;",
+        "  readonly productionExcluded?: boolean;",
+        "  readonly orbHidden?: boolean;",
+        "  readonly chatBubble?: boolean;",
         "}",
         "export const BEAT_METADATA: Record<string, BeatContextMeta> = {",
     ]
     for sid in sorted(beats):
         lines.append(f"  {json.dumps(sid)}: {json.dumps(beats[sid])},")
+    lines.extend([
+        "  // qa-variant utility beat, hand-authored in render, NOT from Master Sheet, EXCLUDED from production generation",
+        '  "QA-CONTROL": {"voiceEngine": "None", "variant": "qa", "utility": true, "productionExcluded": true, "orbHidden": true, "chatBubble": false, "openerShowsAsBubble": false, "expectedResponse": "Selects a QA action"},',
+    ])
     lines.append("};")
     lines.append("")
     OUT.write_text("\n".join(lines), encoding="utf-8")

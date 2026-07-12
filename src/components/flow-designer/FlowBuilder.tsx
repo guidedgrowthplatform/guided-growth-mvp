@@ -1202,6 +1202,7 @@ function withEngineDefaults(type: string, meta: BeatMeta | undefined): BeatMeta 
 const BEAT_META_TYPE_TO_SCREEN: Record<string, string> = {
   'auth-signup': 'ONBOARD-AUTH--FORM',
   'mic-permission': 'MIC-PERMISSION',
+  'qa-control': 'QA-CONTROL',
 };
 
 function beatMetaScreenId(sheetStage?: string, type?: string): string | undefined {
@@ -1209,6 +1210,11 @@ function beatMetaScreenId(sheetStage?: string, type?: string): string | undefine
   if (fromStage) return fromStage;
   return type ? BEAT_META_TYPE_TO_SCREEN[type] : undefined;
 }
+
+// TODO(source-integrity): Add the full NO-GHOST-BEATS assertion once every legacy
+// DEFAULT_FLOW beat has a stable screen_id. Several existing production beats have
+// neither sheetStage nor a type-to-screen mapping, so a flow-wide assertion would
+// fail on pre-existing source gaps rather than identify a new ghost beat.
 
 // Fill a beat's voice authoring fields (engine, mode, opener, tools, per-element lines,
 // bubble/variable flags) from the Beats Context sheet map, keyed by screen_id. Same
