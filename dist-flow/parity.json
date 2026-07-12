@@ -1,0 +1,1118 @@
+{
+  "schemaVersion": 2,
+  "source": {
+    "beats": "src/components/flow-designer/beatsSource.ts#BEATS_SOURCE"
+  },
+  "beats": [
+    {
+      "index": 1,
+      "id": "splash",
+      "order": 0,
+      "screenId": null,
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "Silent",
+      "voiceMode": null,
+      "opener": null,
+      "clips": []
+    },
+    {
+      "index": 2,
+      "id": "get-started",
+      "order": 1,
+      "screenId": null,
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "Silent",
+      "voiceMode": null,
+      "opener": null,
+      "clips": []
+    },
+    {
+      "index": 3,
+      "id": "coach-greeting",
+      "order": 2,
+      "screenId": "COACH-GREETING",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Hey, I might have startled you. You're probably not used to an app just talking to you. I'm your AI coach here at your service at Guided Growth, and I'm excited to help you improve things in your life that are important to you. So let's get you in, and we'll get started.",
+      "clips": [
+        {
+          "clip": "coach_greeting",
+          "clipPath": "/voice/coach_greeting.mp3"
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "id": "sign-up",
+      "order": 3,
+      "screenId": "ONBOARD-AUTH--FORM",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "Silent",
+      "voiceMode": null,
+      "opener": null,
+      "clips": []
+    },
+    {
+      "index": 5,
+      "id": "mic-permission",
+      "order": 4,
+      "screenId": "MIC-PERMISSION",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+      "clips": [
+        {
+          "clip": "mic_permission_1",
+          "clipPath": "/voice/ob/mic_permission_1.wav"
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "id": "profile-greeting",
+      "order": 5,
+      "screenId": "ONBOARD-01--FORM",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "Cartesia",
+      "voiceMode": "Verbatim",
+      "opener": "Good to meet you, {name}. Two quick things so I can tailor this to you.",
+      "clips": []
+    },
+    {
+      "index": 7,
+      "id": "profile-asks",
+      "order": 6,
+      "screenId": "ONBOARD-01--FORM--ASKS",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "How old are you?",
+      "clips": [
+        {
+          "clip": "onboard_01_form_1",
+          "clipPath": "/voice/ob/onboard_01_form_1.wav"
+        },
+        {
+          "clip": "onboard_01_form_2",
+          "clipPath": "/voice/ob/onboard_01_form_2.wav"
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "id": "state-check",
+      "order": 7,
+      "screenId": "ONBOARD-STATE-CHECK",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "I'd like to invite you into a coaching process together. And it's built on a few components we'll go through on the way in. It's built light. I believe less is more, especially in the beginning of a process.",
+      "clips": [
+        {
+          "clip": "onboard_state_check_1",
+          "clipPath": "/voice/ob/onboard_state_check_1.wav"
+        },
+        {
+          "clip": "onboard_state_check_2",
+          "clipPath": "/voice/ob/onboard_state_check_2.wav"
+        },
+        {
+          "clip": "state_sleep",
+          "clipPath": "/voice/ob/state_sleep.wav"
+        },
+        {
+          "clip": "state_mood",
+          "clipPath": "/voice/ob/state_mood.wav"
+        },
+        {
+          "clip": "state_energy",
+          "clipPath": "/voice/ob/state_energy.wav"
+        },
+        {
+          "clip": "state_stress",
+          "clipPath": "/voice/ob/state_stress.wav"
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "id": "checkin",
+      "order": 8,
+      "screenId": "ONBOARD-MORNING-SETUP",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+      "clips": [
+        {
+          "clip": "onboard_morning_setup_1",
+          "clipPath": "/voice/ob/onboard_morning_setup_1.wav"
+        },
+        {
+          "clip": "onboard_morning_setup_2",
+          "clipPath": "/voice/ob/onboard_morning_setup_2.wav"
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "id": "reflection",
+      "order": 9,
+      "screenId": "ONBOARD-BEGINNER-07",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "One more. An evening reflection, a couple of minutes to close out your day. Use these three questions.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_07_1",
+          "clipPath": "/voice/ob/onboard_beginner_07_1.wav"
+        },
+        {
+          "clip": "reflect_proud",
+          "clipPath": "/voice/ob/reflect_proud.wav"
+        },
+        {
+          "clip": "reflect_forgive",
+          "clipPath": "/voice/ob/reflect_forgive.wav"
+        },
+        {
+          "clip": "reflect_grateful",
+          "clipPath": "/voice/ob/reflect_grateful.wav"
+        },
+        {
+          "clip": "reflect_alt",
+          "clipPath": "/voice/ob/reflect_alt.wav"
+        },
+        {
+          "clip": "reflect_time",
+          "clipPath": "/voice/ob/reflect_time.wav"
+        }
+      ]
+    },
+    {
+      "index": 11,
+      "id": "fork",
+      "order": 10,
+      "screenId": "ONBOARD-FORK--FORM",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "One more question before we set up your habits.",
+      "clips": [
+        {
+          "clip": "onboard_fork_form_1",
+          "clipPath": "/voice/ob/onboard_fork_form_1.wav"
+        },
+        {
+          "clip": "fork_question",
+          "clipPath": "/voice/ob/fork_question.wav"
+        }
+      ]
+    },
+    {
+      "index": 12,
+      "id": "category",
+      "order": 11,
+      "screenId": "ONBOARD-BEGINNER-01",
+      "variantOf": null,
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_01_1",
+          "clipPath": "/voice/ob/onboard_beginner_01_1.wav"
+        },
+        {
+          "clip": "create_your_own",
+          "clipPath": "/voice/ob/create_your_own.wav"
+        }
+      ]
+    },
+    {
+      "index": 13,
+      "id": "category-women",
+      "order": 12,
+      "screenId": "ONBOARD-BEGINNER-01",
+      "variantOf": "category",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_01_1",
+          "clipPath": "/voice/ob/onboard_beginner_01_1.wav"
+        },
+        {
+          "clip": "create_your_own",
+          "clipPath": "/voice/ob/create_your_own.wav"
+        }
+      ]
+    },
+    {
+      "index": 14,
+      "id": "goals-sleep",
+      "order": 13,
+      "screenId": "ONBOARD-BEGINNER-02--SLEEP",
+      "variantOf": null,
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Awesome that you started with sleep. When your sleep is solid, almost everything else gets easier, your mood, your patience, your focus. Strong place to begin, and I'm glad you did. Which of these would you like to start with? Pick one or two.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_02_sleep",
+          "clipPath": "/voice/ob/onboard_beginner_02_sleep.wav"
+        }
+      ]
+    },
+    {
+      "index": 15,
+      "id": "goals-move",
+      "order": 14,
+      "screenId": "ONBOARD-BEGINNER-02--MOVE",
+      "variantOf": "goals-sleep",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Love that you chose this. Movement is one of those things where a little goes a long way, and I think you're going to feel the difference faster than you'd expect. Which of these would you like to start with? Pick one or two.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_02_move",
+          "clipPath": "/voice/ob/onboard_beginner_02_move.wav"
+        }
+      ]
+    },
+    {
+      "index": 16,
+      "id": "goals-eat",
+      "order": 15,
+      "screenId": "ONBOARD-BEGINNER-02--EAT",
+      "variantOf": "goals-sleep",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "I'm happy you went with this one. Food is something you touch every single day, so it's a place where small changes really add up, and I'm excited to help you find yours. Which of these would you like to start with? Pick one or two.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_02_eat",
+          "clipPath": "/voice/ob/onboard_beginner_02_eat.wav"
+        }
+      ]
+    },
+    {
+      "index": 17,
+      "id": "goals-energy",
+      "order": 16,
+      "screenId": "ONBOARD-BEGINNER-02--ENERGY",
+      "variantOf": "goals-sleep",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "This is a great one to choose. More energy changes how every part of your day feels, and I'm excited for what that could open up for you. Which of these would you like to start with? Pick one or two.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_02_energy",
+          "clipPath": "/voice/ob/onboard_beginner_02_energy.wav"
+        }
+      ]
+    },
+    {
+      "index": 18,
+      "id": "goals-stress",
+      "order": 17,
+      "screenId": "ONBOARD-BEGINNER-02--STRESS",
+      "variantOf": "goals-sleep",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "I'm really glad you chose this. Giving your stress somewhere to go is one of the kindest things you can do for yourself, and I'd love to help you build that. Which of these would you like to start with? Pick one or two.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_02_stress",
+          "clipPath": "/voice/ob/onboard_beginner_02_stress.wav"
+        }
+      ]
+    },
+    {
+      "index": 19,
+      "id": "goals-focus",
+      "order": 18,
+      "screenId": "ONBOARD-BEGINNER-02--FOCUS",
+      "variantOf": "goals-sleep",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "I'm happy you went with focus. There's a specific kind of good that comes from finishing something without your attention scattering everywhere, and I'd love to help you get more of that. Which of these would you like to start with? Pick one or two.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_02_focus",
+          "clipPath": "/voice/ob/onboard_beginner_02_focus.wav"
+        }
+      ]
+    },
+    {
+      "index": 20,
+      "id": "goals-break",
+      "order": 19,
+      "screenId": "ONBOARD-BEGINNER-02--BREAK",
+      "variantOf": "goals-sleep",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Love that you're taking this on. These are the changes that actually free up something in your life, and I think you'll be surprised how good it feels to loosen the grip. Which of these would you like to start with? Pick one or two.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_02_break",
+          "clipPath": "/voice/ob/onboard_beginner_02_break.wav"
+        }
+      ]
+    },
+    {
+      "index": 21,
+      "id": "goals-organize",
+      "order": 20,
+      "screenId": "ONBOARD-BEGINNER-02--ORGANIZE",
+      "variantOf": "goals-sleep",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "I'm happy you picked this. There's something really good about clearing the mental clutter, and I think you're going to feel lighter as we go. Which of these would you like to start with? Pick one or two.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_02_organize",
+          "clipPath": "/voice/ob/onboard_beginner_02_organize.wav"
+        }
+      ]
+    },
+    {
+      "index": 22,
+      "id": "goal-custom",
+      "order": 21,
+      "screenId": "ONBOARD-BEGINNER-02-CUSTOM",
+      "variantOf": null,
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "What goal do you want to work toward?",
+      "clips": [
+        {
+          "clip": "onboard_beginner_02_custom_1",
+          "clipPath": "/voice/ob/onboard_beginner_02_custom_1.wav"
+        }
+      ]
+    },
+    {
+      "index": 23,
+      "id": "habits",
+      "order": 22,
+      "screenId": "ONBOARD-BEGINNER-03",
+      "variantOf": null,
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Pick one or two habits that feel doable. One habit that you actually keep is much better than a list of five that you don't keep. Create your own if nothing here fits.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_1",
+          "clipPath": "/voice/ob/onboard_beginner_03_1.wav"
+        }
+      ]
+    },
+    {
+      "index": 24,
+      "id": "habits-fall-asleep-earlier",
+      "order": 23,
+      "screenId": "ONBOARD-BEGINNER-03--FALL-ASLEEP-EARLIER",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To fall asleep earlier, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_fall_asleep_earlier",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_fall_asleep_earlier.wav"
+        }
+      ]
+    },
+    {
+      "index": 25,
+      "id": "habits-wake-earlier",
+      "order": 24,
+      "screenId": "ONBOARD-BEGINNER-03--WAKE-EARLIER",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To wake up earlier, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_wake_earlier",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_wake_earlier.wav"
+        }
+      ]
+    },
+    {
+      "index": 26,
+      "id": "habits-sleep-consistently",
+      "order": 25,
+      "screenId": "ONBOARD-BEGINNER-03--SLEEP-CONSISTENTLY",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To sleep more consistently, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_sleep_consistently",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_sleep_consistently.wav"
+        }
+      ]
+    },
+    {
+      "index": 27,
+      "id": "habits-sleep-deeply",
+      "order": 26,
+      "screenId": "ONBOARD-BEGINNER-03--SLEEP-DEEPLY",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To sleep more deeply, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_sleep_deeply",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_sleep_deeply.wav"
+        }
+      ]
+    },
+    {
+      "index": 28,
+      "id": "habits-walk-more",
+      "order": 27,
+      "screenId": "ONBOARD-BEGINNER-03--WALK-MORE",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "For walking more, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_walk_more",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_walk_more.wav"
+        }
+      ]
+    },
+    {
+      "index": 29,
+      "id": "habits-exercise-consistently",
+      "order": 28,
+      "screenId": "ONBOARD-BEGINNER-03--EXERCISE-CONSISTENTLY",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To exercise more consistently, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_exercise_consistently",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_exercise_consistently.wav"
+        }
+      ]
+    },
+    {
+      "index": 30,
+      "id": "habits-mobility",
+      "order": 29,
+      "screenId": "ONBOARD-BEGINNER-03--MOBILITY",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "For better mobility, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_mobility",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_mobility.wav"
+        }
+      ]
+    },
+    {
+      "index": 31,
+      "id": "habits-eat-intentionally",
+      "order": 30,
+      "screenId": "ONBOARD-BEGINNER-03--EAT-INTENTIONALLY",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To eat more intentionally, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_eat_intentionally",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_eat_intentionally.wav"
+        }
+      ]
+    },
+    {
+      "index": 32,
+      "id": "habits-reduce-overeating",
+      "order": 31,
+      "screenId": "ONBOARD-BEGINNER-03--REDUCE-OVEREATING",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To reduce overeating, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_reduce_overeating",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_reduce_overeating.wav"
+        }
+      ]
+    },
+    {
+      "index": 33,
+      "id": "habits-plan-food",
+      "order": 32,
+      "screenId": "ONBOARD-BEGINNER-03--PLAN-FOOD",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To plan your food better, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_plan_food",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_plan_food.wav"
+        }
+      ]
+    },
+    {
+      "index": 34,
+      "id": "habits-morning-energy",
+      "order": 33,
+      "screenId": "ONBOARD-BEGINNER-03--MORNING-ENERGY",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "For more morning energy, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_morning_energy",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_morning_energy.wav"
+        }
+      ]
+    },
+    {
+      "index": 35,
+      "id": "habits-avoid-crashes",
+      "order": 34,
+      "screenId": "ONBOARD-BEGINNER-03--AVOID-CRASHES",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To avoid afternoon crashes, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_avoid_crashes",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_avoid_crashes.wav"
+        }
+      ]
+    },
+    {
+      "index": 36,
+      "id": "habits-stable-energy",
+      "order": 35,
+      "screenId": "ONBOARD-BEGINNER-03--STABLE-ENERGY",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To keep your energy more stable, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_stable_energy",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_stable_energy.wav"
+        }
+      ]
+    },
+    {
+      "index": 37,
+      "id": "habits-calmer-day",
+      "order": 36,
+      "screenId": "ONBOARD-BEGINNER-03--CALMER-DAY",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To feel calmer during the day, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_calmer_day",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_calmer_day.wav"
+        }
+      ]
+    },
+    {
+      "index": 38,
+      "id": "habits-evening-stress",
+      "order": 37,
+      "screenId": "ONBOARD-BEGINNER-03--EVENING-STRESS",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To reduce evening stress, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_evening_stress",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_evening_stress.wav"
+        }
+      ]
+    },
+    {
+      "index": 39,
+      "id": "habits-less-overwhelmed",
+      "order": 38,
+      "screenId": "ONBOARD-BEGINNER-03--LESS-OVERWHELMED",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To feel less overwhelmed, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_less_overwhelmed",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_less_overwhelmed.wav"
+        }
+      ]
+    },
+    {
+      "index": 40,
+      "id": "habits-start-work",
+      "order": 39,
+      "screenId": "ONBOARD-BEGINNER-03--START-WORK",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To start work with less friction, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_start_work",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_start_work.wav"
+        }
+      ]
+    },
+    {
+      "index": 41,
+      "id": "habits-deeper-work",
+      "order": 40,
+      "screenId": "ONBOARD-BEGINNER-03--DEEPER-WORK",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "For deeper work, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_deeper_work",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_deeper_work.wav"
+        }
+      ]
+    },
+    {
+      "index": 42,
+      "id": "habits-procrastinate-less",
+      "order": 41,
+      "screenId": "ONBOARD-BEGINNER-03--PROCRASTINATE-LESS",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To procrastinate less, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_procrastinate_less",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_procrastinate_less.wav"
+        }
+      ]
+    },
+    {
+      "index": 43,
+      "id": "habits-smoking",
+      "order": 42,
+      "screenId": "ONBOARD-BEGINNER-03--SMOKING",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To cut back on smoking, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_smoking",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_smoking.wav"
+        }
+      ]
+    },
+    {
+      "index": 44,
+      "id": "habits-weed",
+      "order": 43,
+      "screenId": "ONBOARD-BEGINNER-03--WEED",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To cut back on weed, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_weed",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_weed.wav"
+        }
+      ]
+    },
+    {
+      "index": 45,
+      "id": "habits-alcohol",
+      "order": 44,
+      "screenId": "ONBOARD-BEGINNER-03--ALCOHOL",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To cut back on alcohol, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_alcohol",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_alcohol.wav"
+        }
+      ]
+    },
+    {
+      "index": 46,
+      "id": "habits-porn",
+      "order": 45,
+      "screenId": "ONBOARD-BEGINNER-03--PORN",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To cut back on porn, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_porn",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_porn.wav"
+        }
+      ]
+    },
+    {
+      "index": 47,
+      "id": "habits-phone-use",
+      "order": 46,
+      "screenId": "ONBOARD-BEGINNER-03--PHONE-USE",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To cut back on phone use, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_phone_use",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_phone_use.wav"
+        }
+      ]
+    },
+    {
+      "index": 48,
+      "id": "habits-late-snacking",
+      "order": 47,
+      "screenId": "ONBOARD-BEGINNER-03--LATE-SNACKING",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To cut back on late-night snacking, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_late_snacking",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_late_snacking.wav"
+        }
+      ]
+    },
+    {
+      "index": 49,
+      "id": "habits-caffeine",
+      "order": 48,
+      "screenId": "ONBOARD-BEGINNER-03--CAFFEINE",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To cut back on caffeine, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_caffeine",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_caffeine.wav"
+        }
+      ]
+    },
+    {
+      "index": 50,
+      "id": "habits-stay-on-tasks",
+      "order": 49,
+      "screenId": "ONBOARD-BEGINNER-03--STAY-ON-TASKS",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To stay on top of your tasks, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_stay_on_tasks",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_stay_on_tasks.wav"
+        }
+      ]
+    },
+    {
+      "index": 51,
+      "id": "habits-tidy-spaces",
+      "order": 50,
+      "screenId": "ONBOARD-BEGINNER-03--TIDY-SPACES",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To keep your spaces tidy, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_tidy_spaces",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_tidy_spaces.wav"
+        }
+      ]
+    },
+    {
+      "index": 52,
+      "id": "habits-life-admin",
+      "order": 51,
+      "screenId": "ONBOARD-BEGINNER-03--LIFE-ADMIN",
+      "variantOf": "habits",
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "To handle life admin better, let's pick a habit or two you'll actually keep.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_goal_life_admin",
+          "clipPath": "/voice/ob/onboard_beginner_03_goal_life_admin.wav"
+        }
+      ]
+    },
+    {
+      "index": 53,
+      "id": "habit-custom",
+      "order": 52,
+      "screenId": "ONBOARD-BEGINNER-03-CUSTOM",
+      "variantOf": null,
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "What habit do you want to build?",
+      "clips": [
+        {
+          "clip": "onboard_beginner_03_custom_1",
+          "clipPath": "/voice/ob/onboard_beginner_03_custom_1.wav"
+        }
+      ]
+    },
+    {
+      "index": 54,
+      "id": "schedule",
+      "order": 53,
+      "screenId": "ONBOARD-BEGINNER-04",
+      "variantOf": null,
+      "path": "beginner",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Please set the days that you're going to actually do these habits.",
+      "clips": [
+        {
+          "clip": "onboard_beginner_04_1",
+          "clipPath": "/voice/ob/onboard_beginner_04_1.wav"
+        },
+        {
+          "clip": "onboard_beginner_04_2",
+          "clipPath": "/voice/ob/onboard_beginner_04_2.wav"
+        }
+      ]
+    },
+    {
+      "index": 55,
+      "id": "advanced-capture",
+      "order": 54,
+      "screenId": "ONBOARD-ADVANCED",
+      "variantOf": null,
+      "path": "advanced",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Read me the list of the habits that you already track. In the next step we'll talk about which days. For now just give me the list of your habits. I recommend to start small. You could always build on it.",
+      "clips": [
+        {
+          "clip": "onboard_advanced_1",
+          "clipPath": "/voice/ob/onboard_advanced_1.wav"
+        },
+        {
+          "clip": "close",
+          "clipPath": "/voice/ob/close.wav"
+        }
+      ]
+    },
+    {
+      "index": 56,
+      "id": "advanced-frequency",
+      "order": 55,
+      "screenId": "ONBOARD-ADVANCED-FREQUENCY",
+      "variantOf": null,
+      "path": "advanced",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Please set the days that you're going to actually do these habits.",
+      "clips": [
+        {
+          "clip": "onboard_advanced_frequency_days",
+          "clipPath": "/voice/ob/onboard_advanced_frequency_days.wav"
+        },
+        {
+          "clip": "onboard_advanced_frequency_1",
+          "clipPath": "/voice/ob/onboard_advanced_frequency_1.wav"
+        },
+        {
+          "clip": "onboard_advanced_frequency_2",
+          "clipPath": "/voice/ob/onboard_advanced_frequency_2.wav"
+        }
+      ]
+    },
+    {
+      "index": 57,
+      "id": "plan",
+      "order": 56,
+      "screenId": "ONBOARD-COMPLETE",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+      "clips": [
+        {
+          "clip": "onboard_complete_1",
+          "clipPath": "/voice/ob/onboard_complete_1.wav"
+        }
+      ]
+    },
+    {
+      "index": 58,
+      "id": "weekly-blank",
+      "order": 57,
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-BLANK",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "This is your week. Blank, starting today.",
+      "clips": [
+        {
+          "clip": "onboard_weekly_projection_blank_1",
+          "clipPath": "/voice/ob/onboard_weekly_projection_blank_1.wav"
+        }
+      ]
+    },
+    {
+      "index": 59,
+      "id": "weekly-full",
+      "order": 58,
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-FULL",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Best case, every day green. 100% success. That would be amazing.",
+      "clips": [
+        {
+          "clip": "onboard_weekly_projection_full_1",
+          "clipPath": "/voice/ob/onboard_weekly_projection_full_1.wav"
+        }
+      ]
+    },
+    {
+      "index": 60,
+      "id": "weekly-p78",
+      "order": 59,
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-P78",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Most likely your week looks somewhere around here. Mostly green, a few misses. Still a real win.",
+      "clips": [
+        {
+          "clip": "onboard_weekly_projection_p78_1",
+          "clipPath": "/voice/ob/onboard_weekly_projection_p78_1.wav"
+        }
+      ]
+    },
+    {
+      "index": 61,
+      "id": "weekly-p36",
+      "order": 60,
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-P36",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "Some weeks can look like this. And even that's okay, because you're in the process and you're consistent inside the process.",
+      "clips": [
+        {
+          "clip": "onboard_weekly_projection_p36_1",
+          "clipPath": "/voice/ob/onboard_weekly_projection_p36_1.wav"
+        }
+      ]
+    },
+    {
+      "index": 62,
+      "id": "weekly-gaps",
+      "order": 61,
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-GAPS",
+      "variantOf": null,
+      "path": "both",
+      "voiceEngine": "MP3",
+      "voiceMode": "Verbatim",
+      "opener": "The one thing you want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts. That keeps the momentum going.",
+      "clips": [
+        {
+          "clip": "onboard_weekly_projection_gaps_1",
+          "clipPath": "/voice/ob/onboard_weekly_projection_gaps_1.wav"
+        }
+      ]
+    }
+  ]
+}
