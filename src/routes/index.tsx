@@ -59,11 +59,6 @@ const StatusPage = lazyWithRetry(() =>
 const FlowDesignerPage = lazyWithRetry(() =>
   import('@/pages/FlowDesignerPage').then((m) => ({ default: m.FlowDesignerPage })),
 );
-const ContractOnboardingPreview = lazyWithRetry(() =>
-  import('@/onboarding-engine/ContractOnboardingPreview').then((m) => ({
-    default: m.ContractOnboardingPreview,
-  })),
-);
 const AuthCallbackPage = lazyWithRetry(() =>
   import('@/pages/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })),
 );
@@ -188,9 +183,6 @@ export function AppRoutes() {
 
         {/* Dev-only flow designer: preview the chat-native flow with real components */}
         {import.meta.env.DEV && <Route path="/flow-designer" element={<FlowDesignerPage />} />}
-
-        {/* Contract preview is intentionally separate from protected production onboarding. */}
-        <Route path="/onboarding/flow-preview" element={<ContractOnboardingPreview />} />
 
         <Route path="/splash" element={<SplashScreenPage />} />
 
