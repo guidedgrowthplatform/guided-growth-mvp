@@ -68,6 +68,12 @@ const ResetPasswordPage = lazyWithRetry(() =>
 const CalendarStatesPreview = lazyWithRetry(() =>
   import('@/pages/CalendarStatesPreview').then((m) => ({ default: m.CalendarStatesPreview })),
 );
+const ScreenTimePreview = lazyWithRetry(() =>
+  import('@/pages/ScreenTimePreview').then((m) => ({ default: m.ScreenTimePreview })),
+);
+const WeeklyCoachPreview = lazyWithRetry(() =>
+  import('@/pages/WeeklyCoachPreview').then((m) => ({ default: m.WeeklyCoachPreview })),
+);
 const JournalFlowPage = lazyWithRetry(() =>
   import('@/pages/JournalFlowPage').then((m) => ({ default: m.JournalFlowPage })),
 );
@@ -195,6 +201,8 @@ export function AppRoutes() {
 
         <Route path="/splash" element={<SplashScreenPage />} />
         <Route path="/__calendar-states" element={<CalendarStatesPreview />} />
+        <Route path="/__screentime" element={<ScreenTimePreview />} />
+        <Route path="/__weekly-coach" element={<WeeklyCoachPreview />} />
 
         {/* Auth-free QA render of the unified chat-native onboarding engine (QA/dev
             builds only): gated behind QA_SCREEN_ENABLED, same as the other QA-only
