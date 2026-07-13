@@ -4,12 +4,12 @@
     "beats": "src/components/flow-designer/beatsSource.ts#BEATS_SOURCE"
   },
   "provenance": {
-    "sourceCommit": "0a6a05b7394067dfa04df55936a743fda9c998b3",
+    "sourceCommit": "a65bedad5c753e4c6966b6aa3aa0f0d30f43983b",
     "branch": "render-completeness",
-    "buildSha": "8931c11d601dcf5ffd254d13710786ad35fd6a436027847ffd1ed0840fe89411",
-    "artifactHash": "e4ed73810dacf24e158da5cd747da323226c842e29d7c91472f6a7112d395a37"
+    "buildSha": "82fcf3ef7b4b87810668584f0467f862770cf6ecccd26054fcd59161a6ed4db1",
+    "artifactHash": "5ece2b0d2689b39d0b4981c9fe760a6fe30131058851a7b66f636ec4873e0fe9"
   },
-  "generatedAt": "2026-07-13T14:12:15+03:00",
+  "generatedAt": "2026-07-13T15:15:26+03:00",
   "idMap": {
     "screens": {
       "COACH-GREETING": "coach-greeting",
@@ -533,7 +533,10 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["age", "gender"]
+        "elements": [
+          "age",
+          "gender"
+        ]
       },
       "script": [
         {
@@ -565,7 +568,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Profile. Collect two things: age and gender. Ask gender plainly and never let the user skip or decline it. Accept voice or taps. If they give one, ask for the other. Both are required before moving on, gender included. Ask for nothing else.",
-      "allowedTools": ["submit_profile", "advance_step"],
+      "allowedTools": [
+        "submit_profile",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -702,7 +708,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Check-in (opener for the whole process, plus the first state check). The opener frames the coaching process as a few small pieces done together, built light for everyone, each part explained as it is reached. Then the first piece: a quick state check-in done now. The four questions (sleep, mood, energy, stress) are asked once, each blooming its card; the same cards are the check-in the user fills. Give no advice on what they report; one warm line, then move on.",
-      "allowedTools": ["record_checkin", "advance_step"],
+      "allowedTools": [
+        "record_checkin",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -847,7 +856,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Check-in time. The user just did their first check-in. Now set its time and locale-driven work-week days, reminder ON by default. Quick. The point is not that it is morning, it is that this is their first habit and it is simple. Recommend a time shortly after wake, offer the local work-week preset, and let them set it. Israel defaults to Sunday through Thursday; everywhere else defaults to Monday through Friday.",
-      "allowedTools": ["submit_morning_checkin", "advance_step"],
+      "allowedTools": [
+        "submit_morning_checkin",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -1016,7 +1028,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Evening reflection setup. Set it up, do not perform it now. The user picks one style and a time, reminder on by default. Its days default to the locale-driven work week, with weekends off: Israel is Sunday through Thursday, everywhere else is Monday through Friday. The three styles are on the screen (suggested template, your template, freeform); do not read them out. Ask which feels right and let them pick. If they choose your template, capture their prompts verbatim so the evening reflection can ask them back. Add no coaching per style and do not make it feel like homework.",
-      "allowedTools": ["submit_reflection_config", "submit_custom_prompts", "advance_step"],
+      "allowedTools": [
+        "submit_reflection_config",
+        "submit_custom_prompts",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -1145,7 +1161,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Experience fork. The framing shows as one coach bubble. Then, as the two path cards appear, the fork question is spoken verbal only. New, tried and dropped off, or wants guidance routes to beginner. Has a list or a system already routes to advanced. If unclear, ask one short question. Do not read the two choices out loud, and add no reassurance tail.",
-      "allowedTools": ["submit_path_choice", "ask_clarification", "advance_step"],
+      "allowedTools": [
+        "submit_path_choice",
+        "ask_clarification",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -1254,7 +1274,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Focus area. Collect one category. The opener shows as a coach bubble, then the category tiles appear (default illustration set). When the create-your-own option appears at the end, \"Or you can create your own\" is spoken verbal only. Ask what they most want to work on, then wait. If they name several, ask which feels most urgent. Keep the response specific to their pick.",
-      "allowedTools": ["submit_category", "advance_step"],
+      "allowedTools": [
+        "submit_category",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -1384,7 +1407,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Focus area. Collect one category. The opener shows as a coach bubble, then the category tiles appear (women-art illustration set). When the create-your-own option appears at the end, \"Or you can create your own\" is spoken verbal only. Ask what they most want to work on, then wait. If they name several, ask which feels most urgent. Keep the response specific to their pick.",
-      "allowedTools": ["submit_category", "advance_step"],
+      "allowedTools": [
+        "submit_category",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -1490,7 +1516,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Goals inside the chosen category (Sleep better). The opener reacts warmly to the category and asks for goals in one merged moment, then the Goals tiles appear. Collect one or two goals. Map what the user says to the exact on-screen label; if they speak generally, map to the closest one or ask one short question. One or two, no more. The goal count sets up the downstream habit distribution. Do not read the tiles out loud, do not coach or explain per goal, do not allow more than two.",
-      "allowedTools": ["submit_goals", "advance_step"],
+      "allowedTools": [
+        "submit_goals",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -1592,7 +1621,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Goals inside the chosen category (Move more). The opener reacts warmly to the category and asks for goals in one merged moment, then the Goals tiles appear. Collect one or two goals. Map what the user says to the exact on-screen label; if they speak generally, map to the closest one or ask one short question. One or two, no more. The goal count sets up the downstream habit distribution. Do not read the tiles out loud, do not coach or explain per goal, do not allow more than two.",
-      "allowedTools": ["submit_goals", "advance_step"],
+      "allowedTools": [
+        "submit_goals",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -1694,7 +1726,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Goals inside the chosen category (Eat better). The opener reacts warmly to the category and asks for goals in one merged moment, then the Goals tiles appear. Collect one or two goals. Map what the user says to the exact on-screen label; if they speak generally, map to the closest one or ask one short question. One or two, no more. The goal count sets up the downstream habit distribution. Do not read the tiles out loud, do not coach or explain per goal, do not allow more than two.",
-      "allowedTools": ["submit_goals", "advance_step"],
+      "allowedTools": [
+        "submit_goals",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -1796,7 +1831,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Goals inside the chosen category (Feel more energized). The opener reacts warmly to the category and asks for goals in one merged moment, then the Goals tiles appear. Collect one or two goals. Map what the user says to the exact on-screen label; if they speak generally, map to the closest one or ask one short question. One or two, no more. The goal count sets up the downstream habit distribution. Do not read the tiles out loud, do not coach or explain per goal, do not allow more than two.",
-      "allowedTools": ["submit_goals", "advance_step"],
+      "allowedTools": [
+        "submit_goals",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -1898,7 +1936,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Goals inside the chosen category (Reduce stress). The opener reacts warmly to the category and asks for goals in one merged moment, then the Goals tiles appear. Collect one or two goals. Map what the user says to the exact on-screen label; if they speak generally, map to the closest one or ask one short question. One or two, no more. The goal count sets up the downstream habit distribution. Do not read the tiles out loud, do not coach or explain per goal, do not allow more than two.",
-      "allowedTools": ["submit_goals", "advance_step"],
+      "allowedTools": [
+        "submit_goals",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -2000,7 +2041,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Goals inside the chosen category (Improve focus). The opener reacts warmly to the category and asks for goals in one merged moment, then the Goals tiles appear. Collect one or two goals. Map what the user says to the exact on-screen label; if they speak generally, map to the closest one or ask one short question. One or two, no more. The goal count sets up the downstream habit distribution. Do not read the tiles out loud, do not coach or explain per goal, do not allow more than two.",
-      "allowedTools": ["submit_goals", "advance_step"],
+      "allowedTools": [
+        "submit_goals",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -2102,7 +2146,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Goals inside the chosen category (Break bad habits). The opener reacts warmly to the category and asks for goals in one merged moment, then the Goals tiles appear. Collect one or two goals. Map what the user says to the exact on-screen label; if they speak generally, map to the closest one or ask one short question. One or two, no more. The goal count sets up the downstream habit distribution. Do not read the tiles out loud, do not coach or explain per goal, do not allow more than two.",
-      "allowedTools": ["submit_goals", "advance_step"],
+      "allowedTools": [
+        "submit_goals",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -2204,7 +2251,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Goals inside the chosen category (Get more organized). The opener reacts warmly to the category and asks for goals in one merged moment, then the Goals tiles appear. Collect one or two goals. Map what the user says to the exact on-screen label; if they speak generally, map to the closest one or ask one short question. One or two, no more. The goal count sets up the downstream habit distribution. Do not read the tiles out loud, do not coach or explain per goal, do not allow more than two.",
-      "allowedTools": ["submit_goals", "advance_step"],
+      "allowedTools": [
+        "submit_goals",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -2306,7 +2356,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Create your own goal. Reached from the create-your-own category tile. Speak the prompt, then let the user name their own goal in the text input, in their own words. Capture it verbatim, add no praise, and move on to the habits.",
-      "allowedTools": ["submit_goals", "advance_step"],
+      "allowedTools": [
+        "submit_goals",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -2366,7 +2419,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -2398,7 +2453,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -2480,7 +2539,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -2500,7 +2561,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -2582,7 +2647,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -2602,7 +2669,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -2684,7 +2755,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -2704,7 +2777,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -2786,7 +2863,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -2806,7 +2885,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -2888,7 +2971,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -2908,7 +2993,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -2990,7 +3079,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -3010,7 +3101,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -3092,7 +3187,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -3112,7 +3209,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -3194,7 +3295,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -3214,7 +3317,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -3296,7 +3403,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -3316,7 +3425,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -3398,7 +3511,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -3418,7 +3533,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -3500,7 +3619,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -3520,7 +3641,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -3602,7 +3727,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -3622,7 +3749,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -3704,7 +3835,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -3724,7 +3857,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -3806,7 +3943,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -3826,7 +3965,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -3908,7 +4051,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -3928,7 +4073,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -4010,7 +4159,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -4030,7 +4181,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -4112,7 +4267,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -4132,7 +4289,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -4214,7 +4375,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -4234,7 +4397,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -4316,7 +4483,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -4336,7 +4505,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -4418,7 +4591,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -4438,7 +4613,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -4520,7 +4699,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -4540,7 +4721,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -4622,7 +4807,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -4642,7 +4829,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -4724,7 +4915,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -4744,7 +4937,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -4826,7 +5023,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -4846,7 +5045,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -4928,7 +5131,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -4948,7 +5153,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -5030,7 +5239,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -5050,7 +5261,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -5132,7 +5347,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -5152,7 +5369,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -5234,7 +5455,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -5254,7 +5477,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -5336,7 +5563,9 @@
         "config": {
           "hideOrb": false
         },
-        "elements": ["createOwn"]
+        "elements": [
+          "createOwn"
+        ]
       },
       "script": [
         {
@@ -5356,7 +5585,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.",
-      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "remove_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -5458,7 +5691,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Create your own habit. Reached from the create-your-own habit tile. Speak the prompt, then let the user name their own habit in the text input, in their own words. Capture it verbatim, add no praise, and move on to setting the days.",
-      "allowedTools": ["add_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -5567,7 +5803,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit schedule. Shows all the habits the user just picked, each as its own card with the habit name and its day picker. The morning check-in and evening reflection are NOT here (rituals, not habits). For each habit, set which days; recommend weekdays to start. Days default to the weekday preset by locale. Per-habit reminders are OFF by default, on only if the user asks. Never turn a reminder on unless they ask, never re-ask a piece already given, and never include the check-in or reflection as habits.",
-      "allowedTools": ["add_habit", "update_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "update_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -5680,7 +5920,10 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Advanced capture. The user already has habits. Let them read or type them all, in their own words. Each one forms on screen as a card, auto-marked build or break (avoidance wording reads as break, everything else as build). Do NOT ask build or break per habit. Capture verbatim, do not reorganize as they talk. Less is more, especially at the start, they can build on it later. When they finish, name the build and break read once over the whole set and ask for a single yes. If they flag one as wrong, fix that one. Then the days get set on the next beat.",
-      "allowedTools": ["submit_brain_dump", "advance_step"],
+      "allowedTools": [
+        "submit_brain_dump",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -5805,7 +6048,11 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Habit days, advanced. The habits are already captured as cards. Now set how often each one runs; the day circles grow out of the same cards. Parse a full answer when the user gives one, ask only for what is missing. Per-habit reminders OFF by default. Go through them, then the plan is ready. Never re-ask anything already captured, and never turn a reminder on unless they ask.",
-      "allowedTools": ["add_habit", "update_habit", "advance_step"],
+      "allowedTools": [
+        "add_habit",
+        "update_habit",
+        "advance_step"
+      ],
       "persistence": {
         "writes": [
           {
@@ -5900,7 +6147,9 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Full plan. One confirm. Show the whole plan: morning check-in, evening habit report, and evening reflection on the user locale-driven work week, with weekends off by default, plus all the habits under them. Israel runs Sunday through Thursday; everywhere else runs Monday through Friday. It is read-only. Ask whether they are ready to start. On approval, they enter the app. This is a high-investment moment, so make the line real and specific, not generic. On the tap path, show one \"Ready to start\" button; on voice, no button, the user just speaks approval.",
-      "allowedTools": ["confirm_plan"],
+      "allowedTools": [
+        "confirm_plan"
+      ],
       "persistence": {
         "writes": [
           {
