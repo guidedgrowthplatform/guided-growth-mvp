@@ -70,13 +70,31 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
   );
 }
 
-export function HabitTrendPreview() {
+export function HabitTrendPreview({
+  initialHabit,
+  onBack,
+}: {
+  initialHabit?: string;
+  onBack?: () => void;
+} = {}) {
   const names = Object.keys(HABITS);
-  const [active, setActive] = useState(names[0]);
+  const [active, setActive] = useState(
+    initialHabit && HABITS[initialHabit] ? initialHabit : names[0],
+  );
   const h = HABITS[active];
 
   return (
     <div className="min-h-dvh bg-primary-bg px-5 pb-12 pt-[max(2.5rem,env(safe-area-inset-top))]">
+      {onBack && (
+        <button
+          type="button"
+          aria-label="Back"
+          onClick={onBack}
+          className="mb-3 flex h-8 w-8 items-center justify-center rounded-full bg-surface-secondary text-content"
+        >
+          <Icon icon="ic:round-chevron-left" width={22} />
+        </button>
+      )}
       <p className="text-xs font-bold uppercase tracking-[0.15em] text-primary">Calendar detail</p>
       <h1 className="mt-1 text-[22px] font-semibold text-content">Habit trends</h1>
       <p className="mt-1 text-sm text-content-secondary">

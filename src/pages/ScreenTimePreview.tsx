@@ -1,13 +1,16 @@
 import { Icon } from '@iconify/react';
 import { useState } from 'react';
+import { BlockNowPreview } from '@/pages/BlockNowPreview';
+import { BlockSchedulePreview } from '@/pages/BlockSchedulePreview';
 
 // Standalone, auth-free design mock of the Screen Time feature (opt-in digital
 // wellbeing / self-regulation, NEVER "parental controls"). Three key states via
 // a top switcher: Set up (Apple picker opt-in), Usage (on-device per-app time +
 // daily budgets), Blocked (the calm green shield, never red, always states the
-// reason, offers a reset instead). Route /__screentime. Mock only.
+// reason, offers a reset instead). The Set up tab also opens the two block
+// flows (schedule / now). Route /__screentime. Mock only.
 
-type STView = 'setup' | 'usage' | 'blocked';
+type STView = 'setup' | 'usage' | 'blocked' | 'schedule' | 'blocknow';
 
 interface AppRow {
   label: string; // the user's OWN label -- app names never reach our code (spec)
@@ -52,7 +55,7 @@ function Switcher({ view, setView }: { view: STView; setView: (v: STView) => voi
   );
 }
 
-function SetupView() {
+function SetupView({ onOpen }: { onOpen: (v: STView) => void }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="rounded-3xl bg-surface p-6 shadow-card">
@@ -87,7 +90,55 @@ function SetupView() {
           </div>
         ))}
       </div>
+
+      {/* The two ways to block, opened from Set up. */}
+      <p className="mt-1 text-xs font-bold uppercase tracking-wide text-content-tertiary">
+        Ways to block
+      </p>
+      <div className="flex flex-col gap-2.5">
+        <SetupOption
+          icon="ph:calendar-dots-bold"
+          title="Block schedule"
+          subtitle="Recurring lock on the days and times you pick"
+          onClick={() => onOpen('schedule')}
+        />
+        <SetupOption
+          icon="ph:lock-simple-bold"
+          title="Block now"
+          subtitle="Lock a few apps right away for a set time"
+          onClick={() => onOpen('blocknow')}
+        />
+      </div>
     </div>
+  );
+}
+
+function SetupOption({
+  icon,
+  title,
+  subtitle,
+  onClick,
+}: {
+  icon: string;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-3 rounded-2xl border border-border-light bg-surface p-4 text-left shadow-sm transition-shadow active:shadow-card-hover"
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+        <Icon icon={icon} width={22} className="text-primary" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-content">{title}</p>
+        <p className="truncate text-xs text-content-secondary">{subtitle}</p>
+      </div>
+      <Icon icon="ic:round-chevron-right" width={20} className="shrink-0 text-content-tertiary" />
+    </button>
   );
 }
 
@@ -197,6 +248,10 @@ function BlockedView() {
 export function ScreenTimePreview() {
   const [view, setView] = useState<STView>('usage');
 
+  // The two block flows open full-screen from Set up, with a back to Set up.
+  if (view === 'schedule') return <BlockSchedulePreview onBack={() => setView('setup')} />;
+  if (view === 'blocknow') return <BlockNowPreview onBack={() => setView('setup')} />;
+
   return (
     <div className="min-h-dvh bg-primary-bg px-5 pb-16 pt-[max(2.5rem,env(safe-area-inset-top))]">
       <h1 className="text-[22px] font-semibold text-content">Screen Time</h1>
@@ -209,7 +264,7 @@ export function ScreenTimePreview() {
       </div>
 
       <div className="mt-6">
-        {view === 'setup' && <SetupView />}
+        {view === 'setup' && <SetupView onOpen={setView} />}
         {view === 'usage' && <UsageView />}
         {view === 'blocked' && <BlockedView />}
       </div>

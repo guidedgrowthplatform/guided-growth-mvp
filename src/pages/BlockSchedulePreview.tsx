@@ -48,7 +48,7 @@ function PrimaryBtn({
   );
 }
 
-export function BlockSchedulePreview() {
+export function BlockSchedulePreview({ onBack }: { onBack?: () => void } = {}) {
   const [step, setStep] = useState<Step>('apps');
   const [picked, setPicked] = useState<Set<string>>(new Set(['Socials']));
   const [days, setDays] = useState<boolean[]>([false, true, true, true, true, true, false]);
@@ -68,11 +68,15 @@ export function BlockSchedulePreview() {
   return (
     <div className="flex min-h-dvh flex-col bg-primary-bg px-5 pb-10 pt-[max(2.5rem,env(safe-area-inset-top))]">
       <div className="flex items-center gap-3">
-        {step !== 'apps' && step !== 'saved' && (
+        {(onBack || (step !== 'apps' && step !== 'saved')) && (
           <button
             type="button"
             aria-label="Back"
-            onClick={() => setStep(step === 'schedule' ? 'apps' : 'schedule')}
+            onClick={() => {
+              if (step === 'schedule') setStep('apps');
+              else if (step === 'review') setStep('schedule');
+              else onBack?.();
+            }}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-secondary text-content"
           >
             <Icon icon="ic:round-chevron-left" width={22} />

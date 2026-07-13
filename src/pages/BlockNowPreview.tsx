@@ -21,7 +21,7 @@ const DURATIONS = [
 
 type Phase = 'pick' | 'active';
 
-export function BlockNowPreview() {
+export function BlockNowPreview({ onBack }: { onBack?: () => void } = {}) {
   const [phase, setPhase] = useState<Phase>('pick');
   const [picked, setPicked] = useState<Set<string>>(new Set(['Socials', 'Video']));
   const [duration, setDuration] = useState(30);
@@ -67,7 +67,19 @@ export function BlockNowPreview() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-primary-bg px-5 pb-10 pt-[max(2.5rem,env(safe-area-inset-top))]">
-      <h1 className="text-[22px] font-semibold text-content">Block now</h1>
+      <div className="flex items-center gap-3">
+        {onBack && (
+          <button
+            type="button"
+            aria-label="Back"
+            onClick={onBack}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-secondary text-content"
+          >
+            <Icon icon="ic:round-chevron-left" width={22} />
+          </button>
+        )}
+        <h1 className="text-[22px] font-semibold text-content">Block now</h1>
+      </div>
       <p className="mt-1 text-sm text-content-secondary">Lock a few apps right away.</p>
 
       <p className="mt-6 text-xs font-bold uppercase tracking-wide text-content-tertiary">Apps</p>

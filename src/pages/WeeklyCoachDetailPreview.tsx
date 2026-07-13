@@ -70,7 +70,11 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
   return <div className={`rounded-3xl bg-surface p-5 shadow-card ${className}`}>{children}</div>;
 }
 
-export function WeeklyCoachDetailPreview() {
+export function WeeklyCoachDetailPreview({
+  onHabitSelect,
+}: {
+  onHabitSelect?: (habit: string) => void;
+} = {}) {
   return (
     <div className="min-h-dvh bg-primary-bg px-5 pb-12 pt-[max(2.5rem,env(safe-area-inset-top))]">
       {/* Coach greeting -- specific, warm, feels seen */}
@@ -139,23 +143,23 @@ export function WeeklyCoachDetailPreview() {
       <p className="mt-7 text-sm font-bold text-content">Every habit</p>
       <div className="mt-3 flex flex-col gap-2.5">
         {PROGRESS.map((p) => (
-          <div
+          <button
             key={p.name}
-            className="flex items-center gap-3 rounded-2xl bg-surface p-4 shadow-sm"
+            type="button"
+            onClick={() => onHabitSelect?.(p.name)}
+            className="flex w-full items-center gap-3 rounded-2xl bg-surface p-4 text-left shadow-sm transition-shadow active:shadow-card-hover"
           >
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-content">{p.name}</p>
               <p className="truncate text-xs text-content-secondary">{p.sub}</p>
             </div>
             <Sparkline data={p.data.map((v, i) => v + i * 0.15)} className={p.color} />
-            <span
-              className={`w-6 text-right text-xs font-bold ${
-                p.trend.startsWith('-') ? 'text-content-tertiary' : 'text-emerald-600'
-              }`}
-            >
-              {p.trend}
-            </span>
-          </div>
+            <Icon
+              icon="ic:round-chevron-right"
+              width={18}
+              className="shrink-0 text-content-tertiary"
+            />
+          </button>
         ))}
       </div>
 
