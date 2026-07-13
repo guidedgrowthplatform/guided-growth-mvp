@@ -4,10 +4,10 @@
     "beats": "src/components/flow-designer/beatsSource.ts#BEATS_SOURCE"
   },
   "provenance": {
-    "sourceCommit": "6479f4695bc0c3856254b65ccf8506fb9fde162d",
+    "sourceCommit": "b3ff2b20d81be5d32973e751afbe6765690e8124",
     "branch": "render-completeness",
-    "buildSha": "54dade3dcc1053d34d8bcf92e9dc543fb1fcb6e92da002dbc5f7e1c795b29efe",
-    "artifactHash": "db38d44b005c8cc1ac450dcb2ed4f7de2bdb41537cd5964731d1c44d192509e2"
+    "buildSha": "9c0023b2fad57ef63f4767b5ef90e6c673f491a3b9af680477b15aac26a425ae",
+    "artifactHash": "72fb7b88215010e3b5f3475f35d9fe9663b634c2ebd9d0ba36824146889cf956"
   },
   "beats": [
     {
