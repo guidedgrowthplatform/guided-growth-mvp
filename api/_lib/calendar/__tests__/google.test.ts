@@ -74,11 +74,11 @@ describe('refreshAccessToken', () => {
 describe('exchangeCodeForTokens', () => {
   it('sends grant_type=authorization_code with code + redirect_uri', async () => {
     fetchOnce({ ok: true, status: 200, json: { access_token: 'at', expires_in: 3600 } });
-    await exchangeCodeForTokens('the-code', 'https://app/api/calendar/oauth/callback');
+    await exchangeCodeForTokens('the-code', 'https://app/api/calendar/oauth-callback');
     const body = String((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
     expect(body).toContain('grant_type=authorization_code');
     expect(body).toContain('code=the-code');
-    expect(body).toContain(encodeURIComponent('https://app/api/calendar/oauth/callback'));
+    expect(body).toContain(encodeURIComponent('https://app/api/calendar/oauth-callback'));
   });
 
   it('returns refresh_token + scope on success', async () => {

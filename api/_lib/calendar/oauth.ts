@@ -1,12 +1,16 @@
 import { randomBytes } from 'node:crypto';
+import { waitUntil } from '@vercel/functions';
 import { CALENDAR_SCOPES } from '@gg/shared/constants';
 import pool from '../db.js';
+import { clearEventCaches } from './events.js';
+import { revokeToken } from './google.js';
 
 // Own consent + code exchange so a calendar grant never re-auths the Supabase
 // session. `state` = opaque single-use nonce, bound server-side.
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
-const CALLBACK_PATH = '/api/calendar/oauth/callback';
+// Single-segment path: Vercel only routes 1-segment sub-paths to functions.
+const CALLBACK_PATH = '/api/calendar/oauth-callback';
 const NONCE_TTL = "interval '10 minutes'";
 const PROD_ORIGIN_FALLBACK = 'https://guided-growth-mvp.vercel.app';
 
@@ -87,4 +91,41 @@ export function hasRequiredScopes(granted: string | undefined): boolean {
 
 export function isValidScheme(scheme: unknown): scheme is NativeScheme {
   return typeof scheme === 'string' && (NATIVE_SCHEMES as readonly string[]).includes(scheme);
+}
+
+// Store a fresh grant; revoke the superseded token on reconnect (best-effort).
+export async function persistCalendarGrant(
+  anonId: string,
+  refreshToken: string,
+  scope: string | null,
+): Promise<void> {
+  const existing = await pool.query(
+    `SELECT refresh_token FROM calendar_connections WHERE anon_id = $1`,
+    [anonId],
+  );
+  const oldToken = existing.rows[0]?.refresh_token as string | undefined;
+  if (oldToken && oldToken !== refreshToken) waitUntil(revokeToken(oldToken));
+
+  await pool.query(
+    `INSERT INTO calendar_connections (anon_id, refresh_token, scopes, enabled)
+     VALUES ($1, $2, $3, true)
+     ON CONFLICT (anon_id) DO UPDATE
+       SET refresh_token = EXCLUDED.refresh_token,
+           scopes = EXCLUDED.scopes,
+           access_token = NULL,
+           token_expires_at = NULL,
+           enabled = true,
+           updated_at = now()`,
+    [anonId, refreshToken, scope],
+  );
+  clearEventCaches(anonId);
+}
+
+// Where the callback 302s back to: web → Settings; native → deep link under the
+// already-registered `auth` host. No-nonce (row null) falls back to web.
+export function oauthReturnUrl(row: OAuthStateRow | null, ok: boolean): string {
+  const status = ok ? 'connected' : 'error';
+  return row?.platform === 'native' && isValidScheme(row.scheme)
+    ? `${row.scheme}://auth/calendar-connected?calendar=${status}`
+    : `${calendarRedirectOrigin()}/settings?calendar=${status}`;
 }

@@ -468,7 +468,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       return { error: null };
     },
 
-    // NOT a login: own consent via /oauth/start, so the session / anon_id are
+    // NOT a login: own consent via /oauth-start, so the session / anon_id are
     // never touched (the account-switch that restarted onboarding).
     connectGoogleCalendar: async () => {
       const isNative = Capacitor.isNativePlatform();
