@@ -62,7 +62,7 @@ if (Capacitor.isNativePlatform()) {
       return;
     }
 
-    // Token already stored server-side by /oauth/callback — just reflect the result.
+    // Token already stored server-side by /oauth-callback — just reflect the result.
     if (urlObj.host === 'auth' && urlObj.pathname === '/calendar-connected') {
       lastHandledUrl = url;
       const { Browser } = await import('@capacitor/browser');
