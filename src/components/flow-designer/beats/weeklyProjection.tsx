@@ -37,7 +37,7 @@ import { ritualWeekdaysForLocale } from './ritualCadence';
 // The five projection states.
 export type ProjectionState = 'blank' | 'full' | 'p78' | 'p36' | 'gaps';
 
-interface ScheduledHabit {
+export interface ScheduledHabit {
   name: string;
   days: number[]; // JS weekday numbers, 0=Sun..6=Sat
 }
@@ -199,6 +199,40 @@ function normalizedSchedule(days: unknown): number[] | null {
     : null;
 }
 
+// The projection's pure handoff boundary. FlowPlay supplies the user's live
+// selection and schedule, and every frame resolves its rows through this one
+// function. Keeping it exported makes the end-to-end data contract testable
+// without relying on a sample habit or an implementation-only preview state.
+export function projectionRowsForOnboarding({
+  habits,
+  habitConfigs,
+  state,
+  locale,
+  startDay,
+}: {
+  habits: readonly string[];
+  habitConfigs: Readonly<Record<string, { readonly days: readonly number[] }>>;
+  state: ProjectionState;
+  locale?: string;
+  startDay: number;
+}): { rows: Row[] | null; incompleteHabits: string[] } {
+  const configuredUserHabits = habits.map((name) => ({
+    name,
+    days: normalizedSchedule(habitConfigs[name]?.days),
+  }));
+  const incompleteHabits = configuredUserHabits
+    .filter((habit) => habit.days === null)
+    .map((habit) => habit.name);
+  if (incompleteHabits.length) return { rows: null, incompleteHabits };
+  const userHabits: ScheduledHabit[] = configuredUserHabits.filter(
+    (habit): habit is { name: string; days: number[] } => habit.days !== null,
+  );
+  return {
+    rows: buildRows([...ritualRows(locale), ...userHabits], state, dayOrderFrom(startDay)),
+    incompleteHabits: [],
+  };
+}
+
 function overallStats(rows: Row[]): { done: number; scheduled: number; percent: number } {
   // The percent is done out of the days that were actually REPORTED (done or
   // missed). Never-reported days (gap) are the separate "you disappeared" story,
@@ -245,24 +279,20 @@ function WeeklyProjectionCard({
 }) {
   const flow = useFlowState();
   const [continued, setContinued] = useState(false);
-  const configuredUserHabits = (flow?.habits ?? []).map((name) => ({
-    name,
-    days: normalizedSchedule(flow?.habitConfigs[name]?.days),
-  }));
-  const incompleteHabits = configuredUserHabits
-    .filter((habit) => habit.days === null)
-    .map((habit) => habit.name);
-  const userHabits: ScheduledHabit[] = configuredUserHabits.filter(
-    (habit): habit is { name: string; days: number[] } => habit.days !== null,
-  );
-  const allHabits = [...ritualRows(locale), ...userHabits];
   // The week starts on the user's start day (today). In the real app this is the
   // stored start date; here it is the current weekday so the preview reads right.
   const start = new Date().getDay();
   const dayOrder = dayOrderFrom(start);
   const dayLabels = dayOrder.map((wd) => LABELS[wd]);
+  const projection = projectionRowsForOnboarding({
+    habits: flow?.habits ?? [],
+    habitConfigs: flow?.habitConfigs ?? {},
+    state,
+    locale,
+    startDay: start,
+  });
 
-  if (incompleteHabits.length) {
+  if (projection.incompleteHabits.length) {
     return (
       <div style={{ ...CARD, padding: `${SPACE.md}px ${SPACE.lg}px` }}>
         <p
@@ -275,7 +305,7 @@ function WeeklyProjectionCard({
             margin: 0,
           }}
         >
-          Your projection needs a schedule for {incompleteHabits.join(', ')} before it can be shown.
+          Your projection needs a schedule for {projection.incompleteHabits.join(', ')} before it can be shown.
         </p>
         <p
           style={{
@@ -292,7 +322,7 @@ function WeeklyProjectionCard({
     );
   }
 
-  const rows = buildRows(allHabits, state, dayOrder);
+  const rows = projection.rows!;
   const stats = overallStats(rows);
   const projectedPercent = state === 'p78' ? 76 : state === 'p36' ? 35 : stats.percent;
 

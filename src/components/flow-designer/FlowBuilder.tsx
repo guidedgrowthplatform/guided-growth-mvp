@@ -601,12 +601,16 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     },
   },
   {
-    // 8b: Set the daily check-in time. Reminder ON by default.
+    // 8b: Set the work-week check-in time. The component resolves the five
+    // ritual days from the user's locale, with local weekends off.
     type: 'morning-checkin-setup',
     beat: '8b',
     background: 'coach',
     sheetStage: 'ONBOARD-MORNING-SETUP: Morning Check-in Time',
-    props: { coachLine: "When do you want this each day? I'll nudge you then." },
+    props: {
+      coachLine: "When do you want this on your workdays? I'll nudge you then.",
+      cadence: 'weekdays-locale',
+    },
   },
   {
     // 9: Evening reflection, configured only, NOT performed during onboarding.

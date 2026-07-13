@@ -32,6 +32,7 @@ import ts from 'typescript';
 const root = process.cwd();
 const flowBiblePath = path.join(root, 'src/components/flow-designer/flowBible.ts');
 const beatsSourcePath = path.join(root, 'src/components/flow-designer/beatsSource.ts');
+const flowBuilderPath = path.join(root, 'src/components/flow-designer/FlowBuilder.tsx');
 const dumpScript = path.join('scripts', 'dump-resolved-beats.mts');
 
 const MODE = process.argv.includes('--mode=release') ? 'release' : 'authoring';
@@ -245,6 +246,15 @@ function validateAuthoredManifest(beatId, bible, problems) {
 const problems = [];
 
 const flowBibleText = await readFile(flowBiblePath, 'utf8');
+const flowBuilderText = await readFile(flowBuilderPath, 'utf8');
+// The standalone builder may not preserve a competing ritual rule. “Daily” is
+// acceptable in database identifiers, but never in this user-facing onboarding
+// cadence copy. The single source is ritualWeekdaysForLocale.
+if (/daily\s+(?:morning\s+)?check-?in|each\s+day/i.test(flowBuilderText)) {
+  problems.push(
+    'FlowBuilder.tsx retains daily ritual wording; onboarding cadence must be locale-driven weekdays',
+  );
+}
 const flowBibleSf = ts.createSourceFile(
   'flowBible.ts',
   flowBibleText,

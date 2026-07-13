@@ -5,6 +5,7 @@ import { orbIdle, orbSpeaking } from '@/components/orb/orbView';
 import { SpokenWordsCtx } from './beatKit';
 import { runBeatScript, stopSpeech } from './beatNarration';
 import { COACH_BG } from './beats/_beatStyle';
+import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 import {
   BEATS,
   IsolatedBeat,
@@ -48,6 +49,72 @@ const SHARED_SCREEN_IDS = new Set<string>(
     .map(([screenId]) => screenId),
 );
 
+// Play is a real onboarding run, not a gallery of unrelated previews. Keep this
+// state above the currently mounted beat so a user-selected habit and its days
+// survive the picker, scheduler, plan, and all five projection frames.
+function usePlayFlowState(): { flowState: FlowState; reset: () => void } {
+  const [path, setPath] = useState<'new' | 'exp' | null>(null);
+  const [category, setCategoryState] = useState<string | null>(null);
+  const [goals, setGoals] = useState<string[]>([]);
+  const [habits, setHabits] = useState<string[]>([]);
+  const [morningTime, setMorningTime] = useState<string | null>(null);
+  const [eveningTime, setEveningTime] = useState<string | null>(null);
+  const [habitConfigs, setHabitConfigsState] = useState<Record<string, HabitScheduleCfg>>({});
+  const [tourHabitStatus, setTourHabitStatusState] = useState<
+    Record<string, 'done' | 'missed' | 'none'>
+  >({});
+  const [tourSelectedDate, setTourSelectedDateState] = useState<string | null>(null);
+  const toggleIn = (v: string, max: number, set: (fn: (p: string[]) => string[]) => void) =>
+    set((previous) =>
+      previous.includes(v)
+        ? previous.filter((value) => value !== v)
+        : previous.length < max
+          ? [...previous, v]
+          : previous,
+    );
+  const reset = () => {
+    setPath(null);
+    setCategoryState(null);
+    setGoals([]);
+    setHabits([]);
+    setMorningTime(null);
+    setEveningTime(null);
+    setHabitConfigsState({});
+    setTourHabitStatusState({});
+    setTourSelectedDateState(null);
+  };
+  return {
+    flowState: {
+      path,
+      category,
+      goals,
+      habits,
+      setPath,
+      setCategory: (value) => {
+        setCategoryState(value);
+        setGoals([]);
+        setHabits([]);
+        setHabitConfigsState({});
+      },
+      toggleGoal: (value, max = 2) => toggleIn(value, max, setGoals),
+      toggleHabit: (value, max = 2) => toggleIn(value, max, setHabits),
+      setHabits,
+      morningTime,
+      eveningTime,
+      habitConfigs,
+      setMorningTime,
+      setEveningTime,
+      setHabitConfig: (habit, config) =>
+        setHabitConfigsState((previous) => ({ ...previous, [habit]: config })),
+      tourHabitStatus,
+      tourSelectedDate,
+      setTourHabitStatus: setTourHabitStatusState,
+      setTourSelectedDate: setTourSelectedDateState,
+    },
+    reset,
+  };
+}
+
 export function FlowPlay() {
   // The play step (a concept run), and, per run, which variation is selected.
   const [itemIdx, setItemIdx] = useState(0);
@@ -59,6 +126,7 @@ export function FlowPlay() {
   const [syncWords, setSyncWords] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
+  const { flowState, reset: resetFlowState } = usePlayFlowState();
   // Off by default: play one beat, then stop and hold on it. Step with next/prev.
   // On: run straight through the whole flow.
   const [autoplay, setAutoplay] = useState(false);
@@ -138,6 +206,7 @@ export function FlowPlay() {
   }
 
   function onPlay() {
+    resetFlowState();
     playFrom(0);
   }
   function onPrev() {
@@ -151,6 +220,18 @@ export function FlowPlay() {
   function onReplayBeat() {
     setNonce((n) => n + 1);
     playFrom(itemIdx);
+  }
+  function onRestartRun() {
+    stopSpeech();
+    runRef.current += 1;
+    resetFlowState();
+    setItemIdx(0);
+    setSel({});
+    setNonce((n) => n + 1);
+    setPlaying(false);
+    setStepReveal(99);
+    setElementReveal(null);
+    setSyncWords(null);
   }
   // Flip to another variation of the current concept run and replay it in place.
   function pickVariation(v: number) {
@@ -212,6 +293,9 @@ export function FlowPlay() {
         </button>
         <button style={btn()} onClick={onPlay}>
           Play from start
+        </button>
+        <button style={btn()} onClick={onRestartRun}>
+          Restart onboarding
         </button>
         <label
           style={{
@@ -408,16 +492,19 @@ export function FlowPlay() {
               flexDirection: 'column',
             }}
           >
-            <SpokenWordsCtx.Provider value={syncWords}>
-              <IsolatedBeat
-                key={`${beat.id}-${selIdx}-${nonce}`}
-                type={beat.type}
-                props={beat.props}
-                animated
-                stepReveal={stepReveal}
-                elementReveal={elementReveal}
-              />
-            </SpokenWordsCtx.Provider>
+            <FlowStateCtx.Provider value={flowState}>
+              <SpokenWordsCtx.Provider value={syncWords}>
+                <IsolatedBeat
+                  key={`${beat.id}-${selIdx}-${nonce}`}
+                  type={beat.type}
+                  props={beat.props}
+                  flowState={flowState}
+                  animated
+                  stepReveal={stepReveal}
+                  elementReveal={elementReveal}
+                />
+              </SpokenWordsCtx.Provider>
+            </FlowStateCtx.Provider>
           </div>
           {/* The docked orb. Hidden on beats that draw their own orb (the greeting
               and mic-permission), so there is never a second orb. */}

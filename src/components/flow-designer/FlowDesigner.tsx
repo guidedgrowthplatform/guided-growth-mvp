@@ -290,12 +290,17 @@ function CoachBubbleFallback({ text }: { text?: string }) {
 export function IsolatedBeat({
   type,
   props,
+  flowState: sharedFlowState,
   animated = false,
   stepReveal = null,
   elementReveal = null,
 }: {
   type: string;
   props?: Record<string, string>;
+  // FlowPlay supplies one state object for its whole run. The annotated stack
+  // intentionally omits it so every visible preview remains independently
+  // inspectable.
+  flowState?: FlowState;
   animated?: boolean;
   stepReveal?: number | null;
   elementReveal?: number | null;
@@ -304,10 +309,11 @@ export function IsolatedBeat({
   // own on-screen grid: goals-list shows the picked category's subcategories,
   // habit-picker shows the picked goal's habits. Only these variants carry
   // category / goal props, so every other beat keeps the demo defaults.
-  const flowState = useIsolatedFlowState({
+  const isolatedFlowState = useIsolatedFlowState({
     category: props?.category,
     goals: props?.goal ? [props.goal] : undefined,
   });
+  const flowState = sharedFlowState ?? isolatedFlowState;
 
   // coach-bubble is defined inline in FlowBuilder, not in BEAT_DEFS. Handle it
   // directly so check-in greeting and wrap lines render as real speech bubbles
@@ -2471,14 +2477,14 @@ const TABS: TabDef[] = [
     label: 'Morning check-in',
     beats: MORNING_BEATS,
     title: 'Morning check-in flow',
-    subtitle: 'Daily morning check-in: greeting, state card, live reaction, wrap.',
+    subtitle: 'Morning check-in: greeting, state card, live reaction, wrap.',
   },
   {
     id: 'evening',
     label: 'Evening check-in',
     beats: EVENING_BEATS,
     title: 'Evening check-in flow',
-    subtitle: 'Daily evening check-in: greeting, habit review, reflection, wrap.',
+    subtitle: 'Evening check-in: greeting, habit review, reflection, wrap.',
   },
 ];
 
