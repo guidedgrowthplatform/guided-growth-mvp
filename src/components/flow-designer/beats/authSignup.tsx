@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { FONT, PRIMARY, SUBTLE, BORDER, CARD, SECTION_LABEL, SPACE } from './_beatStyle';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { Button } from '@/components/ui/Button';
 import { type BeatDef } from '../beatKit';
+import { FONT, PRIMARY, SUBTLE, BORDER, CARD, SECTION_LABEL, SPACE } from './_beatStyle';
 
-function AuthSignup() {
+export type AuthSignupProps = Record<string, unknown> & {
+  onAdvance?: () => void;
+};
+
+export function AuthSignup({ onAdvance }: AuthSignupProps = {}) {
   const [mode, setMode] = useState<'default' | 'signup' | 'login'>('default');
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
@@ -16,20 +20,20 @@ function AuthSignup() {
       {/* Heading */}
       <div
         style={{ color: PRIMARY, fontFamily: FONT }}
-        className="text-[26px] font-extrabold tracking-tight leading-tight"
+        className="text-[26px] font-extrabold leading-tight tracking-tight"
       >
         {mode === 'login' ? 'Welcome back' : 'Create your account'}
       </div>
 
       {/* Social sign-in */}
       <div style={{ gap: SPACE.md }} className="flex flex-col">
-        <Button variant="social-dark" size="auth" fullWidth>
+        <Button variant="social-dark" size="auth" fullWidth onClick={onAdvance}>
           <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
           </svg>
           Continue with Apple
         </Button>
-        <Button variant="social-light" size="auth" fullWidth>
+        <Button variant="social-light" size="auth" fullWidth onClick={onAdvance}>
           <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
@@ -85,7 +89,7 @@ function AuthSignup() {
             value={pw}
             onChange={setPw}
           />
-          <Button variant="primary" size="auth" fullWidth>
+          <Button variant="primary" size="auth" fullWidth onClick={onAdvance}>
             Create account
           </Button>
         </div>
@@ -112,7 +116,7 @@ function AuthSignup() {
             value={pw}
             onChange={setPw}
           />
-          <Button variant="primary" size="auth" fullWidth>
+          <Button variant="primary" size="auth" fullWidth onClick={onAdvance}>
             Log in
           </Button>
         </div>
@@ -133,7 +137,15 @@ function AuthSignup() {
             <button
               type="button"
               onClick={() => setMode('signup')}
-              style={{ color: PRIMARY, fontWeight: 700, fontFamily: FONT, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              style={{
+                color: PRIMARY,
+                fontWeight: 700,
+                fontFamily: FONT,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+              }}
             >
               Sign up
             </button>
@@ -144,7 +156,15 @@ function AuthSignup() {
             <button
               type="button"
               onClick={() => setMode('login')}
-              style={{ color: PRIMARY, fontWeight: 700, fontFamily: FONT, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              style={{
+                color: PRIMARY,
+                fontWeight: 700,
+                fontFamily: FONT,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+              }}
             >
               Log in
             </button>
