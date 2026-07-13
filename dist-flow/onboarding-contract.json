@@ -3,7 +3,7 @@
   "source": {
     "beats": "src/components/flow-designer/beatsSource.ts#BEATS_SOURCE"
   },
-  "generatedAt": "2026-07-11T18:18:21+03:00",
+  "generatedAt": "2026-07-13T13:15:02+03:00",
   "idMap": {
     "screens": {
       "COACH-GREETING": "coach-greeting",
@@ -2300,7 +2300,7 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Create your own goal. Reached from the create-your-own category tile. Speak the prompt, then let the user name their own goal in the text input, in their own words. Capture it verbatim, add no praise, and move on to the habits.",
-      "allowedTools": [],
+      "allowedTools": ["submit_goals", "advance_step"],
       "persistence": {
         "writes": [
           {
@@ -2333,8 +2333,8 @@
             "voice": null
           },
           {
-            "edge": "save unresolved",
-            "behavior": "the save tool for a custom goal is not yet contracted (pending-app-reconcile); the render captures the text, the persistence path is reconciled app-side",
+            "edge": "save contract migration",
+            "behavior": "submit_goals must preserve custom-goal wording and write the complete goals array before this beat advances; until migrated, do not substitute a canonical category or invent a goal",
             "voice": null
           }
         ]
@@ -5869,8 +5869,7 @@
       "component": {
         "key": "into-app",
         "props": {
-          "buttonLabel": "Approve and start",
-          "buttonEditLabel": "I want to change something"
+          "buttonLabel": "Ready to start"
         },
         "config": {
           "hideOrb": false
@@ -5881,7 +5880,7 @@
         {
           "seq": 1,
           "speaker": "coach",
-          "words": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+          "words": "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
           "bindsTo": {
             "kind": "bubble",
             "element": "opener",
@@ -5891,11 +5890,11 @@
           "clipPath": "/voice/ob/onboard_complete_1.wav"
         }
       ],
-      "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+      "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
-      "context": "Full plan. One confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. Ask if it looks right or if they want to change anything. On approval, they enter the app. This is a high-investment moment, so make the line real and specific, not generic. On the tap path, two buttons (\"Approve and start\" and \"I want to change something\"); on voice, no buttons, the user just says what they want. Editing is voice-driven, the add/edit/delete surface appears. Instrument users who never tap a button.",
-      "allowedTools": ["update_habit", "confirm_plan"],
+      "context": "Full plan. One confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. It is read-only. Ask whether they are ready to start. On approval, they enter the app. This is a high-investment moment, so make the line real and specific, not generic. On the tap path, show one \"Ready to start\" button; on voice, no button, the user just speaks approval.",
+      "allowedTools": ["confirm_plan"],
       "persistence": {
         "writes": [
           {
@@ -5922,7 +5921,7 @@
         },
         "branches": {
           "kind": "prose",
-          "text": "on approval, into the app; on a change request, the edit surface, then re-confirm; then the weekly projection frames"
+          "text": "on approval, into the app, then the weekly projection frames"
         }
       },
       "edges": {
@@ -5934,13 +5933,8 @@
             "voice": "clip-family:onboard_complete_edge_1 (pending recording)"
           },
           {
-            "edge": "wants an edit",
-            "behavior": "open the add/edit/delete surface, make the edit by voice, then re-confirm",
-            "voice": null
-          },
-          {
-            "edge": "never taps a button (voice path)",
-            "behavior": "no buttons on voice; take the spoken approval or edit; instrument users who complete without a tap",
+            "edge": "no tap on voice path",
+            "behavior": "no button on voice; take spoken approval and instrument users who complete without a tap",
             "voice": null
           }
         ]
@@ -7634,7 +7628,7 @@
       "rows": [
         {
           "criterion": "shows the right thing",
-          "check": "phone renders the whole plan (check-in, reflection, habits); tap path shows two buttons, voice path shows none"
+          "check": "phone renders the read-only whole plan (check-in, reflection, habits); tap path shows one Ready to start button, voice path shows none"
         },
         {
           "criterion": "says the right thing",
@@ -7642,7 +7636,7 @@
         },
         {
           "criterion": "advances correctly",
-          "check": "approval fires confirm_plan and enters the app; a change opens the edit surface then re-confirms"
+          "check": "approval fires the common confirm_plan completion transaction, then enters the app"
         }
       ]
     },

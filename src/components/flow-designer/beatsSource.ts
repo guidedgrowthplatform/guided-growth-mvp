@@ -1974,7 +1974,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         conversation: 'filled',
         contextProse: 'filled',
         allowedTools: 'filled',
-        persistence: 'pending-app-reconcile',
+        persistence: 'filled',
         flow: 'filled',
         edges: 'filled',
         acceptance: 'filled',
@@ -2135,12 +2135,33 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             tool: 'submit_profile',
             args: '{ age: number, gender: "Male" | "Female" | "Other" }',
             when: 'once both age and gender are captured',
-            pending: true,
           },
           { tool: 'advance_step', args: '{}', when: 'immediately after submit_profile returns' },
         ],
         note: 'No category, goal, or habit tools on this beat; profile capture uses submit_profile only.',
         enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'onboarding_states.data JSONB merge: age: number and gender: "Male" | "Female" | "Other"',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'age and gender rehydrate from onboarding_states.data on resume; the beat is skipped once both keys exist',
+          },
+          {
+            label: 'resume key',
+            value:
+              'onboarding_states.data.age + onboarding_states.data.gender, plus current_step past profile-asks',
+          },
+        ],
+        watchOut:
+          'AUTHORITATIVE RENDER CONTRACT. TODO app migration: submit_profile must accept age as a number, require age and gender, and not require or write nickname on this beat. Source: api/_lib/llm/onboarding/handlers/submitProfile.ts.',
+        enforcedBy: ['persistence-contract-check'],
       },
       flow: {
         rows: [
@@ -2259,13 +2280,13 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'profile.age',
           from: 'flow-state',
           writtenBy: 'submit_profile',
-          persistsTo: 'onboarding_states.data (verify key at app-reconcile)',
+          persistsTo: 'onboarding_states.data.age',
         },
         {
           key: 'profile.gender',
           from: 'flow-state',
           writtenBy: 'submit_profile',
-          persistsTo: 'onboarding_states.data (verify key at app-reconcile)',
+          persistsTo: 'onboarding_states.data.gender',
         },
       ],
     },
@@ -2300,8 +2321,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           na: 'card-fill check-in — the four cards ARE the check-in; the coach asks once and takes no branching turn',
         },
         contextProse: 'filled',
-        allowedTools: 'pending-app-reconcile',
-        persistence: 'pending-app-reconcile',
+        allowedTools: 'filled',
+        persistence: 'filled',
         flow: 'filled',
         edges: 'filled',
         acceptance: 'filled',
@@ -2442,6 +2463,42 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           'Check-in (opener for the whole process, plus the first state check). The opener frames the coaching process as a few small pieces done together, built light for everyone, each part explained as it is reached. Then the first piece: a quick state check-in done now. The four questions (sleep, mood, energy, stress) are asked once, each blooming its card; the same cards are the check-in the user fills. Give no advice on what they report; one warm line, then move on.',
         enforcedBy: ['eval:parity-walk'],
       },
+      allowedTools: {
+        tools: ['record_checkin', 'advance_step'],
+        callRules:
+          'Call record_checkin exactly once after all four cards hold an integer score. Do not advance when any dimension is absent.',
+        specs: [
+          {
+            tool: 'record_checkin',
+            args: '{ sleep: 1 | 2 | 3 | 4 | 5, mood: 1 | 2 | 3 | 4 | 5, energy: 1 | 2 | 3 | 4 | 5, stress: 1 | 2 | 3 | 4 | 5, source: "onboarding" }',
+            when: 'once all four state cards are rated',
+          },
+          { tool: 'advance_step', args: '{}', when: 'immediately after record_checkin succeeds' },
+        ],
+        note: 'AUTHORITATIVE RENDER CONTRACT. TODO app migration: register this onboarding-scoped record_checkin schema and handler rather than reusing the partial check-in namespace schema.',
+        enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'atomically write onboarding_states.data.stateCheck = { sleep, mood, energy, stress, source: "onboarding" } and insert the first daily_checkins row with the same four scores and source = onboarding',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'on resume, onboarding_states.data.stateCheck is the onboarding resume record; daily_checkins is the historical check-in record',
+          },
+          {
+            label: 'resume key',
+            value: 'onboarding_states.data.stateCheck, plus current_step past state-check',
+          },
+        ],
+        watchOut:
+          'AUTHORITATIVE RENDER CONTRACT. TODO app migration: make record_checkin perform the atomic onboarding_states + daily_checkins write. Current handler only writes stateCheck and has a completion-copy TODO. Source: flowBible.ts Table 3.',
+        enforcedBy: ['persistence-contract-check'],
+      },
       flow: {
         rows: [
           {
@@ -2577,8 +2634,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'checkin.state',
           from: 'flow-state',
           writtenBy: 'record_checkin',
-          persistsTo: 'app-reconcile-pending',
-          note: 'tool binding forked: no beat_contexts entry; record_checkin exists in the API (deep-QA B6)',
+          persistsTo: 'onboarding_states.data.stateCheck + daily_checkins (atomic)',
+          note: 'canonical onboarding baseline state-check record',
         },
       ],
     },
@@ -2614,7 +2671,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
         contextProse: 'filled',
         allowedTools: 'filled',
-        persistence: 'pending-app-reconcile',
+        persistence: 'filled',
         flow: 'filled',
         edges: 'filled',
         acceptance: 'filled',
@@ -2768,9 +2825,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         specs: [
           {
             tool: 'submit_morning_checkin',
-            args: '{ time: string, days: string[], reminder: boolean } (exact arg shape per the handler)',
+            args: '{ time: "HH:MM", days: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], reminder: boolean, schedule: "Weekday" | "Weekend" | "Every day" | "Custom" }',
             when: 'once the daily time and days are set',
-            pending: true,
           },
           {
             tool: 'advance_step',
@@ -2780,6 +2836,27 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         ],
         note: 'The daily check-in and the evening reflection are rituals, set here; no habit tools on this beat.',
         enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'onboarding_states.data.morningCheckin = { time, days, reminder, schedule }; days are 0-6 integers and schedule is the derived or Custom label',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'daily flow and resume read onboarding_states.data.morningCheckin until onboarding completion copies it into the daily ritual configuration',
+          },
+          {
+            label: 'resume key',
+            value: 'onboarding_states.data.morningCheckin, plus current_step past checkin',
+          },
+        ],
+        watchOut:
+          'AUTHORITATIVE RENDER CONTRACT. TODO app migration: register submit_morning_checkin in both lanes with this numeric-days shape and persist the exact morningCheckin object. Source: flowBible.ts Table 3.',
+        enforcedBy: ['persistence-contract-check'],
       },
       flow: {
         rows: [
@@ -2925,7 +3002,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'checkin.config',
           from: 'flow-state',
           writtenBy: 'submit_morning_checkin',
-          persistsTo: 'per submit_morning_checkin handler',
+          persistsTo: 'onboarding_states.data.morningCheckin',
         },
       ],
     },
@@ -3174,12 +3251,12 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         specs: [
           {
             tool: 'submit_reflection_config',
-            args: '{ style: "suggested" | "custom" | "freeform", time: string, reminder: boolean }',
+            args: '{ style: "suggested" | "custom" | "freeform", time: "HH:MM", days: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], schedule: "Weekday" | "Weekend" | "Every day" | "Custom", reminder: boolean }',
             when: 'once the user picks a style and sets a time',
           },
           {
             tool: 'submit_custom_prompts',
-            args: '{ prompts: string[] } (verbatim, under the 280-char cap)',
+            args: '{ prompts: string[] } (1-10 prompts, verbatim, each 1-280 characters)',
             when: 'only when the user picks the your-template style, to capture their prompts',
           },
           {
@@ -3196,21 +3273,21 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'writes',
             value:
-              'the reflection template style (config) and, for the your-template style, the custom prompts (customPrompts) verbatim',
+              'reflection_settings.config = { style, time, days, schedule, reminder, customPrompts }; customPrompts is [] unless style = custom, then holds 1-10 verbatim prompts of 1-280 characters each',
           },
           {
             label: 'never re-ask',
             value:
-              'the daily evening reflection asks based on the saved config; the coach never re-asks the style',
+              'the daily evening reflection reads reflection_settings.config and never re-asks the style; custom prompts replay word for word with no regeneration',
           },
           {
             label: 'resume key',
             value:
-              'reflection_settings holds the config; current_step advanced past reflection proves this beat is done on refresh',
+              'reflection_settings.config holds the complete object; current_step advanced past reflection proves this beat is done on refresh',
           },
         ],
         watchOut:
-          'Custom prompts persist verbatim under the 280-char cap so the daily reflection can ask them exactly. Exact column shape in reflection_settings reconciled with the handler.',
+          'AUTHORITATIVE RENDER CONTRACT. Transaction order: validate style/time/days/schedule/reminder, validate custom prompts when style = custom, then atomically upsert this one config object before advance_step. TODO app migration: merge reflectionConfig and customPrompts into reflection_settings.config in both lanes, including completion copy. Current handlers split them across onboarding_states.data. Source: api/_lib/llm/onboarding/handlers/submitReflectionConfig.ts and submitCustomPrompts.ts.',
         enforcedBy: ['persistence-contract-check'],
       },
       flow: {
@@ -3403,13 +3480,14 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'reflection.config',
           from: 'flow-state',
           writtenBy: 'submit_reflection_config',
-          persistsTo: 'reflection_settings',
+          persistsTo: 'reflection_settings.config',
         },
         {
           key: 'reflection.customPrompts',
           from: 'flow-state',
           writtenBy: 'submit_custom_prompts',
-          persistsTo: 'reflection_settings (verbatim under the 280-char cap)',
+          persistsTo:
+            'reflection_settings.config.customPrompts (verbatim, 1-10 prompts, each 1-280 characters)',
         },
       ],
     },
@@ -3636,7 +3714,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       },
       persistence: {
         rows: [
-          { label: 'writes', value: 'the chosen path (beginner or advanced)' },
+          {
+            label: 'writes',
+            value: 'onboarding_states.data.path = "beginner" | "advanced"',
+          },
           {
             label: 'never re-ask',
             value:
@@ -3645,9 +3726,11 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'resume key',
             value:
-              'flow.path saved to onboarding_states.data; current_step advanced past fork proves this beat is done on refresh',
+              'onboarding_states.data.path rehydrates flow.path; current_step advanced past fork proves this beat is done on refresh',
           },
         ],
+        watchOut:
+          'AUTHORITATIVE RENDER CONTRACT. TODO app migration: replace the simple/braindump enum in both submit_path_choice implementations with beginner/advanced, stored at onboarding_states.data.path. Source: api/_lib/llm/onboarding/schemas.ts.',
         enforcedBy: ['persistence-contract-check'],
       },
       flow: {
@@ -3772,7 +3855,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'flow.path',
           from: 'flow-state',
           writtenBy: 'submit_path_choice',
-          persistsTo: 'onboarding_states.data',
+          persistsTo: 'onboarding_states.data.path',
           note: 'drives the beginner/advanced branch',
         },
       ],
@@ -4007,7 +4090,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         specs: [
           {
             tool: 'submit_category',
-            args: '{ category: string } where category is one of the 8 LOCKED labels (CANONICAL_ENUMS.categories) OR a custom string from the create-your-own tile',
+            args: '{ category: string, source: "canonical" | "custom" } where canonical uses one of the 8 LOCKED labels and custom is the verbatim create-your-own label',
             when: 'once the user has settled on exactly one category',
           },
           {
@@ -4023,7 +4106,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         rows: [
           {
             label: 'writes',
-            value: 'the chosen category (one value)',
+            value:
+              'onboarding_states.data.category = the chosen category label and onboarding_states.data.categorySource = "canonical" | "custom"',
           },
           {
             label: 'never re-ask',
@@ -4032,11 +4116,12 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             label: 'resume key',
-            value: 'current_step advanced past category proves this beat is done on refresh',
+            value:
+              'onboarding_states.data.category + categorySource, then current_step advanced past category, prove this beat is done on refresh',
           },
         ],
         watchOut:
-          'Exact table + column for the category write is NOT in the render source or the docs read. Flagged for app-reconcile; do not invent a table name. The carry-forward contract (never re-ask category) is from GLOBAL_CONTEXT and is real.',
+          'Canonical categories route to the matching typed goals-* list. A custom category routes to goal-custom and its free-text goals, never to a guessed canonical family. AUTHORITATIVE RENDER CONTRACT. TODO app migration: remove the fixed-only submit_category enum, accept source, and write category/categorySource keys. Source: api/_lib/llm/onboarding/handlers/submitCategory.ts.',
         enforcedBy: ['persistence-contract-check'],
       },
       flow: {
@@ -5363,7 +5448,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'custom-entry',
     screenId: 'ONBOARD-BEGINNER-02-CUSTOM',
     context: null,
-    allowedTools: null,
+    allowedTools: 'submit_goals, advance_step',
     expectedResponse: 'Names their own goal',
     voiceEngine: 'MP3',
     voiceMode: 'Verbatim',
@@ -5373,8 +5458,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     },
     // Archetype = single free-entry data beat (one spoken prompt, the user names their
     // own goal in the text input). conversation is { na } (a single capture, no branch);
-    // allowedTools + persistence are pending-app-reconcile (the save tool is unresolved
-    // per the io note).
+    // The render owns the custom-goal contract: custom goals use submit_goals with
+    // source=custom and are never forced through a canonical-category label list.
     bible: {
       sectionManifest: {
         identity: 'filled',
@@ -5385,8 +5470,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         rulesCode: 'filled',
         conversation: { na: 'single free-entry — the user names one goal; no branching turn' },
         contextProse: 'filled',
-        allowedTools: 'pending-app-reconcile',
-        persistence: 'pending-app-reconcile',
+        allowedTools: 'filled',
+        persistence: 'filled',
         flow: 'filled',
         edges: 'filled',
         acceptance: 'filled',
@@ -5488,6 +5573,43 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           'Create your own goal. Reached from the create-your-own category tile. Speak the prompt, then let the user name their own goal in the text input, in their own words. Capture it verbatim, add no praise, and move on to the habits.',
         enforcedBy: ['eval:parity-walk'],
       },
+      allowedTools: {
+        tools: ['submit_goals', 'advance_step'],
+        callRules:
+          'Call submit_goals once with the complete custom-goal selection. Preserve the user wording, except trim surrounding whitespace. Then advance.',
+        specs: [
+          {
+            tool: 'submit_goals',
+            args: '{ goals: string[] (1-2 entries, each 1-100 characters), source: "custom" }',
+            when: 'once the user submits one or two non-empty custom goals',
+          },
+          { tool: 'advance_step', args: '{}', when: 'immediately after submit_goals succeeds' },
+        ],
+        note: 'AUTHORITATIVE RENDER CONTRACT. TODO app migration: submit_goals must accept source=custom and preserve free-text goals without canonical-category matching.',
+        enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'onboarding_states.data.goals = the complete custom-goal string array (verbatim except surrounding whitespace)',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'the custom goals rehydrate from onboarding_states.data.goals and seed the custom habit picker',
+          },
+          {
+            label: 'resume key',
+            value:
+              'onboarding_states.data.goals with onboarding_states.data.categorySource = custom, plus current_step past goal-custom',
+          },
+        ],
+        watchOut:
+          'AUTHORITATIVE RENDER CONTRACT. TODO app migration: custom-category goals bypass the fixed-label validator, while canonical goals keep exact-label validation. Source: api/_lib/llm/onboarding/handlers/submitGoals.ts.',
+        enforcedBy: ['persistence-contract-check'],
+      },
       flow: {
         rows: [
           { label: 'advance condition', value: 'the user submits a non-empty custom goal' },
@@ -5510,9 +5632,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             behavior: 'do not advance on an empty entry; wait for the user to name a goal',
           },
           {
-            edge: 'save unresolved',
+            edge: 'save contract migration',
             behavior:
-              'the save tool for a custom goal is not yet contracted (pending-app-reconcile); the render captures the text, the persistence path is reconciled app-side',
+              'submit_goals must preserve custom-goal wording and write the complete goals array before this beat advances; until migrated, do not substitute a canonical category or invent a goal',
           },
         ],
         enforcedBy: ['eval:edge-walk'],
@@ -5566,8 +5688,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'onboarding.goals',
           from: 'flow-state',
           writtenBy: 'submit_goals',
-          persistsTo: 'onboarding_states.data (verify key)',
-          note: 'save tool unresolved (app-reconcile-pending)',
+          persistsTo: 'onboarding_states.data.goals',
+          note: 'custom-goal values are the verbatim seed for the custom habit picker',
         },
       ],
     },
@@ -8269,15 +8391,14 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     path: 'both',
     type: 'into-app',
     screenId: 'ONBOARD-COMPLETE',
-    allowedTools: 'update_habit, confirm_plan',
-    expectedResponse: 'Looks good, or an edit',
+    allowedTools: 'confirm_plan',
+    expectedResponse: 'Approves the ready-to-start plan',
     voiceEngine: 'MP3',
     voiceMode: 'Verbatim',
     hideOrb: false,
-    props: { buttonLabel: 'Approve and start', buttonEditLabel: 'I want to change something' },
-    // Archetype = interactive confirm gate into the app. One spoken line, the whole plan
-    // shown, approve or edit. All 14 sections owner-filled except persistence
-    // (pending-app-reconcile: confirm_plan completes onboarding "per handler").
+    props: { buttonLabel: 'Ready to start' },
+    // Archetype = read-only ready-to-start gate. The plan confirms the setup without
+    // reopening edits. confirm_plan completes onboarding atomically in both lanes.
     bible: {
       sectionManifest: {
         identity: 'filled',
@@ -8289,7 +8410,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         conversation: 'filled',
         contextProse: 'filled',
         allowedTools: 'filled',
-        persistence: 'pending-app-reconcile',
+        persistence: 'filled',
         flow: 'filled',
         edges: 'filled',
         acceptance: 'filled',
@@ -8331,17 +8452,17 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
               'the whole plan: the check-in time, the evening reflection time, and all the habits under them',
           },
           {
-            label: 'buttons (tap path only)',
+            label: 'button (tap path only)',
             value:
-              'two buttons: "Approve and start" and "I want to change something"; the voice path shows no buttons (the user just says what they want)',
+              'one button: "Ready to start"; the voice path shows no button and accepts spoken approval',
           },
           {
             label: 'selection mode',
-            value: 'approve or edit; editing is voice-driven, the add/edit/delete surface appears',
+            value: 'read-only plan, approval only; this beat has no edit or change path',
           },
         ],
         watchOut:
-          'On the voice path there are no buttons; the user just speaks. Editing is voice-driven; instrument users who never tap a button (see edges).',
+          'LOCKED copy decision (2026-07-10): plan is read-only and ready to start. On the voice path there is no button; the user speaks approval. TODO app migration: remove the edit surface from plan review.',
         enforcedBy: ['component-registry-check'],
       },
       voice: {
@@ -8363,7 +8484,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
         {
           id: 'plan-one-confirm',
-          rule: 'One confirm: ask if it looks right or if they want to change anything, then wait',
+          rule: 'One confirm: show the read-only plan, ask if they are ready to start, then wait',
           severity: 'must',
           enforcedBy: ['eval:one-line-then-wait'],
         },
@@ -8377,7 +8498,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       rulesCode: [
         {
           id: 'plan-tools-only',
-          rule: 'Only update_habit and confirm_plan are callable on this beat',
+          rule: 'Only confirm_plan is callable on this beat',
           severity: 'must',
           enforcedBy: ['tool-contract-check'],
         },
@@ -8401,19 +8522,12 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
       conversation: {
-        opens: 'after the confirm line (want to start here, or change anything first)',
+        opens: 'after the confirm line (ready to start)',
         branches: [
           {
-            on: 'approves (taps Approve and start, or says it looks good)',
+            on: 'approves (taps Ready to start, or says it looks good)',
             reply: 'none (silent); enter the app',
             then: 'tool:confirm_plan',
-          },
-          {
-            on: 'wants to change something',
-            reply:
-              'scripted: the add/edit/delete surface opens; make the edit by voice, then confirm again',
-            then: 'tool:update_habit',
-            voice: 'clip-family:onboard_complete_edit (pending recording)',
           },
           {
             on: 'off-topic or world question',
@@ -8424,31 +8538,47 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
         ],
         maxTurns: 5,
-        onMaxTurns: 'plain one-line re-ask of whether the plan looks right or needs a change',
+        onMaxTurns: 'plain one-line re-ask of whether they are ready to start',
       },
       contextProse: {
         prose:
-          'Full plan. One confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. Ask if it looks right or if they want to change anything. On approval, they enter the app. This is a high-investment moment, so make the line real and specific, not generic. On the tap path, two buttons ("Approve and start" and "I want to change something"); on voice, no buttons, the user just says what they want. Editing is voice-driven, the add/edit/delete surface appears. Instrument users who never tap a button.',
+          'Full plan. One confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. It is read-only. Ask whether they are ready to start. On approval, they enter the app. This is a high-investment moment, so make the line real and specific, not generic. On the tap path, show one "Ready to start" button; on voice, no button, the user just speaks approval.',
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
-        tools: ['update_habit', 'confirm_plan'],
+        tools: ['confirm_plan'],
         callRules:
-          'Inherited from GLOBAL_CONTEXT, bound here: update_habit for a requested edit, confirm_plan on approval; only this beat tools.',
+          'Inherited from GLOBAL_CONTEXT, bound here: confirm_plan only on approval; this read-only beat has no edit tools.',
         specs: [
-          {
-            tool: 'update_habit',
-            args: '{ habitId: string, ...changes }',
-            when: 'when the user asks to change a habit before confirming',
-          },
           {
             tool: 'confirm_plan',
             args: '{}',
             when: 'once the user approves the plan',
           },
         ],
-        note: 'confirm_plan completes onboarding; the exact completion write is reconciled with the handler (persistence pending-app-reconcile).',
+        note: 'AUTHORITATIVE RENDER CONTRACT. confirm_plan is the one completion operation in Direct LLM and Vapi.',
         enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'onboarding_states.data.plan.confirmed = true, onboarding_states.status = "completed", onboarding_states.completed_at = now(), and onboarding_states.current_step = "completed" in the same confirm_plan transaction',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'a completed onboarding state routes directly into the app; plan is never re-opened as an edit surface',
+          },
+          {
+            label: 'resume key',
+            value: 'onboarding_states.status = completed and completed_at is non-null',
+          },
+        ],
+        watchOut:
+          'AUTHORITATIVE RENDER CONTRACT. TODO app migration: Direct LLM confirm_plan must perform this server-side completion write, matching Vapi, before navigation. Keep both lanes behaviorally identical and do not use a client-only completion side effect.',
+        enforcedBy: ['persistence-contract-check'],
       },
       flow: {
         rows: [
@@ -8462,10 +8592,13 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             label: 'downstream branch (out of this beat)',
-            value:
-              'on approval, into the app; on a change request, the edit surface, then re-confirm; then the weekly projection frames',
+            value: 'on approval, into the app, then the weekly projection frames',
           },
-          { label: 'gate', value: 'the user must approve (confirm_plan) before entering the app' },
+          {
+            label: 'gate',
+            value:
+              'the user must approve the read-only plan (confirm_plan) before entering the app',
+          },
         ],
         enforcedBy: ['advance-gate-check'],
       },
@@ -8478,13 +8611,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             voice: 'clip-family:onboard_complete_edge_1 (pending recording)',
           },
           {
-            edge: 'wants an edit',
-            behavior: 'open the add/edit/delete surface, make the edit by voice, then re-confirm',
-          },
-          {
-            edge: 'never taps a button (voice path)',
+            edge: 'no tap on voice path',
             behavior:
-              'no buttons on voice; take the spoken approval or edit; instrument users who complete without a tap',
+              'no button on voice; take spoken approval and instrument users who complete without a tap',
           },
         ],
         enforcedBy: ['eval:edge-walk'],
@@ -8494,7 +8623,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             criterion: 'shows the right thing',
             check:
-              'phone renders the whole plan (check-in, reflection, habits); tap path shows two buttons, voice path shows none',
+              'phone renders the read-only whole plan (check-in, reflection, habits); tap path shows one Ready to start button, voice path shows none',
           },
           {
             criterion: 'says the right thing',
@@ -8503,7 +8632,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             criterion: 'advances correctly',
             check:
-              'approval fires confirm_plan and enters the app; a change opens the edit surface then re-confirms',
+              'approval fires the common confirm_plan completion transaction, then enters the app',
           },
         ],
         enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
@@ -8523,7 +8652,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       {
         seq: 1,
         words:
-          "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+          "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
         bindsTo: {
           kind: 'bubble',
           element: 'opener',
@@ -8545,7 +8674,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'plan.confirmed',
           from: 'flow-state',
           writtenBy: 'confirm_plan',
-          persistsTo: 'onboarding complete (per handler)',
+          persistsTo: 'onboarding_states.status + completed_at + current_step (atomic completion)',
         },
       ],
     },

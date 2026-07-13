@@ -1017,7 +1017,7 @@
       "path": "both",
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
-      "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+      "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
       "clips": [
         {
           "clip": "onboard_complete_1",
