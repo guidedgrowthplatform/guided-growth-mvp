@@ -16,13 +16,14 @@ const AMBER_MED = 'rgba(245, 158, 11, 0.18)';
 // Inline morning card, purposely lighter and warmer than the evening reflection
 // card. The default days are the user's local work week, with weekends off.
 // Just time + a reminder toggle so the card stays calm and focused.
-function MorningCard({
+export function MorningCard({
   days,
   onToggleDay,
   time,
   onTimeChange,
   remind,
   onToggleRemind,
+  revealCount,
 }: {
   days: Set<number>;
   onToggleDay: (d: number) => void;
@@ -30,9 +31,10 @@ function MorningCard({
   onTimeChange: (t: string) => void;
   remind: boolean;
   onToggleRemind: (v: boolean) => void;
+  revealCount?: number;
 }) {
   // Days first, then time, then the reminder, each blooming as its clip plays.
-  const reveal = useElementReveal(3);
+  const reveal = useElementReveal(3, revealCount);
   return (
     <div
       style={{
