@@ -11,7 +11,14 @@ import { SECTION_LABEL, SPACE } from './_beatStyle';
 // but the UX language is "subcategory" throughout, per the v3 spec.
 const MAX_SUBCATEGORIES = 2;
 
-function GoalsListBeat(props?: Record<string, string>) {
+export type GoalsListBeatProps = {
+  category?: string;
+  coachLine?: string;
+  hideOrb?: boolean;
+  onAdvance?: () => void;
+};
+
+export function GoalsListBeat(props?: GoalsListBeatProps) {
   // Subcategory list is driven by the category picked upstream. In Play that
   // comes from shared flow state; on the canvas it defaults to "Sleep better"
   // so the tile still shows real options.
@@ -64,6 +71,7 @@ function GoalsListBeat(props?: Record<string, string>) {
   function handleContinue() {
     if (selected.length === 0) return;
     setContinued(true);
+    props?.onAdvance?.();
   }
 
   const steps: BeatStep[] = [
