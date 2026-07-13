@@ -24,6 +24,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 
+import { resolveRenderProvenance, withArtifactHash } from './render-provenance.mjs';
+
 import {
   BEATS_SOURCE,
   resolveBeatStructure,
@@ -238,14 +240,15 @@ function buildContract() {
     (a): a is NonNullable<typeof a> => a !== null,
   );
 
-  return {
+  return withArtifactHash({
     schemaVersion: SCHEMA_VERSION,
     source: { beats: BEATS_SOURCE_REF },
+    provenance: resolveRenderProvenance(ROOT),
     generatedAt: resolveGeneratedAt(),
     idMap: { screens, clips },
     beats,
     acceptance,
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -357,8 +360,8 @@ function stableStringify(contract: unknown): string {
   return `${JSON.stringify(contract, null, 2)}\n`;
 }
 
-function stripGeneratedAt(contract: Record<string, unknown>): Record<string, unknown> {
-  const { generatedAt: _drop, ...rest } = contract;
+function stripProvenanceMeta(contract: Record<string, unknown>): Record<string, unknown> {
+  const { generatedAt: _gen, provenance: _prov, ...rest } = contract;
   return rest;
 }
 
@@ -394,8 +397,8 @@ if (isCheck) {
     process.exit(1);
   }
   const committed = JSON.parse(committedRaw) as Record<string, unknown>;
-  const freshContent = stableStringify(stripGeneratedAt(contract as unknown as Record<string, unknown>));
-  const committedContent = stableStringify(stripGeneratedAt(committed));
+  const freshContent = stableStringify(stripProvenanceMeta(contract as unknown as Record<string, unknown>));
+  const committedContent = stableStringify(stripProvenanceMeta(committed));
   if (freshContent !== committedContent) {
     console.error(
       `export-contract --check: ${path.relative(ROOT, OUTPUT_PATH)} is STALE, it does not reproduce from beatsSource.ts. Run \`npm run build:flow\` and commit the result.`,

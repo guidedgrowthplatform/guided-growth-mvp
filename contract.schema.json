@@ -5,7 +5,15 @@
   "description": "The versioned seam the builder (beatsSource.ts) exports and the engine is generated from. Variants are resolved flat at export: every beat here is a concrete, runnable projection, never an inheritance rule the engine must re-run. RUNNABLE data only crosses this seam; spec-only material (applicable decisions, identity narrative, scriptMeta) stays builder-side. Acceptance is carried in a separate top-level block for later test generation, never mixed into the runnable beats.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "source", "generatedAt", "idMap", "beats", "acceptance"],
+  "required": [
+    "schemaVersion",
+    "source",
+    "provenance",
+    "generatedAt",
+    "idMap",
+    "beats",
+    "acceptance"
+  ],
   "properties": {
     "schemaVersion": {
       "const": 1,
@@ -17,6 +25,17 @@
       "required": ["beats"],
       "properties": {
         "beats": { "type": "string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceCommit", "branch", "buildSha", "artifactHash"],
+      "properties": {
+        "sourceCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "branch": { "type": "string", "minLength": 1 },
+        "buildSha": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "artifactHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
       }
     },
     "generatedAt": {
