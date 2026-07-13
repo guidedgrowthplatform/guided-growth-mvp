@@ -305,7 +305,8 @@ function WeeklyProjectionCard({
             margin: 0,
           }}
         >
-          Your projection needs a schedule for {projection.incompleteHabits.join(', ')} before it can be shown.
+          Your projection needs a schedule for {projection.incompleteHabits.join(', ')} before it
+          can be shown.
         </p>
         <p
           style={{

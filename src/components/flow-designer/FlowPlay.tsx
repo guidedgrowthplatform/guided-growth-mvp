@@ -5,7 +5,6 @@ import { orbIdle, orbSpeaking } from '@/components/orb/orbView';
 import { SpokenWordsCtx } from './beatKit';
 import { runBeatScript, stopSpeech } from './beatNarration';
 import { COACH_BG } from './beats/_beatStyle';
-import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 import {
   BEATS,
   IsolatedBeat,
@@ -13,6 +12,7 @@ import {
   CONCEPT_META,
   variationLabel,
 } from './FlowDesigner';
+import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 
 // Play mode: runs the real onboarding beats in order in a single phone, speaking
 // each opener and per-element line with the browser voice (a stand-in for the

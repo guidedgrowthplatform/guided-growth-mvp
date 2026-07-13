@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  projectionRowsForOnboarding,
-  type ProjectionState,
-} from './weeklyProjection';
+import { projectionRowsForOnboarding, type ProjectionState } from './weeklyProjection';
 
 describe('weekly projection real-habit handoff', () => {
   it('keeps a selected habit and its exact scheduled days through every frame', () => {
