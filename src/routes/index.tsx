@@ -92,6 +92,12 @@ const BlockSchedulePreview = lazyWithRetry(() =>
 const BlockNowPreview = lazyWithRetry(() =>
   import('@/pages/BlockNowPreview').then((m) => ({ default: m.BlockNowPreview })),
 );
+const WeeklyCoachDetailPreview = lazyWithRetry(() =>
+  import('@/pages/WeeklyCoachDetailPreview').then((m) => ({ default: m.WeeklyCoachDetailPreview })),
+);
+const HabitTrendPreview = lazyWithRetry(() =>
+  import('@/pages/HabitTrendPreview').then((m) => ({ default: m.HabitTrendPreview })),
+);
 const JournalFlowPage = lazyWithRetry(() =>
   import('@/pages/JournalFlowPage').then((m) => ({ default: m.JournalFlowPage })),
 );
@@ -294,6 +300,22 @@ export function AppRoutes() {
           element={
             <ForceLight>
               <BlockNowPreview />
+            </ForceLight>
+          }
+        />
+        <Route
+          path="/__coach-detail"
+          element={
+            <ForceLight>
+              <WeeklyCoachDetailPreview />
+            </ForceLight>
+          }
+        />
+        <Route
+          path="/__habit-trends"
+          element={
+            <ForceLight>
+              <HabitTrendPreview />
             </ForceLight>
           }
         />

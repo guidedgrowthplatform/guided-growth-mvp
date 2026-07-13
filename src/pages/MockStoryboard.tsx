@@ -38,10 +38,22 @@ const SCREENS: Screen[] = [
     note: 'The coach reads your week. Toggle Strong week / Gaps week in-screen. The gaps frame says a reassess is still a win.',
   },
   {
+    feature: 'Weekly Coach · Detailed',
+    src: '/__coach-detail',
+    title: 'Weekly Coach detailed',
+    note: 'The upgraded version, so the user feels seen: day rings, a consistency trend with a projection, the dimensions the coach watches, per-habit sparklines, and one small next step.',
+  },
+  {
     feature: 'Calendar',
     src: '/__calendar-states',
     title: 'Calendar integration',
     note: 'All five states. Defaults to a separate Guided Growth calendar; coach-read is an explicit, off-by-default consent.',
+  },
+  {
+    feature: 'Calendar · Habit trends',
+    src: '/__habit-trends',
+    title: 'Habit trends',
+    note: 'The per-habit drill-down: pick a habit for its own line chart across the month, streak and rate stats, and a coach reading of the shape. Switch habits in-screen.',
   },
   {
     feature: 'Library · Browse',
