@@ -42,7 +42,13 @@ function Ring({
   );
 }
 
-export function CoachSpeakingPreview() {
+export function CoachSpeakingPreview({
+  onBack,
+  trackTitle,
+}: {
+  onBack?: () => void;
+  trackTitle?: string;
+} = {}) {
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden text-white">
       {/* Moving gradient base */}
@@ -75,6 +81,7 @@ export function CoachSpeakingPreview() {
         <button
           type="button"
           aria-label="Back"
+          onClick={onBack}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 backdrop-blur"
         >
           <Icon icon="ic:round-arrow-back" width={20} />
@@ -118,6 +125,9 @@ export function CoachSpeakingPreview() {
         <p className="text-center text-[11px] font-bold uppercase tracking-[0.25em] text-white/70">
           Coach
         </p>
+        {trackTitle && (
+          <p className="mt-1 text-center text-xl font-bold text-white">{trackTitle}</p>
+        )}
         <p className="mt-2 text-center text-lg font-medium leading-relaxed text-white">
           Let the breath slow. There is nothing to fix right now.
         </p>

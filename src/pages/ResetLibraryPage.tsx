@@ -1,3 +1,4 @@
+import { Icon } from '@iconify/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
@@ -56,7 +57,15 @@ function bucketLabel(key: string): string {
   return step ? step.label : key;
 }
 
-export function ResetLibraryPage() {
+export function ResetLibraryPage({
+  onOpenTrack,
+  onOpenNudge,
+}: {
+  // When provided (app-shell mode), tapping a track / the reminders bell calls
+  // these instead of routing, so the Library drives the shell's sub-navigation.
+  onOpenTrack?: (id: string) => void;
+  onOpenNudge?: () => void;
+} = {}) {
   const navigate = useNavigate();
   const [activeBucket, setActiveBucket] = useState<string>(ALL_KEY);
 
@@ -87,6 +96,10 @@ export function ResetLibraryPage() {
 
   const handleOpenTrack = (resetTrack: ResetTrack) => {
     track('tap_reset_track', { track_id: resetTrack.id });
+    if (onOpenTrack) {
+      onOpenTrack(resetTrack.id);
+      return;
+    }
     navigate(`/reset/${resetTrack.id}`);
   };
 
@@ -98,10 +111,24 @@ export function ResetLibraryPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-primary-bg pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <div className="px-6 pt-[max(2rem,env(safe-area-inset-top))]">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">The Return</p>
-        <h1 className="mt-2 text-[28px] font-semibold leading-tight text-content">
-          Come back to baseline
-        </h1>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">The Return</p>
+            <h1 className="mt-2 text-[28px] font-semibold leading-tight text-content">
+              Come back to baseline
+            </h1>
+          </div>
+          {onOpenNudge && (
+            <button
+              type="button"
+              aria-label="Reset reminders"
+              onClick={onOpenNudge}
+              className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface shadow-sm"
+            >
+              <Icon icon="ph:bell-simple-bold" width={20} className="text-primary" />
+            </button>
+          )}
+        </div>
         <p className="mt-2 text-sm text-content-secondary">
           Recorded these for you. Pick how long you have.
         </p>

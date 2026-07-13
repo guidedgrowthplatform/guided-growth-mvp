@@ -2,11 +2,46 @@ import { useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { type AppTab, HomeBarPreview } from '@/components/flow-designer/orb/HomeBarPreview';
 import { OrbTuner } from '@/components/flow-designer/orb/OrbTuner';
+import manifestData from '@/data/reset-manifest.json';
 import { CalendarStatesPreview } from '@/pages/CalendarStatesPreview';
+import { CoachSpeakingPreview } from '@/pages/CoachSpeakingPreview';
 import { HabitTrendPreview } from '@/pages/HabitTrendPreview';
 import { ResetLibraryPage } from '@/pages/ResetLibraryPage';
+import { ResetNudgePreview } from '@/pages/ResetNudgePreview';
 import { ScreenTimePreview } from '@/pages/ScreenTimePreview';
 import { WeeklyCoachDetailPreview } from '@/pages/WeeklyCoachDetailPreview';
+
+const resetManifest = (manifestData as { files: Record<string, { title: string }> }).files;
+
+// The Reset tab's own little app: browse the Library, tap a track to open the
+// coach-speaking player, or tap the reminders bell to open the nudge config.
+function ResetTab() {
+  const [view, setView] = useState<'browse' | 'player' | 'nudge'>('browse');
+  const [trackId, setTrackId] = useState<string | null>(null);
+
+  if (view === 'player') {
+    return (
+      <CoachSpeakingPreview
+        trackTitle={trackId ? resetManifest[trackId]?.title : undefined}
+        onBack={() => setView('browse')}
+      />
+    );
+  }
+  if (view === 'nudge') {
+    return <ResetNudgePreview onBack={() => setView('browse')} />;
+  }
+  return (
+    <MemoryRouter>
+      <ResetLibraryPage
+        onOpenTrack={(id) => {
+          setTrackId(id);
+          setView('player');
+        }}
+        onOpenNudge={() => setView('nudge')}
+      />
+    </MemoryRouter>
+  );
+}
 
 // The "real app" shell: the 4 mandate features wired to a live bottom nav (the
 // same orb + White/Glass/Floating bar the tuner drives), so Yair can switch
@@ -53,13 +88,7 @@ export function AppShellPreview() {
           <CalendarStatesPreview />
         );
       case 3:
-        // ResetLibraryPage uses react-router's useNavigate; a MemoryRouter gives
-        // it a harmless in-memory history so it renders standalone in the shell.
-        return (
-          <MemoryRouter>
-            <ResetLibraryPage />
-          </MemoryRouter>
-        );
+        return <ResetTab />;
       default:
         return null;
     }
