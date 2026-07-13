@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { Icon } from '@iconify/react';
+import { useState } from 'react';
 import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY, INK, SUBTLE, BORDER, SPACE } from './_beatStyle';
@@ -38,7 +38,8 @@ function ChoiceCard({
         boxShadow: selected
           ? '0 10px 26px -12px rgba(19,91,235,0.40)'
           : '0 4px 16px -8px rgba(15,23,42,0.10)',
-        transition: 'background 160ms ease-out, border-color 160ms ease-out, box-shadow 160ms ease-out',
+        transition:
+          'background 160ms ease-out, border-color 160ms ease-out, box-shadow 160ms ease-out',
       }}
     >
       <div
@@ -60,7 +61,9 @@ function ChoiceCard({
         <Icon icon={icon} width={26} height={26} style={{ color: PRIMARY }} />
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: FONT, fontSize: 17, fontWeight: 700, color: INK, lineHeight: 1.2 }}>
+        <div
+          style={{ fontFamily: FONT, fontSize: 17, fontWeight: 700, color: INK, lineHeight: 1.2 }}
+        >
           {title}
         </div>
         <div
@@ -95,7 +98,7 @@ function ChoiceCard({
   );
 }
 
-function PathSelectionBeat(props?: Record<string, string>) {
+export function PathSelectionBeat({ props }: { props?: Record<string, string> }) {
   // No default pick: the cards reveal one by one and the user chooses. In Play
   // the choice writes to shared flow state; on the canvas it stays local.
   const flow = useFlowState();
@@ -151,7 +154,7 @@ const pathSelectionBeat: BeatDef = {
   type: 'path-selection',
   group: 'Onboarding',
   label: 'Path choice',
-  Comp: PathSelectionBeat,
+  Comp: (props) => <PathSelectionBeat props={props} />,
 };
 
 export default pathSelectionBeat;
