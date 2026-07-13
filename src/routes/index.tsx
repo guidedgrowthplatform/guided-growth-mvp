@@ -98,6 +98,9 @@ const WeeklyCoachDetailPreview = lazyWithRetry(() =>
 const HabitTrendPreview = lazyWithRetry(() =>
   import('@/pages/HabitTrendPreview').then((m) => ({ default: m.HabitTrendPreview })),
 );
+const CoachSpeakingPreview = lazyWithRetry(() =>
+  import('@/pages/CoachSpeakingPreview').then((m) => ({ default: m.CoachSpeakingPreview })),
+);
 const JournalFlowPage = lazyWithRetry(() =>
   import('@/pages/JournalFlowPage').then((m) => ({ default: m.JournalFlowPage })),
 );
@@ -316,6 +319,14 @@ export function AppRoutes() {
           element={
             <ForceLight>
               <HabitTrendPreview />
+            </ForceLight>
+          }
+        />
+        <Route
+          path="/__coach-speaking"
+          element={
+            <ForceLight>
+              <CoachSpeakingPreview />
             </ForceLight>
           }
         />

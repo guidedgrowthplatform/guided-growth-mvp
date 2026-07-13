@@ -73,6 +73,12 @@ const SCREENS: Screen[] = [
     title: 'Reset coach flow',
     note: 'The coach-guided path: how much time, a recommended reset, the player, and a close-out that feeds the check-in.',
   },
+  {
+    feature: 'Library · Coach speaking',
+    src: '/__coach-speaking',
+    title: 'Coach speaking',
+    note: 'The immersive moment while the coach guides you: a slow moving gradient, drifting glow, breathing organic rings, and the spoken line on a glass card. Best seen live, it is all in motion.',
+  },
 ];
 
 export function MockStoryboard() {
