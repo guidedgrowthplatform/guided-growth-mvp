@@ -1,286 +1,148 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import {
-  onboardingBeatById,
-  onboardingContract,
-  type OnboardingBeat,
-} from '@/generated/onboardingContract';
+import { useMemo, useState } from 'react';
+import { IsolatedBeat } from '@/components/flow-designer/FlowDesigner';
+import { onboardingContract, type OnboardingBeat } from '@/generated/onboardingContract';
 
-const PREVIEW_SPINE = [
-  'splash',
-  'get-started',
-  'coach-greeting',
-  'sign-up',
-  'mic-permission',
-  'profile-greeting',
-  'profile-asks',
-  'state-check',
-  'checkin',
-  'reflection',
-  'fork',
-] as const;
+type ContractProps = Record<string, string>;
+type ScriptLine = {
+  seq: number;
+  words: string;
+  bindsTo?: { kind: 'bubble' | 'component'; element: string };
+};
 
-type PreviewBeatId = (typeof PREVIEW_SPINE)[number];
-type PreviewSurfaceProps = { beat: OnboardingBeat; children: ReactNode };
-type ScriptLine = { seq: number; words: string; clipPath: string | null };
+const previewBeats = onboardingContract.beats;
 
 function scriptFor(beat: OnboardingBeat): readonly ScriptLine[] {
   return beat.script as readonly ScriptLine[];
 }
 
-function Surface({ beat, children }: PreviewSurfaceProps) {
-  return (
-    <section
-      data-testid={`preview-component-${beat.component.key}`}
-      style={{
-        minHeight: 390,
-        borderRadius: 28,
-        background: 'linear-gradient(145deg, #102337 0%, #1E4663 48%, #214C5F 100%)',
-        padding: 24,
-        color: '#F8FBFF',
-        boxShadow: '0 24px 64px rgba(15, 38, 58, 0.28)',
-      }}
-    >
-      <div style={{ color: '#9CD9D0', fontSize: 12, fontWeight: 800, letterSpacing: '0.11em' }}>
-        {beat.component.key.toUpperCase()}
-      </div>
-      {children}
-    </section>
-  );
+function stringProps(beat: OnboardingBeat): ContractProps {
+  const props: ContractProps = {};
+  const contractProps = beat.component.props as Record<string, unknown> | null;
+
+  for (const [key, value] of Object.entries(contractProps ?? {})) {
+    if (typeof value === 'string') props[key] = value;
+  }
+
+  const lines = scriptFor(beat).filter((line) => line.words.trim());
+  const opener =
+    beat.opener ??
+    lines.find(
+      (line) => line.bindsTo?.element === 'opener' || line.bindsTo?.element === 'opener-line',
+    )?.words ??
+    lines.find((line) => line.bindsTo?.kind === 'bubble')?.words;
+
+  if (opener) props.coachLine ??= opener;
+
+  const bubbleLines = lines.filter((line) => line.bindsTo?.kind === 'bubble');
+  if (bubbleLines[1]?.words) props.coachLine2 ??= bubbleLines[1].words;
+
+  if (beat.component.key === 'profile-beat') {
+    if (opener) props.greeting = opener;
+    const ageLine = lines.find((line) => line.bindsTo?.element === 'age')?.words;
+    const genderLine = lines.find((line) => line.bindsTo?.element === 'gender')?.words;
+    if (ageLine) props.askAge = ageLine;
+    if (genderLine) props.askGender = genderLine;
+  }
+
+  return props;
 }
 
-function Orb() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        width: 116,
-        height: 116,
-        margin: '58px auto 30px',
-        borderRadius: '50%',
-        background:
-          'radial-gradient(circle at 32% 28%, #E8FFF8, #81D9CE 31%, #3B8BA0 68%, #152F4A)',
-        boxShadow: '0 0 0 16px rgba(157, 231, 216, 0.07), 0 16px 46px rgba(0,0,0,.35)',
-      }}
-    />
-  );
-}
-
-function GenericSurface({ beat }: { beat: OnboardingBeat }) {
-  const opener = beat.opener ?? scriptFor(beat).find((line) => line.words.trim())?.words;
-  const elements = beat.component.elements;
-  return (
-    <Surface beat={beat}>
-      <Orb />
-      <h1 style={{ margin: 0, fontSize: 30, lineHeight: 1.1 }}>Guided Growth</h1>
-      <p style={{ margin: '14px 0 28px', fontSize: 17, lineHeight: 1.5, color: '#D7E5EE' }}>
-        {opener || 'This component is present in the onboarding contract.'}
-      </p>
-      {elements.length > 0 && (
-        <div style={{ display: 'grid', gap: 10 }}>
-          {elements.map((element) => (
-            <label key={element} style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 700 }}>
-              {element}
-              <input
-                aria-label={element}
-                placeholder={`Preview ${element}`}
-                style={{ borderRadius: 12, border: 0, padding: '12px 14px', fontSize: 16 }}
-              />
-            </label>
-          ))}
-        </div>
-      )}
-    </Surface>
-  );
-}
-
-const componentRegistry: Record<string, (props: { beat: OnboardingBeat }) => JSX.Element> = {
-  splash: GenericSurface,
-  'get-started': GenericSurface,
-  'splash-intro': GenericSurface,
-  'auth-signup': GenericSurface,
-  'mic-permission': GenericSurface,
-  'profile-beat': GenericSurface,
-  'state-check': GenericSurface,
-  'morning-checkin-setup': GenericSurface,
-  'reflection-card': GenericSurface,
-  'path-selection': GenericSurface,
-};
-
-function declaredClip(beat: OnboardingBeat): string | null {
-  return (
-    beat.assets.clips[0]?.clipPath ??
-    scriptFor(beat).find((line) => line.clipPath)?.clipPath ??
-    null
-  );
+function beatIndex(id: string): number {
+  return previewBeats.findIndex((beat) => beat.id === id);
 }
 
 export function ContractOnboardingPreview() {
   const [index, setIndex] = useState(0);
-  const [path, setPath] = useState<'beginner' | 'advanced' | null>(null);
-  const beatId = PREVIEW_SPINE[index];
-  const beat = onboardingBeatById[beatId];
-  const SurfaceComponent = componentRegistry[beat.component.key];
-  const clipPath = declaredClip(beat);
+  const beat = previewBeats[index];
+  const props = useMemo(() => stringProps(beat), [beat]);
   const isFork = beat.id === 'fork';
-  const canContinue = !isFork && index < PREVIEW_SPINE.length - 1;
-  const progress = `${index + 1} of ${PREVIEW_SPINE.length}`;
-  const provenance = onboardingContract.provenance;
-  const lines = useMemo(() => scriptFor(beat).filter((line) => line.words.trim()), [beat]);
+  const hasPrevious = index > 0;
+  const hasNext = index < previewBeats.length - 1;
 
-  useEffect(() => {
-    setPath(null);
-  }, [beat.id]);
+  const goTo = (id: string) => {
+    const nextIndex = beatIndex(id);
+    if (nextIndex >= 0) setIndex(nextIndex);
+  };
 
   return (
-    <main
-      style={{
-        minHeight: '100dvh',
-        background: '#EAF0F3',
-        color: '#132B3B',
-        fontFamily: 'Urbanist, ui-sans-serif, system-ui, sans-serif',
-        padding: '24px 16px 48px',
-      }}
-    >
-      <div style={{ maxWidth: 520, margin: '0 auto' }}>
-        <header style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#4D7782', letterSpacing: '.08em' }}>
-            CONTRACT-BACKED PREVIEW
-          </div>
-          <h1 style={{ margin: '5px 0', fontSize: 28 }}>Onboarding flow</h1>
-          <p data-testid="current-beat" style={{ margin: 0, color: '#48606E', lineHeight: 1.45 }}>
-            {progress} · {beat.id}
-          </p>
+    <main className="min-h-dvh bg-surface text-content">
+      <div className="mx-auto flex w-full max-w-[440px] flex-col gap-4 px-4 py-5 pb-10">
+        <header className="flex items-center justify-between gap-3 text-xs font-semibold text-content-tertiary">
+          <span data-testid="current-beat">
+            {index + 1} / {previewBeats.length} · {beat.id}
+          </span>
+          <label className="sr-only" htmlFor="preview-beat-picker">
+            Preview beat
+          </label>
+          <select
+            id="preview-beat-picker"
+            aria-label="Preview beat"
+            value={beat.id}
+            onChange={(event) => goTo(event.target.value)}
+            className="max-w-[210px] rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-content"
+          >
+            {previewBeats.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.order + 1}. {option.id}
+              </option>
+            ))}
+          </select>
         </header>
 
-        {SurfaceComponent ? (
-          <SurfaceComponent beat={beat} />
-        ) : (
-          <div role="alert">No preview component is registered for {beat.component.key}.</div>
-        )}
-
-        {lines.length > 0 && (
-          <section aria-label="Coach script" style={{ marginTop: 16, display: 'grid', gap: 10 }}>
-            {lines.map((line) => (
-              <p
-                key={line.seq}
-                style={{
-                  margin: 0,
-                  borderRadius: 16,
-                  padding: '12px 14px',
-                  background: '#FFFFFF',
-                  lineHeight: 1.45,
-                }}
-              >
-                {line.words}
-              </p>
-            ))}
-          </section>
-        )}
-
-        {clipPath && (
-          <section style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: '#4D7782', marginBottom: 6 }}>
-              DECLARED CLIP
-            </div>
-            <audio
-              data-testid="declared-clip"
-              controls
-              preload="metadata"
-              src={clipPath}
-              style={{ width: '100%' }}
-            />
-          </section>
-        )}
-
-        <section style={{ marginTop: 20, display: 'grid', gap: 10 }}>
-          {isFork ? (
-            <>
-              <button
-                type="button"
-                data-testid="choose-beginner"
-                onClick={() => setPath('beginner')}
-                style={primaryButton}
-              >
-                I am new to habits
-              </button>
-              <button
-                type="button"
-                data-testid="choose-advanced"
-                onClick={() => setPath('advanced')}
-                style={secondaryButton}
-              >
-                I already track habits
-              </button>
-              {path && (
-                <p
-                  data-testid="branch-choice"
-                  style={{ margin: 0, color: '#315C4D', fontWeight: 700 }}
-                >
-                  Preview branch selected: {path}. The production transition waits for structured
-                  contract branches.
-                </p>
-              )}
-            </>
-          ) : (
-            <button
-              type="button"
-              data-testid="continue-preview"
-              disabled={!canContinue}
-              onClick={() => setIndex((current) => Math.min(current + 1, PREVIEW_SPINE.length - 1))}
-              style={{ ...primaryButton, opacity: canContinue ? 1 : 0.45 }}
-            >
-              {beat.id === 'sign-up'
-                ? 'Continue without signing in'
-                : beat.id === 'mic-permission'
-                  ? 'Continue without granting mic access'
-                  : 'Continue preview'}
-            </button>
-          )}
-          {index > 0 && (
-            <button
-              type="button"
-              onClick={() => setIndex((current) => Math.max(current - 1, 0))}
-              style={secondaryButton}
-            >
-              Back
-            </button>
-          )}
+        <section
+          aria-label={`${beat.id} onboarding screen`}
+          data-testid={`real-onboarding-${beat.component.key}`}
+          className="min-h-[660px] overflow-hidden rounded-[28px] border border-border-light bg-surface shadow-[0_20px_50px_rgba(15,23,42,0.12)]"
+        >
+          <IsolatedBeat key={beat.id} type={beat.component.key} props={props} />
         </section>
 
-        <footer
-          data-testid="contract-provenance"
-          style={{
-            marginTop: 24,
-            borderTop: '1px solid #C8D7DC',
-            paddingTop: 14,
-            color: '#48606E',
-            fontSize: 12,
-            lineHeight: 1.5,
-          }}
-        >
-          Schema v{onboardingContract.schemaVersion} · artifact {provenance.artifactHash} · source{' '}
-          {provenance.sourceCommit}
+        <nav aria-label="Preview navigation" className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setIndex((current) => Math.max(0, current - 1))}
+            disabled={!hasPrevious}
+            className="h-12 rounded-full border border-primary bg-surface text-sm font-bold text-primary disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            data-testid="continue-preview"
+            onClick={() => setIndex((current) => Math.min(previewBeats.length - 1, current + 1))}
+            disabled={!hasNext}
+            className="h-12 rounded-full bg-primary text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next beat
+          </button>
+        </nav>
+
+        {isFork && (
+          <div className="grid grid-cols-2 gap-3" aria-label="Choose onboarding path">
+            <button
+              type="button"
+              data-testid="choose-beginner"
+              onClick={() => goTo('category')}
+              className="min-h-12 rounded-full bg-primary px-4 text-sm font-bold text-white"
+            >
+              Beginner path
+            </button>
+            <button
+              type="button"
+              data-testid="choose-advanced"
+              onClick={() => goTo('advanced-capture')}
+              className="min-h-12 rounded-full border border-primary bg-surface px-4 text-sm font-bold text-primary"
+            >
+              Advanced path
+            </button>
+          </div>
+        )}
+
+        <footer className="text-center text-[11px] leading-4 text-content-tertiary">
+          Contract v{onboardingContract.schemaVersion} ·{' '}
+          {onboardingContract.provenance.artifactHash}
         </footer>
       </div>
     </main>
   );
 }
-
-const primaryButton = {
-  width: '100%',
-  border: 0,
-  borderRadius: 14,
-  padding: '14px 16px',
-  background: '#177E71',
-  color: '#FFFFFF',
-  fontSize: 16,
-  fontWeight: 800,
-  cursor: 'pointer',
-} as const;
-
-const secondaryButton = {
-  ...primaryButton,
-  background: '#FFFFFF',
-  color: '#174755',
-  border: '1px solid #A7C1C9',
-} as const;
