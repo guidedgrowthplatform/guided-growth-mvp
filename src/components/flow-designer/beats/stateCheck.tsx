@@ -3,14 +3,14 @@ import { checkInDimensions } from '@/components/home/checkInConfig';
 import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
 import { Button } from '@/components/ui/Button';
 import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
-import { VoiceOpenHint } from './profile';
 import { FONT, SUBTLE, CARD, SPACE } from './_beatStyle';
+import { VoiceOpenHint } from './profile';
 
 // The morning state-check card: all four rows (sleep, mood, energy, stress) in one
 // card, the user selects each. This is the real four-row card, not the mood-only row.
 // A Done button below the rows lets a mic-off user advance with whatever subset
 // they have filled in (no dimension is required before moving on).
-function StateCheckCard() {
+export function StateCheckCard({ onDone }: { onDone?: () => void }) {
   const [sel, setSel] = useState<Record<string, number>>({});
   const [done, setDone] = useState(false);
   // Each dimension row blooms as its per-element clip plays (sleep, mood, energy,
@@ -19,7 +19,15 @@ function StateCheckCard() {
   const hasTapped = Object.keys(sel).length > 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.md, width: '100%', maxWidth: 360 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: SPACE.md,
+        width: '100%',
+        maxWidth: 360,
+      }}
+    >
       {/* Main card with dimensions */}
       <div
         style={{
@@ -69,7 +77,10 @@ function StateCheckCard() {
             size="lg"
             fullWidth
             disabled={done}
-            onClick={() => setDone(true)}
+            onClick={() => {
+              setDone(true);
+              onDone?.();
+            }}
           >
             {done ? 'Got it' : 'Done'}
           </Button>
@@ -86,7 +97,13 @@ function StateCheckCard() {
   );
 }
 
-function StateCheckBeat(props?: Record<string, string>) {
+export function StateCheckScreen({
+  props,
+  onAdvance,
+}: {
+  props?: Record<string, string>;
+  onAdvance?: () => void;
+}) {
   const steps: BeatStep[] = [
     {
       id: 'ask',
@@ -98,8 +115,12 @@ function StateCheckBeat(props?: Record<string, string>) {
   if (props?.coachLine2) {
     steps.push({ id: 'ask2', speaker: 'coach', say: props.coachLine2 });
   }
-  steps.push({ id: 'card', speaker: 'coach', render: <StateCheckCard /> });
+  steps.push({ id: 'card', speaker: 'coach', render: <StateCheckCard onDone={onAdvance} /> });
   return <BeatPlayer steps={steps} />;
+}
+
+function StateCheckBeat(props?: Record<string, string>) {
+  return <StateCheckScreen props={props} />;
 }
 
 const stateCheckBeat: BeatDef = {

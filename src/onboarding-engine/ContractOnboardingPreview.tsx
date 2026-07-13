@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { GetStarted } from '@/components/flow-designer/beats/getStarted';
 import { PathSelectionBeat } from '@/components/flow-designer/beats/pathSelection';
+import { StateCheckScreen } from '@/components/flow-designer/beats/stateCheck';
 import { Orb as RealOrb } from '@/components/orb/Orb';
 import { orbIdle } from '@/components/orb/orbView';
 import {
@@ -113,6 +114,16 @@ function PathSelectionPreview({ beat }: { beat: OnboardingBeat; onAdvance: () =>
   );
 }
 
+function StateCheckPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance: () => void }) {
+  return (
+    <Surface beat={beat}>
+      <div data-testid="state-check-preview">
+        <StateCheckScreen props={beat.component.props ?? undefined} onAdvance={onAdvance} />
+      </div>
+    </Surface>
+  );
+}
+
 type PreviewComponent = (props: { beat: OnboardingBeat; onAdvance: () => void }) => JSX.Element;
 
 const componentRegistry: Record<string, PreviewComponent> = {
@@ -122,7 +133,7 @@ const componentRegistry: Record<string, PreviewComponent> = {
   'auth-signup': GenericSurface,
   'mic-permission': GenericSurface,
   'profile-beat': GenericSurface,
-  'state-check': GenericSurface,
+  'state-check': StateCheckPreview,
   'morning-checkin-setup': GenericSurface,
   'reflection-card': GenericSurface,
   'path-selection': PathSelectionPreview,
