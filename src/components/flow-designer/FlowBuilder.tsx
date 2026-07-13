@@ -49,6 +49,7 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { DualButton } from '@/components/ui/DualButton';
 import { BeatOrb, orbConfigForType, type OrbConfig } from './BeatOrb';
+import { LiveOrbScreen } from './LiveOrbScreen';
 import { clipsForStage } from './beatAudio';
 import { BEAT_METADATA, type BeatContextMeta } from './beatMetadata';
 import { Toggle } from '@/components/ui/Toggle';
@@ -2970,6 +2971,14 @@ export function FlowBuilder() {
   // Top-level workspace: the flow builder, or the standalone orb design workspace
   // (palette + flow tabs hidden, just the orb and its tuner). One level up from flows.
   const [mode, setMode] = useState<'flows' | 'orb'>(() => {
+    // Deep link: ...?orb opens straight into the Orb builder (skips the toggle).
+    if (typeof window !== 'undefined') {
+      try {
+        if (new URLSearchParams(window.location.search).has('orb')) return 'orb';
+      } catch {
+        /* ignore */
+      }
+    }
     if (typeof localStorage === 'undefined') return 'flows';
     return localStorage.getItem(`${STORAGE_BASE}:mode`) === 'orb' ? 'orb' : 'flows';
   });
@@ -3424,7 +3433,18 @@ export function FlowBuilder() {
 
         {/* Right bucket: the flow */}
         <div className="flex flex-1 flex-col items-start gap-3">
-          {modeBar}
+          <div className="flex items-center gap-4">
+            {modeBar}
+            {/* A standalone always-live, interactive orb so you can see + click it
+                without entering Play. Same canonical orb, animated. */}
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
+                Live orb
+              </span>
+              <BeatOrb size={130} live />
+            </div>
+          </div>
+          <LiveOrbScreen />
           <div className="flex w-[400px] max-w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
             <Icon icon="ic:round-person" className="size-4 text-primary" />
             <span className="text-[11px] font-bold uppercase tracking-wide text-content-tertiary">

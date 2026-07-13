@@ -1,78 +1,19 @@
-// Orb presets + the two locked looks (idle vs talking) for the Orb section of
-// the flow builder. This file is version-controlled, so presets persist and are
-// collaborative: add your own author block on your branch and open an MR. Nobody
-// has to touch each other's block, so there are no merge conflicts.
+// Orb PRESET LIBRARY + persistence for the flow builder's Orb tuner. The canonical
+// orb config (the param types + the locked DEFAULT look) lives in the app-owned
+// @/components/orb/orbConfig; this file holds the author preset library, the motion
+// presets, and the browser persistence. Version-controlled: add your own author
+// block on your branch and open an MR, no merge conflicts between blocks.
+import {
+  DEFAULT_PARAMS,
+  DEFAULT_PULSE,
+  type OrbParams,
+  type OrbStates,
+  type PulseParams,
+} from '@/components/orb/orbConfig';
 
-export interface OrbParams {
-  // Orb (the glass button)
-  glass: number; // translucency 0..100
-  blur: number; // frost blur 0..100
-  hi: number; // highlight sheen 0..100
-  rim: number; // ring 0..100
-  body: number; // body tone 0..100 (0 light .. 100 dark)
-  // Inner light (the Siri blob)
-  glow: number; // 50..180
-  bright: number; // 60..160
-  speed: number; // 10..100
-  grad: number; // gradient depth 0..100
-  core: number; // core size 20..100
-  spread: number; // particle spread 12..60
-  pglow: number; // particle glow 0..100
-  rand: number; // randomness 0..100
-  pulse: number; // talking pulse 0..100
-  // Extra layers (additive, default 0 = off, so existing looks are unchanged)
-  aura: number; // breathing outer halo 0..100
-  iris: number; // iridescent rim sheen 0..100
-  depth: number; // glass 3D depth (inner shadow + top highlight) 0..100
-}
-
-export interface OrbStates {
-  idle: OrbParams;
-  talk: OrbParams;
-}
-
-// The current locked look (Yair's "Start"). Idle is the resting two-half orb,
-// talk is the livelier setting used when a side is speaking.
-export const DEFAULT_PARAMS: OrbStates = {
-  idle: {
-    glass: 35,
-    blur: 12,
-    hi: 0,
-    rim: 0,
-    body: 34,
-    glow: 111,
-    bright: 116,
-    speed: 15,
-    grad: 0,
-    core: 59,
-    spread: 41,
-    pglow: 71,
-    rand: 54,
-    pulse: 50,
-    aura: 0,
-    iris: 0,
-    depth: 0,
-  },
-  talk: {
-    glass: 35,
-    blur: 12,
-    hi: 0,
-    rim: 0,
-    body: 34,
-    glow: 125,
-    bright: 122,
-    speed: 40,
-    grad: 0,
-    core: 66,
-    spread: 50,
-    pglow: 82,
-    rand: 66,
-    pulse: 55,
-    aura: 0,
-    iris: 0,
-    depth: 0,
-  },
-};
+// Re-export the canonical config so existing importers keep working through here.
+export { DEFAULT_PARAMS, DEFAULT_PULSE };
+export type { OrbParams, OrbStates, PulseParams };
 
 // Named quick-fill presets, grouped by author. A preset is a partial set of
 // params applied to whichever state (idle or talking) is currently selected.
@@ -326,39 +267,28 @@ export function resetParams(): OrbStates {
   return clone(DEFAULT_PARAMS);
 }
 
-// --- Pulse (the expand + breathe behaviour while talking) --------------------
-// Broken out as its own thing so it can be tuned separately from the idle/talking
-// looks. "size" is how big the orb gets in general while talking; "amt" is the
-// extra breathing pulse layered on top; "speed" is how fast it breathes.
-export interface PulseParams {
-  size: number; // baseline expansion when talking (0..40)
-  amt: number; // extra breathing amplitude on top (0..100)
-  speed: number; // breathing rate (0..100)
-  // Motion split into layers so each can move on its own:
-  orbAmt: number; // how much the orb DISC expands/contracts (0 = disc stays stable) 0..100
-  mem: number; // outer membrane breathe amount 0..100
-  memSpeed: number; // outer membrane breathe tempo (independent of the disc) 0..100
-}
-export const DEFAULT_PULSE: PulseParams = {
-  size: 8,
-  amt: 60,
-  speed: 50,
-  orbAmt: 100,
-  mem: 60,
-  memSpeed: 35,
-};
+// PulseParams + DEFAULT_PULSE are the canonical motion config (imported + re-exported
+// from orbConfig at the top of this file).
 
 // Quick-apply MOTION presets (full PulseParams). These set only how things move
 // (disc vs outer membrane vs inner light), separate from the look presets in
 // AUTHOR_PRESETS. Apply from the Pulse tab.
 export const MOTION_PRESETS: Record<string, PulseParams> = {
-  'Yair default': { size: 8, amt: 60, speed: 50, orbAmt: 100, mem: 60, memSpeed: 35 },
-  // Orb disc holds still; only the outer membrane breathes, slowly.
-  'Calm membrane': { size: 8, amt: 40, speed: 30, orbAmt: 0, mem: 62, memSpeed: 20 },
-  // Orb disc still, no membrane; only the inner light drifts.
-  'Inner only': { size: 6, amt: 40, speed: 42, orbAmt: 0, mem: 0, memSpeed: 20 },
-  // Everything moves, but gently and slow.
-  'Gentle all': { size: 6, amt: 45, speed: 26, orbAmt: 58, mem: 55, memSpeed: 24 },
+  // react* = per-part voice reactivity (light / disc / aura / core).
+  'Yair default': { size: 8, amt: 60, speed: 50, orbAmt: 100, mem: 60, memSpeed: 35, reactLight: 45, reactDisc: 40, reactAura: 40, reactCore: 35 },
+  // Orb disc holds still; only the outer membrane + light react.
+  'Calm membrane': { size: 8, amt: 40, speed: 30, orbAmt: 0, mem: 62, memSpeed: 20, reactLight: 35, reactDisc: 0, reactAura: 55, reactCore: 25 },
+  // Only the inner light + core react; disc and aura stay put.
+  'Inner only': { size: 6, amt: 40, speed: 42, orbAmt: 0, mem: 0, memSpeed: 20, reactLight: 60, reactDisc: 0, reactAura: 0, reactCore: 45 },
+  // Everything moves, but gently and even.
+  'Gentle all': { size: 6, amt: 45, speed: 26, orbAmt: 58, mem: 55, memSpeed: 24, reactLight: 38, reactDisc: 34, reactAura: 38, reactCore: 30 },
+  // --- Even-reaction starting points (all parts react by a similar amount) ---
+  'Calm & even': { size: 8, amt: 40, speed: 34, orbAmt: 70, mem: 55, memSpeed: 28, reactLight: 32, reactDisc: 30, reactAura: 30, reactCore: 26 },
+  'Balanced': { size: 8, amt: 46, speed: 40, orbAmt: 85, mem: 58, memSpeed: 32, reactLight: 52, reactDisc: 48, reactAura: 50, reactCore: 44 },
+  'Lively': { size: 9, amt: 55, speed: 48, orbAmt: 100, mem: 60, memSpeed: 36, reactLight: 80, reactDisc: 72, reactAura: 76, reactCore: 66 },
+  // --- Showcase per-part choreography ---
+  // The bright core pops with the voice while everything else stays calm.
+  'Core pop': { size: 8, amt: 42, speed: 38, orbAmt: 55, mem: 55, memSpeed: 30, reactLight: 30, reactDisc: 22, reactAura: 25, reactCore: 90 },
 };
 const LS_PULSE = 'gg-flow-builder-v18:orb-pulse';
 export function loadPulse(): PulseParams {

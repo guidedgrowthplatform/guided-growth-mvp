@@ -1,7 +1,6 @@
 import { Icon } from '@iconify/react';
 import { type MutableRefObject } from 'react';
-import { IconChatText, IconMic } from '@/components/icons';
-import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
+import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from '@/components/orb/Orb';
 import type { OrbStates, PulseParams } from './orbPresets';
 
 // The home bar canvas: a self-contained mockup of the app's bottom nav (the real
@@ -79,8 +78,8 @@ export function HomeBarPreview({
         Home bar (live)
       </div>
       <div
-        className="relative overflow-hidden rounded-[34px]"
-        style={{ width: 340, height: 560, background: screenBg, boxShadow: '0 18px 50px rgba(20,30,60,.28)' }}
+        className="relative overflow-hidden rounded-[44px]"
+        style={{ width: 340, height: 720, background: screenBg, boxShadow: '0 18px 50px rgba(20,30,60,.28)', border: '6px solid #0b0e16' }}
       >
         {/* Home content mock, so the bar and orb read in a real context. Cards are
             translucent so they sit on whatever app background is selected. */}
@@ -132,7 +131,6 @@ export function HomeBarPreview({
                 pulse={pulse}
                 mic={mic}
                 flat
-                overlayIcons={{ left: <IconChatText size={24} />, right: <IconMic size={24} /> }}
               />
             </div>
             <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
