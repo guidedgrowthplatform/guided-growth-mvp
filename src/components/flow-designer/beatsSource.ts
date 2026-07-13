@@ -2654,7 +2654,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: null,
     // Archetype = interactive data-gate + tool (card-fill setup). The coach frames the
-    // daily check-in, the time/day/reminder picker reveals, then a short consistency
+    // morning ritual, the time/day/reminder picker reveals, then a short consistency
     // nudge. conversation is { na } (card-fill, no branching turn); allowedTools is
     // owner-filled (the two tools are known); persistence is pending-app-reconcile
     // (the submit_morning_checkin write target is per-handler, not yet confirmed).
@@ -2729,7 +2729,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           { label: 'component (registry key)', value: 'morning-checkin-setup' },
           {
             label: 'on-screen controls',
-            value: 'a daily time picker, a day picker, and a reminder toggle (ON by default)',
+            value:
+              'a time picker, a locale-driven work-week day picker, and a reminder toggle (ON by default)',
           },
           {
             label: 'selection mode',
@@ -2738,7 +2739,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'exact state',
             value:
-              'the coach recommends a time shortly after wake; the weekday preset is offered but not forced',
+              'the coach recommends a time shortly after wake; the locale-driven work-week preset is offered, with weekends off by default',
           },
         ],
         watchOut:
@@ -2815,7 +2816,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       ],
       contextProse: {
         prose:
-          'Check-in time. The user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point is not that it is morning, it is that this is their first habit and it is simple. Recommend a time shortly after wake, offer the weekday preset, and let them set it.',
+          'Check-in time. The user just did their first check-in. Now set its time and locale-driven work-week days, reminder ON by default. Quick. The point is not that it is morning, it is that this is their first habit and it is simple. Recommend a time shortly after wake, offer the local work-week preset, and let them set it. Israel defaults to Sunday through Thursday; everywhere else defaults to Monday through Friday.',
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
@@ -2826,7 +2827,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             tool: 'submit_morning_checkin',
             args: '{ time: "HH:MM", days: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], reminder: boolean, schedule: "Weekday" | "Weekend" | "Every day" | "Custom" }',
-            when: 'once the daily time and days are set',
+            when: 'once the time and locale-driven work-week days are set',
           },
           {
             tool: 'advance_step',
@@ -2834,7 +2835,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             when: 'immediately after submit_morning_checkin returns',
           },
         ],
-        note: 'The daily check-in and the evening reflection are rituals, set here; no habit tools on this beat.',
+        note: 'The morning check-in and evening reflection are rituals, set here; no habit tools on this beat.',
         enforcedBy: ['tool-contract-check'],
       },
       persistence: {
@@ -2847,7 +2848,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'never re-ask',
             value:
-              'daily flow and resume read onboarding_states.data.morningCheckin until onboarding completion copies it into the daily ritual configuration',
+              'morning ritual flow and resume read onboarding_states.data.morningCheckin until onboarding completion copies it into the ritual configuration',
           },
           {
             label: 'resume key',
@@ -2869,7 +2870,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
             label: 'downstream branch (out of this beat)',
             value: 'proceeds to the evening reflection setup (order 9)',
           },
-          { label: 'gate', value: 'a daily time (and days) must be set before advancing' },
+          { label: 'gate', value: 'a time and days must be set before advancing' },
         ],
         enforcedBy: ['advance-gate-check'],
       },
@@ -2883,7 +2884,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             edge: 'no time set',
-            behavior: 'prompt once for the time; do not advance until a daily time is set',
+            behavior: 'prompt once for the time; do not advance until a time is set',
           },
           {
             edge: 'wants reminder off',
@@ -2916,7 +2917,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             decision: '1-7 (profile gates, women-art, habit caps, reflection)',
             binds: false,
-            how: 'the morning check-in setup configures the daily ritual time; it is not a profile gate, habit cap, or reflection-template decision, so none binds here',
+            how: 'the morning check-in setup configures the ritual time and locale-driven work-week default; it is not a profile gate, habit cap, or reflection-template decision, so none binds here',
           },
         ],
         enforcedBy: ['decisions-coverage-check'],
@@ -2928,7 +2929,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       {
         seq: 1,
         words:
-          "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+          "Part of the coaching process is doing this on your workdays. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
         bindsTo: {
           kind: 'bubble',
           element: 'bubble-1',
@@ -3241,7 +3242,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       },
       contextProse: {
         prose:
-          'Evening reflection setup. Set it up, do not perform it now. The user picks one style and a time, reminder on by default. The three styles are on the screen (suggested template, your template, freeform); do not read them out. Ask which feels right and let them pick. If they choose your template, capture their prompts verbatim so the daily reflection can ask them back. Add no coaching per style and do not make it feel like homework.',
+          'Evening reflection setup. Set it up, do not perform it now. The user picks one style and a time, reminder on by default. Its days default to the locale-driven work week, with weekends off: Israel is Sunday through Thursday, everywhere else is Monday through Friday. The three styles are on the screen (suggested template, your template, freeform); do not read them out. Ask which feels right and let them pick. If they choose your template, capture their prompts verbatim so the evening reflection can ask them back. Add no coaching per style and do not make it feel like homework.',
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
@@ -3278,7 +3279,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'never re-ask',
             value:
-              'the daily evening reflection reads reflection_settings.config and never re-asks the style; custom prompts replay word for word with no regeneration',
+              'the evening reflection reads reflection_settings.config and never re-asks the style; custom prompts replay word for word with no regeneration',
           },
           {
             label: 'resume key',
@@ -7504,7 +7505,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'exact state',
             value:
-              'the daily check-in and the evening reflection are NOT shown here (they are rituals, not habits)',
+              'the morning check-in and evening reflection are NOT shown here (they are rituals, not habits)',
           },
         ],
         watchOut:
@@ -7585,7 +7586,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       ],
       contextProse: {
         prose:
-          'Habit schedule. Shows all the habits the user just picked, each as its own card with the habit name and its day picker. The daily check-in and the evening reflection are NOT here (rituals, not habits). For each habit, set which days; recommend weekdays to start. Days default to the weekday preset by locale. Per-habit reminders are OFF by default, on only if the user asks. Never turn a reminder on unless they ask, never re-ask a piece already given, and never include the check-in or reflection as habits.',
+          'Habit schedule. Shows all the habits the user just picked, each as its own card with the habit name and its day picker. The morning check-in and evening reflection are NOT here (rituals, not habits). For each habit, set which days; recommend weekdays to start. Days default to the weekday preset by locale. Per-habit reminders are OFF by default, on only if the user asks. Never turn a reminder on unless they ask, never re-ask a piece already given, and never include the check-in or reflection as habits.',
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
@@ -8545,7 +8546,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'on-screen',
             value:
-              'the whole plan: the check-in time, the evening reflection time, and all the habits under them',
+              'the morning check-in, evening habit report, and evening reflection on the locale-driven work week, plus all the habits under them',
           },
           {
             label: 'button (tap path only)',
@@ -8638,7 +8639,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       },
       contextProse: {
         prose:
-          'Full plan. One confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. It is read-only. Ask whether they are ready to start. On approval, they enter the app. This is a high-investment moment, so make the line real and specific, not generic. On the tap path, show one "Ready to start" button; on voice, no button, the user just speaks approval.',
+          'Full plan. One confirm. Show the whole plan: morning check-in, evening habit report, and evening reflection on the user locale-driven work week, with weekends off by default, plus all the habits under them. Israel runs Sunday through Thursday; everywhere else runs Monday through Friday. It is read-only. Ask whether they are ready to start. On approval, they enter the app. This is a high-investment moment, so make the line real and specific, not generic. On the tap path, show one "Ready to start" button; on voice, no button, the user just speaks approval.',
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
@@ -8719,7 +8720,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             criterion: 'shows the right thing',
             check:
-              'phone renders the read-only whole plan (check-in, reflection, habits); tap path shows one Ready to start button, voice path shows none',
+              'phone renders the read-only whole plan (all three rituals on the locale-driven work week, plus habits); tap path shows one Ready to start button, voice path shows none',
           },
           {
             criterion: 'says the right thing',

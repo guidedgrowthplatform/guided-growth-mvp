@@ -601,11 +601,11 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
     audit: 'P0-10 ritual cadence',
     status: 'answered',
     contract:
-      'DECIDED (Yair 2026-07-13): Morning check-in, evening habit report, and evening reflection run DAILY as the base. They are rituals, not user habits. Weekend handling remains the single tracked open item.',
+      "FINAL DECISION (Yair 2026-07-13): Morning check-in, evening habit report, and evening reflection run on the user's local work week, with weekends off by default. Israel is Sunday through Thursday (Friday and Saturday off); every other region is Monday through Friday (Saturday and Sunday off). They are rituals, not user habits.",
     source:
       'Yair product ruling 2026-07-13; beatsSource.ts checkin/reflection/plan; weeklyProjection.ts',
     migrationTodo:
-      'Replace every weekday-only ritual schedule with the daily base and make any later weekend rule an explicit override, never an implicit hard-coded calendar.',
+      'Resolve the three ritual day sets from the user locale or region. Never hard-code a Monday through Friday work week or silently schedule a ritual on a local weekend.',
   },
   {
     audit: 'P0-11 projection meaning',
@@ -614,7 +614,7 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
       'DECIDED (Yair 2026-07-13): the closing frames project the user real onboarding.habits, using the names and schedules they chose. “This is your week” is projection framing, not a claim about completed history. The approved 76% and 35% frames remain projected outcomes over those real rows.',
     source: 'Yair product ruling 2026-07-13; beatsSource.ts weekly-*; beats/weeklyProjection.ts',
     migrationTodo:
-      'Pass normalized onboarding.habits into all five frames and remove every hard-coded sample habit, base streak, and weekday ritual input from the production projection component.',
+      'Pass normalized onboarding.habits into all five frames and resolve ritual rows from the locale-driven work week, with no hard-coded sample habit or base streak in the production projection component.',
   },
   {
     audit: 'P0-12 weekly-blank component',
@@ -1167,19 +1167,18 @@ export const OPEN_DECISIONS: readonly OpenDecision[] = [
       'DECIDED (Yair 2026-07-13): every weekly-projection frame uses the user real onboarding.habits names and schedules. “This is your week” is a projection. The approved 76% and 35% values remain projected-outcome framing over those real rows. Hard-coded sample habits are forbidden.',
   },
   {
-    id: 'daily-ritual-cadence',
+    id: 'ritual-work-week-cadence',
     question:
-      'What is the base cadence for morning check-in, evening habit report, and evening reflection?',
-    proposal: 'Daily as the base cadence.',
+      'What is the cadence for morning check-in, evening habit report, and evening reflection?',
+    proposal: "Use the user's local work week, with weekends off by default.",
     decider: 'Yair',
     decided:
-      'DECIDED (Yair 2026-07-13): all three rituals run daily as the base. They are rituals, not user-selected habits.',
+      "FINAL DECISION (Yair 2026-07-13): all three rituals run on the user's local work week. Israel runs Sunday through Thursday, with Friday and Saturday off. Every other region runs Monday through Friday, with Saturday and Sunday off. The locale or region determines the split; it is never hard-coded to Monday through Friday.",
   },
 ];
 
-// This is intentionally the ONLY unresolved product item in the render. It is
-// not a scratch note and does not permit a builder to silently choose a weekend
-// behavior while the base daily rule is in force.
+// Product decisions that are genuinely unresolved. Ritual cadence is deliberately
+// absent: it is final and recorded in OPEN_DECISIONS above.
 export interface OpenItem {
   readonly id: string;
   readonly item: string;
@@ -1187,14 +1186,7 @@ export interface OpenItem {
   readonly owner: 'Yair';
 }
 
-export const OPEN_ITEMS: readonly OpenItem[] = [
-  {
-    id: 'weekend-daily-rituals',
-    item: 'Weekend handling for the daily rituals, including the Israel Friday-Saturday weekend, is pending a separate decision. Base is daily.',
-    base: 'Morning check-in, evening habit report, and evening reflection run daily until an explicit weekend override is recorded here.',
-    owner: 'Yair',
-  },
-];
+export const OPEN_ITEMS: readonly OpenItem[] = [];
 
 // Resolved concrete data contracts. These are the builder-facing form of the
 // per-beat io/persistence rows, so app migration never needs an external audit
@@ -1252,18 +1244,19 @@ export const RESOLVED_DATA_CONTRACTS: readonly ResolvedDataContract[] = [
   {
     id: 'morning-ritual',
     producer: 'morning-setup via submit_morning_checkin',
-    consumers: 'plan and daily morning runtime',
-    shape: '{ time, days, reminder } with daily base days [0,1,2,3,4,5,6]',
+    consumers: 'plan and morning ritual runtime',
+    shape:
+      '{ time, days, reminder } with locale-driven work-week days: Israel [0,1,2,3,4], every other region [1,2,3,4,5]',
     persistence: 'onboarding_states.data.morningCheckin',
     invariant:
-      'This is a ritual, not onboarding.habits. Any weekend exception must come from OPEN_ITEMS.weekend-daily-rituals.',
+      'This is a ritual, not onboarding.habits. Resolve days from the user locale or region, with local weekends off by default.',
   },
   {
     id: 'reflection-ritual',
     producer: 'reflection via submit_reflection_config and submit_custom_prompts',
-    consumers: 'plan and daily reflection runtime',
+    consumers: 'plan and evening reflection runtime',
     shape:
-      '{ style: suggested | custom | freeform, customPrompts?, time, days, reminder } with daily base days [0,1,2,3,4,5,6]',
+      '{ style: suggested | custom | freeform, customPrompts?, time, days, reminder } with locale-driven work-week days: Israel [0,1,2,3,4], every other region [1,2,3,4,5]',
     persistence:
       'reflection_settings.config plus customPrompts, mirrored through onboarding state during setup',
     invariant:
@@ -1291,10 +1284,10 @@ export const RESOLVED_DATA_CONTRACTS: readonly ResolvedDataContract[] = [
   },
   {
     id: 'weekly-projection',
-    producer: 'resolved onboarding.habits plus the three daily rituals',
+    producer: 'resolved onboarding.habits plus the three locale-driven work-week rituals',
     consumers: 'weekly-blank, weekly-full, weekly-p78, weekly-p36, weekly-gaps',
     shape:
-      '{ rituals: daily rows, habits: real user rows, weekStart, frame: blank | full | p78 | p36 | gaps }',
+      '{ rituals: locale-driven work-week rows, habits: real user rows, weekStart, frame: blank | full | p78 | p36 | gaps }',
     persistence: 'display-only, no write',
     invariant:
       'The 76% and 35% are projection outcomes over the real rows, not user history. The final two displayed columns are gaps in the gaps frame.',
@@ -1378,9 +1371,9 @@ export const APP_MIGRATION_SPECS: readonly AppMigrationSpec[] = [
     id: 'MIG-08',
     surface: 'morning ritual',
     target:
-      'Register submit_morning_checkin with the morning-ritual contract and daily base cadence.',
+      'Register submit_morning_checkin with the morning-ritual contract and locale-driven work-week cadence.',
     acceptance:
-      'Setup persists time, days, reminder, and cold-resume state without weekday-only defaults.',
+      'Setup persists time, days, reminder, and cold-resume state with Israel Sunday through Thursday and every-other-region Monday through Friday defaults.',
   },
   {
     id: 'MIG-09',
@@ -1398,17 +1391,17 @@ export const APP_MIGRATION_SPECS: readonly AppMigrationSpec[] = [
   },
   {
     id: 'MIG-11',
-    surface: 'daily rituals',
+    surface: 'work-week rituals',
     target:
-      'Normalize morning check-in, evening habit report, and evening reflection to daily base schedules everywhere.',
+      'Normalize morning check-in, evening habit report, and evening reflection to locale-driven work-week schedules everywhere.',
     acceptance:
-      'No weekday hard code remains. A future weekend exception is an explicit override of OPEN_ITEMS.weekend-daily-rituals.',
+      'No fixed Monday through Friday assumption remains. Israel defaults to Sunday through Thursday; every other region defaults to Monday through Friday, with local weekends off.',
   },
   {
     id: 'MIG-12',
     surface: 'weekly projection input',
     target:
-      'Feed all five frames RESOLVED_DATA_CONTRACTS.weekly-projection from onboarding.habits and daily rituals.',
+      'Feed all five frames RESOLVED_DATA_CONTRACTS.weekly-projection from onboarding.habits and locale-driven work-week rituals.',
     acceptance:
       'Every displayed user row has the exact selected name and schedule. No sample habit or base streak exists.',
   },

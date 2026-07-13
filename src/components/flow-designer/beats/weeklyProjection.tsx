@@ -16,8 +16,8 @@
  *   - p36 (beat 21): one streak survives, the rest take a hit.
  *   - gaps (beat 22): Wednesday and Thursday are empty top to bottom (never
  *     reported); every other day is reported and done.
- *   - The three rituals run daily as the base cadence. Weekend exceptions are
- *     tracked in the render decision library, not hidden in this component.
+ *   - The three rituals use the user's local work week. Israel runs Sunday
+ *     through Thursday; every other locale runs Monday through Friday.
  *
  * RULES followed here:
  *   - No em dashes anywhere (commas and periods used instead)
@@ -31,6 +31,7 @@ import {
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY, INK, CARD, SPACE } from './_beatStyle';
+import { ritualWeekdaysForLocale } from './ritualCadence';
 
 // The five projection states.
 export type ProjectionState = 'blank' | 'full' | 'p78' | 'p36' | 'gaps';
@@ -40,13 +41,16 @@ interface ScheduledHabit {
   days: number[]; // JS weekday numbers, 0=Sun..6=Sat
 }
 
-// Daily is the base cadence for all three rituals. Weekend exceptions are a
-// separate tracked product decision, never a silent weekday-only default.
-const DAILY_RITUALS: ScheduledHabit[] = [
-  { name: 'Morning check-in', days: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'Evening habit report', days: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'Evening reflection', days: [0, 1, 2, 3, 4, 5, 6] },
-];
+const RITUAL_COUNT = 3;
+
+function ritualRows(locale?: string): ScheduledHabit[] {
+  const days = [...ritualWeekdaysForLocale(locale)];
+  return [
+    { name: 'Morning check-in', days },
+    { name: 'Evening habit report', days },
+    { name: 'Evening reflection', days },
+  ];
+}
 
 // Weekday index (0=Sun..6=Sat) to its single-letter label.
 const LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -170,7 +174,7 @@ function buildRows(habits: ScheduledHabit[], state: ProjectionState, dayOrder: n
   // p78: one real user habit, when present, ends with a miss so the projection
   // shows that a mostly green week can include a broken run.
   if (state === 'p78') {
-    const mi = habits.length > DAILY_RITUALS.length ? DAILY_RITUALS.length : 0;
+    const mi = habits.length > RITUAL_COUNT ? RITUAL_COUNT : 0;
     const schedCols = dayOrder.map((_wd, ci) => ci).filter((ci) => sched[mi][ci]);
     const last = schedCols[schedCols.length - 1];
     if (last != null) cells[mi][last] = 'missed';
@@ -223,13 +227,21 @@ const STATE_LABEL: Record<ProjectionState, string> = {
 };
 
 // Renders one static projection frame: the coach narration above the grid.
-function WeeklyProjectionCard({ state, coachLine }: { state: ProjectionState; coachLine: string }) {
+function WeeklyProjectionCard({
+  state,
+  coachLine,
+  locale,
+}: {
+  state: ProjectionState;
+  coachLine: string;
+  locale?: string;
+}) {
   const flow = useFlowState();
   const userHabits: ScheduledHabit[] = (flow?.habits ?? []).map((name) => ({
     name,
     days: flow?.habitConfigs[name]?.days ?? [0, 1, 2, 3, 4, 5, 6],
   }));
-  const allHabits = [...DAILY_RITUALS, ...userHabits];
+  const allHabits = [...ritualRows(locale), ...userHabits];
   // The week starts on the user's start day (today). In the real app this is the
   // stored start date; here it is the current weekday so the preview reads right.
   const start = new Date().getDay();
@@ -295,7 +307,7 @@ function WeeklyProjectionBeat(props?: Record<string, string>) {
     {
       id: 'weekly-projection-grid',
       speaker: 'coach',
-      render: <WeeklyProjectionCard state={state} coachLine={coachLine} />,
+      render: <WeeklyProjectionCard state={state} coachLine={coachLine} locale={props?.locale} />,
     },
   ];
 

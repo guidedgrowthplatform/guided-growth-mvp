@@ -1,12 +1,13 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
-import { WEEKDAYS, toggleSetItem } from '@/components/onboarding/constants';
+import { toggleSetItem } from '@/components/onboarding/constants';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
 import { Toggle } from '@/components/ui/Toggle';
 import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY as BLUE, INK, SUBTLE } from './_beatStyle';
+import { ritualWeekdaysForLocale } from './ritualCadence';
 
 // Evening palette: deep indigo-purple tones, warm and winding-down.
 const EVENING_BG = 'rgba(67, 47, 120, 0.06)';
@@ -517,7 +518,7 @@ function ReflectionCardBeat(props?: Record<string, string>) {
   // Default style is "suggested template". Reminder starts ON per spec.
   const [style, setStyle] = useState<ReflectionStyle>('suggested template');
   const [prompts, setPrompts] = useState<string[]>(['', '', '']);
-  const [days, setDays] = useState<Set<number>>(new Set(WEEKDAYS));
+  const [days, setDays] = useState<Set<number>>(() => ritualWeekdaysForLocale(props?.locale));
   const [time, setTime] = useState('21:30');
   const [reminder, setReminder] = useState(true);
   const toggleDay = (d: number) => setDays((p) => toggleSetItem(p, d));

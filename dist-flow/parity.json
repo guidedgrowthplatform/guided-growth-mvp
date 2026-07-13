@@ -149,7 +149,7 @@
       "path": "both",
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
-      "opener": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+      "opener": "Part of the coaching process is doing this on your workdays. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
       "clips": [
         {
           "clip": "onboard_morning_setup_1",

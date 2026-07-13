@@ -1,11 +1,12 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
-import { WEEKDAYS, toggleSetItem } from '@/components/onboarding/constants';
+import { toggleSetItem } from '@/components/onboarding/constants';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker, formatTime12 } from '@/components/ui/TimePicker';
 import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, INK, SUBTLE } from './_beatStyle';
+import { ritualWeekdaysForLocale } from './ritualCadence';
 
 // Amber accent, unique to the morning theme.
 const AMBER = 'rgb(245, 158, 11)';
@@ -13,8 +14,8 @@ const AMBER_LIGHT = 'rgba(245, 158, 11, 0.10)';
 const AMBER_MED = 'rgba(245, 158, 11, 0.18)';
 
 // Inline morning card, purposely lighter and warmer than the evening reflection
-// card. No day picker, no schedule selector: morning check-ins are every day by
-// design. Just time + a reminder toggle so the card stays calm and focused.
+// card. The default days are the user's local work week, with weekends off.
+// Just time + a reminder toggle so the card stays calm and focused.
 function MorningCard({
   days,
   onToggleDay,
@@ -205,7 +206,7 @@ function MorningCard({
 
 function MorningCheckinSetupBeat(props?: Record<string, string>) {
   const flow = useFlowState();
-  const [days, setDays] = useState<Set<number>>(new Set(WEEKDAYS));
+  const [days, setDays] = useState<Set<number>>(() => ritualWeekdaysForLocale(props?.locale));
   const [time, setTime] = useState(props?.defaultTime ?? '08:00');
   const [remind, setRemind] = useState(true);
   const toggleDay = (d: number) => setDays((p) => toggleSetItem(p, d));
@@ -224,7 +225,7 @@ function MorningCheckinSetupBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+        "Part of the coaching process is doing this on your workdays. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
     },
   ];
   // L5: the picker renders between the two bubbles. The first bubble sets up

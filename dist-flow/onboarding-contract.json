@@ -3,7 +3,7 @@
   "source": {
     "beats": "src/components/flow-designer/beatsSource.ts#BEATS_SOURCE"
   },
-  "generatedAt": "2026-07-13T13:20:08+03:00",
+  "generatedAt": "2026-07-13T13:34:58+03:00",
   "idMap": {
     "screens": {
       "COACH-GREETING": "coach-greeting",
@@ -779,7 +779,7 @@
         {
           "seq": 1,
           "speaker": "coach",
-          "words": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+          "words": "Part of the coaching process is doing this on your workdays. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
           "bindsTo": {
             "kind": "bubble",
             "element": "bubble-1",
@@ -837,10 +837,10 @@
           "clipPath": "/voice/ob/onboard_morning_setup_2.wav"
         }
       ],
-      "opener": "Part of the coaching process is doing this each day. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
+      "opener": "Part of the coaching process is doing this on your workdays. It gives us two things. First, it's a real quick check-in on how your state is, which is valuable, and people don't usually do it enough. And second, over time it lets us see the connection between your behavior and your state. So when would you like to do this each morning? I recommend 15 minutes after you wake up.",
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
-      "context": "Check-in time. The user just did their first check-in. Now set the daily time for it, reminder ON by default. Quick. The point is not that it is morning, it is that this is their first habit and it is simple. Recommend a time shortly after wake, offer the weekday preset, and let them set it.",
+      "context": "Check-in time. The user just did their first check-in. Now set its time and locale-driven work-week days, reminder ON by default. Quick. The point is not that it is morning, it is that this is their first habit and it is simple. Recommend a time shortly after wake, offer the local work-week preset, and let them set it. Israel defaults to Sunday through Thursday; everywhere else defaults to Monday through Friday.",
       "allowedTools": ["submit_morning_checkin", "advance_step"],
       "persistence": {
         "writes": [
@@ -871,7 +871,7 @@
           },
           {
             "edge": "no time set",
-            "behavior": "prompt once for the time; do not advance until a daily time is set",
+            "behavior": "prompt once for the time; do not advance until a time is set",
             "voice": null
           },
           {
@@ -1009,7 +1009,7 @@
       "opener": "One more. An evening reflection, a minute and a half to close out your day. Use these three questions.",
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
-      "context": "Evening reflection setup. Set it up, do not perform it now. The user picks one style and a time, reminder on by default. The three styles are on the screen (suggested template, your template, freeform); do not read them out. Ask which feels right and let them pick. If they choose your template, capture their prompts verbatim so the daily reflection can ask them back. Add no coaching per style and do not make it feel like homework.",
+      "context": "Evening reflection setup. Set it up, do not perform it now. The user picks one style and a time, reminder on by default. Its days default to the locale-driven work week, with weekends off: Israel is Sunday through Thursday, everywhere else is Monday through Friday. The three styles are on the screen (suggested template, your template, freeform); do not read them out. Ask which feels right and let them pick. If they choose your template, capture their prompts verbatim so the evening reflection can ask them back. Add no coaching per style and do not make it feel like homework.",
       "allowedTools": ["submit_reflection_config", "submit_custom_prompts", "advance_step"],
       "persistence": {
         "writes": [
@@ -5560,7 +5560,7 @@
       "opener": "Please set the days that you're going to actually do these habits.",
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
-      "context": "Habit schedule. Shows all the habits the user just picked, each as its own card with the habit name and its day picker. The daily check-in and the evening reflection are NOT here (rituals, not habits). For each habit, set which days; recommend weekdays to start. Days default to the weekday preset by locale. Per-habit reminders are OFF by default, on only if the user asks. Never turn a reminder on unless they ask, never re-ask a piece already given, and never include the check-in or reflection as habits.",
+      "context": "Habit schedule. Shows all the habits the user just picked, each as its own card with the habit name and its day picker. The morning check-in and evening reflection are NOT here (rituals, not habits). For each habit, set which days; recommend weekdays to start. Days default to the weekday preset by locale. Per-habit reminders are OFF by default, on only if the user asks. Never turn a reminder on unless they ask, never re-ask a piece already given, and never include the check-in or reflection as habits.",
       "allowedTools": ["add_habit", "update_habit", "advance_step"],
       "persistence": {
         "writes": [
@@ -5893,7 +5893,7 @@
       "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Ready to start?",
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
-      "context": "Full plan. One confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. It is read-only. Ask whether they are ready to start. On approval, they enter the app. This is a high-investment moment, so make the line real and specific, not generic. On the tap path, show one \"Ready to start\" button; on voice, no button, the user just speaks approval.",
+      "context": "Full plan. One confirm. Show the whole plan: morning check-in, evening habit report, and evening reflection on the user locale-driven work week, with weekends off by default, plus all the habits under them. Israel runs Sunday through Thursday; everywhere else runs Monday through Friday. It is read-only. Ask whether they are ready to start. On approval, they enter the app. This is a high-investment moment, so make the line real and specific, not generic. On the tap path, show one \"Ready to start\" button; on voice, no button, the user just speaks approval.",
       "allowedTools": ["confirm_plan"],
       "persistence": {
         "writes": [
@@ -7628,7 +7628,7 @@
       "rows": [
         {
           "criterion": "shows the right thing",
-          "check": "phone renders the read-only whole plan (check-in, reflection, habits); tap path shows one Ready to start button, voice path shows none"
+          "check": "phone renders the read-only whole plan (all three rituals on the locale-driven work week, plus habits); tap path shows one Ready to start button, voice path shows none"
         },
         {
           "criterion": "says the right thing",
