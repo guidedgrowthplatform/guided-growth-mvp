@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { GetStarted } from '@/components/flow-designer/beats/getStarted';
 import { PathSelectionBeat } from '@/components/flow-designer/beats/pathSelection';
 import { Splash } from '@/components/flow-designer/beats/splash';
+import { CheckInCard } from '@/components/home/CheckInCard';
 import { Orb } from '@/components/orb/Orb';
 import { orbIdle } from '@/components/orb/orbView';
 import {
@@ -146,6 +147,24 @@ function PathSelectionPreview({
   );
 }
 
+function StateCheckPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance: () => void }) {
+  return (
+    <Surface beat={beat}>
+      <div
+        data-testid="state-check-preview-real"
+        style={{ minHeight: 312, display: 'grid', alignItems: 'center' }}
+      >
+        <CheckInCard
+          {...beat.component.config}
+          {...(beat.component.props ?? {})}
+          selectedDate="2026-07-13"
+          onComplete={onAdvance}
+        />
+      </div>
+    </Surface>
+  );
+}
+
 const componentRegistry: Record<
   string,
   (props: { beat: OnboardingBeat; onAdvance: () => void }) => JSX.Element
@@ -156,7 +175,7 @@ const componentRegistry: Record<
   'auth-signup': GenericSurface,
   'mic-permission': GenericSurface,
   'profile-beat': GenericSurface,
-  'state-check': GenericSurface,
+  'state-check': StateCheckPreview,
   'morning-checkin-setup': GenericSurface,
   'reflection-card': GenericSurface,
   'path-selection': PathSelectionPreview,
