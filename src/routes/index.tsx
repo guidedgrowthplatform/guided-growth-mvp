@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { usePageTracking } from '@/analytics';
 import { Layout } from '@/components/layout/Layout';
@@ -127,6 +127,21 @@ const FlowOnboardingPreview = lazyWithRetry(() =>
   })),
 );
 
+// Design-preview routes (the /__* mocks) are shared for review in light mode.
+// Force light while a preview page is mounted and restore the user's theme on
+// unmount, so viewing a mock never permanently changes their real app theme.
+function ForceLight({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const html = document.documentElement;
+    const wasDark = html.classList.contains('dark');
+    html.classList.remove('dark');
+    return () => {
+      if (wasDark) html.classList.add('dark');
+    };
+  }, []);
+  return <>{children}</>;
+}
+
 function PageLoader() {
   return (
     <div className="flex h-full items-center justify-center p-8">
@@ -209,12 +224,54 @@ export function AppRoutes() {
         {import.meta.env.DEV && <Route path="/flow-designer" element={<FlowDesignerPage />} />}
 
         <Route path="/splash" element={<SplashScreenPage />} />
-        <Route path="/__calendar-states" element={<CalendarStatesPreview />} />
-        <Route path="/__screentime" element={<ScreenTimePreview />} />
-        <Route path="/__weekly-coach" element={<WeeklyCoachPreview />} />
-        <Route path="/__reset-browse" element={<ResetLibraryPage />} />
-        <Route path="/__reset-nudge" element={<ResetNudgePreview />} />
-        <Route path="/__reset-flow" element={<ResetFlowPreview />} />
+        <Route
+          path="/__calendar-states"
+          element={
+            <ForceLight>
+              <CalendarStatesPreview />
+            </ForceLight>
+          }
+        />
+        <Route
+          path="/__screentime"
+          element={
+            <ForceLight>
+              <ScreenTimePreview />
+            </ForceLight>
+          }
+        />
+        <Route
+          path="/__weekly-coach"
+          element={
+            <ForceLight>
+              <WeeklyCoachPreview />
+            </ForceLight>
+          }
+        />
+        <Route
+          path="/__reset-browse"
+          element={
+            <ForceLight>
+              <ResetLibraryPage />
+            </ForceLight>
+          }
+        />
+        <Route
+          path="/__reset-nudge"
+          element={
+            <ForceLight>
+              <ResetNudgePreview />
+            </ForceLight>
+          }
+        />
+        <Route
+          path="/__reset-flow"
+          element={
+            <ForceLight>
+              <ResetFlowPreview />
+            </ForceLight>
+          }
+        />
 
         {/* Auth-free QA render of the unified chat-native onboarding engine (QA/dev
             builds only): gated behind QA_SCREEN_ENABLED, same as the other QA-only
