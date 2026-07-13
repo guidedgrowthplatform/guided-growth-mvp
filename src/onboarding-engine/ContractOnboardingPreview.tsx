@@ -138,8 +138,11 @@ export function ContractOnboardingPreview() {
           </div>
         )}
 
-        <footer className="text-center text-[11px] leading-4 text-content-tertiary">
-          Contract v{onboardingContract.schemaVersion} ·{' '}
+        <footer
+          data-testid="contract-provenance"
+          className="text-center text-[11px] leading-4 text-content-tertiary"
+        >
+          Contract v{onboardingContract.schemaVersion} · artifact{' '}
           {onboardingContract.provenance.artifactHash}
         </footer>
       </div>
