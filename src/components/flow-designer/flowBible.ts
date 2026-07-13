@@ -574,6 +574,7 @@ export interface RenderCompletenessRow {
   readonly status: 'answered' | 'open';
   readonly contract: string;
   readonly source: string;
+  readonly verification?: string;
   readonly migrationTodo?: string;
 }
 
@@ -604,8 +605,8 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
       "FINAL DECISION (Yair 2026-07-13): Morning check-in, evening habit report, and evening reflection run on the user's local work week, with weekends off by default. Israel is Sunday through Thursday (Friday and Saturday off); every other region is Monday through Friday (Saturday and Sunday off). They are rituals, not user habits.",
     source:
       'Yair product ruling 2026-07-13; beatsSource.ts checkin/reflection/plan; weeklyProjection.ts',
-    migrationTodo:
-      'Resolve the three ritual day sets from the user locale or region. Never hard-code a Monday through Friday work week or silently schedule a ritual on a local weekend.',
+    verification:
+      'Verified in ritualCadence.ts, morningCheckinSetup.tsx, reflectionCard.tsx, onboardingComplete.tsx, weeklyProjection.tsx, and FlowBuilder.tsx. ritualWeekdaysForLocale returns IL Sunday-Thursday and all other locales Monday-Friday.',
   },
   {
     audit: 'P0-11 projection meaning',
@@ -613,8 +614,8 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
     contract:
       'DECIDED (Yair 2026-07-13): the closing frames project the user real onboarding.habits, using the names and schedules they chose. “This is your week” is projection framing, not a claim about completed history. The approved 76% and 35% frames remain projected outcomes over those real rows.',
     source: 'Yair product ruling 2026-07-13; beatsSource.ts weekly-*; beats/weeklyProjection.ts',
-    migrationTodo:
-      'Pass normalized onboarding.habits into all five frames and resolve ritual rows from the locale-driven work week, with no hard-coded sample habit or base streak in the production projection component.',
+    verification:
+      'Verified in FlowPlay.tsx shared FlowStateCtx handoff and weeklyProjection.tsx projectionRowsForOnboarding. weeklyProjection.realHabits.test.ts carries a selected named habit and schedule through blank, full, p78, p36, and gaps.',
   },
   {
     audit: 'P0-12 weekly-blank component',
@@ -622,8 +623,8 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
     contract:
       'weekly-blank renders normalized user schedules with 0%, every scheduled cell as a gap, and all eight carried streaks at 0.',
     source: 'weekly-projection-rules-APPROVED-2026-07-09.md',
-    migrationTodo:
-      'Migrate weeklyProjection.tsx to receive normalized schedules and this frame descriptor instead of hard-coded rituals.',
+    verification:
+      'Verified in weeklyProjection.tsx buildRows(blank), which derives each row from projectionRowsForOnboarding input.',
   },
   {
     audit: 'P0-13 weekly-full component',
@@ -631,8 +632,8 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
     contract:
       'weekly-full renders normalized user schedules with every scheduled cell complete and true carried streaks supplied by the projection input.',
     source: 'beatsSource.ts weekly-full component contract',
-    migrationTodo:
-      'Migrate weeklyProjection.tsx from sample habits and base streaks to the render frame input.',
+    verification:
+      'Verified in weeklyProjection.tsx buildRows(full), which derives every scheduled cell from projectionRowsForOnboarding input and never seeds a sample habit.',
   },
   {
     audit: 'P0-14 weekly-p78 component',
@@ -640,7 +641,8 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
     contract:
       'weekly-p78 displays the approved 76% projected outcome over normalized real ritual and user-habit schedules. It never substitutes a sample habit name or sample history.',
     source: 'weekly-projection-rules-APPROVED-2026-07-09.md',
-    migrationTodo: 'Migrate weeklyProjection.tsx from its stale target and hard-coded schedules.',
+    verification:
+      'Verified in weeklyProjection.tsx buildRows(p78), which applies the 76% frame to resolved ritual and user rows.',
   },
   {
     audit: 'P0-15 weekly-p36 component',
@@ -648,7 +650,8 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
     contract:
       'weekly-p36 displays the approved 35% projected outcome over normalized real ritual and user-habit schedules. It is a no-guilt rough-week projection, never a sample plan.',
     source: 'weekly-projection-rules-APPROVED-2026-07-09.md',
-    migrationTodo: 'Migrate weeklyProjection.tsx from its stale target and hard-coded schedules.',
+    verification:
+      'Verified in weeklyProjection.tsx buildRows(p36), which applies the 35% frame to resolved ritual and user rows.',
   },
   {
     audit: 'P0-16 weekly-gaps component',
@@ -656,8 +659,8 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
     contract:
       'weekly-gaps leaves the final two displayed grid columns fully blank for every week start, shows mediocre roughly 50-60% reported days, and sets all eight streaks to 0.',
     source: 'weekly-projection-rules-APPROVED-2026-07-09.md',
-    migrationTodo:
-      'Migrate weeklyProjection.tsx from weekday-name anchors to grid-position anchors.',
+    verification:
+      'Verified in weeklyProjection.tsx buildRows(gaps), which anchors blank cells to display columns 5 and 6 for every start day.',
   },
   {
     audit: 'P0-13 goals components',
