@@ -86,6 +86,12 @@ const ResetNudgePreview = lazyWithRetry(() =>
 const MockStoryboard = lazyWithRetry(() =>
   import('@/pages/MockStoryboard').then((m) => ({ default: m.MockStoryboard })),
 );
+const BlockSchedulePreview = lazyWithRetry(() =>
+  import('@/pages/BlockSchedulePreview').then((m) => ({ default: m.BlockSchedulePreview })),
+);
+const BlockNowPreview = lazyWithRetry(() =>
+  import('@/pages/BlockNowPreview').then((m) => ({ default: m.BlockNowPreview })),
+);
 const JournalFlowPage = lazyWithRetry(() =>
   import('@/pages/JournalFlowPage').then((m) => ({ default: m.JournalFlowPage })),
 );
@@ -272,6 +278,22 @@ export function AppRoutes() {
           element={
             <ForceLight>
               <ResetFlowPreview />
+            </ForceLight>
+          }
+        />
+        <Route
+          path="/__screentime-schedule"
+          element={
+            <ForceLight>
+              <BlockSchedulePreview />
+            </ForceLight>
+          }
+        />
+        <Route
+          path="/__screentime-blocknow"
+          element={
+            <ForceLight>
+              <BlockNowPreview />
             </ForceLight>
           }
         />

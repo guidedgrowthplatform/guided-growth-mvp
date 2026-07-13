@@ -20,6 +20,18 @@ const SCREENS: Screen[] = [
     note: 'Digital wellbeing, not parental control. Toggle Set up / Usage / Blocked in-screen. The block is calm and green, and offers a reset.',
   },
   {
+    feature: 'Screen Time · Block schedule',
+    src: '/__screentime-schedule',
+    title: 'Block schedule',
+    note: 'A recurring, habit-forming block: pick apps, pick days and a time window, review, done. Reminders fire 30 and 10 minutes before it locks. Walk the flow in-screen.',
+  },
+  {
+    feature: 'Screen Time · Block now',
+    src: '/__screentime-blocknow',
+    title: 'Block now',
+    note: 'An immediate one-off: pick apps, pick how long, they lock right away. Tap Start block to see the active state.',
+  },
+  {
     feature: 'Weekly Coach',
     src: '/__weekly-coach',
     title: 'Weekly Coach',
