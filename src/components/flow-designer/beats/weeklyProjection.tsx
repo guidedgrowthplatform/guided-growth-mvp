@@ -94,24 +94,23 @@ function trailingStreak(cells: HabitWeekCell[]): number {
 function buildRows(habits: ScheduledHabit[], state: ProjectionState, dayOrder: number[]): Row[] {
   // Which display columns are scheduled for each habit.
   const sched = habits.map((h) => {
-    const set = new Set(h.days && h.days.length ? h.days : [0, 1, 2, 3, 4, 5, 6]);
+    const set = new Set(h.days);
     return dayOrder.map((wd) => set.has(wd));
   });
 
-  // Only the best case shows the big accumulated streaks. The realistic frames
-  // (p78, p36, gaps) show the small this-week run, which resets on a miss.
-  const finalize = (cellsByHabit: HabitWeekCell[][], useBase: boolean): Row[] =>
+  // The render only knows the visible week. The live app supplies any carried
+  // streak history, so every preview frame shows the visible trailing run.
+  const finalize = (cellsByHabit: HabitWeekCell[][]): Row[] =>
     habits.map((h, hi) => ({
       name: h.name,
       cells: cellsByHabit[hi],
-      streak: useBase ? (BASE_STREAK[hi] ?? 21) : trailingStreak(cellsByHabit[hi]),
+      streak: trailingStreak(cellsByHabit[hi]),
     }));
 
   // BLANK: the whole week is empty, starting today.
   if (state === 'blank') {
     return finalize(
       habits.map((_, hi) => dayOrder.map((_wd, ci) => (sched[hi][ci] ? 'gap' : 'off'))),
-      false,
     );
   }
 
@@ -120,7 +119,6 @@ function buildRows(habits: ScheduledHabit[], state: ProjectionState, dayOrder: n
   if (state === 'full') {
     return finalize(
       habits.map((_, hi) => dayOrder.map((_wd, ci) => (sched[hi][ci] ? 'done' : 'off'))),
-      false,
     );
   }
 
@@ -137,7 +135,6 @@ function buildRows(habits: ScheduledHabit[], state: ProjectionState, dayOrder: n
           return rand(hi * 131 + ci * 17 + 71) < 0.6 ? 'done' : 'missed';
         }),
       ),
-      false,
     );
   }
 
@@ -189,7 +186,16 @@ function buildRows(habits: ScheduledHabit[], state: ProjectionState, dayOrder: n
     for (const ci of schedCols.slice(-2)) cells[ri][ci] = 'done';
   }
 
-  return finalize(cells, false);
+  return finalize(cells);
+}
+
+function normalizedSchedule(days: unknown): number[] | null {
+  if (!Array.isArray(days) || days.length === 0) return null;
+  const unique = [...new Set(days)];
+  return unique.length === days.length &&
+    unique.every((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+    ? unique
+    : null;
 }
 
 function overallStats(rows: Row[]): { done: number; scheduled: number; percent: number } {
@@ -237,16 +243,53 @@ function WeeklyProjectionCard({
   locale?: string;
 }) {
   const flow = useFlowState();
-  const userHabits: ScheduledHabit[] = (flow?.habits ?? []).map((name) => ({
+  const configuredUserHabits = (flow?.habits ?? []).map((name) => ({
     name,
-    days: flow?.habitConfigs[name]?.days ?? [0, 1, 2, 3, 4, 5, 6],
+    days: normalizedSchedule(flow?.habitConfigs[name]?.days),
   }));
+  const incompleteHabits = configuredUserHabits
+    .filter((habit) => habit.days === null)
+    .map((habit) => habit.name);
+  const userHabits: ScheduledHabit[] = configuredUserHabits.filter(
+    (habit): habit is { name: string; days: number[] } => habit.days !== null,
+  );
   const allHabits = [...ritualRows(locale), ...userHabits];
   // The week starts on the user's start day (today). In the real app this is the
   // stored start date; here it is the current weekday so the preview reads right.
   const start = new Date().getDay();
   const dayOrder = dayOrderFrom(start);
   const dayLabels = dayOrder.map((wd) => LABELS[wd]);
+
+  if (incompleteHabits.length) {
+    return (
+      <div style={{ ...CARD, padding: `${SPACE.md}px ${SPACE.lg}px` }}>
+        <p
+          style={{
+            fontFamily: FONT,
+            fontSize: 14,
+            fontWeight: 700,
+            lineHeight: 1.5,
+            color: INK,
+            margin: 0,
+          }}
+        >
+          Your projection needs a schedule for {incompleteHabits.join(', ')} before it can be shown.
+        </p>
+        <p
+          style={{
+            fontFamily: FONT,
+            fontSize: 12.5,
+            lineHeight: 1.5,
+            color: INK,
+            margin: `${SPACE.xs}px 0 0`,
+          }}
+        >
+          Set at least one weekday for each selected habit, then return to this projection.
+        </p>
+      </div>
+    );
+  }
+
   const rows = buildRows(allHabits, state, dayOrder);
   const stats = overallStats(rows);
   const projectedPercent = state === 'p78' ? 76 : state === 'p36' ? 35 : stats.percent;
