@@ -139,6 +139,9 @@ export function useCalendar() {
     enabled: status.enabled,
     needsReauth: status.needsReauth,
     isLoading: query.isLoading,
+    // status check failed — 'connected' is a fallback default, not the truth
+    statusUnknown: query.isError,
+    refetchStatus: () => query.refetch(),
     isSyncing,
     connect,
     disconnect: () => disconnectMutation.mutate(),

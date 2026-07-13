@@ -28,7 +28,9 @@ export async function authedFetch(url: string, options: RequestInit = {}): Promi
   const result = await refreshOnce();
   if (result.status === 'refreshed') {
     const retry = await fetch(url, withAuth(options, result.token));
-    if (retry.status === 401 && hadSession) await endSession();
+    // Supabase just refreshed → session is alive. A persistent API 401 is a
+    // server-side fault; killing the session here logged users out on API blips.
+    if (retry.status === 401) console.warn('[auth] API rejects freshly refreshed token', url);
     return retry;
   }
   if (result.status === 'terminal' && hadSession) await endSession();
