@@ -74,6 +74,15 @@ const ScreenTimePreview = lazyWithRetry(() =>
 const WeeklyCoachPreview = lazyWithRetry(() =>
   import('@/pages/WeeklyCoachPreview').then((m) => ({ default: m.WeeklyCoachPreview })),
 );
+const ResetLibraryPage = lazyWithRetry(() =>
+  import('@/pages/ResetLibraryPage').then((m) => ({ default: m.ResetLibraryPage })),
+);
+const ResetFlowPreview = lazyWithRetry(() =>
+  import('@/pages/ResetFlowPreview').then((m) => ({ default: m.ResetFlowPreview })),
+);
+const ResetNudgePreview = lazyWithRetry(() =>
+  import('@/pages/ResetNudgePreview').then((m) => ({ default: m.ResetNudgePreview })),
+);
 const JournalFlowPage = lazyWithRetry(() =>
   import('@/pages/JournalFlowPage').then((m) => ({ default: m.JournalFlowPage })),
 );
@@ -203,6 +212,9 @@ export function AppRoutes() {
         <Route path="/__calendar-states" element={<CalendarStatesPreview />} />
         <Route path="/__screentime" element={<ScreenTimePreview />} />
         <Route path="/__weekly-coach" element={<WeeklyCoachPreview />} />
+        <Route path="/__reset-browse" element={<ResetLibraryPage />} />
+        <Route path="/__reset-nudge" element={<ResetNudgePreview />} />
+        <Route path="/__reset-flow" element={<ResetFlowPreview />} />
 
         {/* Auth-free QA render of the unified chat-native onboarding engine (QA/dev
             builds only): gated behind QA_SCREEN_ENABLED, same as the other QA-only
