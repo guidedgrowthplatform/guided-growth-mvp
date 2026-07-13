@@ -16,7 +16,8 @@
  *   - p36 (beat 21): one streak survives, the rest take a hit.
  *   - gaps (beat 22): Wednesday and Thursday are empty top to bottom (never
  *     reported); every other day is reported and done.
- *   - Journaling is daily, no days off.
+ *   - The three rituals run daily as the base cadence. Weekend exceptions are
+ *     tracked in the render decision library, not hidden in this component.
  *
  * RULES followed here:
  *   - No em dashes anywhere (commas and periods used instead)

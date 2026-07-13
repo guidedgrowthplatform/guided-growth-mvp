@@ -1157,6 +1157,307 @@ export const OPEN_DECISIONS: readonly OpenDecision[] = [
     decided:
       'NO - uniform shape (conductor decided under Yair delegation, 2026-07-09): every beat declares ALL sections; each is filled / N-A-for-this-type (with reason) / pending-app-reconcile; guard validates.',
   },
+  {
+    id: 'weekly-projection-real-habits',
+    question: 'What does “This is your week” represent in the closing projection?',
+    proposal:
+      'Use the real habits the user chose, with the frames clearly acting as projected outcomes.',
+    decider: 'Yair',
+    decided:
+      'DECIDED (Yair 2026-07-13): every weekly-projection frame uses the user real onboarding.habits names and schedules. “This is your week” is a projection. The approved 76% and 35% values remain projected-outcome framing over those real rows. Hard-coded sample habits are forbidden.',
+  },
+  {
+    id: 'daily-ritual-cadence',
+    question:
+      'What is the base cadence for morning check-in, evening habit report, and evening reflection?',
+    proposal: 'Daily as the base cadence.',
+    decider: 'Yair',
+    decided:
+      'DECIDED (Yair 2026-07-13): all three rituals run daily as the base. They are rituals, not user-selected habits.',
+  },
+];
+
+// This is intentionally the ONLY unresolved product item in the render. It is
+// not a scratch note and does not permit a builder to silently choose a weekend
+// behavior while the base daily rule is in force.
+export interface OpenItem {
+  readonly id: string;
+  readonly item: string;
+  readonly base: string;
+  readonly owner: 'Yair';
+}
+
+export const OPEN_ITEMS: readonly OpenItem[] = [
+  {
+    id: 'weekend-daily-rituals',
+    item: 'Weekend handling for the daily rituals, including the Israel Friday-Saturday weekend, is pending a separate decision. Base is daily.',
+    base: 'Morning check-in, evening habit report, and evening reflection run daily until an explicit weekend override is recorded here.',
+    owner: 'Yair',
+  },
+];
+
+// Resolved concrete data contracts. These are the builder-facing form of the
+// per-beat io/persistence rows, so app migration never needs an external audit
+// to discover a key, an owner, or a resume rule.
+export interface ResolvedDataContract {
+  readonly id: string;
+  readonly producer: string;
+  readonly consumers: string;
+  readonly shape: string;
+  readonly persistence: string;
+  readonly invariant: string;
+}
+
+export const RESOLVED_DATA_CONTRACTS: readonly ResolvedDataContract[] = [
+  {
+    id: 'profile',
+    producer: 'profile-asks via submit_profile',
+    consumers: 'gender routing and coach context',
+    shape: '{ age: number, gender: "Female" | "Male" | "Other" }',
+    persistence:
+      'onboarding_states.data.age and onboarding_states.data.gender, JSONB merge; cold resume hydrates once',
+    invariant:
+      'Only Female routes to category-women. Male and Other use category, and Other never propagates downstream.',
+  },
+  {
+    id: 'path-and-category',
+    producer: 'fork via submit_path_choice, category via submit_category',
+    consumers: 'beginner or advanced branch and goals picker',
+    shape: 'path = beginner | advanced; category = canonical label or a custom string',
+    persistence: 'onboarding_states.data.path and onboarding_states.data.category',
+    invariant:
+      'App adapters map legacy simple and braindump values to beginner and advanced. A custom category carries its exact string and opens custom-goal entry.',
+  },
+  {
+    id: 'goals',
+    producer: 'goals-list or goal-custom via submit_goals',
+    consumers: 'per-goal habit picker and schedule routing',
+    shape: '{ goals: string[], source: "canonical" | "custom" }, length 1 or 2',
+    persistence:
+      'onboarding_states.data.goals replaces the full selection without advancing the step',
+    invariant:
+      'Two goals allow one habit per goal. One goal allows one or two habits. Custom text remains verbatim.',
+  },
+  {
+    id: 'habits',
+    producer: 'habits, habit-custom, advanced-capture, schedule, advanced-frequency',
+    consumers: 'plan and all weekly-projection frames',
+    shape:
+      'onboarding.habits = [{ name, goal?, custom, days: number[0..6], buildOrBreak?, time?, reminder? }]',
+    persistence:
+      'onboarding_states.data.habitConfigs, with advanced raw input also retained as brainDumpText and brain_dump_raw',
+    invariant:
+      'Weekly projection preserves every chosen name and normalized schedule. No sample habit may replace a user row.',
+  },
+  {
+    id: 'morning-ritual',
+    producer: 'morning-setup via submit_morning_checkin',
+    consumers: 'plan and daily morning runtime',
+    shape: '{ time, days, reminder } with daily base days [0,1,2,3,4,5,6]',
+    persistence: 'onboarding_states.data.morningCheckin',
+    invariant:
+      'This is a ritual, not onboarding.habits. Any weekend exception must come from OPEN_ITEMS.weekend-daily-rituals.',
+  },
+  {
+    id: 'reflection-ritual',
+    producer: 'reflection via submit_reflection_config and submit_custom_prompts',
+    consumers: 'plan and daily reflection runtime',
+    shape:
+      '{ style: suggested | custom | freeform, customPrompts?, time, days, reminder } with daily base days [0,1,2,3,4,5,6]',
+    persistence:
+      'reflection_settings.config plus customPrompts, mirrored through onboarding state during setup',
+    invariant:
+      'Daily reflection reads the saved style and replays custom prompts word for word. It never defaults or asks again.',
+  },
+  {
+    id: 'state-check',
+    producer: 'state-check via onboarding adapter for record_checkin',
+    consumers: 'first daily_checkins record and coach context',
+    shape: '{ sleep, mood, energy, stress }, each required 1 through 5',
+    persistence:
+      'onboarding_states.data.stateCheck then one atomic daily_checkins write at onboarding completion',
+    invariant:
+      'The onboarding adapter accepts the complete four-dimension payload and never advances on a failed write.',
+  },
+  {
+    id: 'plan-completion',
+    producer: 'plan via confirm_plan',
+    consumers: 'app entry, resume guard, and weekly projection',
+    shape: '{ confirmed: true }',
+    persistence:
+      'atomic onboarding_states update: data.plan.confirmed, status=completed, completed_at, current_step=completed',
+    invariant:
+      'Direct LLM and Vapi execute the same server-side transaction. Plan is read-only and approval is the only completion action.',
+  },
+  {
+    id: 'weekly-projection',
+    producer: 'resolved onboarding.habits plus the three daily rituals',
+    consumers: 'weekly-blank, weekly-full, weekly-p78, weekly-p36, weekly-gaps',
+    shape:
+      '{ rituals: daily rows, habits: real user rows, weekStart, frame: blank | full | p78 | p36 | gaps }',
+    persistence: 'display-only, no write',
+    invariant:
+      'The 76% and 35% are projection outcomes over the real rows, not user history. The final two displayed columns are gaps in the gaps frame.',
+  },
+  {
+    id: 'render-export',
+    producer: 'beatsSource.ts and flowBible.ts via npm run build:flow',
+    consumers: 'phone, coach, engine, guards, QA, and generated Sheet outputs',
+    shape:
+      'resolved dist-flow/onboarding-contract.json plus dist-flow/parity.json at one source commit',
+    persistence: 'versioned build artifacts only',
+    invariant:
+      'Runtime consumers use the resolved render export. Generated Sheet/context files are derived and equality-checked, never a second authority.',
+  },
+];
+
+// The completeness pass identified 18 migration seams. They are deliberately
+// implementation specifications, not open product questions. A builder can take
+// any row directly to the app without reopening the decisions that created it.
+export interface AppMigrationSpec {
+  readonly id: string;
+  readonly surface: string;
+  readonly target: string;
+  readonly acceptance: string;
+}
+
+export const APP_MIGRATION_SPECS: readonly AppMigrationSpec[] = [
+  {
+    id: 'MIG-01',
+    surface: 'all consumers',
+    target:
+      'Consume the resolved render contract and parity artifact from one commit, with a hash equality gate.',
+    acceptance: 'Phone, coach, engine, guards, and QA reject mixed-commit artifacts.',
+  },
+  {
+    id: 'MIG-02',
+    surface: 'coach context',
+    target:
+      'Delete the second authored top-level context path. bible.contextProse and script[] are the render-owned context and copy.',
+    acceptance:
+      'No context divergence remains and generated context files equal the render export.',
+  },
+  {
+    id: 'MIG-03',
+    surface: 'reactive toolkit',
+    target:
+      'Move exact reactive variants, clip IDs, seeded per-session rotation, retry, and active-language selection into GLOBAL_RESPONSES and GLOBAL_VOICE_OWNERSHIP.',
+    acceptance: 'No Master Sheet runtime read is needed to reproduce any global response.',
+  },
+  {
+    id: 'MIG-04',
+    surface: 'onboarding state check',
+    target:
+      'Register the onboarding record_checkin adapter with the required four-dimension 1-5 schema and atomic state-check persistence.',
+    acceptance:
+      'A complete state check writes stateCheck and the first daily_checkins row without a namespace mismatch.',
+  },
+  {
+    id: 'MIG-05',
+    surface: 'profile and path adapters',
+    target: 'Adapt legacy profile and path payloads to profile and path-and-category contracts.',
+    acceptance:
+      'Age is numeric, gender is canonical, and simple or braindump cannot leak past the adapter.',
+  },
+  {
+    id: 'MIG-06',
+    surface: 'custom category and goal',
+    target:
+      'Persist verbatim custom category and custom goal values, then route to custom-goal or custom-habit paths without enum rejection.',
+    acceptance: 'A refresh resumes the same custom values and downstream picker path.',
+  },
+  {
+    id: 'MIG-07',
+    surface: 'habit tools',
+    target:
+      'Generate add_habit, remove_habit, and update_habit adapters using name and numeric day values 0 through 6.',
+    acceptance:
+      'Beginner, custom, and advanced paths all maintain one normalized habitConfigs collection.',
+  },
+  {
+    id: 'MIG-08',
+    surface: 'morning ritual',
+    target:
+      'Register submit_morning_checkin with the morning-ritual contract and daily base cadence.',
+    acceptance:
+      'Setup persists time, days, reminder, and cold-resume state without weekday-only defaults.',
+  },
+  {
+    id: 'MIG-09',
+    surface: 'reflection ritual',
+    target:
+      'Write one reflection_settings object with style, custom prompts, time, days, and reminder, then have daily reflection read it.',
+    acceptance: 'Custom prompts replay verbatim after refresh and no separate setup keys drift.',
+  },
+  {
+    id: 'MIG-10',
+    surface: 'plan confirmation',
+    target:
+      'Remove plan edit UI and make Direct LLM and Vapi call the same atomic confirm_plan completion transaction.',
+    acceptance: 'Approval completes onboarding server-side before navigation in both lanes.',
+  },
+  {
+    id: 'MIG-11',
+    surface: 'daily rituals',
+    target:
+      'Normalize morning check-in, evening habit report, and evening reflection to daily base schedules everywhere.',
+    acceptance:
+      'No weekday hard code remains. A future weekend exception is an explicit override of OPEN_ITEMS.weekend-daily-rituals.',
+  },
+  {
+    id: 'MIG-12',
+    surface: 'weekly projection input',
+    target:
+      'Feed all five frames RESOLVED_DATA_CONTRACTS.weekly-projection from onboarding.habits and daily rituals.',
+    acceptance:
+      'Every displayed user row has the exact selected name and schedule. No sample habit or base streak exists.',
+  },
+  {
+    id: 'MIG-13',
+    surface: 'weekly projection frames',
+    target:
+      'Implement blank, full, 76%, 35%, and gaps descriptors with day-start rotation and final-two-column gaps.',
+    acceptance:
+      'The 76% and 35% labels are exact projected outcomes over real rows, and no named weekday anchors the gaps frame.',
+  },
+  {
+    id: 'MIG-14',
+    surface: 'goals and habits pickers',
+    target:
+      'Implement the declared empty-state, selection cap, accessibility, custom-entry, and emitted event contracts.',
+    acceptance:
+      'Goals emit one or two values and habits enforce the one-per-goal rule when two goals are selected.',
+  },
+  {
+    id: 'MIG-15',
+    surface: 'audio and dynamic replies',
+    target:
+      'Materialize every clip-family binding with exact localized text, asset IDs, and evidence records.',
+    acceptance: 'No dynamic spoken line is a placeholder or unowned live TTS.',
+  },
+  {
+    id: 'MIG-16',
+    surface: 'execution lanes and aliases',
+    target:
+      'Generate lane-neutral adapters and deterministic variant routes from the render contract.',
+    acceptance:
+      'Vapi and Direct LLM persist and advance identically; shared screen IDs use BEATS_BY_SCREEN_ID plus resolver.',
+  },
+  {
+    id: 'MIG-17',
+    surface: 'release proof',
+    target:
+      'Implement every planned must-rule evaluator as an evidence-producing walk for interaction, persistence, refresh, permission, and audio.',
+    acceptance: 'Release mode passes only with runnable evidence for every must rule.',
+  },
+  {
+    id: 'MIG-18',
+    surface: 'provenance and generated outputs',
+    target:
+      'Stamp source commit and artifact hashes, derive Sheet/context outputs one way from the render, and enforce CI equality.',
+    acceptance:
+      'A builder can identify the exact canonical render source and no generated output can silently drift.',
+  },
 ];
 
 // ---------- Part B: files + save + sync map (rendered collapsible; Sheet-exportable rows) ----------

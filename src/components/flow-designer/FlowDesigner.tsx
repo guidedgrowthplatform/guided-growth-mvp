@@ -45,6 +45,9 @@ import {
   RETIRED_ENFORCER_IDS,
   CANONICAL_ENUMS,
   OPEN_DECISIONS,
+  OPEN_ITEMS,
+  RESOLVED_DATA_CONTRACTS,
+  APP_MIGRATION_SPECS,
   FILES_SYNC_MAP,
   type FileMapRow,
 } from './flowBible';
@@ -194,7 +197,9 @@ function useIsolatedFlowState(seed?: { category?: string; goals?: string[] }): F
   // (beatsSource.ts props), so removing the fallback does not affect them.
   const [category, setCategoryState] = useState<string | null>(seed?.category ?? null);
   const [goals, setGoals] = useState<string[]>(seed?.goals ?? ['Fall asleep earlier']);
-  const [habits, setHabits] = useState<string[]>(['No screens after 10 PM']);
+  // Weekly projection must only ever read habits captured in this run. Do not
+  // seed a plausible-looking sample that could be mistaken for user data.
+  const [habits, setHabits] = useState<string[]>([]);
   // 24-hour "HH:MM" so the beats' formatTime12() renders them correctly.
   const [morningTime, setMorningTime] = useState<string | null>('08:00');
   const [eveningTime, setEveningTime] = useState<string | null>('21:30');
@@ -3323,8 +3328,8 @@ function GlobalBiblePanel() {
         </div>
       </ContextSection>
 
-      {/* 10. Open decisions */}
-      <ContextSection title={`10 · Open decisions (${OPEN_DECISIONS.length})`}>
+      {/* 10. Decision library */}
+      <ContextSection title={`10 · Decision library (${OPEN_DECISIONS.length} resolved)`}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {OPEN_DECISIONS.map((d) => (
             <div
@@ -3338,25 +3343,107 @@ function GlobalBiblePanel() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <MonoTag label={d.id} />
-                {d.decided ? (
-                  <StatusChip status="verified" label="DECIDED" />
-                ) : (
-                  <StatusChip status="needs-yair" label={d.decider} />
-                )}
+                <StatusChip status="verified" label="DECIDED" />
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
                 {d.question}
               </div>
               <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#334155', marginTop: 2 }}>
-                {d.decided ?? d.proposal}
+                {d.decided}
               </div>
             </div>
           ))}
         </div>
       </ContextSection>
 
-      {/* 11. Files + save + sync map */}
-      <ContextSection title={`11 · Files + save + sync map (${FILES_SYNC_MAP.length})`}>
+      {/* 11. Tracked open items */}
+      <ContextSection title={`11 · Tracked open items (${OPEN_ITEMS.length})`}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {OPEN_ITEMS.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                padding: '7px 9px',
+                borderRadius: 8,
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <MonoTag label={item.id} />
+                <StatusChip status="needs-yair" label={`OWNER: ${item.owner}`} />
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
+                {item.item}
+              </div>
+              <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#92400e', marginTop: 2 }}>
+                Base: {item.base}
+              </div>
+            </div>
+          ))}
+        </div>
+      </ContextSection>
+
+      {/* 12. Resolved data contracts */}
+      <ContextSection title={`12 · Resolved data contracts (${RESOLVED_DATA_CONTRACTS.length})`}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {RESOLVED_DATA_CONTRACTS.map((contract) => (
+            <div
+              key={contract.id}
+              style={{
+                padding: '7px 9px',
+                borderRadius: 8,
+                background: '#f8fafc',
+                border: '1px solid #eef2f7',
+              }}
+            >
+              <MonoTag label={contract.id} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+                <ContextKeyValue label="Producer" value={contract.producer} />
+                <ContextKeyValue label="Consumers" value={contract.consumers} />
+                <ContextKeyValue label="Shape" value={contract.shape} />
+                <ContextKeyValue label="Persistence" value={contract.persistence} />
+                <ContextKeyValue label="Invariant" value={contract.invariant} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </ContextSection>
+
+      {/* 13. App migration specifications */}
+      <ContextSection title={`13 · App migration specifications (${APP_MIGRATION_SPECS.length})`}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {APP_MIGRATION_SPECS.map((spec) => (
+            <div
+              key={spec.id}
+              style={{
+                padding: '7px 9px',
+                borderRadius: 8,
+                background: '#f8fafc',
+                border: '1px solid #eef2f7',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <MonoTag label={spec.id} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>
+                  {spec.surface}
+                </span>
+              </div>
+              <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#334155', marginTop: 4 }}>
+                <span style={{ fontWeight: 700 }}>Target: </span>
+                {spec.target}
+              </div>
+              <div style={{ fontSize: 11.5, lineHeight: 1.45, color: '#047857', marginTop: 2 }}>
+                <span style={{ fontWeight: 700 }}>Acceptance: </span>
+                {spec.acceptance}
+              </div>
+            </div>
+          ))}
+        </div>
+      </ContextSection>
+
+      {/* 14. Files + save + sync map */}
+      <ContextSection title={`14 · Files + save + sync map (${FILES_SYNC_MAP.length})`}>
         {FILES_SYNC_MAP.length ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {Object.entries(filesByArea).map(([area, rows]) => (
