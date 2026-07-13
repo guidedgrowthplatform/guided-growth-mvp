@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { GetStarted } from '@/components/flow-designer/beats/getStarted';
+import { PathSelectionBeat } from '@/components/flow-designer/beats/pathSelection';
 import { Splash } from '@/components/flow-designer/beats/splash';
 import { Orb } from '@/components/orb/Orb';
 import { orbIdle } from '@/components/orb/orbView';
@@ -122,6 +123,29 @@ function GetStartedPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvanc
   );
 }
 
+function PathSelectionPreview({
+  beat,
+  onAdvance,
+}: {
+  beat: OnboardingBeat;
+  onAdvance: () => void;
+}) {
+  return (
+    <Surface beat={beat}>
+      <div
+        data-testid="path-selection-preview-real"
+        style={{ minHeight: 312, display: 'grid', alignItems: 'center' }}
+      >
+        <PathSelectionBeat
+          {...beat.component.config}
+          {...(beat.component.props ?? {})}
+          onAdvance={onAdvance}
+        />
+      </div>
+    </Surface>
+  );
+}
+
 const componentRegistry: Record<
   string,
   (props: { beat: OnboardingBeat; onAdvance: () => void }) => JSX.Element
@@ -135,7 +159,7 @@ const componentRegistry: Record<
   'state-check': GenericSurface,
   'morning-checkin-setup': GenericSurface,
   'reflection-card': GenericSurface,
-  'path-selection': GenericSurface,
+  'path-selection': PathSelectionPreview,
 };
 
 function declaredClip(beat: OnboardingBeat): string | null {
