@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "a65bedad5c753e4c6966b6aa3aa0f0d30f43983b",
+  "branch": "render-completeness",
+  "buildSha": "82fcf3ef7b4b87810668584f0467f862770cf6ecccd26054fcd59161a6ed4db1",
+  "artifactHash": "5ece2b0d2689b39d0b4981c9fe760a6fe30131058851a7b66f636ec4873e0fe9",
+  "generatedFrom": "dist-flow/onboarding-contract.json",
+  "generatedContractSha256": "ff328c24d5be7f09d2c46f6455c8e63ef86e51218408cf2ec2f65a550f776db3",
+  "beatCount": 62,
+  "clipCount": 74
+}
