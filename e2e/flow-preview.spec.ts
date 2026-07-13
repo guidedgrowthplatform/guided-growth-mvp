@@ -8,7 +8,9 @@ test('walks the generated contract preview spine and exposes its declared clip',
   await expect(page.getByTestId('contract-provenance')).toContainText(
     'artifact 5ece2b0d2689b39d0b4981c9fe760a6fe30131058851a7b66f636ec4873e0fe9',
   );
-  await expect(page.getByTestId('preview-component-splash')).toBeVisible();
+  const splashPreview = page.getByTestId('preview-component-splash');
+  await expect(splashPreview).toBeVisible();
+  await expect(splashPreview).toContainText('Behavioral OS');
 
   for (const beat of [
     'get-started',
