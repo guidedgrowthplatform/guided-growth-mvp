@@ -5,21 +5,13 @@ import {
   type OnboardingBeat,
 } from '@/generated/onboardingContract';
 
-const PREVIEW_SPINE = [
-  'splash',
-  'get-started',
-  'coach-greeting',
-  'sign-up',
-  'mic-permission',
-  'profile-greeting',
-  'profile-asks',
-  'state-check',
-  'checkin',
-  'reflection',
-  'fork',
-] as const;
+const PREVIEW_SPINE = [...onboardingContract.beats]
+  .sort((left, right) => left.order - right.order)
+  .filter(
+    (beat) => beat.variantOf === null && (beat.path === 'both' || beat.path === 'beginner'),
+  )
+  .map((beat) => beat.id);
 
-type PreviewBeatId = (typeof PREVIEW_SPINE)[number];
 type PreviewSurfaceProps = { beat: OnboardingBeat; children: ReactNode };
 type ScriptLine = { seq: number; words: string; clipPath: string | null };
 
