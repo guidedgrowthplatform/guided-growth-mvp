@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { AuthSignup } from '@/components/flow-designer/beats/authSignup';
 import { GetStarted } from '@/components/flow-designer/beats/getStarted';
 import { PathSelectionBeat } from '@/components/flow-designer/beats/pathSelection';
 import { Splash } from '@/components/flow-designer/beats/splash';
@@ -143,6 +144,23 @@ function GetStartedPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvanc
   );
 }
 
+function AuthSignupPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance: () => void }) {
+  return (
+    <Surface beat={beat}>
+      <div
+        data-testid="auth-signup-preview-real"
+        style={{ minHeight: 312, display: 'grid', alignItems: 'center' }}
+      >
+        <AuthSignup
+          {...beat.component.config}
+          {...(beat.component.props ?? {})}
+          onAdvance={onAdvance}
+        />
+      </div>
+    </Surface>
+  );
+}
+
 function PathSelectionPreview({
   beat,
   onAdvance,
@@ -191,7 +209,7 @@ const componentRegistry: Record<
   splash: SplashPreview,
   'get-started': GetStartedPreview,
   'splash-intro': SplashIntroPreview,
-  'auth-signup': GenericSurface,
+  'auth-signup': AuthSignupPreview,
   'mic-permission': GenericSurface,
   'profile-beat': GenericSurface,
   'state-check': StateCheckPreview,
