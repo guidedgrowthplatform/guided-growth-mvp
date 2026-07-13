@@ -227,7 +227,13 @@ function validateAuthoredManifest(beatId, bible, problems) {
       }
       continue;
     }
-    if (status === 'derived' || status === 'pending-app-reconcile') continue;
+    if (status === 'derived') continue;
+    if (status === 'pending-app-reconcile') {
+      problems.push(
+        `${beatId}: sectionManifest.${key} is pending-app-reconcile; every render contract must now be resolved`,
+      );
+      continue;
+    }
     if (isNAStatus(status)) {
       if (!status.na.trim()) {
         problems.push(`${beatId}: sectionManifest.${key} is { na } with an empty reason`);
@@ -387,7 +393,12 @@ for (const beat of resolvedBeats) {
       }
       continue;
     }
-    if (status === 'pending-app-reconcile') continue;
+    if (status === 'pending-app-reconcile') {
+      problems.push(
+        `${beat.id}: manifest.${key} is pending-app-reconcile; every render contract must now be resolved`,
+      );
+      continue;
+    }
     if (isNAStatus(status)) {
       if (!String(status.na).trim())
         problems.push(`${beat.id}: manifest.${key} is { na } with an empty reason`);
@@ -621,9 +632,7 @@ for (const [headId, variants] of variantsByHead) {
   // .ts): it runs inside check:beats / CI render_guards, not Vitest-only, so a junk
   // or drifted token set fails the gate the leak scan trusts.
   const norm = (arr) =>
-    JSON.stringify(
-      [...new Set(arr.map((t) => String(t).toLowerCase()))].sort(),
-    );
+    JSON.stringify([...new Set(arr.map((t) => String(t).toLowerCase()))].sort());
   if (canonical === null) {
     // No typed FamilyVariantContract registered for this head family.
     if (semanticTokens.length === 0) {

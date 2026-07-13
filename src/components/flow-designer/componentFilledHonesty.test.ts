@@ -16,21 +16,20 @@ const CONTINUE_AFFORDANCE_RE = /advance_step|onContinue|handleContinue|>\s*Conti
 const COUNTER_AFFORDANCE_RE =
   /of\s*\{?\s*MAX_SUBCATEGORIES|of\s*\{?\s*max\b|selectedCount|of \d+ selected/i;
 
-describe('F3-R: goals-list filled-on-unbuilt honesty', () => {
+describe('F3-R: goals-list owned component contract', () => {
   const goalsSleep = BEAT_BY_ID['goals-sleep'];
   const components = goalsSleep.bible!.components!;
   const componentsStr = JSON.stringify(components);
 
-  it('the goals-list component does NOT render the declared Continue / counter affordance', () => {
-    expect(CONTINUE_AFFORDANCE_RE.test(goalsListSource)).toBe(false);
-    expect(COUNTER_AFFORDANCE_RE.test(goalsListSource)).toBe(false);
+  it('the goals-list component renders the declared Continue / counter affordance', () => {
+    expect(CONTINUE_AFFORDANCE_RE.test(goalsListSource)).toBe(true);
+    expect(COUNTER_AFFORDANCE_RE.test(goalsListSource)).toBe(true);
   });
 
-  it('so the components manifest must NOT claim filled (it is pending-app-reconcile)', () => {
+  it('owns its declared component contract', () => {
     // Declared affordances present in the section text.
     expect(/Continue affordance/i.test(componentsStr)).toBe(true);
     expect(/n of \d+ selected/i.test(componentsStr)).toBe(true);
-    // Honest status: a declared-but-unbuilt affordance cannot be 'filled'.
-    expect(goalsSleep.bible!.sectionManifest.components).toBe('pending-app-reconcile');
+    expect(goalsSleep.bible!.sectionManifest.components).toBe('filled');
   });
 });

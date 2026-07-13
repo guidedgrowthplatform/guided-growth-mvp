@@ -86,12 +86,14 @@ for (const { beatId, value: beat, line } of bibleBeats) {
 // component does not render the affordance the section declares.
 const TYPE_TO_COMPONENT = {
   'goals-list': 'src/components/flow-designer/beats/goalsList.tsx',
+  'habit-picker': 'src/components/flow-designer/beats/habitPicker.tsx',
+  'weekly-projection': 'src/components/flow-designer/beats/weeklyProjection.tsx',
 };
 const ASSERTED_UNIMPLEMENTED_RE = /ASSERTED SPEC[\s\S]*?does not implement yet/i;
-const CONTINUE_AFFORDANCE_RE = /advance_step|onContinue|handleContinue|>\s*Continue\b/;
+const CONTINUE_AFFORDANCE_RE = /advance_step|onContinue|handleContinue|>\s*(?:Continue|Next)\b/;
 const COUNTER_AFFORDANCE_RE =
   /of\s*\{?\s*MAX_SUBCATEGORIES|of\s*\{?\s*max\b|selectedCount|of \d+ selected/i;
-const DECLARES_CONTINUE_RE = /Continue affordance/i;
+const DECLARES_CONTINUE_RE = /(?:Continue|Next) affordance/i;
 const DECLARES_COUNTER_RE = /n of \d+ selected/i;
 
 let stateChecked = 0;

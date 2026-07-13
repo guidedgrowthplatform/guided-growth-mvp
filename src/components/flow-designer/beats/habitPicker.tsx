@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
+import { habitsByGoal, MAX_HABITS_ONBOARDING } from '@/data/onboardingHabits';
 import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
-import { habitsByGoal, MAX_HABITS_ONBOARDING } from '@/data/onboardingHabits';
 import { FONT, PRIMARY, SUBTLE, SPACE } from './_beatStyle';
 
 // "Less is more" cap for this beat. The check-ins are already habits, so
@@ -14,21 +14,36 @@ function HabitPickerBeat(props?: Record<string, string>) {
   // One panel per goal picked upstream, each showing that goal's real habits.
   // Selection is the shared, capped habit set so the plan beat reads it.
   const flow = useFlowState();
-  const goals = flow?.goals.length ? flow.goals : ['Fall asleep earlier'];
+  const goals = flow?.goals.length
+    ? flow.goals
+    : props?.goal
+      ? [props.goal]
+      : ['Fall asleep earlier'];
   const [localSel, setLocalSel] = useState<string[]>([]);
+  const [customGoalByHabit, setCustomGoalByHabit] = useState<Record<string, string>>({});
+  const [continued, setContinued] = useState(false);
   const selected = flow ? flow.habits : localSel;
   const selectedSet = new Set(selected);
   const atCap = selected.length >= HABIT_PICKER_CAP;
-  const toggle = (h: string) =>
-    flow
-      ? flow.toggleHabit(h, HABIT_PICKER_CAP)
-      : setLocalSel((p) =>
-          p.includes(h)
-            ? p.filter((x) => x !== h)
-            : p.length < HABIT_PICKER_CAP
-              ? [...p, h]
-              : p,
-        );
+  const selectedForGoal = (goal: string) =>
+    selected.some(
+      (habit) => customGoalByHabit[habit] === goal || habitsByGoal[goal]?.includes(habit),
+    );
+  const maxReachedForGoal = (goal: string) =>
+    atCap || (goals.length === 2 && selectedForGoal(goal));
+  const toggle = (habit: string, goal: string) => {
+    const isSelected = selectedSet.has(habit);
+    if (!isSelected && maxReachedForGoal(goal)) return;
+    if (flow) flow.toggleHabit(habit, HABIT_PICKER_CAP);
+    else
+      setLocalSel((current) =>
+        isSelected ? current.filter((value) => value !== habit) : [...current, habit],
+      );
+  };
+  const addCustomHabit = (habit: string, goal: string) => {
+    setCustomGoalByHabit((current) => ({ ...current, [habit]: goal }));
+    toggle(habit, goal);
+  };
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const isOpen = (g: string) => expanded[g] ?? true;
   const reveal = useElementReveal(goals.length);
@@ -42,6 +57,11 @@ function HabitPickerBeat(props?: Record<string, string>) {
       : selectionCount >= HABIT_PICKER_CAP
         ? `${selectionCount} of ${HABIT_PICKER_CAP} selected. That's a great start.`
         : `${selectionCount} of ${HABIT_PICKER_CAP} selected. One more is fine, or this is enough.`;
+
+  function handleContinue() {
+    if (selectionCount === 0) return;
+    setContinued(true);
+  }
 
   const steps: BeatStep[] = [
     {
@@ -80,12 +100,25 @@ function HabitPickerBeat(props?: Record<string, string>) {
                 expanded={isOpen(g)}
                 onToggleExpanded={() => setExpanded((e) => ({ ...e, [g]: !isOpen(g) }))}
                 selectedHabits={selectedSet}
-                maxReached={atCap}
-                onToggleHabit={(h) => toggle(h)}
-                onAddCustomHabit={(h) => toggle(h)}
+                maxReached={maxReachedForGoal(g)}
+                onToggleHabit={(h) => toggle(h, g)}
+                onAddCustomHabit={(h) => addCustomHabit(h, g)}
               />
             </Bloom>
           ))}
+          <button
+            type="button"
+            onClick={handleContinue}
+            disabled={selectionCount === 0}
+            className="w-full rounded-[24px] bg-primary px-[16px] py-[14px] text-[16px] font-bold leading-[24px] text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Continue
+          </button>
+          {continued && (
+            <p className="text-center text-[13px] font-semibold text-success">
+              Habits captured. The host flow can continue.
+            </p>
+          )}
         </div>
       ),
     },

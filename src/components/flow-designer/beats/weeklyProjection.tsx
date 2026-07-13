@@ -24,6 +24,7 @@
  *   - Coach narration never says tap, scroll, click, or press
  *   - Real WeeklyHabitsSummary component reused via the @/components alias
  */
+import { useState } from 'react';
 import {
   WeeklyHabitsSummary,
   type HabitWeekCell,
@@ -243,6 +244,7 @@ function WeeklyProjectionCard({
   locale?: string;
 }) {
   const flow = useFlowState();
+  const [continued, setContinued] = useState(false);
   const configuredUserHabits = (flow?.habits ?? []).map((name) => ({
     name,
     days: normalizedSchedule(flow?.habitConfigs[name]?.days),
@@ -338,6 +340,27 @@ function WeeklyProjectionCard({
         dayLabels={dayLabels}
         showToday={false}
       />
+      <button
+        type="button"
+        onClick={() => setContinued(true)}
+        className="w-full rounded-[24px] bg-primary px-[16px] py-[14px] text-[16px] font-bold leading-[24px] text-white"
+      >
+        Next
+      </button>
+      {continued && (
+        <p
+          style={{
+            fontFamily: FONT,
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: PRIMARY,
+            margin: 0,
+            textAlign: 'center',
+          }}
+        >
+          Projection complete. The host flow can continue.
+        </p>
+      )}
     </div>
   );
 }

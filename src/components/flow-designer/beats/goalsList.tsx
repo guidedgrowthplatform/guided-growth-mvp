@@ -1,9 +1,9 @@
-import { useRef, useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
+import { useRef, useEffect, useState } from 'react';
 import { GoalCard } from '@/components/onboarding/GoalCard';
+import { goalsByCategory } from '@/data/onboardingHabits';
 import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
-import { goalsByCategory } from '@/data/onboardingHabits';
 import { SECTION_LABEL, SPACE } from './_beatStyle';
 
 // The user picks 1 or 2 subcategories within their chosen category. The
@@ -16,11 +16,12 @@ function GoalsListBeat(props?: Record<string, string>) {
   // comes from shared flow state; on the canvas it defaults to "Sleep better"
   // so the tile still shows real options.
   const flow = useFlowState();
-  const category = flow?.category ?? 'Sleep better';
+  const category = props?.category ?? flow?.category ?? 'Sleep better';
   const subcategories = goalsByCategory[category] ?? goalsByCategory['Sleep better'] ?? [];
   const [localSel, setLocalSel] = useState<string[]>([]);
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customValue, setCustomValue] = useState('');
+  const [continued, setContinued] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -60,6 +61,11 @@ function GoalsListBeat(props?: Record<string, string>) {
     setShowCustomInput(false);
   }
 
+  function handleContinue() {
+    if (selected.length === 0) return;
+    setContinued(true);
+  }
+
   const steps: BeatStep[] = [
     {
       id: 'ask',
@@ -73,9 +79,7 @@ function GoalsListBeat(props?: Record<string, string>) {
       speaker: 'coach',
       render: (
         <div className="flex flex-col" style={{ gap: SPACE.md }}>
-          <p style={{ ...SECTION_LABEL, marginBottom: SPACE.xs }}>
-            Goals
-          </p>
+          <p style={{ ...SECTION_LABEL, marginBottom: SPACE.xs }}>Goals</p>
           {subcategories.map((sub, i) => {
             const on = selected.includes(sub);
             return (
@@ -125,6 +129,22 @@ function GoalsListBeat(props?: Record<string, string>) {
                 <Icon icon="mdi:plus" width={18} height={18} className="text-white" />
               </div>
             </button>
+          )}
+          <p className="text-center text-[13px] font-semibold text-content-secondary">
+            {selected.length} of {MAX_SUBCATEGORIES} selected
+          </p>
+          <button
+            type="button"
+            onClick={handleContinue}
+            disabled={selected.length === 0}
+            className="w-full rounded-[24px] bg-primary px-[16px] py-[14px] text-[16px] font-bold leading-[24px] text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Continue
+          </button>
+          {continued && (
+            <p className="text-center text-[13px] font-semibold text-success">
+              Goals captured. The host flow can continue.
+            </p>
           )}
         </div>
       ),

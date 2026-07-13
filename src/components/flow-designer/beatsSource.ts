@@ -9,6 +9,7 @@
 // edit this file. (Pass 2 applies the screenId -> beatId rename.)
 
 import { goalsByCategory } from '@gg/shared/data/onboardingGoals';
+import { habitsByGoal } from '@gg/shared/data/onboardingHabits';
 import type { BeatConversation, SourceStatus } from './flowBible';
 
 export type BeatPath = 'beginner' | 'advanced' | 'both';
@@ -4781,12 +4782,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       category: 'Sleep better',
     },
     bible: {
-      // components pending-app-reconcile: the "n of 2 selected" counter + Continue affordance
-      // are ASSERTED SPEC the render component does not build yet (see components.watchOut).
       sectionManifest: {
         identity: 'filled',
         scriptMeta: 'filled',
-        components: 'pending-app-reconcile',
+        components: 'filled',
         voice: 'filled',
         rulesContext: 'filled',
         rulesCode: 'filled',
@@ -4854,9 +4853,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
         ],
         watchOut:
-          'The ONLY structural difference across the 8 goals-* beats is the category and its tile set. Sleep better carries exactly these 4 labels; do not add, rename, or reorder them (they are the canonical GOAL OPTIONS BY CATEGORY strings). The "n of 2 selected" counter and Continue affordance in exact-state are ASSERTED SPEC the render component does not implement yet.',
+          'AUTHORITATIVE RENDER CONTRACT. Sleep better carries exactly these 4 canonical labels. App migration: consume this render-owned category options, selection cap, counter, and Continue affordance; do not redefine them app-side.',
         enforcedBy: ['component-registry-check'],
-        status: 'app-reconcile-pending',
+        status: 'verified',
       },
       voice: {
         rows: [
@@ -5714,13 +5713,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     // (resolveBeatStructure step 3b, gated on type === 'habit-picker'), so no head
     // token leaks onto a variant. The head authors all 14 sections generically here.
     bible: {
-      // components pending-app-reconcile: the per-goal on-screen habit sub-lists +
-      // the running counter / Continue affordance are ASSERTED SPEC not in the typed
-      // source (only goalsByCategory exists; there is no habitsByGoal table yet).
       sectionManifest: {
         identity: 'filled',
         scriptMeta: 'filled',
-        components: 'pending-app-reconcile',
+        components: 'filled',
         voice: 'filled',
         rulesContext: 'filled',
         rulesCode: 'filled',
@@ -5793,9 +5789,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
         ],
         watchOut:
-          'The per-goal on-screen habit sub-lists are NOT in the typed source (goalsByCategory covers goals only; there is no habitsByGoal table yet), and the running counter / Continue affordance in exact-state are ASSERTED SPEC the render component does not implement yet. Flagged app-reconcile-pending.',
+          'AUTHORITATIVE RENDER CONTRACT. The per-goal options are derived from habitsByGoal in this render, and the counter plus Continue affordance are owned here. App migration: consume this render-owned option and selection contract; do not create a separate app-side list.',
         enforcedBy: ['component-registry-check'],
-        status: 'app-reconcile-pending',
+        status: 'verified',
       },
       voice: {
         rows: [
@@ -8792,14 +8788,13 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       state: 'blank',
     },
     // Archetype = non-conversational MP3 beat over a display animation: one recorded
-    // line timed to a week-grid frame, then a Next tap. voice / scriptMeta owner-filled;
-    // components is pending-app-reconcile (the animated 5-state week grid is not yet
-    // built/reconciled in the app); conversation / allowedTools / persistence are { na }.
+    // line timed to a render-owned week-grid frame, then a Next tap. voice / scriptMeta
+    // / components are owner-filled; conversation / allowedTools / persistence are { na }.
     bible: {
       sectionManifest: {
         identity: 'filled',
         scriptMeta: 'filled',
-        components: 'pending-app-reconcile',
+        components: 'filled',
         voice: 'filled',
         rulesContext: 'filled',
         rulesCode: 'filled',
@@ -8852,9 +8847,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           { label: 'selection mode', value: 'none — display-only; the user taps Next to proceed' },
         ],
         watchOut:
-          'The animated 5-state week grid (blank -> full -> p78 -> p36 -> gaps) is not yet built/reconciled in the app; this component claim is pending-app-reconcile, not filled.',
+          'AUTHORITATIVE RENDER CONTRACT. The render owns all five projection states and requires normalized habit schedules. App migration: adopt this component and state contract without a parallel app-side projection spec.',
         enforcedBy: ['component-registry-check'],
-        status: 'app-reconcile-pending',
+        status: 'verified',
       },
       voice: {
         rows: [
@@ -9006,7 +9001,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       sectionManifest: {
         identity: 'filled',
         scriptMeta: 'filled',
-        components: 'pending-app-reconcile',
+        components: 'filled',
         voice: 'filled',
         rulesContext: 'filled',
         rulesCode: 'filled',
@@ -9059,9 +9054,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           { label: 'selection mode', value: 'none — display-only; the user taps Next to proceed' },
         ],
         watchOut:
-          'The animated 5-state week grid (blank -> full -> p78 -> p36 -> gaps) is not yet built/reconciled in the app; this component claim is pending-app-reconcile, not filled.',
+          'AUTHORITATIVE RENDER CONTRACT. The render owns all five projection states and requires normalized habit schedules. App migration: adopt this component and state contract without a parallel app-side projection spec.',
         enforcedBy: ['component-registry-check'],
-        status: 'app-reconcile-pending',
+        status: 'verified',
       },
       voice: {
         rows: [
@@ -9213,7 +9208,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       sectionManifest: {
         identity: 'filled',
         scriptMeta: 'filled',
-        components: 'pending-app-reconcile',
+        components: 'filled',
         voice: 'filled',
         rulesContext: 'filled',
         rulesCode: 'filled',
@@ -9267,9 +9262,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           { label: 'selection mode', value: 'none — display-only; the user taps Next to proceed' },
         ],
         watchOut:
-          'The animated 5-state week grid (blank -> full -> p78 -> p36 -> gaps) is not yet built/reconciled in the app; this component claim is pending-app-reconcile, not filled.',
+          'AUTHORITATIVE RENDER CONTRACT. The render owns all five projection states and requires normalized habit schedules. App migration: adopt this component and state contract without a parallel app-side projection spec.',
         enforcedBy: ['component-registry-check'],
-        status: 'app-reconcile-pending',
+        status: 'verified',
       },
       voice: {
         rows: [
@@ -9422,7 +9417,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       sectionManifest: {
         identity: 'filled',
         scriptMeta: 'filled',
-        components: 'pending-app-reconcile',
+        components: 'filled',
         voice: 'filled',
         rulesContext: 'filled',
         rulesCode: 'filled',
@@ -9476,9 +9471,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           { label: 'selection mode', value: 'none — display-only; the user taps Next to proceed' },
         ],
         watchOut:
-          'The animated 5-state week grid (blank -> full -> p78 -> p36 -> gaps) is not yet built/reconciled in the app; this component claim is pending-app-reconcile, not filled.',
+          'AUTHORITATIVE RENDER CONTRACT. The render owns all five projection states and requires normalized habit schedules. App migration: adopt this component and state contract without a parallel app-side projection spec.',
         enforcedBy: ['component-registry-check'],
-        status: 'app-reconcile-pending',
+        status: 'verified',
       },
       voice: {
         rows: [
@@ -9631,7 +9626,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       sectionManifest: {
         identity: 'filled',
         scriptMeta: 'filled',
-        components: 'pending-app-reconcile',
+        components: 'filled',
         voice: 'filled',
         rulesContext: 'filled',
         rulesCode: 'filled',
@@ -9685,9 +9680,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           { label: 'selection mode', value: 'none — display-only; the user taps Next to proceed' },
         ],
         watchOut:
-          'The animated 5-state week grid (blank -> full -> p78 -> p36 -> gaps) is not yet built/reconciled in the app; this component claim is pending-app-reconcile, not filled.',
+          'AUTHORITATIVE RENDER CONTRACT. The render owns all five projection states and requires normalized habit schedules. App migration: adopt this component and state contract without a parallel app-side projection spec.',
         enforcedBy: ['component-registry-check'],
-        status: 'app-reconcile-pending',
+        status: 'verified',
       },
       voice: {
         rows: [
@@ -9979,9 +9974,40 @@ function deriveVariantComponents(
           value: `resolved props: { category: '${category}', tileCount: ${tiles.length}, min: 1, max: 2, allowsCustom: true }`,
         },
       ],
-      watchOut: `DERIVED per-variant from goalsByCategory['${category}']. The ONLY structural difference across the goals-* beats is the category and its tile set; ${category} carries exactly these ${tiles.length} labels. The "n of 2 selected" counter and Continue affordance are ASSERTED SPEC the render component does not implement yet.`,
+      watchOut: `AUTHORITATIVE RENDER CONTRACT, derived per-variant from goalsByCategory['${category}']. ${category} carries exactly these ${tiles.length} labels. App migration: consume this render-owned category and selection contract; do not redefine its option set or cap app-side.`,
       enforcedBy: ['component-registry-check'],
-      status: 'app-reconcile-pending',
+      status: 'verified',
+    };
+  }
+  const goal = beat.props?.goal;
+  if (beat.type === 'habit-picker' && goal && habitsByGoal[goal]) {
+    const options = habitsByGoal[goal];
+    return {
+      rows: [
+        { label: 'component (registry key)', value: 'habit-picker' },
+        { label: 'variant', value: `goal = ${goal} (from source props.goal: '${goal}')` },
+        {
+          label: 'on-screen options',
+          value: `${options.length} habit options for ${goal}: ${options.join(', ')} (verbatim from HABIT OPTIONS BY GOAL), plus a "Create your own" custom-add affordance`,
+        },
+        {
+          label: 'selection mode',
+          value:
+            'multi-select, nothing selected on entry; at least one to continue; at most two habits total, with one per goal when two goals were picked',
+        },
+        {
+          label: 'exact state',
+          value:
+            'the running "n of 2 selected" counter reflects picks; the Continue affordance enables after at least one picked habit and hands the captured selection to the host flow',
+        },
+        {
+          label: 'derived (debug, generated never authored)',
+          value: `resolved props: { goal: '${goal}', optionCount: ${options.length}, min: 1, max: 2, onePerGoalWhenTwoGoals: true, allowsCustom: true }`,
+        },
+      ],
+      watchOut: `AUTHORITATIVE RENDER CONTRACT, derived per-variant from habitsByGoal['${goal}']. App migration: consume these exact render-owned options and selection rules; do not re-create a separate per-goal list app-side.`,
+      enforcedBy: ['component-registry-check'],
+      status: 'verified',
     };
   }
   // fallback (non-goals-list variant): substitute the head section so no head
