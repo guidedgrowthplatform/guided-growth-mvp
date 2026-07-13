@@ -12,6 +12,7 @@ import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
 import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
 import { Orb } from '@/components/orb/Orb';
 import { orbIdle } from '@/components/orb/orbView';
+import { MicPermission } from '@/components/welcome/MicPermission';
 import { SplashIntro } from '@/components/welcome/SplashIntro';
 import { habitsByGoal, MAX_HABITS_ONBOARDING } from '@/data/onboardingHabits';
 import {
@@ -164,6 +165,33 @@ function AuthSignupPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvanc
           {...beat.component.config}
           {...(beat.component.props ?? {})}
           onAdvance={onAdvance}
+        />
+      </div>
+    </Surface>
+  );
+}
+
+function MicPermissionPreview({
+  beat,
+  onAdvance,
+}: {
+  beat: OnboardingBeat;
+  onAdvance: () => void;
+}) {
+  const componentProps = (beat.component.props ?? {}) as { heading?: string; sub?: string };
+
+  return (
+    <Surface beat={beat}>
+      <div
+        data-testid="mic-permission-preview-real"
+        style={{ height: 420, marginTop: 12, overflow: 'hidden' }}
+      >
+        <MicPermission
+          {...beat.component.config}
+          {...componentProps}
+          subheading={componentProps.sub}
+          onAllow={onAdvance}
+          onSkip={onAdvance}
         />
       </div>
     </Surface>
@@ -391,7 +419,7 @@ const componentRegistry: Record<
   'get-started': GetStartedPreview,
   'splash-intro': SplashIntroPreview,
   'auth-signup': AuthSignupPreview,
-  'mic-permission': GenericSurface,
+  'mic-permission': MicPermissionPreview,
   'profile-beat': GenericSurface,
   'state-check': StateCheckPreview,
   'morning-checkin-setup': GenericSurface,
