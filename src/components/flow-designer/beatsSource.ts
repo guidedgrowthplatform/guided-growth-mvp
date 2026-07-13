@@ -122,13 +122,8 @@ export type BibleSectionKey =
 // - filled: this beat OWNS the section (authored here, non-empty).
 // - derived: the resolver produces this section per-variant from the beat's own
 //   props/script + a head Bible (variants only; never a claim of authorship).
-// - pending-app-reconcile: legitimately not yet contracted; may be absent.
 // - { na }: does not apply to this beat's type; reason required.
-export type SectionFillStatus =
-  | 'filled'
-  | 'derived'
-  | 'pending-app-reconcile'
-  | { readonly na: string };
+export type SectionFillStatus = 'filled' | 'derived' | { readonly na: string };
 
 export interface BibleSections {
   readonly identity?: {
@@ -1959,11 +1954,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: null,
     elements: ['age', 'gender'],
-    // EXEMPLAR (pre-fill, archetype = pending-app-reconcile data beat): a multi-turn
-    // beat that captures data and calls a tool, but whose persistence write target
-    // is not yet confirmed against the handler. It proves the manifest-level
-    // 'pending-app-reconcile' status: persistence is declared pending and its
-    // section is legitimately absent until app-reconcile.
+    // EXEMPLAR (fully specified data beat): a multi-turn
+    // beat that captures data and calls a tool. Its persistence target is stated
+    // in the rendered contract alongside the tool binding.
     bible: {
       sectionManifest: {
         identity: 'filled',
@@ -2305,11 +2298,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     voiceMode: 'Verbatim',
     hideOrb: false,
     props: null,
-    // EXEMPLAR (pre-fill, archetype = pending-app-reconcile data beat): the state
-    // check-in whose record_checkin tool binding is a known fork (no beat_contexts
-    // entry; deep-QA B6). allowedTools + persistence are legitimately
-    // 'pending-app-reconcile' (facts live app-side, section absent until reconcile);
-    // the render-side sections are owner-filled.
+    // EXEMPLAR (fully specified data beat): the state
+    // check-in whose record_checkin tool binding is rendered in full, including
+    // the authoritative persistence target. Every section is owner-filled.
     bible: {
       sectionManifest: {
         identity: 'filled',
@@ -2657,8 +2648,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     // Archetype = interactive data-gate + tool (card-fill setup). The coach frames the
     // morning ritual, the time/day/reminder picker reveals, then a short consistency
     // nudge. conversation is { na } (card-fill, no branching turn); allowedTools is
-    // owner-filled (the two tools are known); persistence is pending-app-reconcile
-    // (the submit_morning_checkin write target is per-handler, not yet confirmed).
+    // owner-filled, including the submit_morning_checkin persistence target.
     bible: {
       sectionManifest: {
         identity: 'filled',
@@ -4082,7 +4072,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       contextProse: {
         prose:
           'Focus area. Collect one category. The opener shows as a coach bubble, then the category tiles appear (default illustration set). When the create-your-own option appears at the end, "Or you can create your own" is spoken verbal only. Ask what they most want to work on, then wait. If they name several, ask which feels most urgent. Keep the response specific to their pick.',
-        pending: true,
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
@@ -4092,7 +4081,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         specs: [
           {
             tool: 'submit_category',
-            args: '{ category: string, source: "canonical" | "custom" } where canonical uses one of the 8 LOCKED labels and custom is the verbatim create-your-own label',
+            args: '{ category: string } where category is one of the 8 LOCKED labels, or the verbatim create-your-own label',
             when: 'once the user has settled on exactly one category',
           },
           {
@@ -4109,7 +4098,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'writes',
             value:
-              'onboarding_states.data.category = the chosen category label and onboarding_states.data.categorySource = "canonical" | "custom"',
+              'onboarding_states.data.category = the chosen category label (canonical or create-your-own)',
           },
           {
             label: 'never re-ask',
@@ -4119,11 +4108,11 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'resume key',
             value:
-              'onboarding_states.data.category + categorySource, then current_step advanced past category, prove this beat is done on refresh',
+              'onboarding_states.data.category, then current_step advanced past category, proves this beat is done on refresh',
           },
         ],
         watchOut:
-          'Canonical categories route to the matching typed goals-* list. A custom category routes to goal-custom and its free-text goals, never to a guessed canonical family. AUTHORITATIVE RENDER CONTRACT. TODO app migration: remove the fixed-only submit_category enum, accept source, and write category/categorySource keys. Source: api/_lib/llm/onboarding/handlers/submitCategory.ts.',
+          'Canonical categories route to the matching typed goals-* list. A create-your-own category routes to goal-custom and its free-text goals, never to a guessed canonical family. The persisted target is onboarding_states.data.category; the handler upserts this JSONB key.',
         enforcedBy: ['persistence-contract-check'],
       },
       flow: {
@@ -4535,7 +4524,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       contextProse: {
         prose:
           'Focus area. Collect one category. The opener shows as a coach bubble, then the category tiles appear (women-art illustration set). When the create-your-own option appears at the end, "Or you can create your own" is spoken verbal only. Ask what they most want to work on, then wait. If they name several, ask which feels most urgent. Keep the response specific to their pick.',
-        pending: true,
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
@@ -4545,7 +4533,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         specs: [
           {
             tool: 'submit_category',
-            args: '{ category: string } where category is one of the 8 LOCKED labels (CANONICAL_ENUMS.categories) OR a custom string from the create-your-own tile',
+            args: '{ category: string } where category is one of the 8 LOCKED labels or the verbatim create-your-own label',
             when: 'once the user has settled on exactly one category',
           },
           {
@@ -4561,7 +4549,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         rows: [
           {
             label: 'writes',
-            value: 'the chosen category (one value)',
+            value:
+              'onboarding_states.data.category = the chosen category label (canonical or create-your-own)',
           },
           {
             label: 'never re-ask',
@@ -4570,11 +4559,12 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             label: 'resume key',
-            value: 'current_step advanced past category-women proves this beat is done on refresh',
+            value:
+              'onboarding_states.data.category, then current_step advanced past category-women, proves this beat is done on refresh',
           },
         ],
         watchOut:
-          'Exact table + column for the category write is NOT in the render source or the docs read. Flagged for app-reconcile; do not invent a table name. The carry-forward contract (never re-ask category) is from GLOBAL_CONTEXT and is real.',
+          'The women-art variant uses the identical category persistence contract as the default art: submit_category upserts onboarding_states.data.category. The art choice does not create a second data shape.',
         enforcedBy: ['persistence-contract-check'],
       },
       flow: {
@@ -5014,7 +5004,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       contextProse: {
         prose:
           'Goals inside the chosen category (Sleep better). The opener reacts warmly to the category and asks for goals in one merged moment, then the Goals tiles appear. Collect one or two goals. Map what the user says to the exact on-screen label; if they speak generally, map to the closest one or ask one short question. One or two, no more. The goal count sets up the downstream habit distribution. Do not read the tiles out loud, do not coach or explain per goal, do not allow more than two.',
-        pending: true,
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
@@ -5024,9 +5013,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         specs: [
           {
             tool: 'submit_goals',
-            args: '{ goals: string[] } - the COMPLETE current selection of 1 or 2 goals, each an exact label from GOAL OPTIONS BY CATEGORY for Sleep better (confirm canonical arg name/shape)',
+            args: '{ goals: string[] } - the COMPLETE current selection of 1 or 2 goals, each an exact label from GOAL OPTIONS BY CATEGORY for Sleep better',
             when: 'once the user has settled on one or two goals',
-            pending: true,
           },
           {
             tool: 'advance_step',
@@ -5042,7 +5030,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'writes',
             value:
-              'the chosen 1-2 goals + the goal count (1 or 2) that sets up the downstream habit distribution',
+              'onboarding_states.data.goals = the complete chosen 1-2 goal array; its length sets up the downstream habit distribution',
           },
           {
             label: 'never re-ask',
@@ -5051,11 +5039,12 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             label: 'resume key',
-            value: 'current_step advanced past goals-sleep proves this beat is done on refresh',
+            value:
+              'onboarding_states.data.goals, then current_step advanced past goals-sleep, proves this beat is done on refresh',
           },
         ],
         watchOut:
-          'The exact table + column for the goals write is NOT confirmed in the render source. screen_contexts (Vapi-era) indicates user_onboarding.selected_subcategories[]; treat as an app-side hint, not final. Flagged for app-reconcile; do not invent a table name. The carry-forward contract (never re-ask goals) is from GLOBAL_CONTEXT and is real.',
+          'submit_goals replaces onboarding_states.data.goals with the complete current array. The handler reads onboarding_states.data.category to validate canonical labels, then JSONB-merges the goals key. Historical screen_contexts are not a persistence authority.',
         enforcedBy: ['persistence-contract-check'],
       },
       flow: {
@@ -5955,7 +5944,6 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       contextProse: {
         prose:
           'Habit selection after the goal(s) are chosen. The opener reacts to the picked goal and asks for a habit or two that feels doable, then the habit options appear. If two goals were picked, collect one habit per goal (two total, one each); if one goal was picked, collect one or two habits for it. Map what the user says to the closest canonical habit name; accept a custom habit only when they offer something not on the list. At least one to continue, at most two total. Do not read the habit list out loud, do not read sub-lists, do not add commentary after each pick. Less is more: one kept habit beats five.',
-        pending: true,
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
@@ -7429,7 +7417,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     // Archetype = interactive data-gate (card-fill day pickers). The coach frames it,
     // then all picked habits show as cards with day pickers; reminders OFF by default.
     // conversation is { na } (per-habit card fill, no branching); allowedTools is
-    // owner-filled; persistence is pending-app-reconcile (writes go "per handler").
+    // owner-filled; persistence target is the shared habitConfigs collection.
     bible: {
       sectionManifest: {
         identity: 'filled',
@@ -8928,7 +8916,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             edge: 'grid animation not ready',
             behavior:
-              'if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)',
+              'if the projection grid cannot mount, show the narrated frame text, a visible “Projection unavailable” status, and the Next affordance; do not fabricate rows or claim a projection rendered',
           },
         ],
         enforcedBy: ['eval:edge-walk'],
@@ -9135,7 +9123,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             edge: 'grid animation not ready',
             behavior:
-              'if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)',
+              'if the projection grid cannot mount, show the narrated frame text, a visible “Projection unavailable” status, and the Next affordance; do not fabricate rows or claim a projection rendered',
           },
         ],
         enforcedBy: ['eval:edge-walk'],
@@ -9343,7 +9331,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             edge: 'grid animation not ready',
             behavior:
-              'if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)',
+              'if the projection grid cannot mount, show the narrated frame text, a visible “Projection unavailable” status, and the Next affordance; do not fabricate rows or claim a projection rendered',
           },
         ],
         enforcedBy: ['eval:edge-walk'],
@@ -9552,7 +9540,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             edge: 'grid animation not ready',
             behavior:
-              'if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)',
+              'if the projection grid cannot mount, show the narrated frame text, a visible “Projection unavailable” status, and the Next affordance; do not fabricate rows or claim a projection rendered',
           },
         ],
         enforcedBy: ['eval:edge-walk'],
@@ -9762,7 +9750,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             edge: 'grid animation not ready',
             behavior:
-              'if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)',
+              'if the projection grid cannot mount, show the narrated frame text, a visible “Projection unavailable” status, and the Next affordance; do not fabricate rows or claim a projection rendered',
           },
         ],
         enforcedBy: ['eval:edge-walk'],
@@ -10045,18 +10033,9 @@ function deriveVariantVoice(
   };
 }
 
-// Every-section pending-app-reconcile manifest: the honest "not yet contracted"
-// fill for a beat with no bible (or a variant whose head has none). Same token the
-// coverage gate treats as legally-pending, so runtime/render/check agree.
-function pendingManifest(): Readonly<Record<BibleSectionKey, SectionFillStatus>> {
-  const out = {} as Record<BibleSectionKey, SectionFillStatus>;
-  for (const key of BIBLE_SECTION_KEYS) out[key] = 'pending-app-reconcile';
-  return out;
-}
-
 // A variant's manifest is its OWN, never inherited as authorship: a section the
 // variant AUTHORS keeps the child's declared status; a derived section is 'derived'
-// — UNLESS the head marks it pending/na, which a derived section can't out-contract.
+// — UNLESS the head marks it N/A, which a derived section can't out-contract.
 function deriveVariantManifest(
   beat: BeatEntry,
   head: BeatEntry | undefined,
@@ -10070,11 +10049,7 @@ function deriveVariantManifest(
       continue;
     }
     const headStatus = headManifest?.[key];
-    out[key] =
-      headStatus === 'pending-app-reconcile' ||
-      (headStatus !== undefined && typeof headStatus === 'object')
-        ? headStatus
-        : 'derived';
+    out[key] = headStatus !== undefined && typeof headStatus === 'object' ? headStatus : 'derived';
   }
   return out;
 }
@@ -10096,7 +10071,7 @@ export function resolveBeatStructure(id: string): {
   readonly inheritedFrom?: string;
   readonly inheritedSections?: readonly string[];
   readonly derivedSections?: readonly string[];
-  // Complete 14-key manifest for EVERY beat (no-bible beats -> all pending-app-reconcile).
+  // Complete 14-key manifest for every shipped beat. Unknown ids return no manifest.
   readonly sectionManifest?: Readonly<Record<BibleSectionKey, SectionFillStatus>>;
 } {
   const beat = BEAT_BY_ID[id];
@@ -10105,14 +10080,14 @@ export function resolveBeatStructure(id: string): {
     return {
       io: beat.io,
       bible: beat.bible,
-      sectionManifest: beat.bible?.sectionManifest ?? pendingManifest(),
+      sectionManifest: beat.bible?.sectionManifest,
     };
   const head = BEAT_BY_ID[beat.variantOf];
   if (!head)
     return {
       io: beat.io,
       bible: beat.bible,
-      sectionManifest: beat.bible?.sectionManifest ?? pendingManifest(),
+      sectionManifest: beat.bible?.sectionManifest,
     };
 
   const io = beat.io ?? head.io;
@@ -10229,7 +10204,7 @@ export function resolveBeatStructure(id: string): {
   }
 
   const inheritedFrom = ioInherited || derivedSections.length > 0 ? beat.variantOf : undefined;
-  const sectionManifest = bible?.sectionManifest ?? pendingManifest();
+  const sectionManifest = bible?.sectionManifest;
 
   return { io, bible, inheritedFrom, inheritedSections, derivedSections, sectionManifest };
 }

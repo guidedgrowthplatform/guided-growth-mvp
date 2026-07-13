@@ -4,10 +4,10 @@
     "beats": "src/components/flow-designer/beatsSource.ts#BEATS_SOURCE"
   },
   "provenance": {
-    "sourceCommit": "b3ff2b20d81be5d32973e751afbe6765690e8124",
+    "sourceCommit": "0a6a05b7394067dfa04df55936a743fda9c998b3",
     "branch": "render-completeness",
-    "buildSha": "9c0023b2fad57ef63f4767b5ef90e6c673f491a3b9af680477b15aac26a425ae",
-    "artifactHash": "679d122ef3adeee015449abcb3f947b256ea524d6ef94ec94bc9b252e53f4db9"
+    "buildSha": "8931c11d601dcf5ffd254d13710786ad35fd6a436027847ffd1ed0840fe89411",
+    "artifactHash": "e4ed73810dacf24e158da5cd747da323226c842e29d7c91472f6a7112d395a37"
   },
   "generatedAt": "2026-07-13T14:12:15+03:00",
   "idMap": {
@@ -6017,7 +6017,7 @@
           },
           {
             "edge": "grid animation not ready",
-            "behavior": "if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)",
+            "behavior": "if the projection grid cannot mount, show the narrated frame text, a visible “Projection unavailable” status, and the Next affordance; do not fabricate rows or claim a projection rendered",
             "voice": null
           }
         ]
@@ -6094,7 +6094,7 @@
           },
           {
             "edge": "grid animation not ready",
-            "behavior": "if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)",
+            "behavior": "if the projection grid cannot mount, show the narrated frame text, a visible “Projection unavailable” status, and the Next affordance; do not fabricate rows or claim a projection rendered",
             "voice": null
           }
         ]
@@ -6171,7 +6171,7 @@
           },
           {
             "edge": "grid animation not ready",
-            "behavior": "if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)",
+            "behavior": "if the projection grid cannot mount, show the narrated frame text, a visible “Projection unavailable” status, and the Next affordance; do not fabricate rows or claim a projection rendered",
             "voice": null
           }
         ]
@@ -6248,7 +6248,7 @@
           },
           {
             "edge": "grid animation not ready",
-            "behavior": "if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)",
+            "behavior": "if the projection grid cannot mount, show the narrated frame text, a visible “Projection unavailable” status, and the Next affordance; do not fabricate rows or claim a projection rendered",
             "voice": null
           }
         ]
@@ -6325,7 +6325,7 @@
           },
           {
             "edge": "grid animation not ready",
-            "behavior": "if the projection component is unavailable, still show the line and the Next affordance (pending-app-reconcile fallback)",
+            "behavior": "if the projection grid cannot mount, show the narrated frame text, a visible “Projection unavailable” status, and the Next affordance; do not fabricate rows or claim a projection rendered",
             "voice": null
           }
         ]

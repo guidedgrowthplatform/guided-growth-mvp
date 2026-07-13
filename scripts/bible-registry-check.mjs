@@ -8,8 +8,8 @@
 // 2) COVERAGE (open decision "uniform-sections", Yair/conductor 2026-07-09, LOCKED):
 //    EVERY onboarding beat must resolve a manifest, and every one of the 14
 //    BibleSectionKey sections must be owner-filled, explicitly derived, { na: reason },
-//    or pending-app-reconcile. No beat is silently skipped. A beat with no bible and
-//    no variantOf resolves to an all-pending manifest (honest: not yet contracted).
+//    or explicitly N/A with a reason. No beat is silently skipped. Every shipped
+//    beat must resolve a complete contract.
 //
 // 3) VARIANT-INHERITANCE LEAK (B1, the scale gate): a variantOf beat's RESOLVED
 //    bible must not contain the head's category label, the head's clip ids, the
@@ -228,12 +228,6 @@ function validateAuthoredManifest(beatId, bible, problems) {
       continue;
     }
     if (status === 'derived') continue;
-    if (status === 'pending-app-reconcile') {
-      problems.push(
-        `${beatId}: sectionManifest.${key} is pending-app-reconcile; every render contract must now be resolved`,
-      );
-      continue;
-    }
     if (isNAStatus(status)) {
       if (!status.na.trim()) {
         problems.push(`${beatId}: sectionManifest.${key} is { na } with an empty reason`);
@@ -241,7 +235,7 @@ function validateAuthoredManifest(beatId, bible, problems) {
       continue;
     }
     problems.push(
-      `${beatId}: sectionManifest.${key} has an invalid value (must be 'filled', 'derived', 'pending-app-reconcile', or { na: string })`,
+      `${beatId}: sectionManifest.${key} has an invalid value (must be 'filled', 'derived', or { na: string })`,
     );
   }
 }
@@ -272,6 +266,12 @@ const flowBibleEnforcedBy = collectEnforcedBy(flowBibleSf, flowBibleSf, 'flowBib
 validateEnforcedByEntries(flowBibleEnforcedBy, registryIds, problems);
 
 const beatsSourceText = await readFile(beatsSourcePath, 'utf8');
+if (/\bpending\s*:\s*true\b/.test(beatsSourceText)) {
+  problems.push('beatsSource.ts contains a nested pending: true marker; render contracts must be concrete');
+}
+if (/pending-app-reconcile/.test(beatsSourceText)) {
+  problems.push('beatsSource.ts contains a retired unresolved-contract marker');
+}
 const beatsSf = ts.createSourceFile(
   'beatsSource.ts',
   beatsSourceText,
@@ -328,7 +328,7 @@ try {
   process.exit(1);
 }
 
-const coverage = { ownerFilled: 0, derivedVariant: 0, allPending: 0 };
+const coverage = { ownerFilled: 0, derivedVariant: 0, unresolved: 0 };
 
 // Head tokens that must NOT survive onto a variant's derived sections. Skip a
 // rule-id prefix shorter than 3 chars (too generic to scan without false hits).
@@ -350,17 +350,14 @@ for (const beat of resolvedBeats) {
   const isVariant = Boolean(beat.variantOf);
   const owns = new Set(beat.ownBibleKeys);
 
-  // Safety net: the resolver now emits a real 14-key manifest for every beat, so a
-  // null here would mean a resolver regression, not a no-bible beat.
+  // Safety net: every shipped beat must emit a real 14-key manifest.
   if (!manifest) {
-    coverage.allPending += 1;
+    coverage.unresolved += 1;
+    problems.push(`${beat.id}: resolver emitted no section manifest`);
     continue;
   }
-  // Classify by the REAL manifest content (not by bible presence): every-key-pending
-  // = all-pending; else variant = derived, else owner-filled.
-  const allPending = SECTION_KEYS.every((k) => manifest[k] === 'pending-app-reconcile');
-  if (allPending) coverage.allPending += 1;
-  else if (isVariant) coverage.derivedVariant += 1;
+  // Classify by the real manifest content, not by bible presence.
+  if (isVariant) coverage.derivedVariant += 1;
   else coverage.ownerFilled += 1;
 
   for (const key of SECTION_KEYS) {
@@ -393,19 +390,13 @@ for (const beat of resolvedBeats) {
       }
       continue;
     }
-    if (status === 'pending-app-reconcile') {
-      problems.push(
-        `${beat.id}: manifest.${key} is pending-app-reconcile; every render contract must now be resolved`,
-      );
-      continue;
-    }
     if (isNAStatus(status)) {
       if (!String(status.na).trim())
         problems.push(`${beat.id}: manifest.${key} is { na } with an empty reason`);
       continue;
     }
     problems.push(
-      `${beat.id}: manifest.${key} has an invalid value (must be 'filled', 'derived', 'pending-app-reconcile', or { na: string })`,
+      `${beat.id}: manifest.${key} has an invalid value (must be 'filled', 'derived', or { na: string })`,
     );
   }
 
@@ -750,7 +741,7 @@ console.log(
     `${flowBibleEnforcedBy.length} enforcedBy refs in flowBible.ts, ` +
     `${beatsWithBible} authored bible(s), ${beatsEnforcedByCount} enforcedBy refs in beatsSource.ts, all resolved. ` +
     `Coverage: ${resolvedBeats.length} beats resolved a manifest ` +
-    `(${coverage.ownerFilled} owner-filled, ${coverage.derivedVariant} derived-variant, ${coverage.allPending} all-pending), ` +
+    `(${coverage.ownerFilled} owner-filled, ${coverage.derivedVariant} derived-variant, ${coverage.unresolved} unresolved), ` +
     `no variant leaked a head token, ${ruleIdOwners.size} rule ids globally unique across beats, no non-owned 'filled' claim.` +
     (MODE === 'authoring'
       ? ' (Release mode --mode=release additionally requires every must-rule enforcer to be built/runnable.)'

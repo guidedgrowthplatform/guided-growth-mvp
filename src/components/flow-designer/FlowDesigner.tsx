@@ -1111,17 +1111,15 @@ function GeneratedChip() {
   );
 }
 
-// Compact one-line row for a section that is not filled: N-A-for-this-type (with
-// its reason) or pending-app-reconcile. Never an accordion — there's nothing to
-// expand into.
+// Compact one-line row for a section that is N/A for this beat type. It never
+// hides an unresolved contract: every shipped section is filled or derived.
 function SectionStatusRow({
   title,
   status,
 }: {
   title: string;
-  status: Exclude<SectionFillStatus, 'filled'>;
+  status: Extract<SectionFillStatus, { readonly na: string }>;
 }) {
-  const isNA = typeof status === 'object';
   return (
     <div
       style={{
@@ -1147,30 +1145,10 @@ function SectionStatusRow({
       >
         {title}
       </span>
-      {isNA ? (
-        <span style={{ color: '#94a3b8' }}>
-          <span style={{ fontWeight: 700 }}>N/A for this type: </span>
-          {status.na}
-        </span>
-      ) : (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '1px 7px',
-            borderRadius: 99,
-            border: '1px solid #fcd34d',
-            background: '#fffbeb',
-            color: '#b45309',
-            fontSize: 9.5,
-            fontWeight: 800,
-            letterSpacing: '0.03em',
-            textTransform: 'uppercase',
-          }}
-        >
-          pending app-reconcile
-        </span>
-      )}
+      <span style={{ color: '#94a3b8' }}>
+        <span style={{ fontWeight: 700 }}>N/A for this type: </span>
+        {status.na}
+      </span>
     </div>
   );
 }
@@ -1178,13 +1156,12 @@ function SectionStatusRow({
 // Honest per-beat tally over the 14-key manifest (S3): badge label + counts are
 // computed, never hardcoded, so the fill claim is truthful per beat.
 function manifestCounts(manifest?: Readonly<Record<string, SectionFillStatus>>) {
-  const c = { filled: 0, derived: 0, na: 0, pending: 0, total: 0 };
+  const c = { filled: 0, derived: 0, na: 0, total: 0 };
   if (!manifest) return c;
   for (const s of Object.values(manifest)) {
     c.total += 1;
     if (s === 'filled') c.filled += 1;
     else if (s === 'derived') c.derived += 1;
-    else if (s === 'pending-app-reconcile') c.pending += 1;
     else if (s && typeof s === 'object') c.na += 1;
   }
   return c;
@@ -1192,7 +1169,6 @@ function manifestCounts(manifest?: Readonly<Record<string, SectionFillStatus>>) 
 
 function ManifestBadge({ manifest }: { manifest?: Readonly<Record<string, SectionFillStatus>> }) {
   const c = manifestCounts(manifest);
-  const fully = c.pending === 0;
   return (
     <div
       style={{
@@ -1220,22 +1196,21 @@ function ManifestBadge({ manifest }: { manifest?: Readonly<Record<string, Sectio
           fontWeight: 800,
           padding: '1px 7px',
           borderRadius: 99,
-          background: fully ? '#eaf1ff' : '#fffbeb',
-          color: fully ? '#135bec' : '#b45309',
-          border: `1px solid ${fully ? '#c7d8ff' : '#fcd34d'}`,
+          background: '#eaf1ff',
+          color: '#135bec',
+          border: '1px solid #c7d8ff',
           letterSpacing: '0.03em',
           textTransform: 'uppercase',
         }}
       >
-        {c.filled} filled · {c.derived} derived · {c.na} n/a · {c.pending} pending
+        {c.filled} filled · {c.derived} derived · {c.na} n/a
       </span>
     </div>
   );
 }
 
-// Compact 14-row contract for a beat with no authored/derived Bible: every section
-// is pending-app-reconcile. Rendered so ALL beats show their manifest, not only
-// bible-bearing ones (B1). Collapsible to keep the panel usable.
+// Compact 14-row contract rendered for every beat, including variants. Collapsible
+// to keep the panel usable.
 function ManifestStatusList({
   manifest,
 }: {
@@ -1276,21 +1251,45 @@ function ManifestStatusList({
         <ManifestBadge manifest={manifest} />
       </summary>
       <div style={{ marginTop: 6 }}>
-        {entries.map(([key, status], i) => (
-          <SectionStatusRow
-            key={key}
-            title={`${i + 1} · ${key}`}
-            status={status as Exclude<SectionFillStatus, 'filled'>}
-          />
-        ))}
+        {entries.map(([key, status], i) =>
+          typeof status === 'object' ? (
+            <SectionStatusRow key={key} title={`${i + 1} · ${key}`} status={status} />
+          ) : (
+            <div
+              key={key}
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 8,
+                padding: '8px 0',
+                borderTop: '1px solid #f1f5f9',
+                fontSize: 11.5,
+                lineHeight: 1.45,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: '#94a3b8',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {i + 1} · {key}
+              </span>
+              <span style={{ color: '#475569' }}>{status}</span>
+            </div>
+          ),
+        )}
       </div>
     </details>
   );
 }
 
 // Manifest-driven section slot (Yair/conductor 2026-07-09, LOCKED uniform-sections
-// rule): filled -> the accordion (children, as before); na / pending-app-reconcile
-// -> a compact status row, never an accordion. When the manifest doesn't cover
+// rule): filled -> the accordion (children, as before); N/A -> a compact status
+// row, never an accordion. When the manifest doesn't cover
 // this key (older/partial data), falls back to rendering children only if data
 // is actually present, same as the pre-manifest behavior.
 function BibleSectionSlot({
@@ -1306,11 +1305,11 @@ function BibleSectionSlot({
   badge?: ReactNode;
   children: ReactNode;
 }) {
-  // pending-app-reconcile / { na } -> compact status row; nothing to expand into.
-  // 'derived' is NOT routed here: resolveBeatStructure fills bible.<key> with the
+  // N/A -> compact status row; nothing to expand into. 'derived' is NOT routed here:
+  // resolveBeatStructure fills bible.<key> with the
   // resolved/inherited content, so a derived section renders its real spec (with a
   // "derived from <head>" badge), never the empty pending stub (B1 blocker fix).
-  if (status && status !== 'filled' && status !== 'derived') {
+  if (status && typeof status === 'object') {
     return <SectionStatusRow title={title} status={status} />;
   }
   if (!hasData) return null;

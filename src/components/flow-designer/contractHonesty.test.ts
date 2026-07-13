@@ -27,7 +27,6 @@ function isLegalStatus(s: unknown): boolean {
   return (
     s === 'filled' ||
     s === 'derived' ||
-    s === 'pending-app-reconcile' ||
     (typeof s === 'object' && s !== null && typeof (s as { na?: unknown }).na === 'string')
   );
 }

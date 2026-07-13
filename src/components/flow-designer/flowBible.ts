@@ -1155,7 +1155,7 @@ export const OPEN_DECISIONS: readonly OpenDecision[] = [
     proposal: 'Optional sections per beat',
     decider: 'Yair',
     decided:
-      'NO - uniform shape (conductor decided under Yair delegation, 2026-07-09): every beat declares ALL sections; each is filled / N-A-for-this-type (with reason) / pending-app-reconcile; guard validates.',
+      'NO - uniform shape (conductor decided under Yair delegation, 2026-07-09): every beat declares ALL sections; each is filled, derived, or N-A-for-this-type with a reason; the guard validates.',
   },
   {
     id: 'weekly-projection-real-habits',
