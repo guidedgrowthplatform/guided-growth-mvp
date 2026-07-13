@@ -3,8 +3,10 @@ import { AuthSignup } from '@/components/flow-designer/beats/authSignup';
 import { CustomEntryCard } from '@/components/flow-designer/beats/customEntry';
 import { GetStarted } from '@/components/flow-designer/beats/getStarted';
 import { GoalsListBeat } from '@/components/flow-designer/beats/goalsList';
+import { MorningCard } from '@/components/flow-designer/beats/morningCheckinSetup';
 import { FullPlanBeat } from '@/components/flow-designer/beats/onboardingComplete';
 import { PathSelectionBeat } from '@/components/flow-designer/beats/pathSelection';
+import { ritualWeekdaysForLocale } from '@/components/flow-designer/beats/ritualCadence';
 import { Splash } from '@/components/flow-designer/beats/splash';
 import { CheckInCard } from '@/components/home/CheckInCard';
 import { WEEKDAYS, toggleSetItem } from '@/components/onboarding/constants';
@@ -394,6 +396,49 @@ function HabitSchedulePreview({
   );
 }
 
+function MorningCheckinSetupPreview({
+  beat,
+  onAdvance,
+}: {
+  beat: OnboardingBeat;
+  onAdvance: () => void;
+}) {
+  const componentProps = (beat.component.props ?? {}) as { defaultTime?: string; locale?: string };
+  const [days, setDays] = useState<Set<number>>(() =>
+    ritualWeekdaysForLocale(componentProps.locale),
+  );
+  const [time, setTime] = useState(componentProps.defaultTime ?? '08:00');
+  const [remind, setRemind] = useState(true);
+
+  return (
+    <Surface beat={beat}>
+      <div
+        data-testid="morning-checkin-setup-preview-real"
+        style={{ minHeight: 312, marginTop: 12 }}
+      >
+        <MorningCard
+          {...beat.component.config}
+          {...componentProps}
+          days={days}
+          onToggleDay={(day) => setDays((current) => toggleSetItem(current, day))}
+          time={time}
+          onTimeChange={setTime}
+          remind={remind}
+          onToggleRemind={setRemind}
+          revealCount={3}
+        />
+        <button
+          type="button"
+          onClick={onAdvance}
+          className="mt-4 w-full rounded-[24px] bg-primary px-[16px] py-[14px] text-[16px] font-bold leading-[24px] text-white"
+        >
+          Continue
+        </button>
+      </div>
+    </Surface>
+  );
+}
+
 function IntoAppPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance: () => void }) {
   return (
     <Surface beat={beat}>
@@ -422,7 +467,7 @@ const componentRegistry: Record<
   'mic-permission': MicPermissionPreview,
   'profile-beat': GenericSurface,
   'state-check': StateCheckPreview,
-  'morning-checkin-setup': GenericSurface,
+  'morning-checkin-setup': MorningCheckinSetupPreview,
   'reflection-card': GenericSurface,
   'path-selection': PathSelectionPreview,
   'goals-list': GoalsListPreview,
