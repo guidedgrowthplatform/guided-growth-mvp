@@ -6,6 +6,7 @@ vi.mock('../../db.js', () => ({ default: { query: vi.fn() } }));
 import pool from '../../db.js';
 const {
   refreshAccessToken,
+  exchangeCodeForTokens,
   getValidAccessToken,
   CalendarNotConnectedError,
   CalendarDisabledError,
@@ -67,6 +68,49 @@ describe('refreshAccessToken', () => {
   it('rejects a malformed success body', async () => {
     fetchOnce({ ok: true, status: 200, json: { access_token: 'at' } }); // no expires_in
     await expect(refreshAccessToken('rt')).rejects.toThrow(/malformed/);
+  });
+});
+
+describe('exchangeCodeForTokens', () => {
+  it('sends grant_type=authorization_code with code + redirect_uri', async () => {
+    fetchOnce({ ok: true, status: 200, json: { access_token: 'at', expires_in: 3600 } });
+    await exchangeCodeForTokens('the-code', 'https://app/api/calendar/oauth/callback');
+    const body = String((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
+    expect(body).toContain('grant_type=authorization_code');
+    expect(body).toContain('code=the-code');
+    expect(body).toContain(encodeURIComponent('https://app/api/calendar/oauth/callback'));
+  });
+
+  it('returns refresh_token + scope on success', async () => {
+    fetchOnce({
+      ok: true,
+      status: 200,
+      json: { access_token: 'at', expires_in: 3600, refresh_token: 'rt', scope: 'a b' },
+    });
+    await expect(exchangeCodeForTokens('c', 'https://app/cb')).resolves.toMatchObject({
+      refresh_token: 'rt',
+      scope: 'a b',
+    });
+  });
+
+  it('throws on a bad code (400)', async () => {
+    fetchOnce({ ok: false, status: 400, text: JSON.stringify({ error: 'invalid_grant' }) });
+    await expect(exchangeCodeForTokens('c', 'https://app/cb')).rejects.toThrow(/400/);
+  });
+
+  it('throws on a 500', async () => {
+    fetchOnce({ ok: false, status: 500, text: '' });
+    await expect(exchangeCodeForTokens('c', 'https://app/cb')).rejects.toThrow(/500/);
+  });
+
+  it('throws when client credentials are not configured', async () => {
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', '');
+    await expect(exchangeCodeForTokens('c', 'https://app/cb')).rejects.toThrow(/GOOGLE_CLIENT/);
+  });
+
+  it('rejects a malformed success body', async () => {
+    fetchOnce({ ok: true, status: 200, json: { refresh_token: 'rt' } }); // no access_token
+    await expect(exchangeCodeForTokens('c', 'https://app/cb')).rejects.toThrow(/malformed/);
   });
 });
 

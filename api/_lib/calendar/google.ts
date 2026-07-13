@@ -47,6 +47,55 @@ interface RefreshResult {
   refresh_token?: string; // Google may rotate the refresh token on a refresh grant.
 }
 
+interface CodeExchangeResult {
+  access_token: string;
+  expires_in: number;
+  refresh_token?: string; // present only with access_type=offline + first/prompt=consent
+  scope?: string; // space-delimited scopes the user actually granted
+}
+
+// redirectUri MUST byte-match the one sent to the consent screen.
+export async function exchangeCodeForTokens(
+  code: string,
+  redirectUri: string,
+): Promise<CodeExchangeResult> {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not configured');
+  }
+
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    code,
+    redirect_uri: redirectUri,
+    grant_type: 'authorization_code',
+  });
+
+  const response = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => '');
+    console.error('[calendar/google] code exchange failed', {
+      status: response.status,
+      body: errBody.slice(0, 500),
+    });
+    throw new Error(`google code exchange failed: ${response.status}`);
+  }
+
+  const json = (await response.json()) as CodeExchangeResult;
+  if (typeof json.access_token !== 'string' || !Number.isFinite(json.expires_in)) {
+    throw new Error('google code exchange: malformed response');
+  }
+  return json;
+}
+
 export async function refreshAccessToken(refreshToken: string): Promise<RefreshResult> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
