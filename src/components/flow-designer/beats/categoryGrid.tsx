@@ -194,7 +194,15 @@ function CategoryGridPicker({
   );
 }
 
-function CategoryGrid(props?: Record<string, string>) {
+type CategoryGridProps = {
+  coachLine?: string;
+  micHintLabel?: string;
+  variant?: string;
+  hideOrb?: boolean;
+  onAdvance?: () => void;
+};
+
+export function CategoryGrid(props?: CategoryGridProps) {
   // In Play the pick writes to shared flow state so the goals beat reads it; on
   // the static canvas there is no provider, so fall back to local state.
   const flow = useFlowState();
@@ -240,7 +248,21 @@ function CategoryGrid(props?: Record<string, string>) {
     },
   ];
 
-  return <BeatPlayer steps={steps} />;
+  return (
+    <div className="flex flex-col gap-7">
+      <BeatPlayer steps={steps} />
+      {props?.onAdvance && (
+        <button
+          type="button"
+          onClick={props.onAdvance}
+          disabled={!sel}
+          className="w-full rounded-2xl bg-primary px-4 py-3 text-[16px] font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Continue
+        </button>
+      )}
+    </div>
+  );
 }
 
 const categoryGridBeat: BeatDef = {

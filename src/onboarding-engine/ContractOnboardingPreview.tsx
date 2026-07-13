@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AuthSignup } from '@/components/flow-designer/beats/authSignup';
+import { CategoryGrid } from '@/components/flow-designer/beats/categoryGrid';
 import { GetStarted } from '@/components/flow-designer/beats/getStarted';
 import { PathSelectionBeat } from '@/components/flow-designer/beats/pathSelection';
 import { Splash } from '@/components/flow-designer/beats/splash';
@@ -202,6 +203,23 @@ function StateCheckPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvanc
   );
 }
 
+function CategoryGridPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance: () => void }) {
+  return (
+    <Surface beat={beat}>
+      <div
+        data-testid="category-grid-preview-real"
+        style={{ minHeight: 312, display: 'grid', alignItems: 'center' }}
+      >
+        <CategoryGrid
+          {...beat.component.config}
+          {...(beat.component.props ?? {})}
+          onAdvance={onAdvance}
+        />
+      </div>
+    </Surface>
+  );
+}
+
 const componentRegistry: Record<
   string,
   (props: { beat: OnboardingBeat; onAdvance: () => void }) => JSX.Element
@@ -216,6 +234,7 @@ const componentRegistry: Record<
   'morning-checkin-setup': GenericSurface,
   'reflection-card': GenericSurface,
   'path-selection': PathSelectionPreview,
+  'category-grid': CategoryGridPreview,
 };
 
 function declaredClip(beat: OnboardingBeat): string | null {
