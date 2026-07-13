@@ -51,7 +51,7 @@ export interface StartCalendarOAuthBody {
 
 // Token captured server-side on /oauth/callback — never on the client.
 export function startCalendarOAuth(body: StartCalendarOAuthBody): Promise<{ url: string }> {
-  return apiPost('/api/calendar/oauth/start', body);
+  return apiPost('/api/calendar/oauth-start', body);
 }
 
 export function getCalendarStatus(): Promise<CalendarStatus> {

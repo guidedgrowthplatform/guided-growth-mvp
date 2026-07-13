@@ -64,7 +64,7 @@ describe('buildConsentUrl', () => {
     expect(url).toContain('access_type=offline');
     expect(url).toContain('prompt=consent');
     expect(url).toContain(encodeURIComponent('calendar.events'));
-    expect(url).toContain(encodeURIComponent('https://app.test/api/calendar/oauth/callback'));
+    expect(url).toContain(encodeURIComponent('https://app.test/api/calendar/oauth-callback'));
   });
 });
 
@@ -88,6 +88,6 @@ describe('isValidScheme', () => {
 
 describe('calendarRedirectUri', () => {
   it('derives from CALENDAR_OAUTH_REDIRECT_ORIGIN', () => {
-    expect(calendarRedirectUri()).toBe('https://app.test/api/calendar/oauth/callback');
+    expect(calendarRedirectUri()).toBe('https://app.test/api/calendar/oauth-callback');
   });
 });
