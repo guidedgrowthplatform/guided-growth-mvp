@@ -1,6 +1,6 @@
-import { FONT, PRIMARY, SECTION_LABEL, SUBTLE, SPACE } from './_beatStyle';
 import { Button } from '@/components/ui/Button';
 import { type BeatDef } from '../beatKit';
+import { FONT, PRIMARY, SECTION_LABEL, SUBTLE, SPACE } from './_beatStyle';
 import { startFlow } from './_startGate';
 
 // Eyebrow accent: GG blue at 70% opacity, matching the Tailwind text-primary/70 intent.
@@ -9,7 +9,13 @@ const PRIMARY_70 = 'rgba(19,91,235,0.7)';
 // The Get Started beat. Comes right after the splash: the brand line and a
 // single primary button that begins onboarding, with a quiet log-in link for
 // returning users. All copy is editable from props (sidebar + flow).
-function GetStarted(props?: Record<string, string>) {
+export function GetStarted({
+  props,
+  onAdvance,
+}: {
+  props?: Record<string, string>;
+  onAdvance?: () => void;
+}) {
   const heading = props?.heading ?? 'Guided Growth';
   const eyebrow = props?.eyebrow ?? 'Behavioral OS';
   const buttonLabel = props?.buttonLabel ?? 'Get started';
@@ -23,7 +29,7 @@ function GetStarted(props?: Record<string, string>) {
       <div className="flex flex-col items-center" style={{ gap: SPACE.sm }}>
         <div
           style={{ color: PRIMARY, fontFamily: FONT }}
-          className="text-[30px] font-extrabold tracking-tight leading-none"
+          className="text-[30px] font-extrabold leading-none tracking-tight"
         >
           {heading}
         </div>
@@ -40,7 +46,7 @@ function GetStarted(props?: Record<string, string>) {
 
       {/* CTA cluster */}
       <div className="flex w-full flex-col items-center" style={{ gap: SPACE.md }}>
-        <Button variant="primary" size="auth" fullWidth onClick={startFlow}>
+        <Button variant="primary" size="auth" fullWidth onClick={onAdvance ?? startFlow}>
           {buttonLabel}
         </Button>
         <button
@@ -58,7 +64,7 @@ const getStartedBeat: BeatDef = {
   type: 'get-started',
   group: 'Onboarding',
   label: 'Get Started',
-  Comp: GetStarted,
+  Comp: (props) => <GetStarted props={props} />,
 };
 
 export default getStartedBeat;
