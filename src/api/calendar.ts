@@ -28,6 +28,37 @@ export function consumeCalendarResult(): CalendarResult | null {
   }
 }
 
+// Where the web OAuth boot-capture (main.tsx) should land instead of the
+// default return path — set by surfaces the app gate would bounce (QA page).
+const RETURN_TO_FLAG = 'gg_calendar_return_to';
+
+export function markCalendarReturnTo(path: string): void {
+  try {
+    sessionStorage.setItem(RETURN_TO_FLAG, path);
+  } catch {
+    // sessionStorage unavailable — return lands on /settings as before
+  }
+}
+
+export function clearCalendarReturnTo(): void {
+  try {
+    sessionStorage.removeItem(RETURN_TO_FLAG);
+  } catch {
+    // ignore
+  }
+}
+
+export function consumeCalendarReturnTo(): string | null {
+  try {
+    const path = sessionStorage.getItem(RETURN_TO_FLAG);
+    if (path) sessionStorage.removeItem(RETURN_TO_FLAG);
+    // internal absolute paths only — no protocol-relative / external targets
+    return path && path.startsWith('/') && !path.startsWith('//') ? path : null;
+  } catch {
+    return null;
+  }
+}
+
 // A calendar ApiError meaning the Google refresh token is dead → reconnect needed.
 export function isReauthError(err: unknown): boolean {
   return (

@@ -103,7 +103,7 @@ describe('authedFetch', () => {
     expect(signOutMock).not.toHaveBeenCalled();
   });
 
-  it('401 → refresh succeeds but retry still 401 → signOut, returns retry 401', async () => {
+  it('401 → refresh succeeds but retry still 401 → NO signOut (session is alive), returns retry 401', async () => {
     getTokenMock.mockReturnValue('old');
     getFreshTokenMock.mockResolvedValue('old');
     refreshOnceMock.mockResolvedValue({ status: 'refreshed', token: 'new' });
@@ -117,7 +117,8 @@ describe('authedFetch', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const retryHeaders = (fetchMock.mock.calls[1][1].headers ?? {}) as Record<string, string>;
     expect(retryHeaders.Authorization).toBe('Bearer new');
-    expect(signOutMock).toHaveBeenCalledTimes(1);
+    // server rejecting a just-refreshed token = API fault, not a dead session
+    expect(signOutMock).not.toHaveBeenCalled();
   });
 
   it('non-401 → returned as-is, no refresh, no signOut', async () => {

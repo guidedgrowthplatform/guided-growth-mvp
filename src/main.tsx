@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { initAnalytics } from '@/analytics';
+import { consumeCalendarReturnTo, markCalendarResult } from '@/api/calendar';
 import { InputMethodProvider } from '@/contexts/InputMethodContext';
 import {
   type AuthHandoffKind,
@@ -32,6 +33,21 @@ if (Capacitor.isNativePlatform()) {
       'content',
       'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover',
     );
+  }
+}
+
+// Web calendar-OAuth return: capture ?calendar= synchronously BEFORE the router
+// mounts — the onboarding gate bounces /settings and would eat the param + toast.
+if (!Capacitor.isNativePlatform()) {
+  const params = new URLSearchParams(window.location.search);
+  const cal = params.get('calendar');
+  if (cal === 'connected' || cal === 'error') {
+    markCalendarResult(cal);
+    params.delete('calendar');
+    const qs = params.toString();
+    // QA/demo surfaces opt into returning to themselves instead of /settings.
+    const path = consumeCalendarReturnTo() ?? window.location.pathname;
+    window.history.replaceState({}, '', path + (qs ? `?${qs}` : ''));
   }
 }
 

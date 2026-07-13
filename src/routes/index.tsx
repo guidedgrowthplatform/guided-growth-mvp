@@ -86,6 +86,9 @@ const NotificationDetailPage = lazyWithRetry(() =>
 const QAControlScreen = lazyWithRetry(() =>
   import('@/onboarding-flow/QAControlScreen').then((m) => ({ default: m.QAControlScreen })),
 );
+const CalendarQAPage = lazyWithRetry(() =>
+  import('@/pages/CalendarQAPage').then((m) => ({ default: m.CalendarQAPage })),
+);
 
 // Generic QA flow preview (gated inside QA_SCREEN_ENABLED block below): renders
 // any registered flow by :flowId through the engine (L1-5).
@@ -205,6 +208,10 @@ export function AppRoutes() {
             NOTE: the duplicate AppGate-wrapped route that used to precede this was dead code
             (the second Route wins in React Router) and has been removed (spec STEP 7). */}
         {QA_SCREEN_ENABLED && <Route path="/onboarding/qa" element={<QAControlScreen />} />}
+
+        {/* Calendar connect demo (QA/dev builds only): no AppGate, so it works for
+            mid-onboarding accounts that /settings would bounce to /onboarding. */}
+        {QA_SCREEN_ENABLED && <Route path="/qa/calendar" element={<CalendarQAPage />} />}
 
         {/* QA auth-free flow preview (QA/dev builds only): any registered flow by
             id or slug, no login. home-tour still stalls per beat until its engine
