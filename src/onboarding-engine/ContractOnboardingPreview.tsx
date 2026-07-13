@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AuthSignup } from '@/components/flow-designer/beats/authSignup';
+import { CustomEntryCard } from '@/components/flow-designer/beats/customEntry';
 import { GetStarted } from '@/components/flow-designer/beats/getStarted';
 import { GoalsListBeat } from '@/components/flow-designer/beats/goalsList';
 import { PathSelectionBeat } from '@/components/flow-designer/beats/pathSelection';
@@ -226,6 +227,23 @@ function GoalsListPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance
   );
 }
 
+function CustomEntryPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance: () => void }) {
+  return (
+    <Surface beat={beat}>
+      <div
+        data-testid="custom-entry-preview-real"
+        style={{ minHeight: 312, display: 'grid', alignItems: 'center' }}
+      >
+        <CustomEntryCard
+          {...beat.component.config}
+          {...(beat.component.props ?? {})}
+          onAdvance={onAdvance}
+        />
+      </div>
+    </Surface>
+  );
+}
+
 function HabitPickerPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance: () => void }) {
   const componentProps = (beat.component.props ?? {}) as { goal?: string };
   const componentConfig = beat.component.config ?? {};
@@ -362,6 +380,7 @@ const componentRegistry: Record<
   'reflection-card': GenericSurface,
   'path-selection': PathSelectionPreview,
   'goals-list': GoalsListPreview,
+  'custom-entry': CustomEntryPreview,
   'habit-picker': HabitPickerPreview,
   'habit-schedule': HabitSchedulePreview,
 };
