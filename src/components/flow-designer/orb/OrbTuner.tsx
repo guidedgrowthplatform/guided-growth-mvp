@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import { IconChatText, IconMicMuted } from '@/components/icons';
 import { HomeBarPreview } from './HomeBarPreview';
 import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
@@ -73,7 +73,27 @@ const PULSE_SLIDERS: { k: keyof PulseParams; label: string; min: number; max: nu
   { k: 'memSpeed', label: 'Membrane speed', min: 0, max: 100 },
 ];
 
-export function OrbTuner() {
+// Props the tuner hands to whatever renders the live preview (the home bar by
+// default, or the app shell in app-preview mode). Same shape HomeBarPreview takes.
+export interface OrbPreviewProps {
+  orbState: OrbStateSel;
+  orbStyle: OrbTalkStyle;
+  params: OrbStates;
+  pulse: PulseParams;
+  mic: MutableRefObject<OrbMic>;
+  screenBg: string;
+  bgKey: string;
+  barStyle: BarStyle;
+  colors: OrbColors;
+}
+
+interface OrbTunerProps {
+  // Replace the default HomeBarPreview with a custom preview (e.g. the app shell)
+  // driven by the SAME tuner state. Defaults to the home bar.
+  renderPreview?: (p: OrbPreviewProps) => ReactNode;
+}
+
+export function OrbTuner({ renderPreview }: OrbTunerProps = {}) {
   const [params, setParams] = useState<OrbStates>(() => loadParams());
   const [pulse, setPulse] = useState<PulseParams>(() => loadPulse());
   const [saved, setSaved] = useState<SavedPreset[]>(() => loadSaved());
@@ -560,17 +580,17 @@ export function OrbTuner() {
         </div>
       </div>
 
-      <HomeBarPreview
-        orbState={state}
-        orbStyle={style}
-        params={params}
-        pulse={pulse}
-        mic={mic}
-        screenBg={BGS[bg]}
-        bgKey={bg}
-        barStyle={barStyle}
-        colors={colors}
-      />
+      {(renderPreview ?? ((p) => <HomeBarPreview {...p} />))({
+        orbState: state,
+        orbStyle: style,
+        params,
+        pulse,
+        mic,
+        screenBg: BGS[bg],
+        bgKey: bg,
+        barStyle,
+        colors,
+      })}
 
       <style>{OT_CSS}</style>
     </div>
