@@ -5,6 +5,7 @@ import { Splash } from '@/components/flow-designer/beats/splash';
 import { CheckInCard } from '@/components/home/CheckInCard';
 import { Orb } from '@/components/orb/Orb';
 import { orbIdle } from '@/components/orb/orbView';
+import { SplashIntro } from '@/components/welcome/SplashIntro';
 import {
   onboardingBeatById,
   onboardingContract,
@@ -107,6 +108,24 @@ function SplashPreview({ beat }: { beat: OnboardingBeat }) {
   );
 }
 
+function SplashIntroPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance: () => void }) {
+  return (
+    <Surface beat={beat}>
+      <div
+        data-testid="splash-intro-preview-real"
+        style={{ height: 420, marginTop: 12, overflow: 'hidden' }}
+      >
+        <SplashIntro
+          {...beat.component.config}
+          {...(beat.component.props ?? {})}
+          audioSrc={declaredClip(beat) ?? undefined}
+          onComplete={onAdvance}
+        />
+      </div>
+    </Surface>
+  );
+}
+
 function GetStartedPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance: () => void }) {
   return (
     <Surface beat={beat}>
@@ -171,7 +190,7 @@ const componentRegistry: Record<
 > = {
   splash: SplashPreview,
   'get-started': GetStartedPreview,
-  'splash-intro': GenericSurface,
+  'splash-intro': SplashIntroPreview,
   'auth-signup': GenericSurface,
   'mic-permission': GenericSurface,
   'profile-beat': GenericSurface,
