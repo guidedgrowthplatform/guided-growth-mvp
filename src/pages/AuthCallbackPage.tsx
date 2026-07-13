@@ -1,12 +1,5 @@
-import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  connectCalendar,
-  consumeCalendarConnectPending,
-  markCalendarJustConnected,
-  syncCalendar,
-} from '@/api/calendar';
 import { AuthResultScreen } from '@/components/auth';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { consumeAuthReturnTo } from '@/lib/auth/authHandoff';
@@ -21,9 +14,6 @@ export function AuthCallbackPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const type = params.get('type');
-    // Consume first (bounded TTL) so it can't leak to a later login — `||` would short-circuit it.
-    const pendingConnect = consumeCalendarConnectPending();
-    const calendarConnect = params.get('intent') === 'calendar' || pendingConnect;
     const errorDescription = params.get('error_description');
     const hasAuthParam = Boolean(params.get('code') || params.get('token_hash'));
 
@@ -46,29 +36,9 @@ export function AuthCallbackPage() {
       handled = true;
     };
 
-    // Calendar-authorization grant (not a login): capture the Google refresh token
-    // from the session and return to Settings — no login navigation.
-    const handleCalendarConnect = (session: Session | null) => {
-      handled = true;
-      const done = () => navigate('/settings', { replace: true });
-      const refreshToken = session?.provider_refresh_token;
-      if (refreshToken) {
-        // First connect: store token, then materialize events (creates the GG calendar).
-        void connectCalendar(refreshToken).then(() => {
-          markCalendarJustConnected();
-          void syncCalendar().catch(() => {});
-          done();
-        }, done);
-      } else done();
-    };
-
-    const handleSignedIn = (session: Session | null) => {
+    const handleSignedIn = () => {
       if (type === 'recovery') {
         handleRecovery();
-        return;
-      }
-      if (calendarConnect) {
-        handleCalendarConnect(session);
         return;
       }
       if (type === null) {
@@ -82,13 +52,13 @@ export function AuthCallbackPage() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         eventSeen = true;
         handleRecovery();
       } else if (event === 'SIGNED_IN') {
         eventSeen = true;
-        handleSignedIn(session);
+        handleSignedIn();
       }
     });
 
@@ -103,13 +73,11 @@ export function AuthCallbackPage() {
       // (covers PKCE exchange finishing before this page mounts)
       if (!hasAuthParam) {
         handled = true;
-        navigate(calendarConnect ? '/settings' : (consumeAuthReturnTo() ?? '/'), {
-          replace: true,
-        });
+        navigate(consumeAuthReturnTo() ?? '/', { replace: true });
         return;
       }
       if (type === 'recovery') handleRecovery();
-      else handleSignedIn(session);
+      else handleSignedIn();
     });
 
     const timeoutId = window.setTimeout(() => {

@@ -1,53 +1,30 @@
 import { ApiError, apiGet, apiPost } from './client';
 
-export const CALENDAR_SCOPES =
-  'https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/calendar.events';
+// Native connect result read by Settings after the deep-link return (web uses
+// the ?calendar= query param instead).
+export type CalendarResult = 'connected' | 'error';
+const RESULT_FLAG = 'gg_calendar_result';
+const RESULT_FLAG_TTL_MS = 5 * 60_000;
 
-// Fallback signal for the OAuth callback in case the ?intent=calendar query param
-// doesn't survive Supabase's redirect round-trip. Set before consent, read on return.
-const CONNECT_FLAG = 'gg_calendar_connect_pending';
-const CONNECT_FLAG_TTL_MS = 5 * 60_000;
-
-export function markCalendarConnectPending(): void {
+export function markCalendarResult(result: CalendarResult): void {
   try {
-    sessionStorage.setItem(CONNECT_FLAG, String(Date.now()));
-  } catch {
-    // sessionStorage unavailable — rely on the query param
-  }
-}
-
-// Consumes (always clears) the flag. Valid only within the TTL so an abandoned
-// connect attempt can't later mis-route a normal login.
-export function consumeCalendarConnectPending(): boolean {
-  try {
-    const raw = sessionStorage.getItem(CONNECT_FLAG);
-    if (!raw) return false;
-    sessionStorage.removeItem(CONNECT_FLAG);
-    return Date.now() - Number(raw) < CONNECT_FLAG_TTL_MS;
-  } catch {
-    return false;
-  }
-}
-
-// One-shot "Calendar connected" confirmation, read by Settings after the redirect.
-const CONNECTED_FLAG = 'gg_calendar_just_connected';
-
-export function markCalendarJustConnected(): void {
-  try {
-    sessionStorage.setItem(CONNECTED_FLAG, String(Date.now()));
+    sessionStorage.setItem(RESULT_FLAG, `${result}:${Date.now()}`);
   } catch {
     // sessionStorage unavailable — skip the toast
   }
 }
 
-export function consumeCalendarJustConnected(): boolean {
+export function consumeCalendarResult(): CalendarResult | null {
   try {
-    const raw = sessionStorage.getItem(CONNECTED_FLAG);
-    if (!raw) return false;
-    sessionStorage.removeItem(CONNECTED_FLAG);
-    return Date.now() - Number(raw) < CONNECT_FLAG_TTL_MS;
+    const raw = sessionStorage.getItem(RESULT_FLAG);
+    if (!raw) return null;
+    sessionStorage.removeItem(RESULT_FLAG);
+    const sep = raw.lastIndexOf(':');
+    const result = raw.slice(0, sep);
+    if (Date.now() - Number(raw.slice(sep + 1)) > RESULT_FLAG_TTL_MS) return null;
+    return result === 'connected' || result === 'error' ? result : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -67,8 +44,14 @@ export interface CalendarStatus {
   needsReauth: boolean;
 }
 
-export function connectCalendar(refreshToken: string): Promise<{ ok: boolean }> {
-  return apiPost('/api/calendar/connect', { refreshToken, scopes: CALENDAR_SCOPES });
+export interface StartCalendarOAuthBody {
+  platform: 'web' | 'native';
+  scheme?: string;
+}
+
+// Token captured server-side on /oauth/callback — never on the client.
+export function startCalendarOAuth(body: StartCalendarOAuthBody): Promise<{ url: string }> {
+  return apiPost('/api/calendar/oauth/start', body);
 }
 
 export function getCalendarStatus(): Promise<CalendarStatus> {

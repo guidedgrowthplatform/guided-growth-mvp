@@ -7,11 +7,23 @@ import {
   CalendarDisabledError,
   CalendarNotConnectedError,
   CalendarReauthRequiredError,
+  exchangeCodeForTokens,
   getValidAccessToken,
   refreshAccessToken,
   revokeToken,
 } from '../_lib/calendar/google.js';
 import { clearEventCaches, deleteEvent } from '../_lib/calendar/events.js';
+import {
+  buildConsentUrl,
+  calendarRedirectOrigin,
+  calendarRedirectUri,
+  consumeOAuthNonce,
+  createOAuthNonce,
+  hasRequiredScopes,
+  isValidScheme,
+  type OAuthPlatform,
+  type OAuthStateRow,
+} from '../_lib/calendar/oauth.js';
 import { runSync } from '../_lib/calendar/writer.js';
 import pool from '../_lib/db.js';
 
@@ -22,45 +34,103 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
 
+  // PUBLIC: Google's redirect has no auth header — handle before requireUser.
+  if (segments[0] === 'oauth' && segments[1] === 'callback') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+    return oauthCallback(req, res);
+  }
+
   const user = await requireUser(req, res);
   if (!user) return;
 
-  if (route === 'connect' && req.method === 'POST') return connect(req, res, user.anonId);
   if (route === 'status' && req.method === 'GET') return status(req, res, user.anonId);
   if (route === 'disconnect' && req.method === 'POST') return disconnect(req, res, user.anonId);
   if (route === 'target' && req.method === 'POST') return setTarget(req, res, user.anonId);
   if (route === 'toggle' && req.method === 'POST') return setEnabled(req, res, user.anonId);
   if (route === 'sync' && req.method === 'POST') return sync(req, res, user.anonId);
   if (route === 'test' && req.method === 'POST') return testCall(req, res, user.anonId);
+  if (segments[0] === 'oauth' && segments[1] === 'start' && req.method === 'POST') {
+    return oauthStart(req, res, user.anonId);
+  }
 
   return res.status(404).json({ error: 'Not found' });
 }
 
-// POST 'connect' — store the captured Google refresh token. Access token is minted
-// on first use (getValidAccessToken), so the client only sends the refresh token.
-async function connect(req: VercelRequest, res: VercelResponse, anonId: string) {
+// Decoupled from login: token returns to our own callback, so the session /
+// anon_id are never touched.
+async function oauthStart(req: VercelRequest, res: VercelResponse, anonId: string) {
   const body = (req.body ?? {}) as Record<string, unknown>;
-  const refreshToken = body.refreshToken;
-  const scopes = typeof body.scopes === 'string' ? body.scopes : null;
-
-  if (typeof refreshToken !== 'string' || refreshToken.length < 10) {
-    return res.status(400).json({ error: 'refreshToken is required' });
+  const platform = body.platform;
+  if (platform !== 'web' && platform !== 'native') {
+    return res.status(400).json({ error: "platform must be 'web' or 'native'" });
   }
+  let scheme: string | null = null;
+  if (platform === 'native') {
+    if (!isValidScheme(body.scheme)) return res.status(400).json({ error: 'invalid scheme' });
+    scheme = body.scheme;
+  }
+  const nonce = await createOAuthNonce(anonId, platform as OAuthPlatform, scheme);
+  return res.status(200).json({ url: buildConsentUrl(nonce) });
+}
 
-  await pool.query(
-    `INSERT INTO calendar_connections (anon_id, refresh_token, scopes, enabled)
-     VALUES ($1, $2, $3, true)
-     ON CONFLICT (anon_id) DO UPDATE
-       SET refresh_token = COALESCE(EXCLUDED.refresh_token, calendar_connections.refresh_token),
-           scopes = EXCLUDED.scopes,
-           access_token = NULL,
-           token_expires_at = NULL,
-           enabled = true,
-           updated_at = now()`,
-    [anonId, refreshToken, scopes],
-  );
-  clearEventCaches(anonId);
-  return res.status(200).json({ ok: true });
+async function oauthCallback(req: VercelRequest, res: VercelResponse) {
+  const q = req.query as Record<string, string | string[] | undefined>;
+  const state = typeof q.state === 'string' ? q.state : '';
+  const code = typeof q.code === 'string' ? q.code : '';
+  const googleError = typeof q.error === 'string' ? q.error : '';
+
+  const row = await consumeOAuthNonce(state);
+  if (!row) return redirectResult(res, null, false);
+  if (googleError || !code) return redirectResult(res, row, false);
+
+  try {
+    const tokens = await exchangeCodeForTokens(code, calendarRedirectUri());
+    const refreshToken = tokens.refresh_token;
+    if (typeof refreshToken !== 'string' || refreshToken.length < 10) {
+      console.warn('[calendar] oauth callback: no refresh token in exchange');
+      return redirectResult(res, row, false);
+    }
+    if (!hasRequiredScopes(tokens.scope)) {
+      console.warn('[calendar] oauth callback: missing required scopes', tokens.scope);
+      return redirectResult(res, row, false);
+    }
+
+    // Reconnect: revoke the superseded grant (best-effort).
+    const existing = await pool.query(
+      `SELECT refresh_token FROM calendar_connections WHERE anon_id = $1`,
+      [row.anonId],
+    );
+    const oldToken = existing.rows[0]?.refresh_token as string | undefined;
+    if (oldToken && oldToken !== refreshToken) waitUntil(revokeToken(oldToken));
+
+    await pool.query(
+      `INSERT INTO calendar_connections (anon_id, refresh_token, scopes, enabled)
+       VALUES ($1, $2, $3, true)
+       ON CONFLICT (anon_id) DO UPDATE
+         SET refresh_token = EXCLUDED.refresh_token,
+             scopes = EXCLUDED.scopes,
+             access_token = NULL,
+             token_expires_at = NULL,
+             enabled = true,
+             updated_at = now()`,
+      [row.anonId, refreshToken, tokens.scope ?? null],
+    );
+    clearEventCaches(row.anonId);
+    return redirectResult(res, row, true);
+  } catch (err) {
+    console.error('[calendar] oauth callback exchange failed', err);
+    return redirectResult(res, row, false);
+  }
+}
+
+function redirectResult(res: VercelResponse, row: OAuthStateRow | null, ok: boolean) {
+  const status = ok ? 'connected' : 'error';
+  const url =
+    row?.platform === 'native' && isValidScheme(row.scheme)
+      ? `${row.scheme}://auth/calendar-connected?calendar=${status}`
+      : `${calendarRedirectOrigin()}/settings?calendar=${status}`;
+  res.setHeader('Location', url);
+  return res.status(302).end();
 }
 
 async function status(_req: VercelRequest, res: VercelResponse, anonId: string) {

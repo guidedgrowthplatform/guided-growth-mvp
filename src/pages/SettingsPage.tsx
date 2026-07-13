@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
-import { consumeCalendarJustConnected } from '@/api/calendar';
+import { consumeCalendarResult, syncCalendar } from '@/api/calendar';
 import { deleteAccount } from '@/api/onboarding';
 import { ReminderSheet } from '@/components/home/ReminderSheet';
 import { CalendarIntegrationSection } from '@/components/settings/CalendarIntegrationSection';
@@ -62,11 +62,6 @@ export function SettingsPage() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [micBusy, setMicBusy] = useState(false);
 
-  // One-shot confirmation after the calendar OAuth redirect lands back here.
-  useEffect(() => {
-    if (consumeCalendarJustConnected()) addToast('success', 'Calendar connected');
-  }, [addToast]);
-
   const micAllowed = pageSettings.micPermission === true;
 
   const handleMicToggle = useCallback(
@@ -112,6 +107,26 @@ export function SettingsPage() {
     queryKeys.onboarding.state,
   );
   const profileNickname = user?.nickname || (onboardingState?.data?.nickname as string) || null;
+
+  // One-shot calendar-connect result: web via ?calendar=, native via sessionStorage.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const web = params.get('calendar');
+    const result = web === 'connected' || web === 'error' ? web : consumeCalendarResult();
+    if (!result) return;
+    if (result === 'connected') {
+      addToast('success', 'Calendar connected');
+      void qc.invalidateQueries({ queryKey: queryKeys.calendar.all });
+      void syncCalendar().catch(() => {});
+    } else {
+      addToast('error', "Couldn't connect Google Calendar. Please try again.");
+    }
+    if (web) {
+      params.delete('calendar');
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    }
+  }, [addToast, qc]);
 
   useEffect(() => {
     track('view_settings');

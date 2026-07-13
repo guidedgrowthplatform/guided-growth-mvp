@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { identify, resetIdentity, track } from '@/analytics';
-import { CALENDAR_SCOPES, markCalendarConnectPending } from '@/api/calendar';
+import { startCalendarOAuth } from '@/api/calendar';
 import { authScheme } from '@/lib/appVariant';
 import { setAuthReturnTo } from '@/lib/auth/authHandoff';
 import { clearPkceVerifier } from '@/lib/clearPkceVerifier';
@@ -468,35 +468,26 @@ export const useAuthStore = create<AuthState>((set, get) => {
       return { error: null };
     },
 
-    // Separate calendar-authorization grant (NOT a login): its own consent with
-    // the calendar scopes on a distinct ?intent=calendar callback that returns to Settings.
+    // NOT a login: own consent via /oauth/start, so the session / anon_id are
+    // never touched (the account-switch that restarted onboarding).
     connectGoogleCalendar: async () => {
       const isNative = Capacitor.isNativePlatform();
-      const base = isNative
-        ? `${await authScheme()}://auth/callback`
-        : `${getWebOrigin()}/auth/callback`;
-      const redirectTo = `${base}?intent=calendar`;
-      // Fallback in case the query param doesn't survive the redirect round-trip.
-      markCalendarConnectPending();
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          skipBrowserRedirect: isNative,
-          scopes: CALENDAR_SCOPES,
-          queryParams: { access_type: 'offline', prompt: 'consent' },
-        },
-      });
-
-      if (error) return { error: friendlyError(error) };
-
-      if (isNative && data?.url) {
-        const { Browser } = await import('@capacitor/browser');
-        await Browser.open({ url: data.url });
+      const scheme = isNative ? await authScheme() : undefined;
+      try {
+        const { url } = await startCalendarOAuth({
+          platform: isNative ? 'native' : 'web',
+          scheme,
+        });
+        if (isNative) {
+          const { Browser } = await import('@capacitor/browser');
+          await Browser.open({ url });
+        } else {
+          window.location.href = url;
+        }
+        return { error: null };
+      } catch (e) {
+        return { error: friendlyError(e) };
       }
-
-      return { error: null };
     },
 
     signInWithApple: async () => {
