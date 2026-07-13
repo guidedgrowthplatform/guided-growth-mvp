@@ -3,6 +3,7 @@ import { AuthSignup } from '@/components/flow-designer/beats/authSignup';
 import { CustomEntryCard } from '@/components/flow-designer/beats/customEntry';
 import { GetStarted } from '@/components/flow-designer/beats/getStarted';
 import { GoalsListBeat } from '@/components/flow-designer/beats/goalsList';
+import { FullPlanBeat } from '@/components/flow-designer/beats/onboardingComplete';
 import { PathSelectionBeat } from '@/components/flow-designer/beats/pathSelection';
 import { Splash } from '@/components/flow-designer/beats/splash';
 import { CheckInCard } from '@/components/home/CheckInCard';
@@ -365,6 +366,23 @@ function HabitSchedulePreview({
   );
 }
 
+function IntoAppPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance: () => void }) {
+  return (
+    <Surface beat={beat}>
+      <div
+        data-testid="into-app-preview-real"
+        style={{ minHeight: 312, display: 'grid', alignItems: 'center' }}
+      >
+        <FullPlanBeat
+          {...beat.component.config}
+          {...(beat.component.props ?? {})}
+          onAdvance={onAdvance}
+        />
+      </div>
+    </Surface>
+  );
+}
+
 const componentRegistry: Record<
   string,
   (props: { beat: OnboardingBeat; onAdvance: () => void }) => JSX.Element
@@ -383,6 +401,7 @@ const componentRegistry: Record<
   'custom-entry': CustomEntryPreview,
   'habit-picker': HabitPickerPreview,
   'habit-schedule': HabitSchedulePreview,
+  'into-app': IntoAppPreview,
 };
 
 function declaredClip(beat: OnboardingBeat): string | null {

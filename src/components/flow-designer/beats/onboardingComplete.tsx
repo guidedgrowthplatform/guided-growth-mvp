@@ -59,7 +59,18 @@ function inferPolarity(name: string): HabitPolarity {
   return /\b(no|not|stop|quit|less|avoid|cut|reduce|off|after)\b/i.test(name) ? 'break' : 'build';
 }
 
-function FullPlanBeat(props?: Record<string, string>) {
+export type FullPlanBeatProps = {
+  locale?: string;
+  morningTime?: string;
+  eveningTime?: string;
+  buttonLabel?: string;
+  buttonEditLabel?: string;
+  coachLine?: string;
+  onAdvance?: () => void;
+  [key: string]: unknown;
+};
+
+export function FullPlanBeat(props?: FullPlanBeatProps) {
   const flow = useFlowState();
   const ritualDays = ritualWeekdaysForLocale(props?.locale);
 
@@ -117,7 +128,7 @@ function FullPlanBeat(props?: Record<string, string>) {
         gap: SPACE.xs,
       }}
     >
-      <Button variant="primary" size="auth" fullWidth>
+      <Button variant="primary" size="auth" fullWidth onClick={props?.onAdvance}>
         {props?.buttonLabel ?? 'Approve and start'}
       </Button>
       <Button variant="secondary" size="auth" fullWidth>
