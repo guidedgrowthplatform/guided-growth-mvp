@@ -9194,7 +9194,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   },
   {
     id: 'weekly-p78',
-    name: 'Weekly projection (78%)',
+    name: 'Weekly projection (76%)',
     order: 59,
     path: 'both',
     type: 'weekly-projection',
@@ -9230,7 +9230,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       identity: {
         rows: [
           { label: 'beatId (canonical)', value: 'weekly-p78' },
-          { label: 'name', value: 'Weekly projection (78%)' },
+          { label: 'name', value: 'Weekly projection (76%)' },
           { label: 'order', value: '59' },
           { label: 'path', value: 'both' },
           { label: 'type', value: 'weekly-projection' },
@@ -9373,9 +9373,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       applicableDecisions: {
         rows: [
           {
-            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
-            binds: false,
-            how: 'the weekly projection is a closing narration; it captures nothing and gates nothing, so no decision binds here',
+            decision: 'weekly projection uses the user real habits with a 76% projected outcome',
+            binds: true,
+            how: 'wp78-frame-as-win keeps the 76% projection on the real onboarding.habits rows without presenting sample habits as the user plan',
           },
         ],
         enforcedBy: ['decisions-coverage-check'],
@@ -9403,7 +9403,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   },
   {
     id: 'weekly-p36',
-    name: 'Weekly projection (36%)',
+    name: 'Weekly projection (35%)',
     order: 60,
     path: 'both',
     type: 'weekly-projection',
@@ -9439,7 +9439,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       identity: {
         rows: [
           { label: 'beatId (canonical)', value: 'weekly-p36' },
-          { label: 'name', value: 'Weekly projection (36%)' },
+          { label: 'name', value: 'Weekly projection (35%)' },
           { label: 'order', value: '60' },
           { label: 'path', value: 'both' },
           { label: 'type', value: 'weekly-projection' },
@@ -9582,9 +9582,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       applicableDecisions: {
         rows: [
           {
-            decision: '1-7 (profile gates, women-art, habit caps, reflection)',
-            binds: false,
-            how: 'the weekly projection is a closing narration; it captures nothing and gates nothing, so no decision binds here',
+            decision: 'weekly projection uses the user real habits with a 35% projected outcome',
+            binds: true,
+            how: 'wp36-no-failure-framing keeps the 35% projection on the real onboarding.habits rows without treating a rough week as failure',
           },
         ],
         enforcedBy: ['decisions-coverage-check'],

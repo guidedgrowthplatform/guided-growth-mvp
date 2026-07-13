@@ -23,8 +23,12 @@
  *   - Coach narration never says tap, scroll, click, or press
  *   - Real WeeklyHabitsSummary component reused via the @/components alias
  */
+import {
+  WeeklyHabitsSummary,
+  type HabitWeekCell,
+} from '@/components/habit-detail/WeeklyHabitsSummary';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
-import { WeeklyHabitsSummary, type HabitWeekCell } from '@/components/habit-detail/WeeklyHabitsSummary';
+import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY, INK, CARD, SPACE } from './_beatStyle';
 
 // The five projection states.
@@ -35,26 +39,13 @@ interface ScheduledHabit {
   days: number[]; // JS weekday numbers, 0=Sun..6=Sat
 }
 
-// Three rituals every user gets. Shown as weekdays on, weekends off (grays), per
-// Yair: the check-ins and reflection run on weekdays, the weekend is a rest.
-const COACH_HABITS: ScheduledHabit[] = [
-  { name: 'Morning state check-in', days: [1, 2, 3, 4, 5] },
-  { name: 'Evening habit report', days: [1, 2, 3, 4, 5] },
-  { name: 'Daily reflection', days: [1, 2, 3, 4, 5] },
+// Daily is the base cadence for all three rituals. Weekend exceptions are a
+// separate tracked product decision, never a silent weekday-only default.
+const DAILY_RITUALS: ScheduledHabit[] = [
+  { name: 'Morning check-in', days: [0, 1, 2, 3, 4, 5, 6] },
+  { name: 'Evening habit report', days: [0, 1, 2, 3, 4, 5, 6] },
+  { name: 'Evening reflection', days: [0, 1, 2, 3, 4, 5, 6] },
 ];
-
-// Sample captured habits. Journaling is daily now (no days off, per Yair).
-const SAMPLE_USER_HABITS: ScheduledHabit[] = [
-  { name: 'Meditate', days: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'Workout', days: [1, 3, 5] },
-  { name: 'Read 10 pages', days: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'No phone in bed', days: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'Journal', days: [0, 1, 2, 3, 4, 5, 6] },
-];
-
-// Accumulated streak per habit index (3 coach rituals, then the 5 captured
-// habits). Real, varied numbers so a good week reads as real momentum.
-const BASE_STREAK = [84, 79, 62, 47, 26, 33, 58, 19];
 
 // Weekday index (0=Sun..6=Sat) to its single-letter label.
 const LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -119,23 +110,23 @@ function buildRows(habits: ScheduledHabit[], state: ProjectionState, dayOrder: n
     );
   }
 
-  // FULL: every scheduled day done. Big accumulated streaks.
+  // FULL: every scheduled day done. The live app supplies true carried streaks;
+  // the render preview shows the visible run without inventing sample history.
   if (state === 'full') {
     return finalize(
       habits.map((_, hi) => dayOrder.map((_wd, ci) => (sched[hi][ci] ? 'done' : 'off'))),
-      true,
+      false,
     );
   }
 
-  // GAPS: three days never reported (Tuesday, Wednesday, Thursday empty top to
-  // bottom). The other days are a mix of done and a lot of misses (the X's), so
-  // the week reads as "you reported some, then disappeared for three days".
+  // GAPS: the final two displayed columns are never reported, regardless of the
+  // weekday the user's week starts on. The other days are a mix of done and misses.
   if (state === 'gaps') {
-    const EMPTY = new Set([2, 3, 4]); // Tue, Wed, Thu
+    const EMPTY_COLUMNS = new Set([5, 6]);
     return finalize(
       habits.map((_, hi) =>
         dayOrder.map((wd, ci) => {
-          if (EMPTY.has(wd)) return 'gap';
+          if (EMPTY_COLUMNS.has(ci)) return 'gap';
           if (!sched[hi][ci]) return 'off';
           // Of the days they did report, about half are done and a lot are X's.
           return rand(hi * 131 + ci * 17 + 71) < 0.6 ? 'done' : 'missed';
@@ -145,11 +136,9 @@ function buildRows(habits: ScheduledHabit[], state: ProjectionState, dayOrder: n
     );
   }
 
-  // P78 / P36: pool the "done" cells to hit the target percent; everything else
-  // scheduled is a miss (an X). p36 keeps the morning check-in as a survivor.
-  // p36 targets a touch under 36 here because the morning check-in (hero) and the
-  // daily reflection (kept as a small streak below) add guaranteed done days.
-  const targetPct = state === 'p78' ? 78 : 31;
+  // P78 / P36: project the user's real rows, never samples, to the approved
+  // 76% / 35% framing. Everything else scheduled is a reported miss.
+  const targetPct = state === 'p78' ? 76 : 35;
   const heroes = state === 'p78' ? [] : [0];
   const salt = state === 'p78' ? 20 : 34;
 
@@ -177,20 +166,20 @@ function buildRows(habits: ScheduledHabit[], state: ProjectionState, dayOrder: n
     }),
   );
 
-  // p78: exactly one streak breaks to zero. Meditate's last scheduled day is a
-  // miss, so its trailing streak is 0 while most others still hold a few days.
+  // p78: one real user habit, when present, ends with a miss so the projection
+  // shows that a mostly green week can include a broken run.
   if (state === 'p78') {
-    const mi = 3;
+    const mi = habits.length > DAILY_RITUALS.length ? DAILY_RITUALS.length : 0;
     const schedCols = dayOrder.map((_wd, ci) => ci).filter((ci) => sched[mi][ci]);
     const last = schedCols[schedCols.length - 1];
     if (last != null) cells[mi][last] = 'missed';
   }
 
-  // p36: two of the three rituals keep a streak. Morning check-in is the full
-  // survivor; the daily reflection holds its last couple of days so it still
+  // p36: two of the three rituals keep a small run. Morning check-in is the full
+  // survivor; evening reflection holds its last couple of days so it still
   // ends on a small streak while everything else takes a hit.
   if (state === 'p36') {
-    const ri = 2; // Daily reflection
+    const ri = 2; // Evening reflection
     const schedCols = dayOrder.map((_wd, ci) => ci).filter((ci) => sched[ri][ci]);
     for (const ci of schedCols.slice(-2)) cells[ri][ci] = 'done';
   }
@@ -234,7 +223,12 @@ const STATE_LABEL: Record<ProjectionState, string> = {
 
 // Renders one static projection frame: the coach narration above the grid.
 function WeeklyProjectionCard({ state, coachLine }: { state: ProjectionState; coachLine: string }) {
-  const allHabits = [...COACH_HABITS, ...SAMPLE_USER_HABITS];
+  const flow = useFlowState();
+  const userHabits: ScheduledHabit[] = (flow?.habits ?? []).map((name) => ({
+    name,
+    days: flow?.habitConfigs[name]?.days ?? [0, 1, 2, 3, 4, 5, 6],
+  }));
+  const allHabits = [...DAILY_RITUALS, ...userHabits];
   // The week starts on the user's start day (today). In the real app this is the
   // stored start date; here it is the current weekday so the preview reads right.
   const start = new Date().getDay();
@@ -242,6 +236,7 @@ function WeeklyProjectionCard({ state, coachLine }: { state: ProjectionState; co
   const dayLabels = dayOrder.map((wd) => LABELS[wd]);
   const rows = buildRows(allHabits, state, dayOrder);
   const stats = overallStats(rows);
+  const projectedPercent = state === 'p78' ? 76 : state === 'p36' ? 35 : stats.percent;
 
   return (
     <div style={{ display: 'flex', width: '100%', flexDirection: 'column', gap: SPACE.md }}>
@@ -266,12 +261,21 @@ function WeeklyProjectionCard({ state, coachLine }: { state: ProjectionState; co
         >
           {STATE_LABEL[state]}
         </span>
-        <p style={{ fontFamily: FONT, fontSize: 14, fontWeight: 500, lineHeight: 1.55, color: INK, margin: 0 }}>
+        <p
+          style={{
+            fontFamily: FONT,
+            fontSize: 14,
+            fontWeight: 500,
+            lineHeight: 1.55,
+            color: INK,
+            margin: 0,
+          }}
+        >
           {coachLine}
         </p>
       </div>
       <WeeklyHabitsSummary
-        overallPercent={stats.percent}
+        overallPercent={projectedPercent}
         overallDone={stats.done}
         overallScheduled={stats.scheduled}
         rows={rows}

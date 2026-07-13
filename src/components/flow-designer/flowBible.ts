@@ -599,17 +599,22 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
   },
   {
     audit: 'P0-10 ritual cadence',
-    status: 'open',
+    status: 'answered',
     contract:
-      'OPEN PRODUCT DECISION. The render cannot choose between daily, weekday default, or user-configurable ritual cadence without a definitive product decision.',
-    source: 'beatsSource.ts checkin/reflection/plan; weeklyProjection.ts',
+      'DECIDED (Yair 2026-07-13): Morning check-in, evening habit report, and evening reflection run DAILY as the base. They are rituals, not user habits. Weekend handling remains the single tracked open item.',
+    source:
+      'Yair product ruling 2026-07-13; beatsSource.ts checkin/reflection/plan; weeklyProjection.ts',
+    migrationTodo:
+      'Replace every weekday-only ritual schedule with the daily base and make any later weekend rule an explicit override, never an implicit hard-coded calendar.',
   },
   {
     audit: 'P0-11 projection meaning',
-    status: 'open',
+    status: 'answered',
     contract:
-      'OPEN PRODUCT DECISION. The closing projection must be declared either a real configured week, a personalized simulation, or a fixed illustration before its narration and input contract can be final.',
-    source: 'beatsSource.ts weekly-*; beats/weeklyProjection.ts',
+      'DECIDED (Yair 2026-07-13): the closing frames project the user real onboarding.habits, using the names and schedules they chose. “This is your week” is projection framing, not a claim about completed history. The approved 76% and 35% frames remain projected outcomes over those real rows.',
+    source: 'Yair product ruling 2026-07-13; beatsSource.ts weekly-*; beats/weeklyProjection.ts',
+    migrationTodo:
+      'Pass normalized onboarding.habits into all five frames and remove every hard-coded sample habit, base streak, and weekday ritual input from the production projection component.',
   },
   {
     audit: 'P0-12 weekly-blank component',
@@ -633,7 +638,7 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
     audit: 'P0-14 weekly-p78 component',
     status: 'answered',
     contract:
-      'weekly-p78 displays 76%, Meditate at streak 0, and the other seven habits at live 1-5 day streaks on normalized user schedules.',
+      'weekly-p78 displays the approved 76% projected outcome over normalized real ritual and user-habit schedules. It never substitutes a sample habit name or sample history.',
     source: 'weekly-projection-rules-APPROVED-2026-07-09.md',
     migrationTodo: 'Migrate weeklyProjection.tsx from its stale target and hard-coded schedules.',
   },
@@ -641,7 +646,7 @@ export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
     audit: 'P0-15 weekly-p36 component',
     status: 'answered',
     contract:
-      'weekly-p36 displays 35%; Morning state check-in has a five-day run and Daily reflection a two-day run; all other six habits are dead.',
+      'weekly-p36 displays the approved 35% projected outcome over normalized real ritual and user-habit schedules. It is a no-guilt rough-week projection, never a sample plan.',
     source: 'weekly-projection-rules-APPROVED-2026-07-09.md',
     migrationTodo: 'Migrate weeklyProjection.tsx from its stale target and hard-coded schedules.',
   },
