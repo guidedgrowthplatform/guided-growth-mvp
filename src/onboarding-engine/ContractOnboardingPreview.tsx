@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Splash } from '@/components/flow-designer/beats/splash';
+import { Orb } from '@/components/orb/Orb';
+import { orbIdle } from '@/components/orb/orbView';
 import {
   onboardingBeatById,
   onboardingContract,
@@ -7,9 +10,7 @@ import {
 
 const PREVIEW_SPINE = [...onboardingContract.beats]
   .sort((left, right) => left.order - right.order)
-  .filter(
-    (beat) => beat.variantOf === null && (beat.path === 'both' || beat.path === 'beginner'),
-  )
+  .filter((beat) => beat.variantOf === null && (beat.path === 'both' || beat.path === 'beginner'))
   .map((beat) => beat.id);
 
 type PreviewSurfaceProps = { beat: OnboardingBeat; children: ReactNode };
@@ -40,7 +41,7 @@ function Surface({ beat, children }: PreviewSurfaceProps) {
   );
 }
 
-function Orb() {
+function GenericOrb() {
   return (
     <div
       aria-hidden="true"
@@ -62,7 +63,7 @@ function GenericSurface({ beat }: { beat: OnboardingBeat }) {
   const elements = beat.component.elements;
   return (
     <Surface beat={beat}>
-      <Orb />
+      <GenericOrb />
       <h1 style={{ margin: 0, fontSize: 30, lineHeight: 1.1 }}>Guided Growth</h1>
       <p style={{ margin: '14px 0 28px', fontSize: 17, lineHeight: 1.5, color: '#D7E5EE' }}>
         {opener || 'This component is present in the onboarding contract.'}
@@ -85,8 +86,26 @@ function GenericSurface({ beat }: { beat: OnboardingBeat }) {
   );
 }
 
+function SplashPreview({ beat }: { beat: OnboardingBeat }) {
+  return (
+    <Surface beat={beat}>
+      <div
+        data-testid="splash-preview-real"
+        style={{ minHeight: 312, display: 'flex', flexDirection: 'column' }}
+      >
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Splash />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12 }}>
+          <Orb {...orbIdle(56, true, true, { frozen: true })} />
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
 const componentRegistry: Record<string, (props: { beat: OnboardingBeat }) => JSX.Element> = {
-  splash: GenericSurface,
+  splash: SplashPreview,
   'get-started': GenericSurface,
   'splash-intro': GenericSurface,
   'auth-signup': GenericSurface,
