@@ -83,6 +83,9 @@ const ResetFlowPreview = lazyWithRetry(() =>
 const ResetNudgePreview = lazyWithRetry(() =>
   import('@/pages/ResetNudgePreview').then((m) => ({ default: m.ResetNudgePreview })),
 );
+const MockStoryboard = lazyWithRetry(() =>
+  import('@/pages/MockStoryboard').then((m) => ({ default: m.MockStoryboard })),
+);
 const JournalFlowPage = lazyWithRetry(() =>
   import('@/pages/JournalFlowPage').then((m) => ({ default: m.JournalFlowPage })),
 );
@@ -269,6 +272,14 @@ export function AppRoutes() {
           element={
             <ForceLight>
               <ResetFlowPreview />
+            </ForceLight>
+          }
+        />
+        <Route
+          path="/__storyboard"
+          element={
+            <ForceLight>
+              <MockStoryboard />
             </ForceLight>
           }
         />
