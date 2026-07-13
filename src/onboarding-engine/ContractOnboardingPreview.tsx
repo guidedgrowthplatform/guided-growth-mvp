@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { GetStarted } from '@/components/flow-designer/beats/getStarted';
 import { Splash } from '@/components/flow-designer/beats/splash';
 import { Orb } from '@/components/orb/Orb';
 import { orbIdle } from '@/components/orb/orbView';
@@ -104,9 +105,29 @@ function SplashPreview({ beat }: { beat: OnboardingBeat }) {
   );
 }
 
-const componentRegistry: Record<string, (props: { beat: OnboardingBeat }) => JSX.Element> = {
+function GetStartedPreview({ beat, onAdvance }: { beat: OnboardingBeat; onAdvance: () => void }) {
+  return (
+    <Surface beat={beat}>
+      <div
+        data-testid="get-started-preview-real"
+        style={{ minHeight: 312, display: 'grid', alignItems: 'center' }}
+      >
+        <GetStarted
+          {...beat.component.config}
+          {...(beat.component.props ?? {})}
+          onAdvance={onAdvance}
+        />
+      </div>
+    </Surface>
+  );
+}
+
+const componentRegistry: Record<
+  string,
+  (props: { beat: OnboardingBeat; onAdvance: () => void }) => JSX.Element
+> = {
   splash: SplashPreview,
-  'get-started': GenericSurface,
+  'get-started': GetStartedPreview,
   'splash-intro': GenericSurface,
   'auth-signup': GenericSurface,
   'mic-permission': GenericSurface,
@@ -137,6 +158,7 @@ export function ContractOnboardingPreview() {
   const progress = `${index + 1} of ${PREVIEW_SPINE.length}`;
   const provenance = onboardingContract.provenance;
   const lines = useMemo(() => scriptFor(beat).filter((line) => line.words.trim()), [beat]);
+  const onAdvance = () => setIndex((current) => Math.min(current + 1, PREVIEW_SPINE.length - 1));
 
   useEffect(() => {
     setPath(null);
@@ -164,7 +186,7 @@ export function ContractOnboardingPreview() {
         </header>
 
         {SurfaceComponent ? (
-          <SurfaceComponent beat={beat} />
+          <SurfaceComponent beat={beat} onAdvance={onAdvance} />
         ) : (
           <div role="alert">No preview component is registered for {beat.component.key}.</div>
         )}
@@ -237,7 +259,7 @@ export function ContractOnboardingPreview() {
               type="button"
               data-testid="continue-preview"
               disabled={!canContinue}
-              onClick={() => setIndex((current) => Math.min(current + 1, PREVIEW_SPINE.length - 1))}
+              onClick={onAdvance}
               style={{ ...primaryButton, opacity: canContinue ? 1 : 0.45 }}
             >
               {beat.id === 'sign-up'
