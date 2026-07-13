@@ -404,6 +404,7 @@ function MorningCheckinSetupPreview({
   onAdvance: () => void;
 }) {
   const componentProps = (beat.component.props ?? {}) as { defaultTime?: string; locale?: string };
+  const componentConfig = beat.component.config ?? {};
   const [days, setDays] = useState<Set<number>>(() =>
     ritualWeekdaysForLocale(componentProps.locale),
   );
@@ -416,9 +417,12 @@ function MorningCheckinSetupPreview({
         data-testid="morning-checkin-setup-preview-real"
         style={{ minHeight: 312, marginTop: 12 }}
       >
+        {componentConfig.hideOrb !== true && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <Orb {...orbIdle(48, true, true, { frozen: true })} />
+          </div>
+        )}
         <MorningCard
-          {...beat.component.config}
-          {...componentProps}
           days={days}
           onToggleDay={(day) => setDays((current) => toggleSetItem(current, day))}
           time={time}
