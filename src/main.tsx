@@ -62,15 +62,25 @@ if (Capacitor.isNativePlatform()) {
       return;
     }
 
+    // Token already stored server-side by /oauth/callback — just reflect the result.
+    if (urlObj.host === 'auth' && urlObj.pathname === '/calendar-connected') {
+      lastHandledUrl = url;
+      const { Browser } = await import('@capacitor/browser');
+      Browser.close().catch(() => {});
+      const cal = await import('@/api/calendar');
+      const ok = urlObj.searchParams.get('calendar') !== 'error';
+      cal.markCalendarResult(ok ? 'connected' : 'error');
+      if (ok) void cal.syncCalendar().catch(() => {});
+      const { queryClient, queryKeys } = await import('@/lib/query');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.calendar.all });
+      return;
+    }
+
     // PKCE flow: code is in query params
     const code = urlObj.searchParams.get('code');
     if (code) {
       lastHandledUrl = url;
-      const cal = await import('@/api/calendar');
-      // Consume the fallback flag unconditionally (bounded TTL) alongside the query param.
-      const isCalendar =
-        urlObj.searchParams.get('intent') === 'calendar' || cal.consumeCalendarConnectPending();
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
 
       const { Browser } = await import('@capacitor/browser');
       Browser.close().catch(() => {});
@@ -78,25 +88,6 @@ if (Capacitor.isNativePlatform()) {
       if (error) {
         setPendingAuthError(error.message);
         window.dispatchEvent(new CustomEvent('auth:error'));
-        return;
-      }
-
-      // Calendar grant (not a login): capture the Google refresh token, stay on Settings.
-      // Native has no page reload, so refetch the calendar status so the UI flips to connected.
-      if (isCalendar) {
-        const refreshToken = data.session?.provider_refresh_token;
-        if (refreshToken) {
-          try {
-            await cal.connectCalendar(refreshToken);
-            cal.markCalendarJustConnected();
-            // First connect: materialize events (creates the GG calendar).
-            void cal.syncCalendar().catch(() => {});
-            const { queryClient, queryKeys } = await import('@/lib/query');
-            void queryClient.invalidateQueries({ queryKey: queryKeys.calendar.all });
-          } catch (e) {
-            console.warn('[calendar] connect POST failed', e);
-          }
-        }
       }
       return;
     }
@@ -147,6 +138,11 @@ if (Capacitor.isNativePlatform()) {
       }
       void supabase.auth.startAutoRefresh();
       void getFreshToken();
+      // Self-heal a missed calendar deep-link (scheme mismatch): token is already
+      // stored, so refetch status when Settings is open.
+      void import('@/lib/query').then(({ queryClient, queryKeys }) =>
+        queryClient.invalidateQueries({ queryKey: queryKeys.calendar.all }),
+      );
     });
   });
 }
