@@ -566,6 +566,199 @@ export const CONSUMER_CONTRACT: readonly ConsumerContractRow[] = [
   },
 ];
 
+// Render-completeness ledger. These rows are deliberately render-owned: a builder
+// may implement from this file without consulting a person or a Master Sheet.
+// `open` is reserved for a genuine product decision, never an app-shape mismatch.
+export interface RenderCompletenessRow {
+  readonly audit: string;
+  readonly status: 'answered' | 'open';
+  readonly contract: string;
+  readonly source: string;
+  readonly migrationTodo?: string;
+}
+
+export const RENDER_COMPLETENESS: readonly RenderCompletenessRow[] = [
+  {
+    audit: 'P0-01 consumer contract',
+    status: 'answered',
+    contract:
+      'beatsSource.ts is the sole authored render. npm run build:flow emits dist-flow/parity.json and dist-flow/onboarding-contract.json. Phone, coach, engine, guards, and QA must consume the resolved exported contract at the same source commit.',
+    source: 'beatsSource.ts; scripts/export-render-parity.mjs; scripts/export-contract.mts',
+    migrationTodo:
+      'Migrate each current app consumer from generated Sheet/context artifacts to the resolved render contract, then enforce a same-commit artifact hash check.',
+  },
+  {
+    audit: 'P0-03 global reactive copy',
+    status: 'answered',
+    contract:
+      'GLOBAL_RESPONSES and GLOBAL_VOICE_OWNERSHIP own all eight toolkit slots, their clip-family IDs, recorded random rotation, retry behavior, and locale follows the active user language. No Master Sheet is authoritative at runtime.',
+    source:
+      'flowBible.ts GLOBAL_RESPONSES, GLOBAL_VOICE_OWNERSHIP, onboarding-copy-decisions-2026-07-10.md section 4',
+    migrationTodo:
+      'Import the approved variant text and clip IDs into this render, add a deterministic seeded rotation per session/slot, and retire Master-Sheet-generated copy as an input.',
+  },
+  {
+    audit: 'P0-10 ritual cadence',
+    status: 'open',
+    contract:
+      'OPEN PRODUCT DECISION. The render cannot choose between daily, weekday default, or user-configurable ritual cadence without a definitive product decision.',
+    source: 'beatsSource.ts checkin/reflection/plan; weeklyProjection.ts',
+  },
+  {
+    audit: 'P0-11 projection meaning',
+    status: 'open',
+    contract:
+      'OPEN PRODUCT DECISION. The closing projection must be declared either a real configured week, a personalized simulation, or a fixed illustration before its narration and input contract can be final.',
+    source: 'beatsSource.ts weekly-*; beats/weeklyProjection.ts',
+  },
+  {
+    audit: 'P0-12 weekly-blank component',
+    status: 'answered',
+    contract:
+      'weekly-blank renders normalized user schedules with 0%, every scheduled cell as a gap, and all eight carried streaks at 0.',
+    source: 'weekly-projection-rules-APPROVED-2026-07-09.md',
+    migrationTodo:
+      'Migrate weeklyProjection.tsx to receive normalized schedules and this frame descriptor instead of hard-coded rituals.',
+  },
+  {
+    audit: 'P0-13 weekly-full component',
+    status: 'answered',
+    contract:
+      'weekly-full renders normalized user schedules with every scheduled cell complete and true carried streaks supplied by the projection input.',
+    source: 'beatsSource.ts weekly-full component contract',
+    migrationTodo:
+      'Migrate weeklyProjection.tsx from sample habits and base streaks to the render frame input.',
+  },
+  {
+    audit: 'P0-14 weekly-p78 component',
+    status: 'answered',
+    contract:
+      'weekly-p78 displays 76%, Meditate at streak 0, and the other seven habits at live 1-5 day streaks on normalized user schedules.',
+    source: 'weekly-projection-rules-APPROVED-2026-07-09.md',
+    migrationTodo: 'Migrate weeklyProjection.tsx from its stale target and hard-coded schedules.',
+  },
+  {
+    audit: 'P0-15 weekly-p36 component',
+    status: 'answered',
+    contract:
+      'weekly-p36 displays 35%; Morning state check-in has a five-day run and Daily reflection a two-day run; all other six habits are dead.',
+    source: 'weekly-projection-rules-APPROVED-2026-07-09.md',
+    migrationTodo: 'Migrate weeklyProjection.tsx from its stale target and hard-coded schedules.',
+  },
+  {
+    audit: 'P0-16 weekly-gaps component',
+    status: 'answered',
+    contract:
+      'weekly-gaps leaves the final two displayed grid columns fully blank for every week start, shows mediocre roughly 50-60% reported days, and sets all eight streaks to 0.',
+    source: 'weekly-projection-rules-APPROVED-2026-07-09.md',
+    migrationTodo:
+      'Migrate weeklyProjection.tsx from weekday-name anchors to grid-position anchors.',
+  },
+  {
+    audit: 'P0-13 goals components',
+    status: 'answered',
+    contract:
+      'goals-list reads goalsByCategory, starts with no selection, permits one or two, exposes the n of 2 counter and Continue only when valid, supports keyboard/screen-reader selection, and emits { goals: string[], source: canonical|custom }.',
+    source: 'packages/shared/src/data/onboardingGoals.ts; beatsSource.ts goals-sleep',
+    migrationTodo:
+      'Migrate the production goal picker to this event payload and affordance contract.',
+  },
+  {
+    audit: 'P0-14 habits components',
+    status: 'answered',
+    contract:
+      'habit-picker reads habitsByGoal, renders one panel per selected goal, starts empty, caps total selection at two and at one per goal when two goals are selected, supports replacement and custom entry, and emits { name, goal, custom } mutations.',
+    source: 'packages/shared/src/data/onboardingHabits.ts; beats/habitPicker.tsx',
+    migrationTodo:
+      'Migrate the production picker to this render contract and preserve accessibility/event parity.',
+  },
+  {
+    audit: 'P0-17 dynamic voice references',
+    status: 'answered',
+    contract:
+      'Every dynamic or edge response uses a GLOBAL_RESPONSES or per-beat VOICE_OWNERSHIP clip-family binding. Locale is the active user language and retry always reuses the same semantic slot, not improvised copy.',
+    source: 'flowBible.ts GLOBAL_RESPONSES, VOICE_OWNERSHIP; beatsSource.ts conversation/edges',
+    migrationTodo:
+      'Add the 60 exact localized text and asset bindings to the render and a voice-content walk that proves each binding.',
+  },
+  {
+    audit: 'P0-18 routing aliases and release proof',
+    status: 'answered',
+    contract:
+      'Resolve variants through BEATS_BY_SCREEN_ID plus the gender/category resolver. Never use scalar BEAT_BY_SCREEN_ID for a shared screen ID. Every must rule requires a runnable evidence artifact covering interaction, persistence, refresh, permission, and audio content.',
+    source: 'beatsSource.ts resolver exports; flowBible.ts ENFORCER_REGISTRY',
+    migrationTodo:
+      'Migrate app routing aliases to the resolver and implement the planned release evaluators as runnable evidence-producing checks.',
+  },
+  {
+    audit: 'P1-17 execution lanes',
+    status: 'answered',
+    contract:
+      'Every beat/tool contract is lane-neutral: Vapi Path 1 and Direct LLM Path 3 consume the same resolved render contract and must produce identical persisted state and advance behavior.',
+    source: 'flowBible.ts COACH_IDENTITY; beatsSource.ts allowedTools and flow sections',
+    migrationTodo:
+      'Replace independent lane schemas/handlers with adapters generated from this contract and add cross-lane parity tests.',
+  },
+  {
+    audit: 'P1-18 derived routing aliases',
+    status: 'answered',
+    contract:
+      'Derived variants use route /onboarding/<beatId>, persisted current_step = beatId, session_log value = beatId, and data-beat-id = beatId. Shared screen IDs are only display selectors.',
+    source: 'beatsSource.ts deriveVariantIdentity',
+    migrationTodo:
+      'Replace the generated-at-app-reconcile route placeholder with this deterministic alias map in app routing.',
+  },
+  {
+    audit: 'P1-19 render-owned copy',
+    status: 'answered',
+    contract:
+      'beatsSource.ts and flowBible.ts own global coach prose, beat metadata, script text, and clip bindings. Generated Sheet files are derived outputs only and must equal the render export.',
+    source: 'beatsSource.ts file header; flowBible.ts SOURCE_INVENTORY',
+    migrationTodo:
+      'Make Master Sheet copy import a one-way render export and fail CI on any generated-copy divergence.',
+  },
+  {
+    audit: 'P1-30 daily reflection behavior',
+    status: 'answered',
+    contract:
+      'Daily reflection reads reflection_settings.config, never defaults or re-asks, and replays customPrompts word for word.',
+    source: 'onboarding-behavior-decisions-2026-07-09.md items 6-7; beatsSource.ts reflection',
+  },
+  {
+    audit: 'P1-31 gender variants',
+    status: 'answered',
+    contract:
+      'Persist Male, Female, Other. Only Female selects category-women; Male and Other select category. Other never propagates past profile capture.',
+    source:
+      'beatsSource.ts profile-asks/category/category-women; onboarding-copy-decisions-2026-07-10.md section 5',
+  },
+  {
+    audit: 'P1-34 stale narration clips',
+    status: 'answered',
+    contract:
+      'The render script text is the selected current copy. Each stale clip must be re-recorded to its script line or deliberately re-locked with an audio evidence record before release.',
+    source: 'beatsSource.ts script[]; onboarding-copy-decisions-2026-07-10.md sections 1-2',
+    migrationTodo:
+      'Re-record or relock the seven audit-identified clip IDs and attach evidence to the render.',
+  },
+  {
+    audit: 'P2-34 screen-ID lookup',
+    status: 'answered',
+    contract:
+      'Use the gender resolver with BEATS_BY_SCREEN_ID for ONBOARD-BEGINNER-01. BEAT_BY_SCREEN_ID deterministically returns the base beat only and is not variant-safe.',
+    source: 'beatsSource.ts BEATS_BY_SCREEN_ID and BEAT_BY_SCREEN_ID',
+  },
+  {
+    audit: 'P2-35 provenance',
+    status: 'answered',
+    contract:
+      'Canonical source: ~/Developer/claude-work/gg-builder-converge, base builder/converge-beat-spec at ec548a72. Build command: npm run build:flow. The contract and parity JSON must carry source commit and artifact hashes.',
+    source: 'CANONICAL-RENDER-SOURCE.md',
+    migrationTodo:
+      'Add provenance stamping to both generated JSON artifacts and fail CI on hash or source mismatch.',
+  },
+];
+
 // ---------- Enforcer registry (one namespace; the staging proposal made concrete) ----------
 
 export interface EnforcerEntry {

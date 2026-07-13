@@ -5968,15 +5968,13 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         specs: [
           {
             tool: 'add_habit',
-            args: '{ habit: string } - one canonical habit name from the on-screen list for the picked goal, or a custom name the user offered (confirm canonical arg name/shape)',
+            args: '{ name: string (1-100 characters) } - one canonical habit name from the on-screen list for the picked goal, or a custom name the user offered',
             when: 'as each habit is picked, within the cap',
-            pending: true,
           },
           {
             tool: 'remove_habit',
-            args: '{ habit: string } - the canonical habit name to remove',
+            args: '{ name: string } - the canonical or custom habit name to remove',
             when: 'when the user unpicks a habit before advancing',
-            pending: true,
           },
           {
             tool: 'advance_step',
@@ -5992,7 +5990,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'writes',
             value:
-              'the chosen habits (1 or 2, capped at 2; one per goal when two goals were picked)',
+              'onboarding_states.data.habitConfigs: the chosen habits (1 or 2, capped at 2; one per goal when two goals were picked), keyed by name with add_habit defaults',
           },
           {
             label: 'never re-ask',
@@ -6001,11 +5999,11 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             label: 'resume key',
-            value: 'current_step advanced past this beat proves the habit pick is done on refresh',
+            value: 'onboarding_states.data.habitConfigs, plus current_step advanced past this beat',
           },
         ],
         watchOut:
-          'The exact table + column for the habits write is NOT confirmed in the render source (io.dataOut notes the addHabit handler, cap 2 per decision 4/5). Flagged for app-reconcile; do not invent a table name. The carry-forward contract (never re-ask habits) is from GLOBAL_CONTEXT and is real.',
+          'Source: api/_lib/llm/onboarding/schemas.ts and flowBible.ts Table 3. add_habit, remove_habit, and later update_habit all operate on the same habitConfigs collection.',
         enforcedBy: ['persistence-contract-check'],
       },
       flow: {
@@ -6160,7 +6158,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'onboarding.habits',
           from: 'flow-state',
           writtenBy: 'add_habit / remove_habit',
-          persistsTo: 'per addHabit handler, cap 2 (decision 4/5)',
+          persistsTo: 'onboarding_states.data.habitConfigs',
         },
       ],
     },
@@ -7160,7 +7158,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'custom-entry',
     screenId: 'ONBOARD-BEGINNER-03-CUSTOM',
     context: null,
-    allowedTools: null,
+    allowedTools: 'add_habit, advance_step',
     expectedResponse: 'Names their own habit',
     voiceEngine: 'MP3',
     voiceMode: 'Verbatim',
@@ -7170,8 +7168,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     },
     // Archetype = single free-entry data beat (one spoken prompt, the user names their
     // own habit in the text input). conversation is { na } (a single capture, no branch);
-    // allowedTools + persistence are pending-app-reconcile (the save tool is unresolved
-    // per the io note; habit cap 2 applies at the handler).
+    // Custom habits use the same canonical add_habit contract as picker selections.
     bible: {
       sectionManifest: {
         identity: 'filled',
@@ -7182,8 +7179,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         rulesCode: 'filled',
         conversation: { na: 'single free-entry — the user names one habit; no branching turn' },
         contextProse: 'filled',
-        allowedTools: 'pending-app-reconcile',
-        persistence: 'pending-app-reconcile',
+        allowedTools: 'filled',
+        persistence: 'filled',
         flow: 'filled',
         edges: 'filled',
         acceptance: 'filled',
@@ -7285,6 +7282,41 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           'Create your own habit. Reached from the create-your-own habit tile. Speak the prompt, then let the user name their own habit in the text input, in their own words. Capture it verbatim, add no praise, and move on to setting the days.',
         enforcedBy: ['eval:parity-walk'],
       },
+      allowedTools: {
+        tools: ['add_habit', 'advance_step'],
+        callRules:
+          'Call add_habit with the verbatim custom name, then advance once the cap still permits it.',
+        specs: [
+          {
+            tool: 'add_habit',
+            args: '{ name: string (1-100 characters) }',
+            when: 'once the user submits a non-empty custom habit within the total cap of two',
+          },
+          { tool: 'advance_step', args: '{}', when: 'immediately after add_habit succeeds' },
+        ],
+        note: 'Defaults are supplied by add_habit. The custom name persists without canonical-list matching.',
+        enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'onboarding_states.data.habitConfigs entry for the custom onboarding.habits collection, keyed by custom habit name with add_habit defaults',
+          },
+          {
+            label: 'never re-ask',
+            value: 'the later schedule reads and patches the same habitConfigs entry by name',
+          },
+          {
+            label: 'resume key',
+            value: 'onboarding_states.data.habitConfigs, plus current_step past habit-custom',
+          },
+        ],
+        watchOut:
+          'Source: api/_lib/llm/onboarding/schemas.ts and flowBible.ts Table 3. TODO app migration only if either lane does not yet expose add_habit on this screen.',
+        enforcedBy: ['persistence-contract-check'],
+      },
       flow: {
         rows: [
           { label: 'advance condition', value: 'the user submits a non-empty custom habit' },
@@ -7316,9 +7348,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
               'the 2-habit cap (decision 4/5) is enforced at the add_habit handler; the render surfaces the cap',
           },
           {
-            edge: 'save unresolved',
+            edge: 'save contract',
             behavior:
-              'the save tool for a custom habit is not yet contracted (pending-app-reconcile); the render captures the text, the persistence path is reconciled app-side',
+              'add_habit saves the custom name with defaults, enforces the total cap, and must succeed before this beat advances',
           },
         ],
         enforcedBy: ['eval:edge-walk'],
@@ -7378,8 +7410,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'onboarding.habits',
           from: 'flow-state',
           writtenBy: 'add_habit / remove_habit',
-          persistsTo: 'per addHabit handler, cap 2 (decision 4/5)',
-          note: 'save tool unresolved (app-reconcile-pending)',
+          persistsTo: 'onboarding_states.data.habitConfigs',
+          note: 'later update_habit patches this same configuration by name',
         },
       ],
     },
@@ -7414,7 +7446,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
         contextProse: 'filled',
         allowedTools: 'filled',
-        persistence: 'pending-app-reconcile',
+        persistence: 'filled',
         flow: 'filled',
         edges: 'filled',
         acceptance: 'filled',
@@ -7563,18 +7595,39 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         specs: [
           {
             tool: 'update_habit',
-            args: '{ habitId: string, days: string[], reminder?: boolean }',
+            args: '{ name: string, days: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], reminder?: boolean, time?: "HH:MM", schedule?: "Weekday" | "Weekend" | "Every day" | "Custom" }',
             when: 'to set the days (and optionally a reminder) on a picked habit',
           },
           {
             tool: 'add_habit',
-            args: '{ name: string, polarity: "build" | "break", days: string[] }',
+            args: '{ name: string, days?: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], reminder?: boolean, time?: "HH:MM", schedule?: "Weekday" | "Weekend" | "Every day" | "Custom" }',
             when: 'only if a habit needs adding here',
           },
           { tool: 'advance_step', args: '{}', when: 'once every habit has its days set' },
         ],
-        note: 'The exact per-habit write shape is reconciled with the handler (persistence pending-app-reconcile).',
+        note: 'Days are numeric 0-6 values, name identifies the existing configuration, and omitted update fields are preserved.',
         enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'update_habit patches the onboarding.habits collection at onboarding_states.data.habitConfigs[name] with days, time, reminder, and schedule; omitted fields remain unchanged',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'the plan and resume read the same habitConfigs collection after each per-habit schedule save',
+          },
+          {
+            label: 'resume key',
+            value: 'onboarding_states.data.habitConfigs, plus current_step past schedule',
+          },
+        ],
+        watchOut:
+          'AUTHORITATIVE RENDER CONTRACT. TODO app migration: replace habitId/string-days payloads with name/numeric-days in any schedule client or lane that still uses the old shape. Source: api/_lib/llm/onboarding/schemas.ts.',
+        enforcedBy: ['persistence-contract-check'],
       },
       flow: {
         rows: [
@@ -7693,7 +7746,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'onboarding.habits',
           from: 'flow-state',
           writtenBy: 'update_habit / add_habit',
-          persistsTo: 'per handler',
+          persistsTo: 'onboarding_states.data.habitConfigs',
           note: 'adds days per habit',
         },
       ],
@@ -7713,9 +7766,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     hideOrb: false,
     props: null,
     // Archetype = multi-turn conversation (brain dump). The user reads or types their
-    // existing habits; cards form live, each auto-marked build or break; the coach names
-    // the read once and asks for a single yes. All 14 sections owner-filled except
-    // persistence (pending-app-reconcile: submit_brain_dump writes "per handler").
+    // existing habits; cards form live, each auto-marked build or break for display. The
+    // persistence boundary remains the verbatim source transcript, not parsed cards.
     bible: {
       sectionManifest: {
         identity: 'filled',
@@ -7727,7 +7779,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         conversation: 'filled',
         contextProse: 'filled',
         allowedTools: 'filled',
-        persistence: 'pending-app-reconcile',
+        persistence: 'filled',
         flow: 'filled',
         edges: 'filled',
         acceptance: 'filled',
@@ -7909,17 +7961,39 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       allowedTools: {
         tools: ['submit_brain_dump', 'advance_step'],
         callRules:
-          'Inherited from GLOBAL_CONTEXT, bound here: submit_brain_dump with the verbatim habit set once the user confirms; only this beat tools.',
+          'Inherited from GLOBAL_CONTEXT, bound here: submit_brain_dump with the full verbatim transcript once the user confirms; parsed cards are display-only derived state.',
         specs: [
           {
             tool: 'submit_brain_dump',
-            args: '{ habits: { name: string, polarity: "build" | "break" }[] } (verbatim, polarity auto-marked)',
+            args: '{ brain_dump_raw: string (10-5000 characters) } (the full verbatim transcript, never a summary or structured card set)',
             when: 'once the user confirms the read set',
           },
           { tool: 'advance_step', args: '{}', when: 'immediately after submit_brain_dump returns' },
         ],
-        note: 'The exact write shape for the brain dump is reconciled with the handler (persistence pending-app-reconcile).',
+        note: 'Build/break polarity belongs only to the rendered derived cards; it is not part of the persistence payload.',
         enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'onboarding_states.data.brainDumpText and onboarding_states.brain_dump_raw both hold the same verbatim brain_dump_raw transcript',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'the transcript rehydrates advanced capture and its derived cards; the coach never summarizes or re-collects it',
+          },
+          {
+            label: 'resume key',
+            value:
+              'onboarding_states.data.brainDumpText + onboarding_states.brain_dump_raw, plus current_step past advanced-capture',
+          },
+        ],
+        watchOut:
+          'AUTHORITATIVE RENDER CONTRACT. TODO app migration: any client or lane sending structured habits must send the raw transcript instead; derive cards and build/break polarity after persistence. Source: api/_lib/llm/onboarding/handlers/submitBrainDump.ts.',
+        enforcedBy: ['persistence-contract-check'],
       },
       flow: {
         rows: [
@@ -8041,7 +8115,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'advanced.brainDump',
           from: 'flow-state',
           writtenBy: 'submit_brain_dump',
-          persistsTo: 'per handler',
+          persistsTo: 'onboarding_states.data.brainDumpText + onboarding_states.brain_dump_raw',
         },
       ],
     },
@@ -8062,7 +8136,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     // Archetype = interactive data-gate (card-fill day circles) for the advanced path.
     // The day circles grow out of the already-captured habit cards; the coach parses a
     // full frequency answer, asks only for what is missing. conversation is { na }
-    // (card-fill, no branching); allowedTools owner-filled; persistence pending-app-reconcile.
+    // (card-fill, no branching); persistence uses the same habitConfigs contract as
+    // the beginner schedule beat.
     bible: {
       sectionManifest: {
         identity: 'filled',
@@ -8076,7 +8151,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
         contextProse: 'filled',
         allowedTools: 'filled',
-        persistence: 'pending-app-reconcile',
+        persistence: 'filled',
         flow: 'filled',
         edges: 'filled',
         acceptance: 'filled',
@@ -8236,18 +8311,39 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         specs: [
           {
             tool: 'update_habit',
-            args: '{ habitId: string, days: string[], reminder?: boolean }',
+            args: '{ name: string, days: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], reminder?: boolean, time?: "HH:MM", schedule?: "Weekday" | "Weekend" | "Every day" | "Custom" }',
             when: 'to set the days (frequency) on a captured habit',
           },
           {
             tool: 'add_habit',
-            args: '{ name: string, polarity: "build" | "break", days: string[] }',
+            args: '{ name: string, days?: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], reminder?: boolean, time?: "HH:MM", schedule?: "Weekday" | "Weekend" | "Every day" | "Custom" }',
             when: 'only if a habit needs adding here',
           },
           { tool: 'advance_step', args: '{}', when: 'once every habit has its days set' },
         ],
-        note: 'The exact per-habit write shape is reconciled with the handler (persistence pending-app-reconcile).',
+        note: 'Days are numeric 0-6 values, name identifies the card configuration, and omitted update fields are preserved.',
         enforcedBy: ['tool-contract-check'],
+      },
+      persistence: {
+        rows: [
+          {
+            label: 'writes',
+            value:
+              'update_habit or add_habit writes the onboarding.habits collection at onboarding_states.data.habitConfigs[name], including numeric days and optional reminder/time/schedule',
+          },
+          {
+            label: 'never re-ask',
+            value:
+              'the plan and resume read the same habitConfigs collection after every advanced frequency update',
+          },
+          {
+            label: 'resume key',
+            value: 'onboarding_states.data.habitConfigs, plus current_step past advanced-frequency',
+          },
+        ],
+        watchOut:
+          'AUTHORITATIVE RENDER CONTRACT. TODO app migration: replace habitId/string-days payloads with name/numeric-days in all advanced-frequency consumers and both execution lanes.',
+        enforcedBy: ['persistence-contract-check'],
       },
       flow: {
         rows: [
@@ -8379,7 +8475,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           key: 'onboarding.habits',
           from: 'flow-state',
           writtenBy: 'update_habit / remove_habit / add_habit',
-          persistsTo: 'per handler',
+          persistsTo: 'onboarding_states.data.habitConfigs',
         },
       ],
     },

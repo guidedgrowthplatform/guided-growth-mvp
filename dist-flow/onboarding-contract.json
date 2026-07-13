@@ -3,7 +3,7 @@
   "source": {
     "beats": "src/components/flow-designer/beatsSource.ts#BEATS_SOURCE"
   },
-  "generatedAt": "2026-07-13T13:15:02+03:00",
+  "generatedAt": "2026-07-13T13:20:08+03:00",
   "idMap": {
     "screens": {
       "COACH-GREETING": "coach-greeting",
@@ -5452,7 +5452,7 @@
       "voiceEngine": "MP3",
       "voiceMode": "Verbatim",
       "context": "Create your own habit. Reached from the create-your-own habit tile. Speak the prompt, then let the user name their own habit in the text input, in their own words. Capture it verbatim, add no praise, and move on to setting the days.",
-      "allowedTools": [],
+      "allowedTools": ["add_habit", "advance_step"],
       "persistence": {
         "writes": [
           {
@@ -5490,8 +5490,8 @@
             "voice": null
           },
           {
-            "edge": "save unresolved",
-            "behavior": "the save tool for a custom habit is not yet contracted (pending-app-reconcile); the render captures the text, the persistence path is reconciled app-side",
+            "edge": "save contract",
+            "behavior": "add_habit saves the custom name with defaults, enforces the total cap, and must succeed before this beat advances",
             "voice": null
           }
         ]
