@@ -47,8 +47,10 @@ verify:
     - npx vitest run
     - npm run build
 
-# gg-qa preview: deploy every branch push to the gg-qa Vercel project and post
-# the URL to the Deployments channel. Token + ids + webhook are CI variables.
+# gg-qa deploy: deploy only main/stable to the QA-live Vercel env (gg-qa-iota)
+# and post the URL to the Deployments channel. No per-branch previews, so
+# Vercel stays at exactly two environments (QA-live + Production). Token +
+# ids + webhook are CI variables.
 deploy_qa_preview:
   stage: deploy
   image: node:20
