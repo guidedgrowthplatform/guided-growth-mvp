@@ -21,9 +21,10 @@ const emptyValues: CheckInValues = { sleep: null, mood: null, energy: null, stre
 interface CheckInCardProps {
   selectedDate: string;
   onClose?: () => void;
+  onComplete?: () => void;
 }
 
-export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
+export function CheckInCard({ selectedDate, onClose, onComplete }: CheckInCardProps) {
   // captured at mount; card is CSS-collapsed, not remounted.
   const isMorning = new Date().getHours() < 15;
   const { checkIn, loading, saving, save } = useCheckIn(selectedDate, {
@@ -93,6 +94,11 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   };
 
   const handleCheckIn = async () => {
+    if (onComplete) {
+      onComplete();
+      return;
+    }
+
     try {
       await save(values);
       completedRef.current = true;
