@@ -11,7 +11,7 @@ import {
   refreshAccessToken,
   revokeToken,
 } from '../_lib/calendar/google.js';
-import { clearEventCaches, deleteEvent } from '../_lib/calendar/events.js';
+import { clearEventCaches, deleteEvent, listUpcomingForDisplay } from '../_lib/calendar/events.js';
 import { runSync } from '../_lib/calendar/writer.js';
 import pool from '../_lib/db.js';
 
@@ -32,9 +32,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route === 'target' && req.method === 'POST') return setTarget(req, res, user.anonId);
   if (route === 'toggle' && req.method === 'POST') return setEnabled(req, res, user.anonId);
   if (route === 'sync' && req.method === 'POST') return sync(req, res, user.anonId);
+  if (route === 'upcoming' && req.method === 'GET') return upcoming(req, res, user.anonId);
   if (route === 'test' && req.method === 'POST') return testCall(req, res, user.anonId);
 
   return res.status(404).json({ error: 'Not found' });
+}
+
+function isValidTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// GET 'upcoming' — read the user's next 7 days from their primary calendar.
+async function upcoming(req: VercelRequest, res: VercelResponse, anonId: string) {
+  const tzRaw = req.query.tz;
+  const tz = typeof tzRaw === 'string' && isValidTimeZone(tzRaw) ? tzRaw : 'UTC';
+  try {
+    const token = await getValidAccessToken(anonId);
+    const events = await listUpcomingForDisplay(token, tz, 7);
+    return res.status(200).json({ ok: true, events });
+  } catch (err) {
+    if (err instanceof CalendarNotConnectedError) {
+      return res.status(409).json({ error: 'not_connected' });
+    }
+    if (err instanceof CalendarDisabledError) {
+      return res.status(409).json({ error: 'disabled' });
+    }
+    if (err instanceof CalendarReauthRequiredError) {
+      return res.status(401).json({ error: 'reauth_required' });
+    }
+    console.error('[calendar] upcoming read failed', err);
+    return res.status(502).json({ error: 'google_error' });
+  }
 }
 
 async function status(_req: VercelRequest, res: VercelResponse, anonId: string) {

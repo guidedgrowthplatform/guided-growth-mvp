@@ -148,7 +148,9 @@ export default defineConfig(({ mode }) => {
           // missing /assets chunk. On Android (https://localhost) the SW
           // would return HTML for a .js request -> "Failed to fetch
           // dynamically imported module". 404 lets Suspense recover instead.
-          navigateFallbackDenylist: [/^\/assets\//],
+          // /api: OAuth callback is a top-level navigation — SW must not
+          // swallow it with index.html or the token exchange never runs.
+          navigateFallbackDenylist: [/^\/assets\//, /^\/api\//],
           runtimeCaching: [
             {
               urlPattern: /^\/api\/.*/i,
