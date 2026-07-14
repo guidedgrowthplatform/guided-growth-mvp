@@ -10,6 +10,7 @@ const {
   insertEvent,
   patchEvent,
   deleteEvent,
+  deleteCalendar,
   listUpcomingEvents,
 } = await import('../events.js');
 
@@ -71,24 +72,90 @@ describe('buildEventResource — DST-correct wall clock', () => {
 });
 
 describe('ensureGgCalendar', () => {
-  it('POSTs /calendars and persists gg_calendar_id', async () => {
-    fetchOnce({ ok: true, status: 200, json: { id: 'ggcal-123' } });
+  it('creates a new calendar when none exists and persists the id', async () => {
+    fetchOnce({ ok: true, status: 200, json: { items: [] } }); // calendarList — none
+    fetchOnce({ ok: true, status: 200, json: { id: 'ggcal-123' } }); // POST /calendars
     // UPDATE ... RETURNING claims the id (won the race → one query, no re-read).
     const db = { query: vi.fn().mockResolvedValue({ rows: [{ gg_calendar_id: 'ggcal-123' }] }) };
     const id = await ensureGgCalendar('tok', db, 'anon-1', 'UTC');
     expect(id).toBe('ggcal-123');
 
-    const url = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-    const init = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit;
-    expect(url).toContain('/calendar/v3/calendars');
-    expect(init.method).toBe('POST');
-    expect(JSON.parse(init.body as string)).toMatchObject({
+    const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0] as string).toContain('/users/me/calendarList');
+    expect(calls[1][0] as string).toContain('/calendar/v3/calendars');
+    expect((calls[1][1] as RequestInit).method).toBe('POST');
+    expect(JSON.parse((calls[1][1] as RequestInit).body as string)).toMatchObject({
       summary: 'Guided Growth',
       timeZone: 'UTC',
     });
 
     expect(db.query).toHaveBeenCalledTimes(1);
     expect(db.query.mock.calls[0][1]).toEqual(['anon-1', 'ggcal-123']);
+  });
+
+  it('reuses an existing owned "Guided Growth" calendar (no create POST)', async () => {
+    fetchOnce({
+      ok: true,
+      status: 200,
+      json: { items: [{ id: 'existing-gg', summary: 'Guided Growth', accessRole: 'owner' }] },
+    });
+    const db = { query: vi.fn().mockResolvedValue({ rows: [{ gg_calendar_id: 'existing-gg' }] }) };
+    const id = await ensureGgCalendar('tok', db, 'anon-1', 'UTC');
+    expect(id).toBe('existing-gg');
+    expect(global.fetch).toHaveBeenCalledTimes(1); // list only — no create
+    expect(db.query.mock.calls[0][1]).toEqual(['anon-1', 'existing-gg']);
+  });
+
+  it('ignores a non-owned calendar named Guided Growth and creates its own', async () => {
+    fetchOnce({
+      ok: true,
+      status: 200,
+      json: { items: [{ id: 'shared-gg', summary: 'Guided Growth', accessRole: 'reader' }] },
+    });
+    fetchOnce({ ok: true, status: 200, json: { id: 'own-gg' } });
+    const db = { query: vi.fn().mockResolvedValue({ rows: [{ gg_calendar_id: 'own-gg' }] }) };
+    const id = await ensureGgCalendar('tok', db, 'anon-1', 'UTC');
+    expect(id).toBe('own-gg');
+    expect(global.fetch).toHaveBeenCalledTimes(2); // list + create
+  });
+
+  it('deletes the orphan when it created a calendar but lost the claim', async () => {
+    fetchOnce({ ok: true, status: 200, json: { items: [] } }); // list — none
+    fetchOnce({ ok: true, status: 200, json: { id: 'orphan-1' } }); // create
+    fetchOnce({ ok: true, status: 204 }); // DELETE orphan
+    const db = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [] }) // UPDATE lost the claim
+        .mockResolvedValueOnce({ rows: [{ gg_calendar_id: 'winner-1' }] }), // re-read winner
+    };
+    const id = await ensureGgCalendar('tok', db, 'anon-1', 'UTC');
+    expect(id).toBe('winner-1');
+    const del = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
+      (c) =>
+        /\/calendars\/orphan-1$/.test(c[0] as string) && (c[1] as RequestInit)?.method === 'DELETE',
+    );
+    expect(del).toBeTruthy();
+  });
+});
+
+describe('deleteCalendar', () => {
+  it('DELETEs the calendar and returns true on success', async () => {
+    fetchOnce({ ok: true, status: 204 });
+    expect(await deleteCalendar('tok', 'gg-1')).toBe(true);
+    const [url, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url as string).toContain('/calendars/gg-1');
+    expect((init as RequestInit).method).toBe('DELETE');
+  });
+
+  it('treats already-gone (404) as success', async () => {
+    fetchOnce({ ok: false, status: 404, text: 'gone' });
+    expect(await deleteCalendar('tok', 'gg-2')).toBe(true);
+  });
+
+  it('returns false on a transient failure (keeps trying later)', async () => {
+    fetchOnce({ ok: false, status: 500, text: 'boom' });
+    expect(await deleteCalendar('tok', 'gg-3')).toBe(false);
   });
 });
 

@@ -11,7 +11,12 @@ import {
   refreshAccessToken,
   revokeToken,
 } from '../_lib/calendar/google.js';
-import { clearEventCaches, deleteEvent, listUpcomingForDisplay } from '../_lib/calendar/events.js';
+import {
+  clearEventCaches,
+  deleteCalendar,
+  deleteEvent,
+  listUpcomingForDisplay,
+} from '../_lib/calendar/events.js';
 import { runSync } from '../_lib/calendar/writer.js';
 import pool from '../_lib/db.js';
 
@@ -107,12 +112,13 @@ async function status(_req: VercelRequest, res: VercelResponse, anonId: string) 
 
 async function disconnect(_req: VercelRequest, res: VercelResponse, anonId: string) {
   const { rows } = await pool.query(
-    `SELECT refresh_token FROM calendar_connections WHERE anon_id = $1`,
+    `SELECT refresh_token, gg_calendar_id FROM calendar_connections WHERE anon_id = $1`,
     [anonId],
   );
   const token = rows[0]?.refresh_token as string | undefined;
+  const ggCalendarId = rows[0]?.gg_calendar_id as string | undefined;
 
-  // Best-effort delete of the events we created. Refresh directly (not
+  // Best-effort remove of everything we created at Google. Refresh directly (not
   // getValidAccessToken) so cleanup still runs when disabled.
   if (token) {
     try {
@@ -120,16 +126,21 @@ async function disconnect(_req: VercelRequest, res: VercelResponse, anonId: stri
         `SELECT calendar_id, google_event_id FROM calendar_event_map WHERE anon_id = $1`,
         [anonId],
       );
-      if (map.rows.length > 0) {
+      if (map.rows.length > 0 || ggCalendarId) {
         const { access_token } = await refreshAccessToken(token);
-        await Promise.allSettled(
-          (map.rows as { calendar_id: string; google_event_id: string }[]).map((r) =>
-            deleteEvent(access_token, r.calendar_id, r.google_event_id),
-          ),
-        );
+        if (map.rows.length > 0) {
+          await Promise.allSettled(
+            (map.rows as { calendar_id: string; google_event_id: string }[]).map((r) =>
+              deleteEvent(access_token, r.calendar_id, r.google_event_id),
+            ),
+          );
+        }
+        // Delete the empty "Guided Growth" calendar shell we created (also
+        // removes any residual events on it) so nothing is left behind.
+        if (ggCalendarId) await deleteCalendar(access_token, ggCalendarId);
       }
     } catch (err) {
-      console.warn('[calendar] disconnect event cleanup failed (best-effort)', err);
+      console.warn('[calendar] disconnect cleanup failed (best-effort)', err);
     }
   }
 
