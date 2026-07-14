@@ -3,16 +3,30 @@ import { onboardingBeatById, onboardingContract } from '@/generated/onboardingCo
 import { componentRegistry } from './beatRegistry';
 import GenericSurface, { declaredClip, scriptFor } from './beats/_shared';
 
-const PREVIEW_SPINE = [...onboardingContract.beats]
-  .sort((left, right) => left.order - right.order)
-  .filter((beat) => beat.variantOf === null && (beat.path === 'both' || beat.path === 'beginner'))
-  .map((beat) => beat.id);
+const buildSpine = (variant: 'beginner' | 'advanced') =>
+  [...onboardingContract.beats]
+    .sort((left, right) => left.order - right.order)
+    .filter((beat) => beat.variantOf === null && (beat.path === 'both' || beat.path === variant))
+    .map((beat) => beat.id);
+
+const BEGINNER_SPINE = buildSpine('beginner');
+const ADVANCED_SPINE = buildSpine('advanced');
 
 export function ContractOnboardingPreview() {
   // Preview-only deep link: /onboarding/flow-preview?beat=<componentKey> starts on the first beat
-  // with that component key. Lets the headless render gate jump directly to a beat instead of
-  // walking through interactive gates (mic permission, the profile form, the fork). No effect
-  // on the normal flow, which starts at index 0.
+  // with that component key, so the headless render gate can jump straight to any beat. If the
+  // target beat only lives on the advanced path, use the advanced spine so advanced-* beats are
+  // reachable (ledger 27). No ?beat= -> the normal beginner walk, unchanged.
+  const PREVIEW_SPINE = useMemo(() => {
+    if (typeof window === 'undefined') return BEGINNER_SPINE;
+    const wantKey = new URLSearchParams(window.location.search).get('beat');
+    if (!wantKey) return BEGINNER_SPINE;
+    if (BEGINNER_SPINE.some((id) => onboardingBeatById[id]?.component.key === wantKey))
+      return BEGINNER_SPINE;
+    if (ADVANCED_SPINE.some((id) => onboardingBeatById[id]?.component.key === wantKey))
+      return ADVANCED_SPINE;
+    return BEGINNER_SPINE;
+  }, []);
   const startIndex = useMemo(() => {
     if (typeof window === 'undefined') return 0;
     const wantKey = new URLSearchParams(window.location.search).get('beat');
@@ -21,7 +35,7 @@ export function ContractOnboardingPreview() {
       (id) => onboardingBeatById[id]?.component.key === wantKey,
     );
     return found >= 0 ? found : 0;
-  }, []);
+  }, [PREVIEW_SPINE]);
   const [index, setIndex] = useState(startIndex);
   const [path, setPath] = useState<'beginner' | 'advanced' | null>(null);
   const beatId = PREVIEW_SPINE[index];
