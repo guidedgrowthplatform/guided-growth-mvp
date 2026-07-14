@@ -94,29 +94,55 @@ export function buildEventResource(ritual: RitualEvent, tz: string): Record<stri
   };
 }
 
-// Create the dedicated "Guided Growth" calendar on first write; persist its id.
+// Reuse an existing app-created "Guided Growth" calendar so reconnects don't
+// pile up duplicates. Null if none / listing fails (caller then creates one).
+async function findExistingGgCalendar(accessToken: string): Promise<string | null> {
+  try {
+    const res = await calendarFetch<{
+      items?: { id: string; summary?: string; accessRole?: string }[];
+    }>(accessToken, '/users/me/calendarList');
+    const match = (res.items ?? []).find(
+      (c) => c.summary === GG_CALENDAR_SUMMARY && c.accessRole === 'owner',
+    );
+    return match?.id ?? null;
+  } catch (e) {
+    // 403 here = our scopes can't list calendars → reuse is a no-op (we create).
+    console.warn('[calendar/events] calendarList lookup failed (reuse skipped)', e);
+    return null;
+  }
+}
+
 export async function ensureGgCalendar(
   accessToken: string,
   db: Queryable,
   anonId: string,
   tz: string,
 ): Promise<string> {
-  const created = await calendarFetch<GEvent>(accessToken, '/calendars', {
-    method: 'POST',
-    body: JSON.stringify({ summary: GG_CALENDAR_SUMMARY, timeZone: tz }),
-  });
+  // Reuse before create — otherwise every fresh connection spawns a new calendar.
+  const existing = await findExistingGgCalendar(accessToken);
+  let calId = existing;
+  if (!calId) {
+    const created = await calendarFetch<GEvent>(accessToken, '/calendars', {
+      method: 'POST',
+      body: JSON.stringify({ summary: GG_CALENDAR_SUMMARY, timeZone: tz }),
+    });
+    calId = created.id;
+  }
   // Claim only if unset — a concurrent sync may have won; then use its id.
   const upd = await db.query(
     `UPDATE calendar_connections SET gg_calendar_id = $2, updated_at = now()
       WHERE anon_id = $1 AND gg_calendar_id IS NULL
       RETURNING gg_calendar_id`,
-    [anonId, created.id],
+    [anonId, calId],
   );
-  if (upd.rows.length > 0) return created.id;
+  if (upd.rows.length > 0) return calId;
   const cur = await db.query(`SELECT gg_calendar_id FROM calendar_connections WHERE anon_id = $1`, [
     anonId,
   ]);
-  return (cur.rows[0] as { gg_calendar_id?: string } | undefined)?.gg_calendar_id ?? created.id;
+  const winner = (cur.rows[0] as { gg_calendar_id?: string } | undefined)?.gg_calendar_id ?? calId;
+  // Lost the claim AND we created a fresh calendar → delete our orphan.
+  if (!existing && winner !== calId) await deleteCalendar(accessToken, calId).catch(() => {});
+  return winner;
 }
 
 export async function insertEvent(
@@ -170,6 +196,20 @@ export async function deleteEvent(
   } catch (e) {
     if (isGone(e)) return true;
     console.warn('[calendar/events] delete failed (best-effort, will retry)', e);
+    return false;
+  }
+}
+
+// Best-effort delete of a whole calendar — the app-created "Guided Growth" shell.
+export async function deleteCalendar(accessToken: string, calendarId: string): Promise<boolean> {
+  try {
+    await calendarFetch(accessToken, `/calendars/${encodeURIComponent(calendarId)}`, {
+      method: 'DELETE',
+    });
+    return true;
+  } catch (e) {
+    if (isGone(e)) return true;
+    console.warn('[calendar/events] calendar delete failed (best-effort)', e);
     return false;
   }
 }

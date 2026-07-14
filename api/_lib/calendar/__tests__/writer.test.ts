@@ -175,17 +175,19 @@ describe('runSync GG calendar', () => {
       .mockResolvedValueOnce({ rows: [{ weekly_day: 0 }] })
       .mockResolvedValueOnce({ rows: [] }) // habits
       .mockResolvedValueOnce({ rows: [] }); // event_map
+    fetchOnce({ ok: true, status: 200, json: { items: [] } }); // GET calendarList — none exists
     fetchOnce({ ok: true, status: 200, json: { id: 'gg-cal-1' } }); // POST /calendars
     insertsOk(4);
 
     const r = await runSync('anon-1');
 
     expect(r.written).toBe(4);
-    expect(fetchUrls()[0]).toMatch(/\/calendar\/v3\/calendars$/);
+    expect(fetchUrls()[0]).toContain('/users/me/calendarList');
+    expect(fetchUrls()[1]).toMatch(/\/calendar\/v3\/calendars$/);
     expect(sqls().some((s) => s.includes('gg_calendar_id'))).toBe(true);
     expect(
       fetchUrls()
-        .slice(1)
+        .slice(2)
         .every((u) => u.includes('/calendars/gg-cal-1/events')),
     ).toBe(true);
     expect(bodiesBySummary()['Evening reflection']).toBeDefined();
