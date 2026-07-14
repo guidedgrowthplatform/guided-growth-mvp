@@ -283,6 +283,37 @@ export async function listUpcomingEvents(
   return events;
 }
 
+export interface UpcomingDisplayEvent {
+  start: string; // ISO datetime (timed) or 'YYYY-MM-DD' (all-day)
+  allDay: boolean;
+  summary: string;
+}
+
+// Client-facing read (NOT the LLM path): next `days` days from PRIMARY, no cache.
+// Returns raw ISO starts + sanitized summaries; the client formats for its locale.
+export async function listUpcomingForDisplay(
+  accessToken: string,
+  tz: string,
+  days = 7,
+): Promise<UpcomingDisplayEvent[]> {
+  const params = new URLSearchParams({
+    timeMin: localMidnightUtc(tz, 0).toISOString(),
+    timeMax: localMidnightUtc(tz, days).toISOString(),
+    singleEvents: 'true',
+    orderBy: 'startTime',
+    maxResults: '25',
+  });
+  const res = await calendarFetch<{ items?: GListItem[] }>(
+    accessToken,
+    `/calendars/primary/events?${params.toString()}`,
+  );
+  return (res.items ?? []).map((item) =>
+    item.start?.dateTime
+      ? { start: item.start.dateTime, allDay: false, summary: sanitizeSummary(item.summary) }
+      : { start: item.start?.date ?? '', allDay: true, summary: sanitizeSummary(item.summary) },
+  );
+}
+
 // Bound a promise so a hung Google call can't stall a caller (e.g. the LLM turn).
 function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;

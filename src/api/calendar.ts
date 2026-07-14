@@ -109,3 +109,14 @@ export function syncCalendar(): Promise<{
 }> {
   return apiPost('/api/calendar/sync', {});
 }
+
+export interface UpcomingEvent {
+  start: string; // ISO datetime (timed) or 'YYYY-MM-DD' (all-day)
+  allDay: boolean;
+  summary: string;
+}
+
+// Reads the user's next 7 days from their primary Google Calendar.
+export function getUpcomingEvents(tz: string): Promise<{ ok: boolean; events: UpcomingEvent[] }> {
+  return apiGet(`/api/calendar/upcoming?tz=${encodeURIComponent(tz)}`);
+}

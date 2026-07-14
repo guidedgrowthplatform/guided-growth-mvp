@@ -1,12 +1,14 @@
 import { Icon } from '@iconify/react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   clearCalendarReturnTo,
   consumeCalendarResult,
+  getUpcomingEvents,
   markCalendarReturnTo,
   syncCalendar,
+  type UpcomingEvent,
 } from '@/api/calendar';
 import { CalendarIntegrationSection } from '@/components/settings/CalendarIntegrationSection';
 import { useToast } from '@/contexts/ToastContext';
@@ -101,6 +103,7 @@ export function CalendarQAPage() {
             </div>
 
             <CalendarIntegrationSection />
+            <UpcomingEventsPanel connected={connected} />
           </>
         )}
       </div>
@@ -130,4 +133,80 @@ function StatusRow({ label, ok, loading, invert }: StatusRowProps) {
       </dd>
     </div>
   );
+}
+
+// Reads + shows the user's next 7 days of real Google Calendar events.
+function UpcomingEventsPanel({ connected }: { connected: boolean }) {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+    queryKey: ['calendar', 'upcoming'],
+    queryFn: () => getUpcomingEvents(tz),
+    enabled: connected,
+    staleTime: 30_000,
+  });
+
+  if (!connected) return null;
+  const events = data?.events ?? [];
+
+  return (
+    <div className="rounded-2xl bg-surface p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold text-content">
+          Your upcoming events (from Google Calendar)
+        </span>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          disabled={isFetching}
+          className="flex items-center gap-1 text-sm font-semibold text-primary disabled:opacity-50"
+        >
+          <Icon icon="mdi:refresh" width={16} />
+          Refresh
+        </button>
+      </div>
+
+      {isLoading ? (
+        <p className="mt-2 text-sm text-content-secondary">Reading your calendar…</p>
+      ) : isError ? (
+        <p className="mt-2 text-sm font-medium text-danger">Couldn&apos;t read your calendar.</p>
+      ) : events.length === 0 ? (
+        <p className="mt-2 text-sm text-content-secondary">No events in the next 7 days.</p>
+      ) : (
+        <ul className="mt-3 flex flex-col gap-2">
+          {events.map((ev, i) => {
+            const { day, time } = formatUpcoming(ev);
+            return (
+              <li
+                key={`${ev.start}-${i}`}
+                className="flex items-center gap-3 rounded-xl bg-page px-3 py-2"
+              >
+                <div className="flex w-16 flex-shrink-0 flex-col">
+                  <span className="text-xs font-semibold text-content">{day}</span>
+                  <span className="text-xs text-content-secondary">{time}</span>
+                </div>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-content">
+                  {ev.summary}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function formatUpcoming(ev: UpcomingEvent): { day: string; time: string } {
+  const dayOpts: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+  if (ev.allDay) {
+    return {
+      day: new Date(`${ev.start}T00:00:00`).toLocaleDateString(undefined, dayOpts),
+      time: 'All day',
+    };
+  }
+  const d = new Date(ev.start);
+  return {
+    day: d.toLocaleDateString(undefined, dayOpts),
+    time: d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+  };
 }
