@@ -60,6 +60,7 @@
     "check:tool-contract": "node scripts/checks/tool-contract-check.mjs",
     "check:advance-gate": "node scripts/checks/advance-gate-check.mjs",
     "check:persistence-contract": "node scripts/checks/persistence-contract-check.mjs",
+    "check:backend-parity": "node scripts/checks/backend-parity-check.mjs",
     "check:decisions-coverage": "node scripts/checks/decisions-coverage-check.mjs",
     "check:app-parity": "node scripts/check-app-parity.mjs",
     "check:beats": "npm run check:render && npm run check:dist-flow-freshness && npm run check:links && npm run check:rules-registry && npm run check:beat-metadata && npm run check:id-alias && npm run check:reveal-timing && npm run check:component-registry && npm run check:audio-ownership && npm run check:tool-contract && npm run check:advance-gate && npm run check:persistence-contract && npm run check:decisions-coverage && npm run check:contract"
