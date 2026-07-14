@@ -34,13 +34,33 @@ function BarBackground() {
   );
 }
 
-function Tab({ icon, label }: { icon: string; label: string }) {
+function Tab({
+  icon,
+  label,
+  isActive,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  isActive?: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <div className="flex flex-col items-center justify-end text-slate-400">
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-center justify-end ${isActive ? 'text-primary' : 'text-slate-400'}`}
+    >
       <Icon icon={icon} width={24} />
       <span className="mt-0.5 text-[10px] font-bold">{label}</span>
-    </div>
+    </button>
   );
+}
+
+// A feature tab in app-shell mode.
+export interface AppTab {
+  icon: string;
+  label: string;
 }
 
 interface HomeBarPreviewProps {
@@ -52,6 +72,14 @@ interface HomeBarPreviewProps {
   // The app screen background, mirrored from the tuner's Background control.
   screenBg: string;
   bgKey: string; // 'light' | 'blue' | 'yellow' | 'dark' (drives text contrast)
+  // App-shell mode (optional). When `screen` is set, it replaces the home mock,
+  // and `tabs` (4 entries) replaces the default nav tabs, so the same bar + orb
+  // wrap a real feature screen with feature tabs.
+  screen?: React.ReactNode;
+  tabs?: AppTab[];
+  activeTab?: number;
+  onTabChange?: (i: number) => void;
+  label?: string;
 }
 
 export function HomeBarPreview({
@@ -62,6 +90,11 @@ export function HomeBarPreview({
   mic,
   screenBg,
   bgKey,
+  screen,
+  tabs,
+  activeTab = 0,
+  onTabChange,
+  label = 'Home bar (live)',
 }: HomeBarPreviewProps) {
   const dark = bgKey === 'dark';
   const subText = dark ? 'text-white/60' : 'text-slate-500';
@@ -75,48 +108,60 @@ export function HomeBarPreview({
         className="text-[11px] font-semibold uppercase"
         style={{ color: '#8a92a8', letterSpacing: '.09em' }}
       >
-        Home bar (live)
+        {label}
       </div>
       <div
         className="relative overflow-hidden rounded-[44px]"
-        style={{ width: 340, height: 720, background: screenBg, boxShadow: '0 18px 50px rgba(20,30,60,.28)', border: '6px solid #0b0e16' }}
+        style={{
+          width: 340,
+          height: 720,
+          background: screenBg,
+          boxShadow: '0 18px 50px rgba(20,30,60,.28)',
+          border: '6px solid #0b0e16',
+        }}
       >
-        {/* Home content mock, so the bar and orb read in a real context. Cards are
-            translucent so they sit on whatever app background is selected. */}
-        <div className="flex h-full flex-col gap-4 p-5 pb-24">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className={`text-[11px] font-semibold ${subText}`}>Good morning</div>
-              <div className={`text-[18px] font-bold ${titleText}`}>Let&apos;s grow today</div>
-            </div>
-            <div className={`h-9 w-9 rounded-full ${block}`} />
+        {/* App-shell mode: a real feature screen fills the phone, scrolling under
+            the bar. Otherwise the home content mock renders as before. */}
+        {screen ? (
+          <div className="h-full overflow-y-auto" style={{ paddingBottom: 110 }}>
+            {screen}
           </div>
-
-          {/* Coach hero card: the orb below is how you reach it. */}
-          <div
-            className="rounded-3xl p-4 text-white"
-            style={{ background: 'linear-gradient(135deg,#2f6bff,#5b8cff)' }}
-          >
-            <div className="text-[12px] font-semibold opacity-90">Your coach</div>
-            <div className="mt-1 text-[15px] font-bold leading-snug">
-              Tap the orb to talk it through
-            </div>
-            <div className="mt-3 h-1.5 w-24 rounded-full bg-white/30" />
-          </div>
-
-          {/* A few home items so the layout feels lived-in. */}
-          <div className="flex flex-col gap-3">
-            {['Morning focus', 'Reflect on yesterday', 'Plan your day'].map((t) => (
-              <div key={t} className={`flex items-center gap-3 rounded-2xl p-3 ${card}`}>
-                <div className={`h-9 w-9 shrink-0 rounded-xl ${block}`} />
-                <div className="flex-1">
-                  <div className={`text-[13px] font-semibold ${itemText}`}>{t}</div>
-                  <div className={`mt-1 h-2 w-2/3 rounded-full ${block}`} />
-                </div>
+        ) : (
+          <div className="flex h-full flex-col gap-4 p-5 pb-24">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className={`text-[11px] font-semibold ${subText}`}>Good morning</div>
+                <div className={`text-[18px] font-bold ${titleText}`}>Let&apos;s grow today</div>
               </div>
-            ))}
+              <div className={`h-9 w-9 rounded-full ${block}`} />
+            </div>
+
+            {/* Coach hero card: the orb below is how you reach it. */}
+            <div
+              className="rounded-3xl p-4 text-white"
+              style={{ background: 'linear-gradient(135deg,#2f6bff,#5b8cff)' }}
+            >
+              <div className="text-[12px] font-semibold opacity-90">Your coach</div>
+              <div className="mt-1 text-[15px] font-bold leading-snug">
+                Tap the orb to talk it through
+              </div>
+              <div className="mt-3 h-1.5 w-24 rounded-full bg-white/30" />
+            </div>
+
+            {/* A few home items so the layout feels lived-in. */}
+            <div className="flex flex-col gap-3">
+              {['Morning focus', 'Reflect on yesterday', 'Plan your day'].map((t) => (
+                <div key={t} className={`flex items-center gap-3 rounded-2xl p-3 ${card}`}>
+                  <div className={`h-9 w-9 shrink-0 rounded-xl ${block}`} />
+                  <div className="flex-1">
+                    <div className={`text-[13px] font-semibold ${itemText}`}>{t}</div>
+                    <div className={`mt-1 h-2 w-2/3 rounded-full ${block}`} />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* The home bar: scooped background, the live orb in the notch, four tabs. */}
         <div className="absolute inset-x-0 bottom-0">
@@ -134,11 +179,43 @@ export function HomeBarPreview({
               />
             </div>
             <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
-              <Tab icon="ic:round-home" label="Home" />
-              <Tab icon="ic:round-leaderboard" label="Progress" />
-              <div />
-              <Tab icon="mingcute:stopwatch-fill" label="Focus" />
-              <Tab icon="ic:round-person" label="Profile" />
+              {tabs ? (
+                <>
+                  <Tab
+                    icon={tabs[0].icon}
+                    label={tabs[0].label}
+                    isActive={activeTab === 0}
+                    onClick={() => onTabChange?.(0)}
+                  />
+                  <Tab
+                    icon={tabs[1].icon}
+                    label={tabs[1].label}
+                    isActive={activeTab === 1}
+                    onClick={() => onTabChange?.(1)}
+                  />
+                  <div />
+                  <Tab
+                    icon={tabs[2].icon}
+                    label={tabs[2].label}
+                    isActive={activeTab === 2}
+                    onClick={() => onTabChange?.(2)}
+                  />
+                  <Tab
+                    icon={tabs[3].icon}
+                    label={tabs[3].label}
+                    isActive={activeTab === 3}
+                    onClick={() => onTabChange?.(3)}
+                  />
+                </>
+              ) : (
+                <>
+                  <Tab icon="ic:round-home" label="Home" />
+                  <Tab icon="ic:round-leaderboard" label="Progress" />
+                  <div />
+                  <Tab icon="mingcute:stopwatch-fill" label="Focus" />
+                  <Tab icon="ic:round-person" label="Profile" />
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -1,0 +1,80 @@
+{
+  "_comment": "Reset Library v1 mock catalog (design/reset-library-mock-2026-07). Mirrors the shape of voice-manifest.json (comment + spec_revision + keyed `files` map) but carries the Reset track fields instead of the voice-prompt fields. Audio files are NOT recorded yet -- `file` is a placeholder name; ResetPlayerPage wires useVoicePlayer().play(id) for real, it just no-ops until these ids exist in voice-manifest.json.",
+  "_spec_revision": "Reset Library design mock v1 (2026-07)",
+  "files": {
+    "drop-in": {
+      "id": "drop-in",
+      "title": "Drop in",
+      "durationSec": 60,
+      "language": "EN",
+      "kind": "guided",
+      "whatFor": "The quick one. A minute to land.",
+      "file": "drop_in.mp3"
+    },
+    "urge-surf": {
+      "id": "urge-surf",
+      "title": "Urge surf",
+      "durationSec": 90,
+      "language": "EN",
+      "kind": "guided",
+      "whatFor": "Ride the wave until it passes.",
+      "file": "urge_surf.mp3"
+    },
+    "settle-en": {
+      "id": "settle-en",
+      "title": "Settle",
+      "durationSec": 120,
+      "language": "EN",
+      "kind": "guided",
+      "whatFor": "Touch and breath. Your come-home.",
+      "file": "settle_en.mp3",
+      "pairId": "settle-he"
+    },
+    "settle-he": {
+      "id": "settle-he",
+      "title": "Settle",
+      "durationSec": 120,
+      "language": "HE",
+      "kind": "guided",
+      "whatFor": "Touch and breath. Your come-home.",
+      "file": "settle_he.mp3",
+      "pairId": "settle-en"
+    },
+    "reset-2": {
+      "id": "reset-2",
+      "title": "Reset",
+      "durationSec": 120,
+      "language": "EN",
+      "kind": "guided",
+      "whatFor": "Two minutes to baseline.",
+      "file": "reset_2.mp3"
+    },
+    "long-settle": {
+      "id": "long-settle",
+      "title": "The long settle",
+      "durationSec": 300,
+      "language": "EN",
+      "kind": "guided",
+      "whatFor": "More time. Go all the way down.",
+      "file": "long_settle.mp3"
+    },
+    "sleep-rain": {
+      "id": "sleep-rain",
+      "title": "Rain and waves",
+      "durationSec": 600,
+      "language": "EN",
+      "kind": "soundscape",
+      "whatFor": "A bed to fall asleep in.",
+      "file": "sleep_rain.mp3"
+    },
+    "sleep-woods": {
+      "id": "sleep-woods",
+      "title": "Night woods",
+      "durationSec": 600,
+      "language": "EN",
+      "kind": "soundscape",
+      "whatFor": "Crickets and quiet.",
+      "file": "sleep_woods.mp3"
+    }
+  }
+}

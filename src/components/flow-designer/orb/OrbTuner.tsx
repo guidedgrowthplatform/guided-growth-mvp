@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
-import { HomeBarPreview } from './HomeBarPreview';
+import { useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import { type OrbMic, type OrbStateSel, type OrbTalkStyle } from '@/components/orb/Orb';
+import { HomeBarPreview } from './HomeBarPreview';
 import {
   AUTHOR_PRESETS,
   MOTION_PRESETS,
@@ -64,7 +64,25 @@ const PULSE_SLIDERS: { k: keyof PulseParams; label: string; min: number; max: nu
   { k: 'memSpeed', label: 'Membrane speed', min: 0, max: 100 },
 ];
 
-export function OrbTuner() {
+// Props the tuner hands to whatever renders the live preview (the home bar by
+// default, or the app shell in app-preview mode).
+export interface OrbPreviewProps {
+  orbState: OrbStateSel;
+  orbStyle: OrbTalkStyle;
+  params: OrbStates;
+  pulse: PulseParams;
+  mic: MutableRefObject<OrbMic>;
+  screenBg: string;
+  bgKey: string;
+}
+
+interface OrbTunerProps {
+  // Replace the default HomeBarPreview with a custom preview (the app shell)
+  // driven by the SAME tuner state. Defaults to the home bar.
+  renderPreview?: (p: OrbPreviewProps) => ReactNode;
+}
+
+export function OrbTuner({ renderPreview }: OrbTunerProps = {}) {
   const [params, setParams] = useState<OrbStates>(() => loadParams());
   const [pulse, setPulse] = useState<PulseParams>(() => loadPulse());
   const [saved, setSaved] = useState<SavedPreset[]>(() => loadSaved());
@@ -232,232 +250,232 @@ export function OrbTuner() {
 
   return (
     <div className="ot-workspace">
-      <HomeBarPreview
-        orbState={state}
-        orbStyle={style}
-        params={params}
-        pulse={pulse}
-        mic={mic}
-        screenBg={BGS[bg]}
-        bgKey={bg}
-      />
+      {(renderPreview ?? ((p) => <HomeBarPreview {...p} />))({
+        orbState: state,
+        orbStyle: style,
+        params,
+        pulse,
+        mic,
+        screenBg: BGS[bg],
+        bgKey: bg,
+      })}
 
       <div className="ot-panel">
-          <div className="ot-row">
-            <span className="ot-lab">Background</span>
-            {(['light', 'blue', 'yellow', 'dark'] as const).map((k) => (
-              <button key={k} className={`ot-btn${bg === k ? 'on' : ''}`} onClick={() => setBg(k)}>
-                {k === 'light'
-                  ? 'Light'
-                  : k === 'blue'
-                    ? 'App blue'
-                    : k === 'yellow'
-                      ? 'App yellow'
-                      : 'Dark'}
-              </button>
-            ))}
-          </div>
-          <div className="ot-row">
-            <span className="ot-lab">State</span>
-            {(['idle', 'coach', 'user'] as const).map((k) => (
-              <button
-                key={k}
-                className={`ot-btn${state === k ? 'on' : ''}`}
-                onClick={() => pickState(k)}
-              >
-                {k === 'idle' ? 'Idle' : k === 'coach' ? 'Coach talking' : 'User talking'}
-              </button>
-            ))}
-            <button className={`ot-btn${micOn ? 'on' : ''}`} onClick={toggleMic}>
-              {micOn ? 'Mic on (stop)' : 'Use my mic'}
+        <div className="ot-row">
+          <span className="ot-lab">Background</span>
+          {(['light', 'blue', 'yellow', 'dark'] as const).map((k) => (
+            <button key={k} className={`ot-btn${bg === k ? 'on' : ''}`} onClick={() => setBg(k)}>
+              {k === 'light'
+                ? 'Light'
+                : k === 'blue'
+                  ? 'App blue'
+                  : k === 'yellow'
+                    ? 'App yellow'
+                    : 'Dark'}
             </button>
-          </div>
-          <div className="ot-row">
-            <span className="ot-lab">Talk style</span>
-            {(['full', 'directional'] as const).map((k) => (
-              <button
-                key={k}
-                className={`ot-btn${style === k ? 'on' : ''}`}
-                onClick={() => setStyle(k)}
-              >
-                {k === 'full' ? 'Full circle' : 'Directional'}
-              </button>
-            ))}
-          </div>
-          <div className="ot-row">
-            <span className="ot-lab">Edit</span>
-            {(
-              [
-                ['idle', 'Idle look'],
-                ['talk', 'Talking look'],
-                ['pulse', 'Pulse'],
-              ] as [EditTab, string][]
-            ).map(([k, lbl]) => (
-              <button
-                key={k}
-                className={`ot-btn${editTab === k ? 'on' : ''}`}
-                onClick={() => pickEdit(k)}
-              >
-                {lbl}
-              </button>
-            ))}
-          </div>
-
-          <div className="ot-hdr">Presets</div>
-          <div className="ot-row">
-            <span className="ot-lab">Author</span>
-            {Object.keys(AUTHOR_PRESETS).map((au) => (
-              <button
-                key={au}
-                className={`ot-btn${author === au ? 'on' : ''}`}
-                onClick={() => setAuthor(au)}
-              >
-                {au}
-              </button>
-            ))}
-          </div>
-          <div className="ot-row">
-            <span className="ot-lab" />
-            {Object.keys(AUTHOR_PRESETS[author] ?? {}).map((name) => (
-              <button key={name} className="ot-btn" onClick={() => applyPreset(name)}>
-                {name}
-              </button>
-            ))}
-            <button className="ot-btn" onClick={() => setParams(resetParams())}>
-              Reset
-            </button>
-          </div>
-          <div className="ot-row">
-            <span className="ot-lab">Save as</span>
-            <input
-              className="ot-input"
-              value={presetName}
-              placeholder={editTab === 'pulse' ? 'Switch to a look to save' : 'Preset name'}
-              onChange={(e) => setPresetName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') saveCurrent();
-              }}
-              disabled={editTab === 'pulse'}
-            />
-            <button
-              className="ot-btn"
-              onClick={saveCurrent}
-              disabled={editTab === 'pulse' || !presetName.trim()}
-            >
-              Save {activeKey === 'talk' ? 'talking' : 'idle'} look
-            </button>
-          </div>
-          {(['idle', 'talk'] as const).map((gk) => {
-            const items = saved.filter((p) => p.state === gk);
-            if (!items.length) return null;
-            return (
-              <div className="ot-row" key={gk}>
-                <span className="ot-lab">{gk === 'idle' ? 'Idle saved' : 'Talking saved'}</span>
-                {items.map((p) => (
-                  <span key={p.id} className="ot-chip">
-                    <button
-                      className="ot-chip-name"
-                      onClick={() => applySaved(p)}
-                      title="Apply this look"
-                    >
-                      {p.name}
-                    </button>
-                    <button
-                      className="ot-chip-x"
-                      onClick={() => copySaved(p)}
-                      title="Copy line for orbPresets.ts"
-                    >
-                      ⧉
-                    </button>
-                    <button className="ot-chip-x" onClick={() => deleteSaved(p.id)} title="Delete">
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            );
-          })}
-          <div className="ot-row">
-            <span className="ot-lab" />
-            <span style={{ fontSize: 11, color: '#8a92a8' }}>
-              {editTab === 'pulse'
-                ? 'Two motion layers you can tune apart. The disc: Base size, Extra pulse, Pulse speed. The outer membrane: Membrane breathe and Membrane speed (its own tempo). Set Orb expand to 0 to keep the disc perfectly stable and let only the membrane and inner light move.'
-                : `Editing the ${activeKey === 'talk' ? 'Talking' : 'Idle'} look. Click a half in Idle to toggle it on / off. Name it and Save to keep it as a preset.`}
-            </span>
-          </div>
-
-          {editTab !== 'pulse' ? (
-            <>
-              <div className="ot-hdr">Orb (the glass button)</div>
-              {GLASS_SLIDERS.map((s) => (
-                <div className="ot-sl" key={s.k}>
-                  <span className="ot-lab">{s.label}</span>
-                  <input
-                    type="range"
-                    min={s.min}
-                    max={s.max}
-                    value={A[s.k]}
-                    onChange={(e) => setP(s.k, Number(e.target.value))}
-                  />
-                  <span className="ot-val">{A[s.k]}</span>
-                </div>
-              ))}
-              <div className="ot-hdr">Inner light (the Siri blob)</div>
-              {LIGHT_SLIDERS.map((s) => (
-                <div className="ot-sl" key={s.k}>
-                  <span className="ot-lab">{s.label}</span>
-                  <input
-                    type="range"
-                    min={s.min}
-                    max={s.max}
-                    value={A[s.k]}
-                    onChange={(e) => setP(s.k, Number(e.target.value))}
-                  />
-                  <span className="ot-val">{A[s.k]}</span>
-                </div>
-              ))}
-              <div className="ot-hdr">Depth &amp; aura</div>
-              {DEPTH_SLIDERS.map((s) => (
-                <div className="ot-sl" key={s.k}>
-                  <span className="ot-lab">{s.label}</span>
-                  <input
-                    type="range"
-                    min={s.min}
-                    max={s.max}
-                    value={A[s.k]}
-                    onChange={(e) => setP(s.k, Number(e.target.value))}
-                  />
-                  <span className="ot-val">{A[s.k]}</span>
-                </div>
-              ))}
-            </>
-          ) : (
-            <>
-              <div className="ot-hdr">Pulse (expand + breathe while talking)</div>
-              <div className="ot-row">
-                <span className="ot-lab">Motion</span>
-                {Object.keys(MOTION_PRESETS).map((name) => (
-                  <button key={name} className="ot-btn" onClick={() => applyMotion(name)}>
-                    {name}
-                  </button>
-                ))}
-              </div>
-              {PULSE_SLIDERS.map((s) => (
-                <div className="ot-sl" key={s.k}>
-                  <span className="ot-lab">{s.label}</span>
-                  <input
-                    type="range"
-                    min={s.min}
-                    max={s.max}
-                    value={pulse[s.k]}
-                    onChange={(e) => setPulseP(s.k, Number(e.target.value))}
-                  />
-                  <span className="ot-val">{pulse[s.k]}</span>
-                </div>
-              ))}
-            </>
-          )}
+          ))}
         </div>
+        <div className="ot-row">
+          <span className="ot-lab">State</span>
+          {(['idle', 'coach', 'user'] as const).map((k) => (
+            <button
+              key={k}
+              className={`ot-btn${state === k ? 'on' : ''}`}
+              onClick={() => pickState(k)}
+            >
+              {k === 'idle' ? 'Idle' : k === 'coach' ? 'Coach talking' : 'User talking'}
+            </button>
+          ))}
+          <button className={`ot-btn${micOn ? 'on' : ''}`} onClick={toggleMic}>
+            {micOn ? 'Mic on (stop)' : 'Use my mic'}
+          </button>
+        </div>
+        <div className="ot-row">
+          <span className="ot-lab">Talk style</span>
+          {(['full', 'directional'] as const).map((k) => (
+            <button
+              key={k}
+              className={`ot-btn${style === k ? 'on' : ''}`}
+              onClick={() => setStyle(k)}
+            >
+              {k === 'full' ? 'Full circle' : 'Directional'}
+            </button>
+          ))}
+        </div>
+        <div className="ot-row">
+          <span className="ot-lab">Edit</span>
+          {(
+            [
+              ['idle', 'Idle look'],
+              ['talk', 'Talking look'],
+              ['pulse', 'Pulse'],
+            ] as [EditTab, string][]
+          ).map(([k, lbl]) => (
+            <button
+              key={k}
+              className={`ot-btn${editTab === k ? 'on' : ''}`}
+              onClick={() => pickEdit(k)}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
+
+        <div className="ot-hdr">Presets</div>
+        <div className="ot-row">
+          <span className="ot-lab">Author</span>
+          {Object.keys(AUTHOR_PRESETS).map((au) => (
+            <button
+              key={au}
+              className={`ot-btn${author === au ? 'on' : ''}`}
+              onClick={() => setAuthor(au)}
+            >
+              {au}
+            </button>
+          ))}
+        </div>
+        <div className="ot-row">
+          <span className="ot-lab" />
+          {Object.keys(AUTHOR_PRESETS[author] ?? {}).map((name) => (
+            <button key={name} className="ot-btn" onClick={() => applyPreset(name)}>
+              {name}
+            </button>
+          ))}
+          <button className="ot-btn" onClick={() => setParams(resetParams())}>
+            Reset
+          </button>
+        </div>
+        <div className="ot-row">
+          <span className="ot-lab">Save as</span>
+          <input
+            className="ot-input"
+            value={presetName}
+            placeholder={editTab === 'pulse' ? 'Switch to a look to save' : 'Preset name'}
+            onChange={(e) => setPresetName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveCurrent();
+            }}
+            disabled={editTab === 'pulse'}
+          />
+          <button
+            className="ot-btn"
+            onClick={saveCurrent}
+            disabled={editTab === 'pulse' || !presetName.trim()}
+          >
+            Save {activeKey === 'talk' ? 'talking' : 'idle'} look
+          </button>
+        </div>
+        {(['idle', 'talk'] as const).map((gk) => {
+          const items = saved.filter((p) => p.state === gk);
+          if (!items.length) return null;
+          return (
+            <div className="ot-row" key={gk}>
+              <span className="ot-lab">{gk === 'idle' ? 'Idle saved' : 'Talking saved'}</span>
+              {items.map((p) => (
+                <span key={p.id} className="ot-chip">
+                  <button
+                    className="ot-chip-name"
+                    onClick={() => applySaved(p)}
+                    title="Apply this look"
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    className="ot-chip-x"
+                    onClick={() => copySaved(p)}
+                    title="Copy line for orbPresets.ts"
+                  >
+                    ⧉
+                  </button>
+                  <button className="ot-chip-x" onClick={() => deleteSaved(p.id)} title="Delete">
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          );
+        })}
+        <div className="ot-row">
+          <span className="ot-lab" />
+          <span style={{ fontSize: 11, color: '#8a92a8' }}>
+            {editTab === 'pulse'
+              ? 'Two motion layers you can tune apart. The disc: Base size, Extra pulse, Pulse speed. The outer membrane: Membrane breathe and Membrane speed (its own tempo). Set Orb expand to 0 to keep the disc perfectly stable and let only the membrane and inner light move.'
+              : `Editing the ${activeKey === 'talk' ? 'Talking' : 'Idle'} look. Click a half in Idle to toggle it on / off. Name it and Save to keep it as a preset.`}
+          </span>
+        </div>
+
+        {editTab !== 'pulse' ? (
+          <>
+            <div className="ot-hdr">Orb (the glass button)</div>
+            {GLASS_SLIDERS.map((s) => (
+              <div className="ot-sl" key={s.k}>
+                <span className="ot-lab">{s.label}</span>
+                <input
+                  type="range"
+                  min={s.min}
+                  max={s.max}
+                  value={A[s.k]}
+                  onChange={(e) => setP(s.k, Number(e.target.value))}
+                />
+                <span className="ot-val">{A[s.k]}</span>
+              </div>
+            ))}
+            <div className="ot-hdr">Inner light (the Siri blob)</div>
+            {LIGHT_SLIDERS.map((s) => (
+              <div className="ot-sl" key={s.k}>
+                <span className="ot-lab">{s.label}</span>
+                <input
+                  type="range"
+                  min={s.min}
+                  max={s.max}
+                  value={A[s.k]}
+                  onChange={(e) => setP(s.k, Number(e.target.value))}
+                />
+                <span className="ot-val">{A[s.k]}</span>
+              </div>
+            ))}
+            <div className="ot-hdr">Depth &amp; aura</div>
+            {DEPTH_SLIDERS.map((s) => (
+              <div className="ot-sl" key={s.k}>
+                <span className="ot-lab">{s.label}</span>
+                <input
+                  type="range"
+                  min={s.min}
+                  max={s.max}
+                  value={A[s.k]}
+                  onChange={(e) => setP(s.k, Number(e.target.value))}
+                />
+                <span className="ot-val">{A[s.k]}</span>
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <div className="ot-hdr">Pulse (expand + breathe while talking)</div>
+            <div className="ot-row">
+              <span className="ot-lab">Motion</span>
+              {Object.keys(MOTION_PRESETS).map((name) => (
+                <button key={name} className="ot-btn" onClick={() => applyMotion(name)}>
+                  {name}
+                </button>
+              ))}
+            </div>
+            {PULSE_SLIDERS.map((s) => (
+              <div className="ot-sl" key={s.k}>
+                <span className="ot-lab">{s.label}</span>
+                <input
+                  type="range"
+                  min={s.min}
+                  max={s.max}
+                  value={pulse[s.k]}
+                  onChange={(e) => setPulseP(s.k, Number(e.target.value))}
+                />
+                <span className="ot-val">{pulse[s.k]}</span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
 
       <style>{OT_CSS}</style>
     </div>
