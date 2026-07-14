@@ -1,33 +1,26 @@
 /**
- * navigate_next handler — moves the user to the next onboarding screen by
- * setting `onboarding_states.current_step` to the LLM-supplied target.
+ * navigate_next handler — advances the user one onboarding screen forward.
  *
  * Auth model: see submitProfile.ts. Channel auth via X-Vapi-Secret; identity
  * arrives as `anon_id` injected by Vapi from static call params.
  *
- * This is the ONLY tool that writes `current_step`. The submit_* family is
- * data-only — they merge fields into `onboarding_states.data` but never
- * touch the step. Splitting these two responsibilities means:
+ * SECURITY: the target step is NOT trusted from the LLM. The LLM may only
+ * REQUEST an advance; the server derives the source screen from the trusted
+ * persisted (current_step, path) and gates on the same REQUIRED/NEXT_STEP
+ * rules as confirm_step_complete. So voice cannot skip a step whose required
+ * data isn't persisted, and — via GREATEST in advanceStepIfReady — cannot move
+ * backward or jump multiple steps. The historical `target_step` arg is accepted
+ * for wire-compat but only sanity-checked, never written.
  *
- *  - The LLM can partial-update a screen as many times as it likes without
- *    accidentally advancing the user mid-conversation.
- *  - Premature advance is impossible: only an explicit `navigate_next` call
- *    (always preceded by a user confirmation per the system prompt) moves
- *    the user to the next screen.
- *  - Back-nav edits stay put: edit tools fire freely, step doesn't change,
- *    auto-nav doesn't yank the user forward.
- *
- * The hook on the browser side (useAgentNavigation) is "leading-edge" —
- * it fires `navigate()` only when current_step transitions during the
- * mount, not when it's already past at first observation. So a fresh
- * landing on a back-navved page won't auto-yank; only a real navigate_next
- * call during the visit will.
- *
- * No GREATEST — we explicitly let target_step decrease the step if the
- * LLM says to (e.g. user back-navved from step 5 to step 1, then asked
- * to walk forward; LLM calls navigate_next(2) which sets step to 2).
+ * The browser hook (useAgentNavigation) is leading-edge: it fires navigate()
+ * only when current_step transitions during the mount, so a fresh landing on a
+ * back-navved page won't auto-yank; only a real advance during the visit will.
  */
 import pool from '../../db.js';
+import {
+  advanceStepIfReady,
+  sourceScreenForStep,
+} from '../../llm/onboarding/handlers/confirmStepComplete.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MIN_STEP = 1;
@@ -74,22 +67,38 @@ export async function navigateNext(args: Record<string, unknown>): Promise<Handl
     };
   }
 
-  // No GREATEST — explicitly set step to the LLM-supplied target. INSERT
-  // path is defensive (onboarding_states row should already exist by the
-  // time any tool fires); we seed with target_step too so a fresh row
-  // matches the LLM's intent.
-  const result = await pool.query(
+  // Seed the row if a tool somehow fires before any submit_* did (defensive —
+  // the row should already exist). Never overwrites an existing current_step.
+  await pool.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, updated_at)
-     VALUES ($1, $2, 'in_progress', now())
-     ON CONFLICT (anon_id) DO UPDATE SET
-       current_step = $2,
-       status = 'in_progress',
-       updated_at = now()`,
-    [anonId, targetStep],
+     VALUES ($1, 1, 'in_progress', now())
+     ON CONFLICT (anon_id) DO NOTHING`,
+    [anonId],
   );
 
+  const state = await pool.query<{ current_step: number | null; path: string | null }>(
+    `SELECT current_step, path FROM onboarding_states WHERE anon_id = $1`,
+    [anonId],
+  );
+  const currentStep = state.rows[0]?.current_step ?? 1;
+  const path = state.rows[0]?.path ?? null;
+
+  const screenId = sourceScreenForStep(currentStep, path);
+  if (!screenId) {
+    console.log(
+      `[vapi/tool] navigate_next no_source_screen current_step=${currentStep} path=${path}`,
+    );
+    return { error: 'no_advance: no next screen for the current step' };
+  }
+
+  const advance = await advanceStepIfReady(anonId, screenId);
+  if (!advance.advanced) {
+    console.log(`[vapi/tool] navigate_next blocked screen=${screenId} reason=${advance.reason}`);
+    return { error: `no_advance: ${advance.reason}` };
+  }
+
   console.log(
-    `[vapi/tool] navigate_next written rows=${result.rowCount ?? 0} target_step=${targetStep}`,
+    `[vapi/tool] navigate_next written screen=${screenId} current_step=${advance.current_step}`,
   );
   return { result: 'ok' };
 }

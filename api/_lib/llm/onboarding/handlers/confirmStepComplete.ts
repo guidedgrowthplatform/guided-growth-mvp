@@ -43,6 +43,26 @@ export const NEXT_STEP: Record<string, number> = {
   'ONBOARD-ADVANCED-04': 6,
 };
 
+// Inverse of the flow: trusted (current_step, path) -> the source screen the
+// user is ON. Vapi's navigate_next supplies only target_step, so it derives the
+// source here rather than trusting the LLM's requested target. Steps 1-2 are
+// pre-fork (path-agnostic); step >= 3 splits on path.
+export function sourceScreenForStep(currentStep: number, path: string | null): string | undefined {
+  if (currentStep === 1) return 'ONBOARD-01--FORM';
+  if (currentStep === 2) return 'ONBOARD-FORK--FORM';
+  if (path === 'braindump') {
+    return { 3: 'ONBOARD-ADVANCED', 4: 'ONBOARD-ADVANCED-02', 5: 'ONBOARD-ADVANCED-03' }[
+      currentStep
+    ];
+  }
+  return {
+    3: 'ONBOARD-BEGINNER-01',
+    4: 'ONBOARD-BEGINNER-02',
+    5: 'ONBOARD-BEGINNER-03',
+    6: 'ONBOARD-BEGINNER-07',
+  }[currentStep];
+}
+
 function isObject(v: unknown): boolean {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
