@@ -1,16 +1,15 @@
 /**
- * confirm_plan handler — completes State-1 onboarding by bumping
- * current_step to 8. Monotonic GREATEST so it never regresses; the >7
- * threshold completes both beginner (step 7) and advanced (step 6).
- *
- * status stays 'in_progress' — client PlanReviewPage.complete() flips it to
- * 'completed'. Interrupted confirm (app closed pre-complete) → AppGate routes
- * the in_progress row back to /onboarding to re-confirm; recoverable, not stuck.
+ * confirm_plan handler — completes State-1 onboarding server-side (atomic:
+ * status=completed, completed_at, data.plan.confirmed=true, habit promotion) so
+ * an interrupted client (app closed post-confirm) isn't stranded. Also bumps
+ * current_step to 8 (monotonic GREATEST, never regresses) — useFlowOrchestrator's
+ * fork-advance leading edge relies on that pin. Re-confirm is an idempotent no-op.
  *
  * Auth model: see navigateNext.ts. Channel auth via X-Vapi-Secret;
  * identity arrives as `anon_id` injected by Vapi from static call params.
  */
 import pool, { type Queryable } from '../../db.js';
+import { completeOnboarding } from '../../onboarding/completeOnboarding.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -65,16 +64,23 @@ export async function confirmPlan(
     };
   }
 
+  // current_step pin kept (fork-advance leading edge); status flips to completed
+  // inside completeOnboarding, so this UPDATE no longer forces 'in_progress'.
   const result = await db.query(
-    `INSERT INTO onboarding_states (anon_id, current_step, status, updated_at)
-     VALUES ($1, 8, 'in_progress', now())
-     ON CONFLICT (anon_id) DO UPDATE SET
-       current_step = GREATEST(onboarding_states.current_step, 8),
-       status = 'in_progress',
-       updated_at = now()`,
+    `UPDATE onboarding_states
+       SET current_step = GREATEST(onboarding_states.current_step, 8), updated_at = now()
+     WHERE anon_id = $1`,
     [anonId],
   );
 
-  console.log(`[vapi/tool] confirm_plan written rows=${result.rowCount ?? 0}`);
+  const completion = await completeOnboarding({ anonId, setPlanConfirmed: true });
+  if (!completion.ok) {
+    console.log('[vapi/tool] confirm_plan completion_failed reason=no_state');
+    return { error: 'confirm_plan_failed: no onboarding state found' };
+  }
+
+  console.log(
+    `[vapi/tool] confirm_plan written rows=${result.rowCount ?? 0} alreadyCompleted=${completion.alreadyCompleted}`,
+  );
   return { result: 'ok' };
 }

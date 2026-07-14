@@ -1,11 +1,13 @@
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
+import { completeOnboarding } from '../../../onboarding/completeOnboarding.js';
 import { checkPlanReady } from '../preconditions.js';
 import { handlerError, ok, type OnboardingHandlerCtx } from './shared.js';
 
-// Completion side-effect is client-side (PlanReviewPage.complete()); this tool
-// only signals the user confirmed. Guard rejects if habits + reflection aren't
-// saved so PlanReviewPage never renders a half-built plan.
+// Guard rejects if habits + reflection aren't saved (PlanReviewPage never renders
+// a half-built plan), then completion runs server-side (atomic: status=completed,
+// completed_at, data.plan.confirmed=true, habit promotion) so a client that dies
+// after confirming isn't stranded. Re-confirm is an idempotent no-op success.
 export async function confirmPlan(
   ctx: OnboardingHandlerCtx,
   _args: Record<string, unknown>,
@@ -31,5 +33,7 @@ export async function confirmPlan(
     );
   }
 
+  const result = await completeOnboarding({ anonId: ctx.anon_id, setPlanConfirmed: true });
+  if (!result.ok) return handlerError('confirm_plan_failed: no onboarding state found');
   return ok({ confirmed: true });
 }

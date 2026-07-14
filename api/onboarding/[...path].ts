@@ -1,17 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import {
-  DEFAULT_REFLECTION_PROMPTS,
-  type HabitType,
-  type ReflectionSettings,
-} from '@gg/shared/types';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { supabaseAdmin } from '../_lib/supabase.js';
-import {
-  sanitizeDays,
-  sanitizePrompts,
-  upsertReflectionSettings,
-} from '../_lib/reflection/reflectionSettings.js';
+import { completeOnboarding } from '../_lib/onboarding/completeOnboarding.js';
+import { normalizePath } from '../_lib/llm/tools.onboarding.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -30,6 +22,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'step is required' });
     }
 
+    // Render canon: data.path holds beginner|advanced; legacy column keeps simple|braindump.
+    const norm = typeof path === 'string' ? normalizePath(path) : null;
+    const mergedData = norm ? { ...(data || {}), path: norm.canonical } : data || {};
+
     const result = await pool.query(
       `INSERT INTO onboarding_states (anon_id, current_step, path, status, data, brain_dump_raw, brain_dump_parsed, updated_at)
        VALUES ($1, $2, $3, 'in_progress', $4::jsonb, $5, $6::jsonb, now())
@@ -45,8 +41,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [
         user.anonId,
         step,
-        path || null,
-        JSON.stringify(data || {}),
+        norm ? norm.legacy : path || null,
+        JSON.stringify(mergedData),
         brainDumpRaw || null,
         brainDumpParsed ? JSON.stringify(brainDumpParsed) : null,
       ],
@@ -57,136 +53,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (route === 'complete' && req.method === 'POST') {
     const { finalData } = req.body || {};
-    const client = await pool.connect();
     try {
-      await client.query('BEGIN');
-
-      const stateResult = await client.query(
-        `UPDATE onboarding_states
-         SET data = onboarding_states.data || $2::jsonb,
-             status = 'completed', completed_at = now(), updated_at = now()
-         WHERE anon_id = $1
-         RETURNING id, path, data`,
-        [user.anonId, JSON.stringify(finalData || {})],
-      );
-
-      if (stateResult.rows.length === 0) {
-        await client.query('ROLLBACK');
+      const result = await completeOnboarding({ anonId: user.anonId, mergeData: finalData || {} });
+      if (!result.ok) {
         return res.status(404).json({ error: 'No onboarding state found' });
       }
-
-      const { path: onboardingPath, data } = stateResult.rows[0];
-      const habitConfigs = data?.habitConfigs as
-        | Record<string, { days: number[]; time: string; reminder: boolean; habitType?: HabitType }>
-        | undefined;
-
-      if (habitConfigs) {
-        let sortOrder = 0;
-        for (const [name, config] of Object.entries(habitConfigs)) {
-          // Trust the explicit per-habit signal only. A category heuristic
-          // ("Break bad habits") mislabels positive replacement habits (e.g.
-          // "10-minute walk") as avoid; default to binary_do instead.
-          const habitType: HabitType =
-            config.habitType === 'binary_avoid' ? 'binary_avoid' : 'binary_do';
-          await client.query(
-            `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, reminder_time, reminder_enabled, sort_order)
-             VALUES ($1, $2, $3, 'daily', $4, $5, $6, $7)
-             ON CONFLICT (anon_id, name) DO UPDATE SET
-               schedule_days = EXCLUDED.schedule_days,
-               reminder_time = EXCLUDED.reminder_time,
-               reminder_enabled = EXCLUDED.reminder_enabled,
-               sort_order = EXCLUDED.sort_order`,
-            [
-              user.anonId,
-              name,
-              habitType,
-              config.days || null,
-              config.time || null,
-              config.reminder || false,
-              sortOrder++,
-            ],
-          );
-        }
-      }
-
-      await client.query(
-        `UPDATE profiles SET
-          onboarding_path = $1,
-          nickname = COALESCE($3, profiles.nickname),
-          age_group = COALESCE($4, profiles.age_group),
-          gender = COALESCE($5, profiles.gender),
-          referral_source = COALESCE($6, profiles.referral_source)
-         WHERE id = $2`,
-        [
-          onboardingPath,
-          user.authUserId,
-          data?.nickname || null,
-          // age_group is VARCHAR(20) — originally held range strings ("25-34")
-          // when the field was `ageRange`. The current UI + Vapi flow stores
-          // `data.age` as a number. We coerce to string to satisfy the column
-          // type; if the legacy `ageRange` key is set we prefer it.
-          typeof data?.ageRange === 'string' && data.ageRange.length > 0
-            ? data.ageRange
-            : typeof data?.age === 'number' && Number.isFinite(data.age)
-              ? String(data.age)
-              : null,
-          data?.gender || null,
-          data?.referralSource &&
-          typeof data.referralSource === 'string' &&
-          data.referralSource.length <= 50
-            ? data.referralSource
-            : null,
-        ],
-      );
-
-      if (data?.nickname) {
-        await supabaseAdmin.auth.admin.updateUserById(user.authUserId, {
-          user_metadata: { nickname: data.nickname },
-        });
-      }
-
-      // Materialize reflection settings into the runtime table (mirrors habits →
-      // user_habits). Without this, the chosen mode/prompts/schedule stay trapped
-      // in onboarding_states.data and the runtime journal never sees them.
-      const rc = data?.reflectionConfig as
-        | { time?: string; days?: number[]; reminder?: boolean; schedule?: string }
-        | undefined;
-      const mode = data?.reflectionMode === 'freeform' ? 'freeform' : 'prompts';
-      const customPrompts = sanitizePrompts(data?.customPrompts);
-      // The Weekly's day (weeklyConfig.day, set on ONBOARD-WEEKLY-SETUP). Default
-      // when absent: 0 (Sunday), the beat's suggested default.
-      const weeklyConfig = data?.weeklyConfig as { day?: number } | undefined;
-      const weeklyDay =
-        typeof weeklyConfig?.day === 'number' &&
-        Number.isInteger(weeklyConfig.day) &&
-        weeklyConfig.day >= 0 &&
-        weeklyConfig.day <= 6
-          ? weeklyConfig.day
-          : 0;
-      const reflectionSettings: ReflectionSettings = {
-        mode,
-        prompts:
-          mode === 'prompts'
-            ? customPrompts.length
-              ? customPrompts
-              : DEFAULT_REFLECTION_PROMPTS
-            : [],
-        time: typeof rc?.time === 'string' ? rc.time : null,
-        days: sanitizeDays(rc?.days),
-        reminder: typeof rc?.reminder === 'boolean' ? rc.reminder : true,
-        schedule: typeof rc?.schedule === 'string' ? rc.schedule : null,
-        weeklyDay,
-      };
-      await upsertReflectionSettings(user.anonId, reflectionSettings, client);
-
-      await client.query('COMMIT');
       return res.json({ message: 'Onboarding completed' });
     } catch (err) {
-      await client.query('ROLLBACK');
       console.error('Onboarding complete error:', err);
       return res.status(500).json({ error: 'Failed to complete onboarding' });
-    } finally {
-      client.release();
     }
   }
 
