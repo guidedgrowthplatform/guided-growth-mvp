@@ -51,10 +51,15 @@ export function sourceScreenForStep(currentStep: number, path: string | null): s
   if (currentStep === 1) return 'ONBOARD-01--FORM';
   if (currentStep === 2) return 'ONBOARD-FORK--FORM';
   if (path === 'braindump') {
-    return { 3: 'ONBOARD-ADVANCED', 4: 'ONBOARD-ADVANCED-02', 5: 'ONBOARD-ADVANCED-03' }[
+    // Step 5 braindump = the reflection-setup page (ONBOARD-ADVANCED-04,
+    // useAgentNavigation(5) in AdvancedStep6Page), which gates on
+    // reflectionConfig. ONBOARD-ADVANCED-03 has no page/gate at this step.
+    return { 3: 'ONBOARD-ADVANCED', 4: 'ONBOARD-ADVANCED-02', 5: 'ONBOARD-ADVANCED-04' }[
       currentStep
     ];
   }
+  // Null path past the fork = corrupted row; fail closed, never gate as beginner.
+  if (path === null) return undefined;
   return {
     3: 'ONBOARD-BEGINNER-01',
     4: 'ONBOARD-BEGINNER-02',
@@ -75,6 +80,58 @@ function hasHabit(r: Row): boolean {
 export type AdvanceResult =
   | { advanced: false; reason: 'required_missing' | 'no_next_step' }
   | { advanced: true; current_step: number };
+
+export type AtomicAdvanceResult =
+  | { advanced: false; reason: 'required_missing' | 'no_next_step' | 'no_source_screen' }
+  | { advanced: true; current_step: number };
+
+// Atomic variant for navigate_next: the source screen is derived from the SAME
+// locked row that the gate + UPDATE use, so a concurrent submit_path_choice
+// can't change `path` between the source-derivation read and the gate. Callers
+// pass a step-monotonic guarantee via GREATEST in the UPDATE. Separate from
+// advanceStepIfReady to keep that helper's contract unchanged for its callers.
+export async function advanceStepIfReadyAtomic(anonId: string): Promise<AtomicAdvanceResult> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const res = await client.query<Row>(
+      `SELECT data, path, current_step FROM onboarding_states WHERE anon_id = $1 FOR UPDATE`,
+      [anonId],
+    );
+    const row = res.rows[0] ?? { data: null, path: null, current_step: null };
+
+    const screenId = sourceScreenForStep(row.current_step ?? 1, row.path);
+    if (!screenId) {
+      await client.query('ROLLBACK');
+      return { advanced: false, reason: 'no_source_screen' };
+    }
+
+    const requiredSatisfied = REQUIRED[screenId]?.(row) ?? true;
+    if (!requiredSatisfied) {
+      await client.query('ROLLBACK');
+      return { advanced: false, reason: 'required_missing' };
+    }
+
+    const nextStep = NEXT_STEP[screenId];
+    if (nextStep === undefined) {
+      await client.query('ROLLBACK');
+      return { advanced: false, reason: 'no_next_step' };
+    }
+
+    const bumped = await client.query<{ current_step: number }>(
+      `UPDATE onboarding_states SET current_step = GREATEST(current_step, $2), updated_at = now()
+       WHERE anon_id = $1 RETURNING current_step`,
+      [anonId, nextStep],
+    );
+    await client.query('COMMIT');
+    return { advanced: true, current_step: bumped.rows[0]?.current_step ?? nextStep };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 
 export async function advanceStepIfReady(anonId: string, screenId: string): Promise<AdvanceResult> {
   const res = await pool.query<Row>(
