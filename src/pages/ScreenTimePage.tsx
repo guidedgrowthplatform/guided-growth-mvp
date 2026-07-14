@@ -18,6 +18,7 @@ import {
   isScreenTimeAvailable,
   presentAppPicker,
   requestScreenTimeAuthorization,
+  showUsageReport,
   type ScreenTimeStatus,
 } from '@/lib/services/screenTime';
 
@@ -178,6 +179,15 @@ export function ScreenTimePage() {
     setView('dashboard');
   }, []);
 
+  const handleShowNativeReport = useCallback(
+    () =>
+      runBusy(async () => {
+        const result = await showUsageReport();
+        if (!result.ok) addToast('error', result.error);
+      }),
+    [runBusy, addToast],
+  );
+
   // --- render ---
 
   if (isIos && status === null) {
@@ -249,6 +259,7 @@ export function ScreenTimePage() {
           onTakeBreak={() => void handleTakeBreak()}
           onEndBreak={() => void handleEndBreak()}
           onTurnOff={() => setConfirmTurnOff(true)}
+          onShowNativeReport={isIos ? () => void handleShowNativeReport() : undefined}
         />
       )}
 

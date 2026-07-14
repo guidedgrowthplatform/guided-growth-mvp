@@ -13,6 +13,8 @@ interface DashboardViewProps {
   onTakeBreak: () => void;
   onEndBreak: () => void;
   onTurnOff: () => void;
+  /** iOS only — open the native DeviceActivityReport (real usage). */
+  onShowNativeReport?: () => void;
 }
 
 function AppRow({ app, onTap }: { app: SampleApp; onTap: () => void }) {
@@ -65,6 +67,7 @@ export function DashboardView({
   onTakeBreak,
   onEndBreak,
   onTurnOff,
+  onShowNativeReport,
 }: DashboardViewProps) {
   const summary = SUMMARY[range];
   const apps = SAMPLE_APPS[range];
@@ -89,6 +92,17 @@ export function DashboardView({
       </div>
 
       <UsageBarChart bars={summary.bars} labels={summary.labels} />
+
+      {onShowNativeReport && (
+        <button
+          type="button"
+          onClick={onShowNativeReport}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-primary/[0.08] py-3 text-sm font-bold text-primary-dark"
+        >
+          <Icon icon="mdi:chart-box-outline" width={18} />
+          See my real usage (on device)
+        </button>
+      )}
 
       <div className="flex flex-col gap-2.5">
         <p className="px-1 text-xs font-extrabold uppercase tracking-[1.2px] text-content-tertiary">

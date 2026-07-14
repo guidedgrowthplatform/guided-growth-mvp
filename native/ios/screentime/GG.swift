@@ -6,6 +6,8 @@ enum GG {
     static let appGroup = "group.app.guidedgrowth.screentime"
     static let storeName = "gg.slot.0"
     static let activityName = "gg.daily"
+    // DeviceActivityReport.Context shared by the app (presenter) + report extension.
+    static let reportContext = "ggUsage"
 
     enum Keys {
         // encoded FamilyActivitySelection (opaque tokens — never app names)

@@ -137,11 +137,31 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         GG.defaults?.removeObject(forKey: GG.Keys.shieldExpiry)
     }
 
-    // MARK: - Later milestones (stubs so JS never crashes)
+    // MARK: - Usage report (M1 — DeviceActivityReport extension renders it)
 
     @objc func showUsageReport(_ call: CAPPluginCall) {
-        call.reject("Usage report is not available yet.")
+        guard AuthorizationCenter.shared.authorizationStatus == .approved else {
+            call.reject("Screen Time access has not been approved yet.")
+            return
+        }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let presenter = self.bridge?.viewController else {
+                call.reject("No view controller to present from.")
+                return
+            }
+            var host: UIHostingController<ScreenTimeUsageReportView>?
+            let view = ScreenTimeUsageReportView(onDone: {
+                host?.dismiss(animated: true)
+                call.resolve()
+            })
+            let controller = UIHostingController(rootView: view)
+            controller.modalPresentationStyle = .fullScreen
+            host = controller
+            presenter.present(controller, animated: true)
+        }
     }
+
+    // MARK: - Later milestones (stubs so JS never crashes)
 
     @objc func presentBudgetEditor(_ call: CAPPluginCall) {
         call.reject("Daily limits are not available yet.")
