@@ -253,6 +253,8 @@ All three: `ENABLE ROW LEVEL SECURITY` with **no** anon/authenticated policy + e
 
 ## Google OAuth verification & publishing
 
+> **Full step-by-step guide** — owners, drafted scope justifications, demo-video shot list, publishing statuses & timeline: [`calendar-google-verification.md`](./calendar-google-verification.md). The summary below is the short version.
+
 **Goal:** remove the "Google hasn't verified this app" warning and open connect to any user (not just test users).
 
 **Current state:** project `guided-growth-487009`, publishing status = **Testing**. Scopes: `calendar.app.created` + `calendar.events`. `calendar.events` is a **sensitive** scope → verification is required before general availability. Calendar scopes are _sensitive_, **not _restricted_** — so **no CASA security assessment** is required (that only applies to restricted scopes like Gmail read).
