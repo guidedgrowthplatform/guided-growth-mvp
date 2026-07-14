@@ -219,6 +219,7 @@ export function QAControlScreen() {
   });
   const [flowId, setFlowId] = useState<FlowId>('full-onboarding');
   const [busy, setBusy] = useState<ActionKey | null>(null);
+  const [calBusy, setCalBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -346,6 +347,23 @@ export function QAControlScreen() {
     if (busy) return;
     setFlowId(id);
     await run('restart', id);
+  }
+
+  // Calendar Sync (QA): sign in as the picked user first (like the account
+  // actions) — /qa/calendar needs a session — then open it.
+  async function goToCalendar() {
+    if (busy || calBusy) return;
+    setCalBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await ensureSignedIn();
+      queryClient.clear();
+      navigate('/qa/calendar');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      setCalBusy(false);
+    }
   }
 
   return (
@@ -647,7 +665,8 @@ export function QAControlScreen() {
         {/* Gate-free calendar connect/sync page — saves testers pasting the URL. */}
         <button
           type="button"
-          onClick={() => navigate('/qa/calendar')}
+          onClick={goToCalendar}
+          disabled={busy !== null || calBusy}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -657,7 +676,8 @@ export function QAControlScreen() {
             borderRadius: 14,
             border: '1px dashed rgb(191,219,254)',
             background: 'rgb(239,246,255)',
-            cursor: 'pointer',
+            cursor: busy || calBusy ? 'default' : 'pointer',
+            opacity: busy && !calBusy ? 0.5 : 1,
           }}
         >
           <span
@@ -672,7 +692,10 @@ export function QAControlScreen() {
               justifyContent: 'center',
             }}
           >
-            <Icon icon="logos:google-calendar" style={{ fontSize: 18 }} />
+            <Icon
+              icon={calBusy ? 'svg-spinners:ring-resize' : 'logos:google-calendar'}
+              style={{ fontSize: calBusy ? 20 : 18, color: calBusy ? 'rgb(37,99,235)' : undefined }}
+            />
           </span>
           <span style={{ flex: 1, minWidth: 0 }}>
             <span
@@ -696,7 +719,7 @@ export function QAControlScreen() {
                 marginTop: 2,
               }}
             >
-              Connect Google Calendar &amp; sync — no onboarding gate
+              Signs you in as this user, then connect &amp; sync
             </span>
           </span>
           <Icon
