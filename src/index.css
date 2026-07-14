@@ -202,3 +202,25 @@ body {
     pointer-events: none;
   }
 }
+
+/* Screen Time — daily-limit range slider thumb */
+.gg-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid rgb(var(--color-primary));
+  box-shadow: 0 2px 6px rgba(19, 91, 235, 0.4);
+  cursor: pointer;
+}
+.gg-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid rgb(var(--color-primary));
+  box-shadow: 0 2px 6px rgba(19, 91, 235, 0.4);
+  cursor: pointer;
+}

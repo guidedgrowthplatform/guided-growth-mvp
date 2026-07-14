@@ -1,11 +1,14 @@
 import { Icon } from '@iconify/react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AppDetailView } from '@/components/screentime/AppDetailView';
+import { ChooseAppsView, type ChosenApp } from '@/components/screentime/ChooseAppsView';
+import { DashboardView } from '@/components/screentime/DashboardView';
+import { SAMPLE_APPS, type SampleApp, type UsageRange } from '@/components/screentime/sampleData';
+import { ScreenTimeHeader } from '@/components/screentime/ScreenTimeHeader';
+import { ScreenTimeIntro } from '@/components/screentime/ScreenTimeIntro';
+import { ShieldPreview, type ShieldReason } from '@/components/screentime/ShieldPreview';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
-import { SettingRow } from '@/components/settings/SettingRow';
-import { SettingsCard } from '@/components/settings/SettingsCard';
-import { SettingSectionHeader } from '@/components/settings/SettingSectionHeader';
-import { Button } from '@/components/ui/Button';
 import { useToast } from '@/contexts/ToastContext';
 import {
   applyShield,
@@ -14,51 +17,26 @@ import {
   getScreenTimeStatus,
   isScreenTimeAvailable,
   presentAppPicker,
-  presentBudgetEditor,
   requestScreenTimeAuthorization,
-  showUsageReport,
   type ScreenTimeStatus,
 } from '@/lib/services/screenTime';
 
-type ConfirmKind = 'startBreak' | 'endBreak' | 'turnOff';
+type View = 'intro' | 'choose' | 'dashboard' | 'detail' | 'shield';
 
-function PageHeader({ onBack }: { onBack: () => void }) {
-  return (
-    <div className="flex items-center justify-between">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex h-10 w-10 items-center justify-center rounded-2xl bg-surface shadow-card"
-      >
-        <Icon icon="ic:round-arrow-back" width={16} className="text-content" />
-      </button>
-      <h1 className="text-xl font-bold text-content">Screen Time</h1>
-      <div className="h-10 w-10" />
-    </div>
-  );
-}
+const DEFAULT_SELECTION: ChosenApp[] = SAMPLE_APPS.today
+  .slice(0, 2)
+  .map(({ id, name, icon }) => ({ id, name, icon }));
 
 function ExplainerCard({ title, body }: { title: string; body: string }) {
   return (
     <div className="mt-8 rounded-2xl bg-surface p-6 text-center shadow-sm">
       <div className="mb-4 flex justify-center">
         <div className="rounded-full bg-primary/10 p-4">
-          <Icon icon="mdi:cellphone-lock" width={32} className="text-primary" />
+          <Icon icon="mdi:timer-sand" width={32} className="text-primary" />
         </div>
       </div>
       <h2 className="text-lg font-bold text-content">{title}</h2>
       <p className="mt-2 text-sm leading-relaxed text-content-secondary">{body}</p>
-    </div>
-  );
-}
-
-function IntroBullet({ icon, text }: { icon: string; text: string }) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="rounded-2xl bg-primary/5 p-2">
-        <Icon icon={icon} width={20} className="text-primary" />
-      </div>
-      <p className="pt-1.5 text-sm leading-relaxed text-content-secondary">{text}</p>
     </div>
   );
 }
@@ -69,323 +47,230 @@ export function ScreenTimePage() {
   const isIos = isScreenTimeAvailable();
 
   const [status, setStatus] = useState<ScreenTimeStatus | null>(null);
+  const [view, setView] = useState<View>('intro');
+  const [range, setRange] = useState<UsageRange>('today');
+  const [selected, setSelected] = useState<ChosenApp[]>(DEFAULT_SELECTION);
+  const [detailApp, setDetailApp] = useState<SampleApp | null>(null);
+  const [shieldReason, setShieldReason] = useState<ShieldReason>('limit');
+  const [onBreak, setOnBreak] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [confirm, setConfirm] = useState<ConfirmKind | null>(null);
+  const [confirmTurnOff, setConfirmTurnOff] = useState(false);
+  const seeded = useRef(false);
 
   const refresh = useCallback(async () => {
-    setStatus(await getScreenTimeStatus());
-  }, []);
+    if (!isIos) return null;
+    const next = await getScreenTimeStatus();
+    setStatus(next);
+    return next;
+  }, [isIos]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  const runAction = useCallback(
+  // Seed the starting view from real authorization state (iOS only, once).
+  useEffect(() => {
+    if (!isIos || !status || seeded.current) return;
+    seeded.current = true;
+    if (status.status !== 'approved') setView('intro');
+    else if (!status.hasSelection) setView('choose');
+    else setView('dashboard');
+    setOnBreak(status.shieldActive);
+  }, [isIos, status]);
+
+  const runBusy = useCallback(
     async (action: () => Promise<void>) => {
       if (busy) return;
       setBusy(true);
       try {
         await action();
       } finally {
-        await refresh();
         setBusy(false);
       }
     },
-    [busy, refresh],
+    [busy],
   );
 
   const handleGetStarted = useCallback(
     () =>
-      runAction(async () => {
-        const auth = await requestScreenTimeAuthorization();
-        if (!auth.ok) {
-          addToast('error', auth.error);
+      runBusy(async () => {
+        if (!isIos) {
+          setView('choose');
           return;
         }
+        const auth = await requestScreenTimeAuthorization();
+        if (!auth.ok) return addToast('error', auth.error);
         if (auth.value.status !== 'approved') {
-          addToast('info', 'No problem — you can turn this on anytime from Settings.');
-          return;
+          return addToast('info', 'No problem — you can turn this on anytime from Settings.');
         }
         const picked = await presentAppPicker();
-        if (!picked.ok) addToast('error', picked.error);
+        if (!picked.ok) return addToast('error', picked.error);
+        const next = await refresh();
+        setView(next?.hasSelection ? 'dashboard' : 'choose');
       }),
-    [runAction, addToast],
+    [runBusy, isIos, addToast, refresh],
   );
 
   const handleChooseApps = useCallback(
     () =>
-      runAction(async () => {
-        const result = await presentAppPicker();
-        if (!result.ok) {
-          addToast('error', result.error);
-        } else if (!result.value.cancelled) {
-          addToast('success', 'Your app selection is updated.');
+      runBusy(async () => {
+        if (!isIos) {
+          setSelected(DEFAULT_SELECTION);
+          setView('dashboard');
+          return;
         }
+        const result = await presentAppPicker();
+        if (!result.ok) return addToast('error', result.error);
+        if (!result.value.cancelled) addToast('success', 'Your app selection is updated.');
+        const next = await refresh();
+        if (next?.hasSelection) setView('dashboard');
       }),
-    [runAction, addToast],
+    [runBusy, isIos, addToast, refresh],
   );
 
-  const handleShowUsage = useCallback(
+  const handleTakeBreak = useCallback(
     () =>
-      runAction(async () => {
-        const result = await showUsageReport();
-        if (!result.ok) addToast('error', result.error);
-      }),
-    [runAction, addToast],
-  );
-
-  const handleEditBudgets = useCallback(
-    () =>
-      runAction(async () => {
-        const result = await presentBudgetEditor();
-        if (!result.ok) addToast('error', result.error);
-      }),
-    [runAction, addToast],
-  );
-
-  const handleStartBreak = useCallback(() => {
-    setConfirm(null);
-    void runAction(async () => {
-      const result = await applyShield();
-      if (result.ok) {
+      runBusy(async () => {
+        if (isIos) {
+          const result = await applyShield();
+          if (!result.ok) return addToast('error', result.error);
+        }
+        setOnBreak(true);
         addToast('success', 'Break started. Your chosen apps are paused for now.');
-      } else {
-        addToast('error', result.error);
-      }
-    });
-  }, [runAction, addToast]);
+      }),
+    [runBusy, isIos, addToast],
+  );
 
-  const handleEndBreak = useCallback(() => {
-    setConfirm(null);
-    void runAction(async () => {
-      const result = await clearShield();
-      if (result.ok) {
+  const handleEndBreak = useCallback(
+    () =>
+      runBusy(async () => {
+        if (isIos) {
+          const result = await clearShield();
+          if (!result.ok) return addToast('error', result.error);
+        }
+        setOnBreak(false);
         addToast('success', 'Break ended. Your apps are available again.');
-      } else {
-        addToast('error', result.error);
-      }
-    });
-  }, [runAction, addToast]);
+      }),
+    [runBusy, isIos, addToast],
+  );
 
   const handleTurnOff = useCallback(() => {
-    setConfirm(null);
-    void runAction(async () => {
-      const result = await disableScreenTime();
-      if (result.ok) {
-        addToast('success', 'Screen Time is off. You can set it up again anytime.');
-      } else {
-        addToast('error', result.error);
+    setConfirmTurnOff(false);
+    void runBusy(async () => {
+      if (isIos) {
+        const result = await disableScreenTime();
+        if (!result.ok) return addToast('error', result.error);
       }
+      setOnBreak(false);
+      seeded.current = false;
+      setView('intro');
+      addToast('success', 'Screen Time is off. You can set it up again anytime.');
     });
-  }, [runAction, addToast]);
+  }, [runBusy, isIos, addToast]);
 
-  const renderBody = () => {
-    if (!isIos) {
-      return (
-        <ExplainerCard
-          title="Available on iPhone"
-          body="Screen Time helps you notice where your attention goes and set gentle daily limits on the apps you choose. It uses tools built into iOS, so it lives in the iPhone app."
-        />
-      );
-    }
+  const handleAppTap = useCallback((app: SampleApp) => {
+    setDetailApp(app);
+    setView('detail');
+  }, []);
 
-    if (!status) {
-      return (
+  const handleRemoveApp = useCallback((id: string) => {
+    setSelected((prev) => prev.filter((a) => a.id !== id));
+    setView('dashboard');
+  }, []);
+
+  // --- render ---
+
+  if (isIos && status === null) {
+    return (
+      <div>
+        <ScreenTimeHeader title="Screen Time" onBack={() => navigate(-1)} />
         <div className="flex justify-center py-16">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-primary" />
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    if (!status.supported) {
-      return (
+  if (isIos && status && !status.supported) {
+    return (
+      <div>
+        <ScreenTimeHeader title="Screen Time" onBack={() => navigate(-1)} />
         <ExplainerCard
           title="Almost there"
           body="Screen Time uses tools from a newer version of iOS. Update your iPhone in Settings to start using it."
         />
-      );
-    }
-
-    if (status.status !== 'approved') {
-      return (
-        <div className="mt-8 space-y-6">
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
-            <div className="mb-5 flex justify-center">
-              <div className="rounded-full bg-primary/10 p-4">
-                <Icon icon="mdi:cellphone-lock" width={32} className="text-primary" />
-              </div>
-            </div>
-            <h2 className="text-center text-lg font-bold text-content">Your time, on your terms</h2>
-            <div className="mt-5 space-y-4">
-              <IntroBullet
-                icon="mdi:apps"
-                text="Pick the apps you find distracting — it's entirely your choice."
-              />
-              <IntroBullet
-                icon="mdi:chart-donut"
-                text="See how you spend your time, right on this device."
-              />
-              <IntroBullet
-                icon="mdi:timer-sand"
-                text="Set daily limits. When you reach one, the app takes a rest until tomorrow."
-              />
-            </div>
-            <p className="mt-5 text-center text-xs leading-relaxed text-content-tertiary">
-              Your app usage never leaves your phone — Guided Growth only sees counts, never app
-              names.
-            </p>
-          </div>
-          <Button size="auth" fullWidth loading={busy} onClick={() => void handleGetStarted()}>
-            Get started
-          </Button>
-          {status.status === 'denied' && (
-            <p className="text-center text-xs text-content-tertiary">
-              If access was declined earlier, you can allow it anytime in your iPhone Settings.
-            </p>
-          )}
-        </div>
-      );
-    }
-
-    const selectionLabel = status.hasSelection
-      ? [
-          status.applicationCount > 0 &&
-            `${status.applicationCount} app${status.applicationCount === 1 ? '' : 's'}`,
-          status.categoryCount > 0 &&
-            `${status.categoryCount} categor${status.categoryCount === 1 ? 'y' : 'ies'}`,
-        ]
-          .filter(Boolean)
-          .join(' · ') || 'Selection made'
-      : 'No apps chosen yet';
-    const budgetLabel =
-      status.budgetCount > 0
-        ? `${status.budgetCount} daily limit${status.budgetCount === 1 ? '' : 's'} set`
-        : 'No daily limits yet';
-
-    return (
-      <div className="space-y-8">
-        <section className="mt-8">
-          <SettingSectionHeader title="Today" />
-          <div className="mt-3 rounded-2xl bg-surface p-5 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-primary/5 p-2">
-                <Icon icon="mdi:apps" width={24} className="text-primary" />
-              </div>
-              <div>
-                <p className="text-base font-semibold text-content">{selectionLabel}</p>
-                <p className="text-sm text-content-secondary">{budgetLabel}</p>
-              </div>
-            </div>
-            {status.shieldActive && (
-              <div className="mt-4 flex items-center gap-2 rounded-full bg-primary/5 px-4 py-2">
-                <Icon icon="mdi:leaf" width={18} className="text-primary" />
-                <span className="text-sm font-semibold text-primary">
-                  Break in progress — your chosen apps are resting
-                </span>
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section>
-          <SettingSectionHeader title="Your setup" />
-          <SettingsCard>
-            <SettingRow
-              icon="mdi:apps"
-              label="Choose apps"
-              isFirst
-              onClick={() => void handleChooseApps()}
-              right={
-                <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
-              }
-            />
-            <SettingRow
-              icon="mdi:chart-donut"
-              label="See my usage"
-              onClick={() => void handleShowUsage()}
-              right={
-                <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
-              }
-            />
-            <SettingRow
-              icon="mdi:timer-sand"
-              label="Set daily limits"
-              onClick={() => void handleEditBudgets()}
-              right={
-                <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
-              }
-            />
-          </SettingsCard>
-        </section>
-
-        <section className="space-y-4">
-          {status.shieldActive ? (
-            <Button
-              variant="secondary"
-              size="auth"
-              fullWidth
-              loading={busy}
-              onClick={() => setConfirm('endBreak')}
-            >
-              End break
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              size="auth"
-              fullWidth
-              loading={busy}
-              onClick={() => setConfirm('startBreak')}
-            >
-              Take a break now
-            </Button>
-          )}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => setConfirm('turnOff')}
-            className="w-full py-2 text-center text-sm font-semibold text-content-tertiary disabled:opacity-50"
-          >
-            Turn off Screen Time
-          </button>
-        </section>
       </div>
     );
-  };
+  }
+
+  if (view === 'shield') {
+    return (
+      <ShieldPreview
+        reason={shieldReason}
+        onPrimary={() => setView('dashboard')}
+        onSecondary={() => setView('dashboard')}
+      />
+    );
+  }
+
+  const denied = isIos && status?.status === 'denied';
 
   return (
-    <div>
-      <PageHeader onBack={() => navigate(-1)} />
-      {renderBody()}
+    <div className="flex min-h-[72vh] flex-col">
+      <ScreenTimeHeader
+        title={view === 'detail' && detailApp ? detailApp.name : 'Screen Time'}
+        onBack={() => {
+          if (view === 'detail') setView('dashboard');
+          else navigate(-1);
+        }}
+        onMenu={view === 'dashboard' ? () => setView('choose') : undefined}
+      />
 
-      {confirm === 'startBreak' && (
-        <ConfirmDialog
-          title="Take a break now?"
-          message="Your chosen apps will rest until you end the break. You can end it anytime."
-          confirmLabel="Start break"
-          cancelLabel="Not now"
-          onConfirm={handleStartBreak}
-          onCancel={() => setConfirm(null)}
+      {view === 'intro' && (
+        <ScreenTimeIntro busy={busy} denied={denied} onGetStarted={() => void handleGetStarted()} />
+      )}
+
+      {view === 'choose' && (
+        <ChooseAppsView
+          selected={selected}
+          busy={busy}
+          onChooseApps={() => void handleChooseApps()}
+          onRemove={handleRemoveApp}
         />
       )}
-      {confirm === 'endBreak' && (
-        <ConfirmDialog
-          title="End your break?"
-          message="Your chosen apps will be available again right away."
-          confirmLabel="End break"
-          cancelLabel="Keep resting"
-          onConfirm={handleEndBreak}
-          onCancel={() => setConfirm(null)}
+
+      {view === 'dashboard' && (
+        <DashboardView
+          range={range}
+          onRangeChange={setRange}
+          onBreak={onBreak}
+          busy={busy}
+          onAppTap={handleAppTap}
+          onTakeBreak={() => void handleTakeBreak()}
+          onEndBreak={() => void handleEndBreak()}
+          onTurnOff={() => setConfirmTurnOff(true)}
         />
       )}
-      {confirm === 'turnOff' && (
+
+      {view === 'detail' && detailApp && (
+        <AppDetailView
+          app={detailApp}
+          onPauseNow={() => {
+            setShieldReason('limit');
+            setView('shield');
+          }}
+          onRemove={() => handleRemoveApp(detailApp.id)}
+        />
+      )}
+
+      {confirmTurnOff && (
         <ConfirmDialog
           title="Turn off Screen Time?"
           message="This clears your app selection, daily limits, and any active break. You can set it up again whenever you like."
           confirmLabel="Turn off"
           cancelLabel="Keep it on"
           onConfirm={handleTurnOff}
-          onCancel={() => setConfirm(null)}
+          onCancel={() => setConfirmTurnOff(false)}
         />
       )}
     </div>

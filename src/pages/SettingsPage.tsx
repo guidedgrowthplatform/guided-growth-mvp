@@ -284,7 +284,7 @@ export function SettingsPage() {
           <SettingSectionHeader title="Digital Wellbeing" />
           <SettingsCard>
             <SettingRow
-              icon="mdi:cellphone-lock"
+              icon="mdi:timer-outline"
               label="Screen Time"
               isFirst
               onClick={() => navigate('/screen-time')}
@@ -293,6 +293,9 @@ export function SettingsPage() {
               }
             />
           </SettingsCard>
+          <p className="px-1.5 pt-2.5 text-xs leading-snug text-content-tertiary">
+            See your app usage and set gentle limits for yourself.
+          </p>
         </section>
       )}
 
