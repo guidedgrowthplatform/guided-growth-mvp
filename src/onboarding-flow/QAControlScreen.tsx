@@ -644,6 +644,67 @@ export function QAControlScreen() {
           })}
         </div>
 
+        {/* Gate-free calendar connect/sync page — saves testers pasting the URL. */}
+        <button
+          type="button"
+          onClick={() => navigate('/qa/calendar')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            textAlign: 'left',
+            padding: '12px 14px',
+            borderRadius: 14,
+            border: '1px dashed rgb(191,219,254)',
+            background: 'rgb(239,246,255)',
+            cursor: 'pointer',
+          }}
+        >
+          <span
+            style={{
+              flexShrink: 0,
+              width: 36,
+              height: 36,
+              borderRadius: 11,
+              background: 'rgb(219,234,254)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon icon="logos:google-calendar" style={{ fontSize: 18 }} />
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span
+              style={{
+                display: 'block',
+                fontSize: 14,
+                fontWeight: 700,
+                color: 'rgb(15,23,42)',
+                lineHeight: 1.2,
+              }}
+            >
+              Calendar Sync (QA)
+            </span>
+            <span
+              style={{
+                display: 'block',
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'rgb(100,116,139)',
+                lineHeight: 1.35,
+                marginTop: 2,
+              }}
+            >
+              Connect Google Calendar &amp; sync — no onboarding gate
+            </span>
+          </span>
+          <Icon
+            icon="ic:round-chevron-right"
+            style={{ flexShrink: 0, fontSize: 20, color: 'rgb(148,163,184)' }}
+          />
+        </button>
+
         {error && (
           <p style={{ fontSize: 12.5, fontWeight: 600, color: 'rgb(220,38,38)', margin: 0 }}>
             {error}
