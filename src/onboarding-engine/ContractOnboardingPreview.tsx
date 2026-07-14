@@ -9,7 +9,20 @@ const PREVIEW_SPINE = [...onboardingContract.beats]
   .map((beat) => beat.id);
 
 export function ContractOnboardingPreview() {
-  const [index, setIndex] = useState(0);
+  // Preview-only deep link: /onboarding/flow-preview?beat=<componentKey> starts on the first beat
+  // with that component key. Lets the headless render gate jump directly to a beat instead of
+  // walking through interactive gates (mic permission, the profile form, the fork). No effect
+  // on the normal flow, which starts at index 0.
+  const startIndex = useMemo(() => {
+    if (typeof window === 'undefined') return 0;
+    const wantKey = new URLSearchParams(window.location.search).get('beat');
+    if (!wantKey) return 0;
+    const found = PREVIEW_SPINE.findIndex(
+      (id) => onboardingBeatById[id]?.component.key === wantKey,
+    );
+    return found >= 0 ? found : 0;
+  }, []);
+  const [index, setIndex] = useState(startIndex);
   const [path, setPath] = useState<'beginner' | 'advanced' | null>(null);
   const beatId = PREVIEW_SPINE[index];
   const beat = onboardingBeatById[beatId];
