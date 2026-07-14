@@ -1,6 +1,11 @@
 import type { OnboardingBeat } from '@/generated/onboardingContract';
 
-export type BeatRenderer = (props: { beat: OnboardingBeat; onAdvance: () => void }) => JSX.Element;
+export type PreviewTools = Record<string, (...args: unknown[]) => void>;
+export type BeatRenderer = (props: {
+  beat: OnboardingBeat;
+  onAdvance: () => void;
+  tools?: PreviewTools;
+}) => JSX.Element;
 
 const modules = import.meta.glob('./beats/*.tsx', { eager: true }) as Record<
   string,

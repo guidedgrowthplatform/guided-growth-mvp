@@ -35,6 +35,26 @@ export function ContractOnboardingPreview() {
   const lines = useMemo(() => scriptFor(beat).filter((line) => line.words.trim()), [beat]);
   const onAdvance = () => setIndex((current) => Math.min(current + 1, PREVIEW_SPINE.length - 1));
 
+  // Preview-safe tool stubs (ledger 43): the real app fires submit_* through the tool-calling
+  // runtime, which the backend-free preview does not have. These record the call so a submit-
+  // requiring beat can perform submit_<x> then advance, without a backend.
+  const tools = useMemo(
+    () =>
+      new Proxy({} as Record<string, (...args: unknown[]) => void>, {
+        get:
+          (_target, prop) =>
+          (...args: unknown[]) => {
+            if (typeof window !== 'undefined') {
+              const w = window as unknown as {
+                __previewSubmits?: Array<{ tool: string; args: unknown[] }>;
+              };
+              (w.__previewSubmits ||= []).push({ tool: String(prop), args });
+            }
+          },
+      }),
+    [],
+  );
+
   useEffect(() => {
     setPath(null);
   }, [beat.id]);
@@ -60,7 +80,7 @@ export function ContractOnboardingPreview() {
           </p>
         </header>
 
-        <SurfaceComponent beat={beat} onAdvance={onAdvance} />
+        <SurfaceComponent beat={beat} onAdvance={onAdvance} tools={tools} />
 
         {lines.length > 0 && (
           <section aria-label="Coach script" style={{ marginTop: 16, display: 'grid', gap: 10 }}>
