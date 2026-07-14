@@ -297,8 +297,17 @@ function buildCurrentTimeBlock(timezone?: string): string {
   );
 }
 
+// Locked rule: 'Other' must NEVER propagate downstream. Every forward consumer
+// (prompts, variant selection) sees Male/Female only — Female keys women's
+// variants; Male + Other collapse to the default treatment. Clamp here, the one
+// backend point where captured gender reaches the LLM. Capture stays Male|Female|Other.
+function clampGenderForward(data: Record<string, unknown>): Record<string, unknown> {
+  if (data.gender !== 'Other') return data;
+  return { ...data, gender: 'Male' };
+}
+
 function buildAlreadyFilledBlock(row: OnboardingRow): string {
-  const data = row.data ?? {};
+  const data = clampGenderForward(row.data ?? {});
   const hasData = Object.keys(data).length > 0;
   if (!hasData && !row.path) return '';
   return (

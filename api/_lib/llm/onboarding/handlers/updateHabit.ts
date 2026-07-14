@@ -1,6 +1,6 @@
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
-import { inferSchedule, SCHEDULE_DAYS, type ScheduleOption } from '../../tools.onboarding.js';
+import { inferSchedule, scheduleDays, type ScheduleOption } from '../../tools.onboarding.js';
 import { SCHEDULE_OPTIONS } from '../schemas.js';
 import {
   getBoolean,
@@ -77,7 +77,7 @@ export async function updateHabit(
       return invalid(`schedule must be one of ${SCHEDULE_OPTIONS.join(', ')}`);
     }
     patch.schedule = scheduleRaw;
-    patch.days = [...SCHEDULE_DAYS[scheduleRaw as ScheduleOption]];
+    patch.days = [...scheduleDays(scheduleRaw as ScheduleOption)];
   }
 
   if (Object.keys(patch).length === 0) {

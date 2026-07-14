@@ -36,7 +36,10 @@ const EVIDENCE: Record<string, Record<string, unknown>> = {
   'morning-checkin-setup': { morningCheckin: { time: '08:00', days: [1], reminder: true } },
   'reflection-card': { reflectionConfig: { time: '21:45', days: [1], reminder: true } },
   'weekly-day-picker': { weeklyConfig: { day: 0 } },
-  'path-selection': { path: 'simple' },
+  // Fork gates on the top-level path COLUMN (checkAdvanceData's `path` arg), not
+  // on data.path — so this evidence carries no data key. Leaving a data.path here
+  // would wrongly force the beginner lane on the braindump run (canonical-first read).
+  'path-selection': {},
   'category-grid': { category: 'Health & Fitness' },
   'goals-list': { goals: ['Move daily'] },
   'habit-picker': { habitConfigs: { Walking: { days: [1], time: '08:00', reminder: true } } },

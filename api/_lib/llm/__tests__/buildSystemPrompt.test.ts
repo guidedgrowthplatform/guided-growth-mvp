@@ -470,13 +470,68 @@ describe('buildSystemPromptForRequest', () => {
     });
   });
 
+  // Gender clamp: 'Other' must NEVER propagate downstream (render locked rule).
+  // Male + Other collapse to the default (non-Female) treatment; only Female
+  // reaches the prompt as Female.
+  describe('gender clamp forward (render reconcile)', () => {
+    function mockProfileBeat(gender: string) {
+      pool.query.mockReset();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [{ context_block: 'SCREEN_ID: ONBOARD-01--FORM\nBEHAVIOR: profile.', version: 1 }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{ data: { age: 30, gender }, current_step: 1, path: null }],
+          rowCount: 1,
+        });
+    }
+
+    it("clamps 'Other' to the default treatment — 'Other' never reaches the prompt", async () => {
+      mockProfileBeat('Other');
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: 'ONBOARD-01--FORM',
+        coaching_style: 'warm',
+        recent_events,
+      });
+      expect(systemPrompt).toContain('## Already-Filled Fields');
+      expect(systemPrompt).not.toContain('"gender":"Other"');
+      expect(systemPrompt).toContain('"gender":"Male"');
+    });
+
+    it("passes 'Female' through unchanged (women's variants key off Female)", async () => {
+      mockProfileBeat('Female');
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: 'ONBOARD-01--FORM',
+        coaching_style: 'warm',
+        recent_events,
+      });
+      expect(systemPrompt).toContain('"gender":"Female"');
+    });
+
+    it("passes 'Male' through unchanged", async () => {
+      mockProfileBeat('Male');
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: 'ONBOARD-01--FORM',
+        coaching_style: 'warm',
+        recent_events,
+      });
+      expect(systemPrompt).toContain('"gender":"Male"');
+    });
+  });
+
   // G07: weekly-day recommendation threading
   describe('weekly-day recommendation block (G07)', () => {
     function mockWeeklySetup() {
       pool.query.mockReset();
       pool.query
         .mockResolvedValueOnce({
-          rows: [{ context_block: 'SCREEN_ID: ONBOARD-WEEKLY-SETUP\nBEHAVIOR: pick day.', version: 1 }],
+          rows: [
+            { context_block: 'SCREEN_ID: ONBOARD-WEEKLY-SETUP\nBEHAVIOR: pick day.', version: 1 },
+          ],
           rowCount: 1,
         })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // onboarding_states

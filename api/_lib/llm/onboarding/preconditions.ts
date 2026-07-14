@@ -2,6 +2,7 @@
 // Direct-LLM advance_step handler AND Vapi's navigate_next (see
 // api/_lib/vapi/handlers/navigateNext.ts), so a gate change here applies to
 // both voice lanes.
+import { isAdvancedPath } from '../tools.onboarding.js';
 import { ADVANCE_GATE_OWNERS, STEP_OWNERS } from './stepMaps.generated.js';
 
 type Gate = (
@@ -84,7 +85,8 @@ export function checkAdvanceData(args: {
   brainDumpRaw: string | null;
 }): string | null {
   const { sourceStep, data, path, brainDumpRaw } = args;
-  const advanced = path === 'braindump' || path === 'advanced';
+  // Canonical-first: data.path (canonical) wins over the legacy column.
+  const advanced = isAdvancedPath((data.path as string | undefined) ?? path);
   // The stored step runs one AHEAD of the identity scale across shared persist
   // steps (habit-select + habit-schedule both persist 5, so habit-schedule is
   // stored as 6). Gate on the beat actually being LEFT at this stored step

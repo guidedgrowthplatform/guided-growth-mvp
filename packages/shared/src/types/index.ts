@@ -228,7 +228,9 @@ export interface SessionLogEntry {
 }
 
 // ─── Onboarding ─────────────────────────────────────
-export type OnboardingPath = 'simple' | 'braindump' | 'advanced';
+// Render canon: 'beginner'|'advanced' (persisted to data.path). Legacy
+// 'simple'|'braindump' remain the top-level `path` column values.
+export type OnboardingPath = 'simple' | 'braindump' | 'advanced' | 'beginner';
 
 export type OnboardingStatus = 'in_progress' | 'completed';
 

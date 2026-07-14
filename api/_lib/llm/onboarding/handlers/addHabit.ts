@@ -1,7 +1,13 @@
 import type { HabitType } from '@gg/shared/types';
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
-import { inferSchedule, SCHEDULE_DAYS, type ScheduleOption } from '../../tools.onboarding.js';
+import {
+  inferSchedule,
+  isAdvancedPath,
+  SCHEDULE_DAYS,
+  scheduleDays,
+  type ScheduleOption,
+} from '../../tools.onboarding.js';
 import { MAX_HABITS, MAX_HABITS_ADVANCED, SCHEDULE_OPTIONS } from '../schemas.js';
 import {
   getBoolean,
@@ -230,7 +236,7 @@ export async function addHabit(
       inferSchedule(days) ?? (scheduleProvided ? (scheduleRaw as ScheduleOption) : 'Weekday');
   } else if (scheduleProvided) {
     schedule = scheduleRaw as ScheduleOption;
-    days = [...SCHEDULE_DAYS[schedule]];
+    days = [...scheduleDays(schedule)];
   } else {
     schedule = 'Weekday';
     days = [...SCHEDULE_DAYS.Weekday];
@@ -254,16 +260,20 @@ export async function addHabit(
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [ctx.anon_id]);
 
     // path drives the cap (ledger ruling B37: "there is no limit in advanced").
-    // 'braindump' = advanced. Missing path defaults to beginner (the stricter
-    // cap), so a legacy row without a path can never over-count.
+    // advanced ('advanced'|legacy 'braindump') lifts it; missing path defaults
+    // to beginner (stricter cap), so a legacy row without a path never
+    // over-counts. Canonical-first: prefer data.path, fall back to the column.
     const existingRes = await client.query<{
       hc: Record<string, unknown> | null;
       path: string | null;
-    }>(`SELECT data->'habitConfigs' AS hc, path FROM onboarding_states WHERE anon_id = $1`, [
-      ctx.anon_id,
-    ]);
+      data_path: string | null;
+    }>(
+      `SELECT data->'habitConfigs' AS hc, path, data->>'path' AS data_path
+         FROM onboarding_states WHERE anon_id = $1`,
+      [ctx.anon_id],
+    );
     const existing = (existingRes.rows[0]?.hc ?? {}) as Record<string, unknown>;
-    const isAdvanced = existingRes.rows[0]?.path === 'braindump';
+    const isAdvanced = isAdvancedPath(existingRes.rows[0]?.data_path ?? existingRes.rows[0]?.path);
     const cap = isAdvanced ? MAX_HABITS_ADVANCED : MAX_HABITS;
     const isEdit = Object.keys(existing).some((k) => k.toLowerCase() === nameLower);
 

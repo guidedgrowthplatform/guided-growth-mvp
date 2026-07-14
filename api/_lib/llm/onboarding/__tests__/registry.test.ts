@@ -73,7 +73,7 @@ describe('ONBOARDING_TOOLS', () => {
     const tool = ONBOARDING_TOOLS.find((t) => t.name === 'add_habit')!;
     expect(tool.parameters.required).toEqual(['name']);
     expect(tool.parameters.properties.schedule).toMatchObject({
-      enum: ['Weekday', 'Weekend', 'Every day'],
+      enum: ['Weekday', 'Weekend', 'Every day', 'Custom'],
     });
   });
 

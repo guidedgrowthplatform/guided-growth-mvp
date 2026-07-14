@@ -13,7 +13,7 @@
 import pool, { type Queryable } from '../../db.js';
 import {
   inferSchedule,
-  SCHEDULE_DAYS,
+  scheduleDays,
   SCHEDULE_OPTIONS,
   type ScheduleOption,
 } from '../../llm/tools.onboarding.js';
@@ -135,7 +135,7 @@ export async function updateHabit(
       return { error: `validation_failed: schedule must be one of ${SCHEDULE_OPTIONS.join(', ')}` };
     }
     patch.schedule = scheduleRaw as ScheduleOption;
-    patch.days = [...SCHEDULE_DAYS[scheduleRaw as ScheduleOption]];
+    patch.days = [...scheduleDays(scheduleRaw as ScheduleOption)];
   }
 
   if (Object.keys(patch).length === 0) {

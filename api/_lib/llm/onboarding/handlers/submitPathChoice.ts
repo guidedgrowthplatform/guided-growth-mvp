@@ -1,11 +1,7 @@
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
-import { PATH_OPTIONS } from '../schemas.js';
+import { normalizePath } from '../../tools.onboarding.js';
 import { getString, handlerError, invalid, ok, type OnboardingHandlerCtx } from './shared.js';
-
-function isPathOption(v: string): boolean {
-  return (PATH_OPTIONS as readonly string[]).includes(v);
-}
 
 // Grounding guard (G13): the submitted path must trace to the user's own
 // stated preference, not a model choice on a delegation/skip turn ("pick for
@@ -61,13 +57,15 @@ export async function submitPathChoice(
   ctx: OnboardingHandlerCtx,
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
-  const path = getString(args, 'path');
-  if (path === undefined || path.length === 0) {
+  const raw = getString(args, 'path');
+  if (raw === undefined || raw.length === 0) {
     return invalid('path is required');
   }
-  if (!isPathOption(path)) {
-    return invalid(`path must be one of ${PATH_OPTIONS.join(', ')}`);
+  const normalized = normalizePath(raw);
+  if (!normalized) {
+    return invalid('path must be one of beginner, advanced');
   }
+  const { canonical, legacy } = normalized;
 
   // Grounding guard: runs before the DB write. Disabled when user_text is
   // absent (same backward-compatible convention as addHabit and recordCheckin).
@@ -75,25 +73,28 @@ export async function submitPathChoice(
     return handlerError('path_choice_not_grounded');
   }
 
+  // Dual-write: canonical into data.path (render canon), legacy into the
+  // top-level column (existing readers + frontend key off that).
   const result = await pool.query<{
     data: Record<string, unknown>;
     current_step: number;
     path: string;
   }>(
     `INSERT INTO onboarding_states (anon_id, current_step, path, status, data, updated_at)
-     VALUES ($1, 2, $2, 'in_progress', '{}'::jsonb, now())
+     VALUES ($1, 2, $2, 'in_progress', jsonb_build_object('path', $3::text), now())
      ON CONFLICT (anon_id) DO UPDATE SET
        path = $2,
+       data = onboarding_states.data || jsonb_build_object('path', $3::text),
        status = 'in_progress',
        updated_at = now()
      RETURNING data, current_step, path`,
-    [ctx.anon_id, path],
+    [ctx.anon_id, legacy, canonical],
   );
 
   const row = result.rows[0];
   return ok({
-    data: row?.data ?? {},
+    data: row?.data ?? { path: canonical },
     current_step: row?.current_step ?? 2,
-    path: row?.path ?? path,
+    path: row?.path ?? legacy,
   });
 }

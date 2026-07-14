@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../db.js', () => ({ default: { query: vi.fn(), connect: vi.fn() } }));
+// confirmPlan → completeOnboarding pulls in supabaseAdmin (createClient throws
+// on empty env at import time).
+vi.mock('../../../supabase.js', () => ({
+  supabaseAdmin: {
+    auth: { admin: { updateUserById: vi.fn().mockResolvedValue({ error: null }) } },
+  },
+}));
 
 const pool = (await import('../../../db.js')).default as {
   query: ReturnType<typeof vi.fn>;

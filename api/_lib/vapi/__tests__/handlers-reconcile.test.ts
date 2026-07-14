@@ -11,10 +11,16 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../db.js', () => ({ default: { query: vi.fn() } }));
+vi.mock('../../db.js', () => ({ default: { query: vi.fn(), connect: vi.fn() } }));
+vi.mock('../../supabase.js', () => ({
+  supabaseAdmin: {
+    auth: { admin: { updateUserById: vi.fn().mockResolvedValue({ error: null }) } },
+  },
+}));
 
 const pool = (await import('../../db.js')).default as {
   query: ReturnType<typeof vi.fn>;
+  connect: ReturnType<typeof vi.fn>;
 };
 
 const { addHabit } = await import('../handlers/addHabit.js');
@@ -47,9 +53,9 @@ describe('vapi addHabit — reconciliation', () => {
     expect(merge.Walk.days).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it('both given + custom day combination: schedule falls back to LLM label', async () => {
-    // Mon/Wed/Fri doesn't match any preset; inferSchedule returns null and
-    // we keep what the LLM said. PlanReviewPage renders "3 days/week".
+  it('both given + custom day combination: schedule is labeled Custom', async () => {
+    // Mon/Wed/Fri matches no preset; inferSchedule returns 'Custom', overriding
+    // the stale 'Weekday' the LLM sent. PlanReviewPage renders "3 days/week".
     await addHabit({
       anon_id: ANON,
       name: 'Walk',
@@ -57,7 +63,7 @@ describe('vapi addHabit — reconciliation', () => {
       schedule: 'Weekday',
     });
     const merge = JSON.parse(pool.query.mock.calls[0][1][2] as string);
-    expect(merge.Walk.schedule).toBe('Weekday'); // best-effort
+    expect(merge.Walk.schedule).toBe('Custom');
     expect(merge.Walk.days).toEqual([1, 3, 5]);
   });
 
@@ -136,7 +142,7 @@ describe('vapi submitReflectionConfig — reconciliation', () => {
     expect(payload.reflectionConfig.days).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it('keeps LLM label when days is a custom combination', async () => {
+  it('labels a custom day set Custom, overriding the LLM preset', async () => {
     await submitReflectionConfig({
       anon_id: ANON,
       time: '21:45',
@@ -145,7 +151,7 @@ describe('vapi submitReflectionConfig — reconciliation', () => {
       schedule: 'Weekday',
     });
     const payload = JSON.parse(pool.query.mock.calls[0][1][1] as string);
-    expect(payload.reflectionConfig.schedule).toBe('Weekday');
+    expect(payload.reflectionConfig.schedule).toBe('Custom');
     expect(payload.reflectionConfig.days).toEqual([1, 3, 5]);
   });
 
@@ -246,7 +252,7 @@ describe('vapi submitMorningCheckin — reconciliation + validation', () => {
     expect(payload.morningCheckin.days).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it('keeps LLM label when days is a custom combination', async () => {
+  it('labels a custom day set Custom, overriding the LLM preset', async () => {
     await submitMorningCheckin({
       anon_id: ANON,
       time: '07:30',
@@ -255,7 +261,7 @@ describe('vapi submitMorningCheckin — reconciliation + validation', () => {
       schedule: 'Weekday',
     });
     const payload = JSON.parse(pool.query.mock.calls[0][1][1] as string);
-    expect(payload.morningCheckin.schedule).toBe('Weekday');
+    expect(payload.morningCheckin.schedule).toBe('Custom');
     expect(payload.morningCheckin.days).toEqual([1, 3, 5]);
   });
 
@@ -581,7 +587,43 @@ describe('vapi confirmPlan — State-1 completion', () => {
     expect(pool.query).not.toHaveBeenCalled();
   });
 
-  it('valid anon_id with habits + reflection: monotonic GREATEST bump to step 8, returns ok', async () => {
+  // Completion runs through completeOnboarding, which uses pool.connect() — a fake
+  // pooled client whose queries all resolve to an in_progress→completed script.
+  function mockCompletionConnect() {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (/SELECT status FROM onboarding_states/.test(sql)) {
+          return { rows: [{ status: 'in_progress' }], rowCount: 1 };
+        }
+        if (/UPDATE onboarding_states\s+SET data/.test(sql)) {
+          return { rows: [{ path: 'simple', data: {} }], rowCount: 1 };
+        }
+        if (/SELECT id FROM profiles/.test(sql)) return { rows: [], rowCount: 0 };
+        if (/reflection_settings/.test(sql)) {
+          return {
+            rows: [
+              {
+                mode: 'prompts',
+                prompts: [],
+                reminder_time: null,
+                schedule_days: [],
+                reminder_enabled: true,
+                schedule_label: null,
+                weekly_day: 0,
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    pool.connect.mockResolvedValue(client);
+    return client;
+  }
+
+  it('valid anon_id with habits + reflection: GREATEST bump to step 8 + server completion, returns ok', async () => {
     // Precondition lookup: row has habits + reflection.
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
@@ -595,12 +637,19 @@ describe('vapi confirmPlan — State-1 completion', () => {
         },
       ],
     });
+    const client = mockCompletionConnect();
     const res = await confirmPlan({ anon_id: ANON });
     expect(res).toEqual({ result: 'ok' });
+    // SELECT precondition + GREATEST step bump on the injected db.
     expect(pool.query).toHaveBeenCalledTimes(2);
     const [sql, params] = pool.query.mock.calls[1];
     expect(sql).toContain('GREATEST(onboarding_states.current_step, 8)');
     expect(params).toEqual([ANON]);
+    // Completion flipped status=completed via the pooled client.
+    const completed = client.query.mock.calls.some((c) =>
+      /UPDATE onboarding_states\s+SET data/.test(String(c[0])),
+    );
+    expect(completed).toBe(true);
   });
 
   it('valid anon_id with advancedHabitConfigs + reflection: also passes precondition', async () => {
@@ -616,6 +665,7 @@ describe('vapi confirmPlan — State-1 completion', () => {
         },
       ],
     });
+    mockCompletionConnect();
     const res = await confirmPlan({ anon_id: ANON });
     expect(res).toEqual({ result: 'ok' });
   });

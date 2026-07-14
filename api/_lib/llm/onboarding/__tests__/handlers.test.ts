@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../db.js', () => ({ default: { query: vi.fn(), connect: vi.fn() } }));
+// confirmPlan → completeOnboarding pulls in supabaseAdmin (createClient throws
+// on empty env at import time).
+vi.mock('../../../supabase.js', () => ({
+  supabaseAdmin: {
+    auth: { admin: { updateUserById: vi.fn().mockResolvedValue({ error: null }) } },
+  },
+}));
 
 const pool = (await import('../../../db.js')).default as {
   query: ReturnType<typeof vi.fn>;
@@ -16,10 +23,14 @@ function habitClient(opts: {
   hc?: Record<string, unknown> | null;
   upsert?: unknown;
   path?: string | null;
+  dataPath?: string | null;
 }) {
   const query = vi.fn(async (sql: string) => {
     if (/SELECT data->'habitConfigs'/.test(sql)) {
-      return { rowCount: 1, rows: [{ hc: opts.hc ?? {}, path: opts.path ?? null }] };
+      return {
+        rowCount: 1,
+        rows: [{ hc: opts.hc ?? {}, path: opts.path ?? null, data_path: opts.dataPath ?? null }],
+      };
     }
     if (/INSERT INTO onboarding_states/.test(sql)) {
       return { rowCount: 1, rows: [opts.upsert ?? { data: {}, current_step: 5 }] };
@@ -363,6 +374,42 @@ describe('submit_path_choice', () => {
     });
     expect(pool.query).not.toHaveBeenCalled();
   });
+
+  // ── canonical path + dual-write (render reconcile) ────────────────────
+
+  it('accepts canonical "beginner", dual-writes legacy=simple + data.path=beginner', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { path: 'beginner' }, current_step: 2, path: 'simple' }],
+    });
+    const r = await submitPathChoice(CTX, { path: 'beginner' });
+    expect(r.ok).toBe(true);
+    const [sql, params] = pool.query.mock.calls[0];
+    // legacy column ← 'simple', data.path ← 'beginner'
+    expect(params).toEqual([CTX.anon_id, 'simple', 'beginner']);
+    expect(sql).toMatch(/jsonb_build_object\('path', \$3::text\)/);
+  });
+
+  it('accepts canonical "advanced", dual-writes legacy=braindump + data.path=advanced', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { path: 'advanced' }, current_step: 2, path: 'braindump' }],
+    });
+    const r = await submitPathChoice(CTX, { path: 'advanced' });
+    expect(r.ok).toBe(true);
+    const [, params] = pool.query.mock.calls[0];
+    expect(params).toEqual([CTX.anon_id, 'braindump', 'advanced']);
+  });
+
+  it('legacy "simple" input still maps to canonical data.path=beginner', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { path: 'beginner' }, current_step: 2, path: 'simple' }],
+    });
+    await submitPathChoice(CTX, { path: 'simple' });
+    const [, params] = pool.query.mock.calls[0];
+    expect(params).toEqual([CTX.anon_id, 'simple', 'beginner']);
+  });
 });
 
 // ─── submit_category ─────────────────────────────────────────────────
@@ -605,6 +652,20 @@ describe('add_habit', () => {
     expect(persistedHabit(client).schedule).toBe('Weekday');
   });
 
+  it('infers Custom for a non-preset day set (not a fallback preset)', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { ...validHabit, days: [1, 3, 5], schedule: 'Weekday' });
+    expect(persistedHabit(client)).toMatchObject({ days: [1, 3, 5], schedule: 'Custom' });
+  });
+
+  it('accepts an explicit Custom schedule with days', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { ...validHabit, days: [0, 2, 4], schedule: 'Custom' });
+    expect(persistedHabit(client)).toMatchObject({ days: [0, 2, 4], schedule: 'Custom' });
+  });
+
   // Fixture filled to MAX_HABITS so the cap test tracks the real limit.
   const atCap = Object.fromEntries(
     Array.from({ length: MAX_HABITS }, (_, i) => [`Existing${i}`, {}]),
@@ -648,6 +709,15 @@ describe('add_habit', () => {
       const sqls = client.query.mock.calls.map((c) => c[0] as string);
       expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(true);
       expect(sqls.some((s) => /ROLLBACK/.test(s))).toBe(false);
+    });
+
+    it('canonical data.path=advanced lifts the cap even when legacy column is null', async () => {
+      const client = habitClient({ hc: atCap, path: null, dataPath: 'advanced' });
+      pool.connect.mockResolvedValue(client);
+      const r = await addHabit(CTX, { ...validHabit, name: 'ThirdHabit' });
+      expect(r.ok).toBe(true);
+      const sqls = client.query.mock.calls.map((c) => c[0] as string);
+      expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(true);
     });
 
     it('advanced path: accepts habits well past the beginner cap', async () => {
@@ -804,10 +874,9 @@ describe('add_habit', () => {
     expect(merge.Walk.schedule).toBe('Every day');
   });
 
-  it('keeps the LLM-supplied schedule when days is a custom combination (no preset match)', async () => {
-    // Mon/Wed/Fri doesn't match any preset; falling back to the LLM's label
-    // is best-effort since there's no "custom" enum value. PlanReviewPage
-    // renders "3 days/week" via formatCadence regardless.
+  it('labels a custom day set Custom, overriding the LLM-supplied preset', async () => {
+    // Mon/Wed/Fri matches no preset — render canon adds a Custom label, so the
+    // stale 'Weekday' the LLM sent is replaced (not preserved).
     const client = habitClient({ hc: {} });
     pool.connect.mockResolvedValue(client);
     await addHabit(CTX, { ...validHabit, days: [1, 3, 5], schedule: 'Weekday' });
@@ -815,7 +884,7 @@ describe('add_habit', () => {
       /INSERT INTO onboarding_states/.test(c[0] as string),
     );
     const merge = JSON.parse(upsert![1][2] as string);
-    expect(merge.Walk.schedule).toBe('Weekday');
+    expect(merge.Walk.schedule).toBe('Custom');
     expect(merge.Walk.days).toEqual([1, 3, 5]);
   });
 
@@ -1379,12 +1448,12 @@ describe('submit_reflection_config', () => {
     expect(payload.reflectionConfig.days).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it('keeps the LLM-supplied label when days is a custom combination', async () => {
+  it('labels a custom day set Custom, overriding the LLM-supplied preset', async () => {
     pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ data: {}, current_step: 7 }] });
     await submitReflectionConfig(CTX, { ...valid, days: [1, 3, 5], schedule: 'Weekday' });
     const params = pool.query.mock.calls[0][1];
     const payload = JSON.parse(params[1] as string);
-    expect(payload.reflectionConfig.schedule).toBe('Weekday'); // no preset match → keep LLM label
+    expect(payload.reflectionConfig.schedule).toBe('Custom'); // no preset match → Custom
     expect(payload.reflectionConfig.days).toEqual([1, 3, 5]);
   });
 
@@ -1913,7 +1982,8 @@ describe('confirm_plan', () => {
     expect(r).toMatchObject({ ok: false, error: 'handler_error' });
   });
 
-  it('confirms when habits + reflection both present', async () => {
+  it('confirms + completes server-side when habits + reflection both present', async () => {
+    // Guard SELECT via pool.query.
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
       rows: [
@@ -1923,8 +1993,39 @@ describe('confirm_plan', () => {
         },
       ],
     });
+    // completeOnboarding runs through pool.connect() — in_progress → completed.
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (/SELECT status FROM onboarding_states/.test(sql))
+          return { rows: [{ status: 'in_progress' }], rowCount: 1 };
+        if (/UPDATE onboarding_states\s+SET data/.test(sql))
+          return { rows: [{ path: 'simple', data: {} }], rowCount: 1 };
+        if (/reflection_settings/.test(sql))
+          return {
+            rows: [
+              {
+                mode: 'prompts',
+                prompts: [],
+                reminder_time: null,
+                schedule_days: [],
+                reminder_enabled: true,
+                schedule_label: null,
+                weekly_day: 0,
+              },
+            ],
+            rowCount: 1,
+          };
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    pool.connect.mockResolvedValue(client);
     const r = await confirmPlan(CTX, {});
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.result).toMatchObject({ confirmed: true });
+    const completed = client.query.mock.calls.some((c) =>
+      /UPDATE onboarding_states\s+SET data/.test(String(c[0])),
+    );
+    expect(completed).toBe(true);
   });
 });

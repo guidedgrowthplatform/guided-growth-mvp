@@ -18,6 +18,7 @@ import {
   inferSchedule,
   MAX_HABITS,
   SCHEDULE_DAYS,
+  scheduleDays,
   SCHEDULE_OPTIONS,
   type ScheduleOption,
 } from '../../llm/tools.onboarding.js';
@@ -123,7 +124,7 @@ export async function addHabit(
     schedule = inferred ?? (scheduleProvided ? (scheduleRaw as ScheduleOption) : 'Weekday');
   } else if (scheduleProvided) {
     schedule = scheduleRaw as ScheduleOption;
-    days = [...SCHEDULE_DAYS[schedule]];
+    days = [...scheduleDays(schedule)];
   } else {
     schedule = 'Weekday';
     days = [...SCHEDULE_DAYS.Weekday];

@@ -156,8 +156,12 @@ export function serverCaptureForBeat(
       if (data.gender != null) out.data.gender = data.gender;
       break;
     case 'path-selection':
-      if (data.path === 'simple' || data.path === 'braindump') {
-        out.path = data.path as OnboardingPath;
+      // Canonical-first: data.path is 'beginner'|'advanced' (render canon);
+      // legacy 'simple'|'braindump' still accepted.
+      if (data.path === 'beginner' || data.path === 'simple') {
+        out.path = 'simple';
+      } else if (data.path === 'advanced' || data.path === 'braindump') {
+        out.path = 'braindump';
       }
       break;
     case 'category-grid':
@@ -363,7 +367,13 @@ export function beatCompletionEvidence(
     case 'weekly-day-picker':
       return d.weeklyConfig != null;
     case 'path-selection':
-      return d.path === 'simple' || d.path === 'braindump' || d.path === 'advanced';
+      // canonical 'beginner'|'advanced' + legacy 'simple'|'braindump'
+      return (
+        d.path === 'beginner' ||
+        d.path === 'advanced' ||
+        d.path === 'simple' ||
+        d.path === 'braindump'
+      );
     case 'category-grid':
       return d.category != null;
     case 'goals-list':

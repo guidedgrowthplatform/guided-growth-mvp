@@ -38,7 +38,7 @@ export const CATEGORY_OPTIONS = [
   'Break bad habits',
   'Get more organized',
 ] as const;
-export const SCHEDULE_OPTIONS = ['Weekday', 'Weekend', 'Every day'] as const;
+export const SCHEDULE_OPTIONS = ['Weekday', 'Weekend', 'Every day', 'Custom'] as const;
 export const PATH_OPTIONS = ['simple', 'braindump'] as const;
 
 export const MAX_GOALS = 2;
@@ -237,7 +237,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
     description:
       "Persist the user's morning check-in schedule on ONBOARD-MORNING-SETUP. " +
       'PRECONDITION: do NOT call this until the user has actually answered when they want their morning check-in. If they have not given a time yet, ASK FIRST (e.g. "When would you like your morning check-in?"). ' +
-      'ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). Once the user gives a time, infer the remaining fields from natural defaults (Every day + reminder on) and call. ' +
+      'ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day | Custom). Once the user gives a time, infer the remaining fields from natural defaults (Every day + reminder on) and call. ' +
       'If the user says "whatever you think" / "default is fine", first ask once more. If they still decline, pick 08:00 BUT tell them explicitly ("I\'ll set 8 AM, you can change it later in Settings") before calling, do NOT silently default.',
     parameters: {
       type: 'object',
@@ -301,7 +301,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
     description:
       "Persist the user's evening reflection schedule on ONBOARD-BEGINNER-07. " +
       'PRECONDITION: do NOT call this until the user has actually answered when they want their reflection. The reflection schedule is the user\'s choice — do NOT pre-fill defaults silently just to advance. If the user has not given you a time yet, ASK FIRST (e.g. "When would you like to do your daily reflection?"). ' +
-      'ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). Once the user gives a time, infer the remaining fields from natural defaults (Weekday + reminder on) and call. ' +
+      'ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day | Custom). Once the user gives a time, infer the remaining fields from natural defaults (Weekday + reminder on) and call. ' +
       'If the user says "whatever you think" / "default is fine", first ask once more ("What time works for you usually?"). If they still decline, pick 21:00 BUT tell them explicitly ("I\'ll set 9 PM — you can change it later in Settings") before calling — do NOT silently default.',
     parameters: {
       type: 'object',

@@ -91,39 +91,95 @@ export const CATEGORY_OPTIONS = [
 ] as const;
 export type CategoryOption = (typeof CATEGORY_OPTIONS)[number];
 
-export const SCHEDULE_OPTIONS = ['Weekday', 'Weekend', 'Every day'] as const;
+export const SCHEDULE_OPTIONS = ['Weekday', 'Weekend', 'Every day', 'Custom'] as const;
 export type ScheduleOption = (typeof SCHEDULE_OPTIONS)[number];
+
+// Presets with a fixed day set. 'Custom' is a valid ScheduleOption but has no
+// canonical day array (any non-preset combination), so it lives outside this map.
+export type SchedulePreset = 'Weekday' | 'Weekend' | 'Every day';
 
 /**
  * Day-of-week sets per schedule preset (0 = Sunday). Mirror of the same map
  * in src/components/onboarding/constants.ts so frontend and backend write
  * identical {days, schedule} shapes.
  */
-export const SCHEDULE_DAYS: Record<ScheduleOption, readonly number[]> = {
+export const SCHEDULE_DAYS: Record<SchedulePreset, readonly number[]> = {
   Weekday: [1, 2, 3, 4, 5],
   Weekend: [0, 6],
   'Every day': [0, 1, 2, 3, 4, 5, 6],
 };
 
+const SCHEDULE_PRESETS: readonly SchedulePreset[] = ['Weekday', 'Weekend', 'Every day'];
+
+// Expand a schedule label to its day set. 'Custom' has no canonical set, so a
+// Custom label supplied WITHOUT days falls back to Weekday days (a Custom
+// schedule is only meaningful with an explicit days array).
+export function scheduleDays(schedule: ScheduleOption): readonly number[] {
+  return schedule === 'Custom' ? SCHEDULE_DAYS.Weekday : SCHEDULE_DAYS[schedule];
+}
+
 /**
  * Reconcile a days array against the SchedulePicker presets. Returns the
- * matching preset label or null when `days` is a custom combination
- * (e.g. Mon/Wed/Fri). Handlers should run this AFTER validating days +
- * schedule independently and overwrite the persisted label with the inferred
- * one — that way `{days:[1,2,3,4,5], schedule:'Every day'}` (LLM drift)
- * lands as `{days:[1,2,3,4,5], schedule:'Weekday'}`, and PlanReviewPage's
- * formatCadence(days) is faithful without consulting schedule.
+ * matching preset label, or 'Custom' when `days` is a non-empty custom
+ * combination (e.g. Mon/Wed/Fri), or null when `days` is empty. Handlers run
+ * this AFTER validating days + schedule and overwrite the persisted label with
+ * the inferred one — so `{days:[1,2,3,4,5], schedule:'Every day'}` (LLM drift)
+ * lands as Weekday, and a non-preset set is labeled 'Custom' rather than an
+ * LLM-supplied or default preset.
  */
 export function inferSchedule(days: readonly number[]): ScheduleOption | null {
   const key = [...days].sort((a, b) => a - b).join(',');
-  for (const opt of SCHEDULE_OPTIONS) {
+  for (const opt of SCHEDULE_PRESETS) {
     if ([...SCHEDULE_DAYS[opt]].sort((a, b) => a - b).join(',') === key) return opt;
+  }
+  return days.length > 0 ? 'Custom' : null;
+}
+
+// Legacy top-level `path` column values (readers on both lanes + frontend still
+// key off these). Render canon is 'beginner'|'advanced' — persisted to
+// data.path. Accept both on input; keep the column legacy, data.path canonical.
+export const PATH_OPTIONS = ['simple', 'braindump'] as const;
+export type PathOption = (typeof PATH_OPTIONS)[number];
+
+export const PATH_OPTIONS_CANONICAL = ['beginner', 'advanced'] as const;
+export type PathCanonical = (typeof PATH_OPTIONS_CANONICAL)[number];
+
+// beginner ≡ simple, advanced ≡ braindump.
+const CANONICAL_TO_LEGACY: Record<PathCanonical, PathOption> = {
+  beginner: 'simple',
+  advanced: 'braindump',
+};
+const LEGACY_TO_CANONICAL: Record<PathOption, PathCanonical> = {
+  simple: 'beginner',
+  braindump: 'advanced',
+};
+
+export function isPathValue(v: string): boolean {
+  return (
+    (PATH_OPTIONS as readonly string[]).includes(v) ||
+    (PATH_OPTIONS_CANONICAL as readonly string[]).includes(v)
+  );
+}
+
+// Boundary normalizer: canonical|legacy input -> {canonical, legacy}. Returns
+// null for unrecognized values (caller rejects).
+export function normalizePath(v: string): { canonical: PathCanonical; legacy: PathOption } | null {
+  if ((PATH_OPTIONS_CANONICAL as readonly string[]).includes(v)) {
+    const canonical = v as PathCanonical;
+    return { canonical, legacy: CANONICAL_TO_LEGACY[canonical] };
+  }
+  if ((PATH_OPTIONS as readonly string[]).includes(v)) {
+    const legacy = v as PathOption;
+    return { canonical: LEGACY_TO_CANONICAL[legacy], legacy };
   }
   return null;
 }
 
-export const PATH_OPTIONS = ['simple', 'braindump'] as const;
-export type PathOption = (typeof PATH_OPTIONS)[number];
+// True for the advanced lane, canonical-first with legacy fallback. Accepts a
+// value from either data.path (canonical) or the legacy column.
+export function isAdvancedPath(v: string | null | undefined): boolean {
+  return v === 'advanced' || v === 'braindump';
+}
 
 export const MAX_GOALS = 2;
 export const MAX_HABITS = 2;
@@ -364,7 +420,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     description:
       "Save the user's evening reflection schedule. DATA ONLY — does NOT advance to the next screen. Use `navigate_next(target_step=10)` AFTER this returns. " +
       'PRECONDITION: do NOT call this until the user has actually answered when they want their reflection. ' +
-      "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The reflection screen is the user's choice; do not bypass it. " +
+      "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day | Custom). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The reflection screen is the user's choice; do not bypass it. " +
       'DAILY-CADENCE WORDS ARE EXPLICIT INPUT, NOT A MISSING FIELD. If the user says "every day", "every night", "daily", "nightly", or "each night", that IS their days/schedule answer — call with days=[0,1,2,3,4,5,6] and schedule="Every day". Do NOT fall back to the Weekday default in that case; the Weekday-default rule below only applies when the user gave no cadence preference at all. ' +
       'Time examples: "around 9 PM" → time="21:00". "9:45 PM" → time="21:45". "half past nine at night" → time="21:30". Always convert PM hours to 24-hour by adding 12 (except 12 PM = "12:00"); AM hours keep their number (12 AM = "00:00"). ' +
       'Worked example: user says "every night around nine" → submit_reflection_config(time="21:00", days=[0,1,2,3,4,5,6], reminder=true, schedule="Every day"). ' +
@@ -433,7 +489,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     description:
       "Save the user's morning check-in schedule. DATA ONLY — does NOT advance to the next screen; chain navigate_next(target_step=9) AFTER this returns, in the same turn. " +
       'PRECONDITION: do NOT call this until the user has actually answered when they want their morning check-in. ' +
-      "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The morning-setup screen is the user's choice; do not bypass it. " +
+      "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day | Custom). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The morning-setup screen is the user's choice; do not bypass it. " +
       'DAILY-CADENCE WORDS ARE EXPLICIT INPUT, NOT A MISSING FIELD. If the user says "every day", "every morning", "daily", or "each day", that IS their days/schedule answer — call with days=[0,1,2,3,4,5,6] and schedule="Every day". Do NOT fall back to the Weekday default in that case; the Weekday-default rule below only applies when the user gave no cadence preference at all. ' +
       'Time examples: "around 7:30 in the morning" → time="07:30". "7 AM" → time="07:00". "half past six" → time="06:30". Always convert PM hours to 24-hour by adding 12 (except 12 PM = "12:00"); AM hours keep their number (12 AM = "00:00"). ' +
       'Worked example: user says "every day around 7:30" → submit_morning_checkin(time="07:30", days=[0,1,2,3,4,5,6], reminder=true, schedule="Every day"). ' +
