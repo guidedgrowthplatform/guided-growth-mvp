@@ -15,6 +15,9 @@ import {
 export { DEFAULT_PARAMS, DEFAULT_PULSE };
 export type { OrbParams, OrbStates, PulseParams };
 
+// The bottom-bar skin the tuner and app shell can switch between.
+export type BarStyle = 'white' | 'glass' | 'floating';
+
 // Named quick-fill presets, grouped by author. A preset is a partial set of
 // params applied to whichever state (idle or talking) is currently selected.
 // To add your own: add a block keyed by your name. Example at the bottom.

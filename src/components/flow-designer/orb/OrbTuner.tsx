@@ -11,6 +11,7 @@ import {
   saveParams,
   savePulse,
   saveSavedList,
+  type BarStyle,
   type OrbParams,
   type OrbStates,
   type PulseParams,
@@ -74,6 +75,7 @@ export interface OrbPreviewProps {
   mic: MutableRefObject<OrbMic>;
   screenBg: string;
   bgKey: string;
+  barStyle: BarStyle;
 }
 
 interface OrbTunerProps {
@@ -95,6 +97,7 @@ export function OrbTuner({ renderPreview }: OrbTunerProps = {}) {
   const [leftOn, setLeftOn] = useState(true);
   const [rightOn, setRightOn] = useState(true);
   const [micOn, setMicOn] = useState(false);
+  const [barStyle, setBarStyle] = useState<BarStyle>('white');
 
   const activeKey: 'idle' | 'talk' = editTab === 'idle' ? 'idle' : 'talk';
   const pickState = (k: OrbStateSel) => {
@@ -258,6 +261,7 @@ export function OrbTuner({ renderPreview }: OrbTunerProps = {}) {
         mic,
         screenBg: BGS[bg],
         bgKey: bg,
+        barStyle,
       })}
 
       <div className="ot-panel">
@@ -272,6 +276,18 @@ export function OrbTuner({ renderPreview }: OrbTunerProps = {}) {
                   : k === 'yellow'
                     ? 'App yellow'
                     : 'Dark'}
+            </button>
+          ))}
+        </div>
+        <div className="ot-row">
+          <span className="ot-lab">Bar</span>
+          {(['white', 'glass', 'floating'] as const).map((s) => (
+            <button
+              key={s}
+              className={`ot-btn${barStyle === s ? 'on' : ''}`}
+              onClick={() => setBarStyle(s)}
+            >
+              {s === 'white' ? 'White' : s === 'glass' ? 'Glass' : 'Floating'}
             </button>
           ))}
         </div>

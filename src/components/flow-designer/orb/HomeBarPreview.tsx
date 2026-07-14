@@ -1,7 +1,7 @@
 import { Icon } from '@iconify/react';
 import { type MutableRefObject } from 'react';
 import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from '@/components/orb/Orb';
-import type { OrbStates, PulseParams } from './orbPresets';
+import type { BarStyle, OrbStates, PulseParams } from './orbPresets';
 
 // The home bar canvas: a self-contained mockup of the app's bottom nav (the real
 // one is components/layout/BottomNav.tsx, which needs the router + voice
@@ -10,15 +10,30 @@ import type { OrbStates, PulseParams } from './orbPresets';
 // tuner's Background control, so you see the orb on the real app background. Build
 // and improve the bar around it here; keep the scoop path matched to BottomNav.
 
-function BarBackground() {
+// The scooped bar in two skins. White mirrors the real bar; Glass is the
+// glassmorph variant (translucent + backdrop blur) that matches the glass orb.
+function BarBackground({ glass }: { glass: boolean }) {
+  const glassFill = 'rgba(255,255,255,0.42)';
+  const sideStyle: React.CSSProperties | undefined = glass
+    ? {
+        background: glassFill,
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.55)',
+      }
+    : undefined;
   return (
     <div
       className="absolute inset-0 flex"
-      style={{ filter: 'drop-shadow(0px -4px 12px rgba(0,0,0,0.06))' }}
+      style={{
+        filter: glass
+          ? 'drop-shadow(0px -6px 18px rgba(20,30,60,0.14))'
+          : 'drop-shadow(0px -4px 12px rgba(0,0,0,0.06))',
+      }}
     >
-      <div className="h-full flex-1 bg-white" />
+      <div className={glass ? 'h-full flex-1' : 'h-full flex-1 bg-white'} style={sideStyle} />
       <svg
-        className="block h-full shrink-0 text-white"
+        className={glass ? 'block h-full shrink-0' : 'block h-full shrink-0 text-white'}
         width="140"
         height="72"
         viewBox="0 0 140 72"
@@ -26,10 +41,50 @@ function BarBackground() {
       >
         <path
           d="M0 0 L14 0 C17 0, 19 1, 20 4 C20 28, 42 50, 70 50 C98 50, 120 28, 120 4 C121 1, 123 0, 126 0 L140 0 L140 72 L0 72 Z"
-          fill="currentColor"
+          fill={glass ? glassFill : 'currentColor'}
         />
       </svg>
-      <div className="h-full flex-1 bg-white" />
+      <div className={glass ? 'h-full flex-1' : 'h-full flex-1 bg-white'} style={sideStyle} />
+    </div>
+  );
+}
+
+// The scoop bite masked out of the center piece only (same curve, filled white,
+// so as a mask it shows the piece everywhere except the bite).
+const FLOATING_SCOOP_MASK =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='72' viewBox='0 0 140 72' preserveAspectRatio='none'%3E%3Cpath d='M0 0 L14 0 C17 0 19 1 20 4 C20 28 42 50 70 50 C98 50 120 28 120 4 C121 1 123 0 126 0 L140 0 L140 72 L0 72 Z' fill='%23fff'/%3E%3C/svg%3E\")";
+
+// The third skin: a detached floating glass pill that keeps the scoop notch, so
+// the orb nestles into a dip. All three pieces share the same glass so seams are
+// invisible; only the center piece carries the scoop mask.
+function FloatingBarBackground() {
+  const glass: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.5)',
+    backdropFilter: 'blur(18px)',
+    WebkitBackdropFilter: 'blur(18px)',
+  };
+  return (
+    <div
+      className="absolute inset-x-4 bottom-2 top-0"
+      style={{ filter: 'drop-shadow(0 12px 32px rgba(20,30,60,0.18))' }}
+    >
+      <div className="absolute inset-0 flex overflow-hidden rounded-[32px]">
+        <div className="h-full flex-1" style={glass} />
+        <div
+          className="h-full shrink-0"
+          style={{
+            ...glass,
+            width: 140,
+            maskImage: FLOATING_SCOOP_MASK,
+            WebkitMaskImage: FLOATING_SCOOP_MASK,
+            maskSize: '100% 100%',
+            WebkitMaskSize: '100% 100%',
+            maskRepeat: 'no-repeat',
+            WebkitMaskRepeat: 'no-repeat',
+          }}
+        />
+        <div className="h-full flex-1" style={glass} />
+      </div>
     </div>
   );
 }
@@ -72,6 +127,8 @@ interface HomeBarPreviewProps {
   // The app screen background, mirrored from the tuner's Background control.
   screenBg: string;
   bgKey: string; // 'light' | 'blue' | 'yellow' | 'dark' (drives text contrast)
+  // Bar skin: solid white, glassmorph, or the detached floating pill.
+  barStyle?: BarStyle;
   // App-shell mode (optional). When `screen` is set, it replaces the home mock,
   // and `tabs` (4 entries) replaces the default nav tabs, so the same bar + orb
   // wrap a real feature screen with feature tabs.
@@ -90,6 +147,7 @@ export function HomeBarPreview({
   mic,
   screenBg,
   bgKey,
+  barStyle = 'white',
   screen,
   tabs,
   activeTab = 0,
@@ -97,6 +155,8 @@ export function HomeBarPreview({
   label = 'Home bar (live)',
 }: HomeBarPreviewProps) {
   const dark = bgKey === 'dark';
+  const glass = barStyle === 'glass';
+  const floating = barStyle === 'floating';
   const subText = dark ? 'text-white/60' : 'text-slate-500';
   const titleText = dark ? 'text-white' : 'text-slate-800';
   const itemText = dark ? 'text-white/90' : 'text-slate-700';
@@ -166,7 +226,7 @@ export function HomeBarPreview({
         {/* The home bar: scooped background, the live orb in the notch, four tabs. */}
         <div className="absolute inset-x-0 bottom-0">
           <div className="relative" style={{ height: 72 }}>
-            <BarBackground />
+            {floating ? <FloatingBarBackground /> : <BarBackground glass={glass} />}
             <div className="absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-1/2">
               <Orb
                 size={91}
