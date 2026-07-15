@@ -29,6 +29,15 @@ export const SESSION_LOG_EVENTS = [
   'onboarding_completed',
   'voice_preference_set',
   'user_returned',
+  // Screen Time coach contract (docs/screentime/coach-data-contract.md):
+  // payloads carry bands + GG-owned strings only — never app names or measured minutes.
+  'screentime_boundary_set',
+  'screentime_boundary_removed',
+  'screentime_boundary_state_changed',
+  'screentime_block_hit',
+  'screentime_override_chosen',
+  'screentime_break_started',
+  'screentime_break_ended',
 ] as const;
 
 export type SessionLogEvent = (typeof SESSION_LOG_EVENTS)[number];
