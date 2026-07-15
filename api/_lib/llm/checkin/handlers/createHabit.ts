@@ -1,3 +1,4 @@
+import { dbHabitType } from '@gg/shared';
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
 import { HABIT_NAME_MAX_LEN } from '../schemas.js';
@@ -49,11 +50,16 @@ export async function createHabit(
   if (existing) return invalid(`You already have a habit called "${existing.name}".`);
 
   const cadence = cadenceFromFrequency(frequency);
+  // Derive polarity from the habit NAME, not the LLM. For a predefined habit
+  // (e.g. "No caffeine after 2 PM") dbHabitType returns 'binary_break'; custom
+  // names fall through the shared regex. Never hardcode 'binary_build' here — a
+  // Break habit created via check-in must persist 'binary_break'.
+  const habitType = dbHabitType(name);
   const res = await pool.query<InsertedHabit>(
     `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, is_active, sort_order)
-     VALUES ($1, $2, 'binary_build', $3, $4, true, 9999)
+     VALUES ($1, $2, $3, $4, $5, true, 9999)
      RETURNING id, name, cadence, schedule_days`,
-    [ctx.anon_id, name, cadence, scheduleDays ?? null],
+    [ctx.anon_id, name, habitType, cadence, scheduleDays ?? null],
   );
   const row = res.rows[0];
 

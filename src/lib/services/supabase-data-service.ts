@@ -1,3 +1,4 @@
+import { dbHabitType } from '@gg/shared';
 import type { UserPreferences, Affirmation, OnboardingState } from '@gg/shared/types';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../supabase';
@@ -51,8 +52,11 @@ export class SupabaseDataService implements DataService {
       .from('user_habits')
       .insert({
         anon_id: anonId,
+        // Derive polarity from the habit NAME via @gg/shared so a Break habit
+        // (e.g. "No sugary drink after lunch") persists 'binary_break'. Never
+        // hardcode 'binary_build' here.
+        habit_type: dbHabitType(name),
         name,
-        habit_type: 'binary_build',
         cadence:
           frequency === 'daily'
             ? 'daily'

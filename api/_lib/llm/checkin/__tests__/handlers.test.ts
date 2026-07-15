@@ -90,6 +90,51 @@ describe('create_habit', () => {
     const r = await createHabit(CTX, { name: 'x', frequency: 'hourly' });
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
+
+  // Polarity persistence: habit_type is derived from the NAME via @gg/shared
+  // (dbHabitType), never hardcoded. The INSERT params are
+  // [anon_id, name, habit_type, cadence, schedule_days] so params[2] is habit_type.
+  it('persists binary_break for a predefined Break habit', async () => {
+    route([
+      [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
+      [
+        /INSERT INTO user_habits/,
+        { rows: [{ id: 'h1', name: 'No caffeine after 2 PM', cadence: 'daily', schedule_days: null }] },
+      ],
+    ]);
+    const r = await createHabit(CTX, { name: 'No caffeine after 2 PM' });
+    expect(r.ok).toBe(true);
+    const [, params] = lastCall(/INSERT INTO user_habits/);
+    expect(params[2]).toBe('binary_break');
+  });
+
+  it('persists binary_build for a predefined Build habit', async () => {
+    route([
+      [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
+      [
+        /INSERT INTO user_habits/,
+        { rows: [{ id: 'h2', name: 'Read 10 pages before bed', cadence: 'daily', schedule_days: null }] },
+      ],
+    ]);
+    const r = await createHabit(CTX, { name: 'Read 10 pages before bed' });
+    expect(r.ok).toBe(true);
+    const [, params] = lastCall(/INSERT INTO user_habits/);
+    expect(params[2]).toBe('binary_build');
+  });
+
+  it('persists binary_break for a custom avoidance name via the shared regex fallback', async () => {
+    route([
+      [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
+      [
+        /INSERT INTO user_habits/,
+        { rows: [{ id: 'h3', name: 'No doomscrolling in bed', cadence: 'daily', schedule_days: null }] },
+      ],
+    ]);
+    const r = await createHabit(CTX, { name: 'No doomscrolling in bed' });
+    expect(r.ok).toBe(true);
+    const [, params] = lastCall(/INSERT INTO user_habits/);
+    expect(params[2]).toBe('binary_break');
+  });
 });
 
 describe('complete_habit', () => {
