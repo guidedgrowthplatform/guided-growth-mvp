@@ -3,10 +3,11 @@ import type { AndroidBudgetInput, AndroidUsageRow } from '@/lib/services/screenT
 
 const PRESETS: { label: string; minutes: number | null }[] = [
   { label: 'None', minutes: null },
+  { label: '5m', minutes: 5 },
+  { label: '15m', minutes: 15 },
   { label: '30m', minutes: 30 },
   { label: '1h', minutes: 60 },
   { label: '2h', minutes: 120 },
-  { label: '3h', minutes: 180 },
 ];
 
 interface AndroidLimitsViewProps {
