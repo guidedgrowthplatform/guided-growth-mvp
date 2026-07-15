@@ -7,6 +7,7 @@ import { CoachChatProvider, useCoachChatLauncher } from '@/contexts/CoachChatCon
 import { CoachVoiceProvider } from '@/contexts/CoachVoiceProvider';
 import { useOpenCheckinCoach } from '@/hooks/useCheckinEntry';
 import type { CoachChatCloseInfo } from '@/lib/chat/coachChatTypes';
+import { VOICE_AGENT_AMBIENT } from '@/lib/config/voice';
 import { BottomNav } from './BottomNav';
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -70,7 +71,10 @@ function LayoutInner({ children }: { children: ReactNode }) {
           <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-6 z-20">
             <OpenChatButton onPress={openCheckinCoach} />
           </div>
-          <CoachSubtitleBar />
+          {/* v1 has no autonomous voice agent: the out-of-overlay coach subtitle
+              bar is an ambient-agent affordance, gated off until Pipecat lands.
+              The coach chat itself (Cartesia + Soniox I/O) is unaffected. */}
+          {VOICE_AGENT_AMBIENT && <CoachSubtitleBar />}
         </>
       )}
       <ToastContainer />

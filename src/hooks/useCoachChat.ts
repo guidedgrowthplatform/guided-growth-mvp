@@ -27,6 +27,7 @@ import {
   messageHasTodayHabits,
 } from '@/lib/chat/coachChatCards';
 import type { ChatMessage, CoachChatApi, VoiceChatState } from '@/lib/chat/coachChatTypes';
+import { VOICE_AGENT_AMBIENT } from '@/lib/config/voice';
 import {
   beginVoiceTurn,
   endVoiceTurn,
@@ -399,7 +400,15 @@ export function useCoachChat(
   //      cold-mint latency lets the VAD silence timer kill the connection
   //      before it reaches 'listening' → only partial transcripts arrive.
   //   3. `vapiStatus: 'idle'` (coach has no Vapi).
-  const voiceInActive = micOn;
+  //
+  // v1 has no autonomous voice agent: arm the Soniox mic ONLY while the chat
+  // overlay is open, so voice is an in-chat input method (the user can talk to
+  // the coach when the chat is up) rather than an ambient always-on agent that
+  // listens on Home before the overlay is ever opened. When VOICE_AGENT_AMBIENT
+  // is flipped on (Pipecat era), the original mic-armed-on-Home behaviour
+  // returns. Non-provider callers default overlayOpen=true, so their behaviour
+  // is unchanged.
+  const voiceInActive = micOn && (overlayOpen || VOICE_AGENT_AMBIENT);
 
   // Half-duplex: mic closed through the whole reply (union covers the
   // stream→synth→playback gaps) so coach TTS can't leak into a hot mic.

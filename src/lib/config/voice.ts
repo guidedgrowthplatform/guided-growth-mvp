@@ -22,12 +22,23 @@ const envString = (raw: string | undefined, fallback: string): string => {
 // Env-backed kill-switch; voice-in only. Remove once stable in prod.
 export const VOICE_IN_ENABLED = import.meta.env.VITE_STATE3_ENABLED === 'true';
 
+// ─── v1: no autonomous voice agent ──────────────────────────────────────────
+// v1 ships voice as Cartesia (coach TTS) + Soniox (user STT) I/O INSIDE the
+// coach chat only. It has NO autonomous voice agent (no Vapi, no Pipecat). The
+// ambient always-on affordances that make the app shell feel like a live agent
+// running in the background — the out-of-overlay coach subtitle bar, and the
+// mic-armed-on-Home continuous listening BEFORE the chat overlay is even open —
+// are gated here. OFF for v1; flip on (env VITE_VOICE_AGENT_AMBIENT=true, or
+// change the default here) when the Pipecat voice agent lands. This flag does
+// NOT gate Cartesia or Soniox in-chat I/O — the coach still speaks and the user
+// can still talk inside the open chat in both states.
+export const VOICE_AGENT_AMBIENT = import.meta.env.VITE_VOICE_AGENT_AMBIENT === 'true';
+
 // ─── Onboarding chat-native Vapi (full-duplex) ──────────────────────────────
 // Vapi is paused by default and only turned on via the QA toggle
 // (localStorage: gg_vapi_enabled). The env flag remains read here so the
 // rollout path stays visible, but it does not enable Vapi while paused.
-const ONBOARDING_CHAT_VAPI_ENV_REQUESTED =
-  import.meta.env.VITE_ONBOARDING_CHAT_VAPI === 'true';
+const ONBOARDING_CHAT_VAPI_ENV_REQUESTED = import.meta.env.VITE_ONBOARDING_CHAT_VAPI === 'true';
 const ONBOARDING_CHAT_VAPI_PAUSED_BY_DEFAULT = true;
 
 const readOnboardingChatVapi = (): boolean => {
