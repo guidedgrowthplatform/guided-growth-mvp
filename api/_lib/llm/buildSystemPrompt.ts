@@ -171,8 +171,12 @@ export async function buildSystemPromptForRequest(
   // single-turn slip ("I caved on no-news") isn't recorded as a win.
   const checkinHabitsBlock = isCheckin ? await buildCheckinHabitsBlock(args.anon_id) : '';
   // Real per-habit streaks for the evening celebration (Phase 2) and the free coach.
+  // Only on non-opener turns that carry a real timezone: an opener omits timezone, and
+  // a UTC fallback near the day boundary could celebrate the wrong number.
   const streakBlock =
-    args.screen_id === 'ECHECK-01' || args.screen_id === 'HOME-CHECKIN'
+    (args.screen_id === 'ECHECK-01' || args.screen_id === 'HOME-CHECKIN') &&
+    args.mode !== 'opener' &&
+    args.timezone
       ? await buildStreakBlock(args.anon_id, args.timezone)
       : '';
   // The evening reflection uses THIS USER'S configured questions (not hardcoded),
@@ -299,7 +303,9 @@ async function buildStreakBlock(anonId: string, timezone?: string): Promise<stri
     .map((h) => ({ name: h.name, streak: computeCurrentStreak(h.days, today) }))
     .filter((s) => s.streak >= 2);
   if (streaks.length === 0) return '';
-  const lines = streaks.map((s) => `- ${s.name}: ${s.streak} days in a row`).join('\n');
+  const lines = streaks
+    .map((s) => `- ${s.name.replace(/\s+/g, ' ').trim().slice(0, 80)}: ${s.streak} days in a row`)
+    .join('\n');
   return `\n\n## Streaks (real, from their log — use the exact number when you celebrate)\n${lines}`;
 }
 
