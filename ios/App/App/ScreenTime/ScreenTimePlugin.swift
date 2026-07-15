@@ -114,11 +114,12 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
 
     // MARK: - Coach bands (docs/screentime/coach-data-contract.md)
 
-    // Bands only — never app names, never measured minutes.
+    // Bands only — never app names, never measured minutes. iOS default is
+    // "unknown": absence of a threshold callback proves nothing.
     @objc func getBoundaryStates(_ call: CAPPluginCall) {
         let budgets = GGMon.loadBudgets()
         let today = GGMon.dayString()
-        // a bands dict from a previous day reads as kept (rollover not yet run)
+        // a bands dict from a previous day reads as unknown (rollover not yet run)
         let bands = GG.defaults?.string(forKey: GGMon.Keys.bandsDate) == today
             ? GGMon.loadBands() : [:]
         call.resolve([
@@ -128,11 +129,14 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
                 "limitMinutes": $0.minutes,
                 "window": "daily",
             ] },
-            "states": budgets.map { [
-                "boundaryId": $0.id,
-                "band": bands[$0.id] ?? "kept",
-                "date": today,
-            ] },
+            "states": budgets.map { budget -> [String: Any] in
+                let band = bands[budget.id] ?? "unknown"
+                var state: [String: Any] = [
+                    "boundaryId": budget.id, "band": band, "date": today,
+                ]
+                if band != "unknown" { state["evidenceSource"] = "threshold_event" }
+                return state
+            },
         ])
     }
 

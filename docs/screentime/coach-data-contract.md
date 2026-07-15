@@ -1,26 +1,37 @@
 # Screen Time — Uniform Coach Data Contract
 
-Status: 2026-07-15, v1 — locked against the iOS ceiling per Yair's get-started brief
-(gg-spec `docs/screentime-android-and-coach-getstarted-2026-07-15.md`). Android over-delivers
-into this same shape; nothing here requires data iOS cannot honestly supply.
+Status: 2026-07-15, v2 — aligned to the **BehaviorEpisode** model in gg-spec
+`docs/screentime-coach-data-system-and-windows-2026-07-15.md` (that doc GOVERNS; this is the
+implementation-side summary). Android over-delivers into the same shape; nothing here requires
+data iOS cannot honestly supply.
 
-**[v2 pending] — NOT locked here:** the exact iOS window strategy (which hours get the 20
-activity slots, stepped-threshold banding). This contract only fixes the _shape_ the coach
-consumes; the iOS emitter behind it can change windows without touching the contract.
+**iOS v1 = reliable signals only (Yair, 2026-07-15):** coach relies on GG-owned events (picks,
+labels, boundary config, block/override taps, reflections) + user report. The threshold-band
+channel is implemented and journals events (`evidence_source: threshold_event`) — but it is
+PROVE-ON-DEVICE gated instrumentation, NOT a v1 coach input. The coach may consume threshold
+bands only after the physical-device matrix validates them.
 
 ## The one rule
 
 **The coach receives boundary STATE, never measured minutes.** iOS cannot feed the coach raw
-usage numbers (report extension is sealed; tokens are opaque). So the shared baseline is an
-ordinal band per boundary:
+usage numbers (report extension is sealed; tokens are opaque). The shared band, with
+platform-asymmetric emission rules:
 
 ```
-kept → approaching → crossed        (resets to kept at the day/window rollover)
+on_track | approaching | crossed | kept | unknown
 ```
 
-Card copy maps 1:1: "on track" / "approaching" / "crossed". Do NOT put "47 of 60 min" on any
-coach-fed surface. Android reads real minutes via UsageStats and _reduces_ them to these bands
-before anything reaches the coach.
+- `crossed` / `approaching` — positively observed only (threshold fired / usage measured).
+- `on_track` — ONLY from Android real-usage observation or explicit user confirmation.
+  iOS NEVER emits it from callback silence.
+- `kept` — ONLY from a validated end-of-window signal (Android full-day evaluation) or a
+  GG-owned completion. Never inferred from silence.
+- `unknown` — no reliable signal. The iOS DEFAULT absent a positive threshold event.
+
+Every state/transition carries `evidence_source`: `threshold_event | android_usage | gg_owned |
+user_report`. Card copy: "on track / approaching / crossed"; `unknown` renders as a gentle
+non-claim ("no signal yet today"), never as success. Do NOT put "47 of 60 min" on any coach-fed
+surface; Android reduces real minutes to bands before anything reaches the coach.
 
 ## What the coach may receive (shared inputs, honest on BOTH platforms)
 
@@ -59,7 +70,7 @@ the same PR, staging DB must run the migration before events land):
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
 | `screentime_boundary_set`           | `boundary_id, kind ('app'\|'category'\|'selection'), limit_minutes, window ('daily'), label?, reason?` | user creates/edits a limit                                            |
 | `screentime_boundary_removed`       | `boundary_id`                                                                                          | user removes a limit                                                  |
-| `screentime_boundary_state_changed` | `boundary_id, band, previous_band, label?, date (YYYY-MM-DD)`                                          | band transition observed (drained on app-open/foreground on iOS)      |
+| `screentime_boundary_state_changed` | `boundary_id, band, previous_band, evidence_source, label?, date (YYYY-MM-DD)`                         | band transition observed (drained on app-open/foreground)             |
 | `screentime_block_hit`              | `boundary_id?, trigger ('usage_budget'\|'break'\|'pause')`                                             | user hits the wall (Android interstitial; iOS after ShieldAction ext) |
 | `screentime_override_chosen`        | `boundary_id?, choice ('close'\|'five_minutes'\|'change_plan')`                                        | choice made at the wall                                               |
 | `screentime_break_started`          | `minutes?` (0/absent = manual until ended)                                                             | GG break armed                                                        |
@@ -110,6 +121,9 @@ Android backs it by reducing UsageStats minutes against configured budgets.
 
 ## Android band emission (mechanics, v1)
 
-Read `UsageStatsManager` a few times a day + on app-open (not a live feed), sum foreground
-minutes per configured boundary, reduce: `< warn% → kept`, `≥ warn% → approaching`,
-`≥ 100% → crossed`. Same journal-drain → same events. Real minutes stop at the reducer.
+Read `UsageStatsManager` on app-open + every ~4h via WorkManager (not a live feed), sum
+foreground minutes per configured boundary, reduce: `< warn% → on_track`,
+`≥ warn% → approaching`, `≥ 100% → crossed`; `unknown` when the query is unavailable. At the
+first evaluation of a new day, yesterday's full window is re-evaluated and closed out —
+crossings journal under their own date, and a full-day observation under the limit journals a
+validated `kept`. Same journal-drain → same events. Real minutes stop at the reducer.

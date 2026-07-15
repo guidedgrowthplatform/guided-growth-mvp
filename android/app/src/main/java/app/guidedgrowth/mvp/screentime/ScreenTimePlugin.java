@@ -278,7 +278,9 @@ public class ScreenTimePlugin extends Plugin {
                 boundaries.put(boundary);
                 JSObject state = new JSObject();
                 state.put("boundaryId", id);
-                state.put("band", bands.optString(id, "kept"));
+                String band = bands.optString(id, "unknown");
+                state.put("band", band);
+                if (!"unknown".equals(band)) state.put("evidenceSource", "android_usage");
                 state.put("date", today);
                 states.put(state);
             }

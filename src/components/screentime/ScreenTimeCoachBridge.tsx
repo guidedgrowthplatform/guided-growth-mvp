@@ -22,6 +22,7 @@ export function ScreenTimeCoachBridge() {
             boundary_id: t.boundaryId,
             band: t.band,
             previous_band: t.previousBand,
+            evidence_source: t.evidenceSource,
             date: t.date,
           });
         }

@@ -53,16 +53,19 @@ enum GGMon {
         return arr.compactMap { try? JSONDecoder().decode(ActivityCategoryToken.self, from: $0) }
     }
 
-    // ── Coach band state (docs/screentime/coach-data-contract.md) ──
-    // Band per budget for today: kept → approaching → crossed. Escalate-only
-    // within a day; day rollover resets. Every change is journaled to bandLog
-    // for the app to drain into session_log — ids + bands only, never app
-    // names or measured minutes.
+    // ── Coach band state (BehaviorEpisode model — coach-data-contract.md) ──
+    // iOS emits ONLY positively-observed bands: unknown → approaching → crossed.
+    // NEVER kept/on_track from callback silence (threshold callbacks are
+    // version-fragile; PROVE-ON-DEVICE gated). Escalate-only within a day; day
+    // rollover clears to unknown without journaling a claim. Journal entries
+    // carry ids + bands only — never app names or measured minutes.
 
     static let warnSuffix = ".warn"
     static let warnFraction = 0.8 // approaching at 80% of the limit (tunable)
 
-    private static let bandRank = ["kept": 0, "approaching": 1, "crossed": 2]
+    private static let bandRank = [
+        "unknown": 0, "on_track": 1, "kept": 1, "approaching": 2, "crossed": 3,
+    ]
 
     static func dayString(_ date: Date = Date()) -> String {
         let f = DateFormatter()
@@ -80,17 +83,15 @@ enum GGMon {
         let today = dayString()
         if defaults?.string(forKey: Keys.bandsDate) != today { rolloverBands(to: today) }
         var bands = loadBands()
-        let previous = bands[id] ?? "kept"
+        let previous = bands[id] ?? "unknown"
         guard (bandRank[band] ?? 0) > (bandRank[previous] ?? 0) else { return }
         bands[id] = band
         defaults?.set(bands, forKey: Keys.bands)
         appendBandLog(id: id, band: band, previous: previous, date: today)
     }
 
+    // New day: clear only. iOS must not journal kept/on_track from silence.
     static func rolloverBands(to today: String = dayString()) {
-        for (id, band) in loadBands() where band != "kept" {
-            appendBandLog(id: id, band: "kept", previous: band, date: today)
-        }
         defaults?.set([String: String](), forKey: Keys.bands)
         defaults?.set(today, forKey: Keys.bandsDate)
     }
@@ -108,6 +109,7 @@ enum GGMon {
         var log = defaults?.array(forKey: Keys.bandLog) as? [[String: Any]] ?? []
         log.append([
             "boundaryId": id, "band": band, "previousBand": previous,
+            "evidenceSource": "threshold_event",
             "date": date, "at": Date().timeIntervalSince1970,
         ])
         if log.count > 200 { log.removeFirst(log.count - 200) }

@@ -151,14 +151,17 @@ final class GGScreenTime {
         return cal.getTimeInMillis();
     }
 
-    // ── Coach bands: same semantics as the iOS GGMon copy ──
-    // kept → approaching → crossed, escalate-only within a day, rollover
-    // resets, every change journaled for the JS drain.
+    // ── Coach bands (BehaviorEpisode model) ──
+    // Android observes real usage, so it MAY emit on_track (positively
+    // observed under the limit) and kept (validated end-of-window). unknown
+    // when the usage query is unavailable. Escalate-only within a day; every
+    // change journaled for the JS drain with evidenceSource=android_usage.
 
     private static int bandRank(String band) {
-        if ("crossed".equals(band)) return 2;
-        if ("approaching".equals(band)) return 1;
-        return 0;
+        if ("crossed".equals(band)) return 3;
+        if ("approaching".equals(band)) return 2;
+        if ("on_track".equals(band) || "kept".equals(band)) return 1;
+        return 0; // unknown
     }
 
     static JSONObject loadBands(Context ctx) {
@@ -179,10 +182,19 @@ final class GGScreenTime {
         String storedDate = p.getString(KEY_BANDS_DATE, null);
         if (!today.equals(storedDate)) {
             // close out yesterday first — a crossing that happened while GG
-            // stayed closed still gets journaled under its own date
+            // stayed closed still gets journaled under its own date, and a
+            // full-day observation under the limit becomes a validated `kept`
             long todayStart = startOfToday();
             if (dayString(new Date(todayStart - 1)).equals(storedDate)) {
                 evaluateWindow(ctx, todayStart - 86_400_000L, todayStart, storedDate);
+                JSONObject finals = loadBands(ctx);
+                for (java.util.Iterator<String> it = finals.keys(); it.hasNext(); ) {
+                    String id = it.next();
+                    String band = finals.getString(id);
+                    if ("on_track".equals(band)) {
+                        appendBandLog(ctx, id, "kept", band, storedDate);
+                    }
+                }
             }
             rolloverBands(ctx, today);
         }
@@ -205,9 +217,11 @@ final class GGScreenTime {
             String id = budget.getString("id");
             int limit = budget.getInt("minutes");
             long minutes = ms.getOrDefault(budget.getString("packageName"), 0L) / 60_000L;
+            // real observation: under the limit is positively on_track (never kept
+            // mid-day — kept needs the validated end-of-window pass above)
             String band = minutes >= limit ? "crossed"
-                : minutes >= Math.max(1, Math.round(limit * WARN_FRACTION)) ? "approaching" : "kept";
-            String previous = bands.optString(id, "kept");
+                : minutes >= Math.max(1, Math.round(limit * WARN_FRACTION)) ? "approaching" : "on_track";
+            String previous = bands.optString(id, "unknown");
             if (bandRank(band) > bandRank(previous)) {
                 bands.put(id, band);
                 appendBandLog(ctx, id, band, previous, date);
@@ -216,13 +230,9 @@ final class GGScreenTime {
         prefs(ctx).edit().putString(KEY_BANDS, bands.toString()).apply();
     }
 
-    static void rolloverBands(Context ctx, String today) throws JSONException {
-        JSONObject bands = loadBands(ctx);
-        for (java.util.Iterator<String> it = bands.keys(); it.hasNext(); ) {
-            String id = it.next();
-            String band = bands.getString(id);
-            if (!"kept".equals(band)) appendBandLog(ctx, id, "kept", band, today);
-        }
+    // New day: clear only — day-close `kept` is journaled by evaluateBands
+    // from the validated end-of-window pass, never inferred here.
+    static void rolloverBands(Context ctx, String today) {
         prefs(ctx).edit()
             .putString(KEY_BANDS, "{}")
             .putString(KEY_BANDS_DATE, today)
@@ -260,6 +270,7 @@ final class GGScreenTime {
         entry.put("boundaryId", id);
         entry.put("band", band);
         entry.put("previousBand", previous);
+        entry.put("evidenceSource", "android_usage");
         entry.put("date", date);
         entry.put("at", System.currentTimeMillis() / 1000.0);
         log.put(entry);
