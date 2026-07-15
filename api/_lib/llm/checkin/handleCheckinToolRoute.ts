@@ -4,11 +4,16 @@ import { validateTimezone } from '../../validation.js';
 import type { ToolResult } from '../tools.js';
 import { dispatchCheckinToolCall } from './dispatch.js';
 
-// Tap-driven check-in writes from the flow engine (mined from
-// feat/checkin-mp3-openers eed60219). Reuses the same record_checkin handler the
-// coach fires by voice. Allowlisted so this is not a generic 15-tool gateway
-// that bypasses per-screen tool gating.
-const TAP_ALLOWED_TOOLS = new Set(['record_checkin', 'complete_habit', 'log_reflection']);
+// Tap-driven check-in writes from the flow engine + Siri App Intents quick-log
+// (complete_habit / log_metric). Reuses the same handlers the coach fires by
+// voice. Allowlisted so this is not a generic 15-tool gateway that bypasses
+// per-screen tool gating.
+const TAP_ALLOWED_TOOLS = new Set([
+  'record_checkin',
+  'complete_habit',
+  'log_reflection',
+  'log_metric',
+]);
 
 export async function handleCheckinTool(
   req: VercelRequest,
