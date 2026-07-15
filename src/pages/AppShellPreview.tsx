@@ -1,3 +1,4 @@
+import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { type AppTab, HomeBarPreview } from '@/components/flow-designer/orb/HomeBarPreview';
@@ -43,19 +44,51 @@ function ResetTab() {
   );
 }
 
-// The "real app" shell: the 4 mandate features wired to a live bottom nav (the
-// same orb + White/Glass/Floating bar the tuner drives), so Yair can switch
-// navbar style and orb look while tapping between features -- one app, not a
-// storyboard. Reuses OrbTuner's full control panel via its renderPreview hook.
+// The "real app" shell: the 4 mandate features previewed on the SAME orb + bottom
+// bar the tuner drives, so Yair can switch navbar style and orb look while moving
+// between features. The feature switcher lives OUTSIDE the phone frame (a labelled
+// "Mockups" control), so the phone keeps its real canonical bottom nav and nobody
+// mistakes the preview switcher for a redesigned product bottom bar.
 // Cross-links: Screen Time's Set up opens the block flows; the Coach's per-habit
 // rows jump to the Calendar tab's Habit trends for that habit.
 
 const TABS: AppTab[] = [
-  { icon: 'ph:hourglass-medium-bold', label: 'Screen' },
-  { icon: 'ic:round-leaderboard', label: 'Coach' },
+  { icon: 'ph:hourglass-medium-bold', label: 'Screen Time' },
+  { icon: 'ic:round-leaderboard', label: 'Weekly Coach' },
   { icon: 'ic:round-calendar-month', label: 'Calendar' },
-  { icon: 'ph:waves-bold', label: 'Reset' },
+  { icon: 'ph:waves-bold', label: 'Reset Library' },
 ];
+
+// The out-of-frame preview switcher. Explicitly labelled so it reads as a preview
+// control, not a product bottom nav.
+function MockupSwitcher({ active, onPick }: { active: number; onPick: (i: number) => void }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <span
+        className="text-[11px] font-semibold uppercase"
+        style={{ color: '#8a92a8', letterSpacing: '.09em' }}
+      >
+        Mockups &middot; tap to switch screen
+      </span>
+      <div className="flex flex-wrap justify-center gap-1 rounded-full border border-border-light bg-surface p-1 shadow-card">
+        {TABS.map((t, i) => (
+          <button
+            key={t.label}
+            type="button"
+            onClick={() => onPick(i)}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold text-content-secondary"
+            style={
+              active === i ? { background: 'rgb(var(--color-primary))', color: '#fff' } : undefined
+            }
+          >
+            <Icon icon={t.icon} width={16} />
+            {t.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function AppShellPreview() {
   const [tab, setTab] = useState(0);
@@ -101,9 +134,7 @@ export function AppShellPreview() {
           {...p}
           label="App preview (live)"
           screen={screen}
-          tabs={TABS}
-          activeTab={tab}
-          onTabChange={goTab}
+          aboveFrame={<MockupSwitcher active={tab} onPick={goTab} />}
         />
       )}
     />

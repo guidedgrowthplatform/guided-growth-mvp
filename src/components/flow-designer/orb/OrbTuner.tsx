@@ -76,6 +76,9 @@ export interface OrbPreviewProps {
   screenBg: string;
   bgKey: string;
   barStyle: BarStyle;
+  // Orb overlay icons, per side. Off by default (canonical orb has none).
+  iconLeft: boolean;
+  iconRight: boolean;
 }
 
 interface OrbTunerProps {
@@ -94,8 +97,10 @@ export function OrbTuner({ renderPreview }: OrbTunerProps = {}) {
   const [style, setStyle] = useState<OrbTalkStyle>('full');
   const [bg, setBg] = useState<string>('blue');
   const [author, setAuthor] = useState<string>(Object.keys(AUTHOR_PRESETS)[0] ?? 'Yair');
-  const [leftOn, setLeftOn] = useState(true);
-  const [rightOn, setRightOn] = useState(true);
+  // Orb overlay icons: off by default so the orb matches canonical (Yair flagged
+  // the always-on chat/mic icons as a regression). Each side toggles on its own.
+  const [leftOn, setLeftOn] = useState(false);
+  const [rightOn, setRightOn] = useState(false);
   const [micOn, setMicOn] = useState(false);
   const [barStyle, setBarStyle] = useState<BarStyle>('white');
 
@@ -262,6 +267,8 @@ export function OrbTuner({ renderPreview }: OrbTunerProps = {}) {
         screenBg: BGS[bg],
         bgKey: bg,
         barStyle,
+        iconLeft: leftOn,
+        iconRight: rightOn,
       })}
 
       <div className="ot-panel">
@@ -297,6 +304,32 @@ export function OrbTuner({ renderPreview }: OrbTunerProps = {}) {
               onClick={() => setBarStyle(s)}
             >
               {s === 'white' ? 'White' : s === 'glass' ? 'Glass' : 'Floating'}
+            </button>
+          ))}
+        </div>
+        <div className="ot-row">
+          <span className="ot-lab">Orb icons</span>
+          {(
+            [
+              ['Chat (left)', leftOn, () => setLeftOn((v) => !v)],
+              ['Mic (right)', rightOn, () => setRightOn((v) => !v)],
+            ] as const
+          ).map(([lab, on, toggle]) => (
+            <button
+              key={lab}
+              className={`ot-btn${on ? 'on' : ''}`}
+              style={
+                on
+                  ? {
+                      background: 'rgb(var(--color-primary))',
+                      color: '#fff',
+                      borderColor: 'transparent',
+                    }
+                  : undefined
+              }
+              onClick={toggle}
+            >
+              {lab}
             </button>
           ))}
         </div>

@@ -151,6 +151,9 @@ interface HomeBarPreviewProps {
   bgKey: string; // 'light' | 'blue' | 'yellow' | 'dark' (drives text contrast)
   // Bar skin: the current solid white, or the glassmorph variant.
   barStyle: BarStyle;
+  // Orb overlay icons, per side. Off by default so the orb matches canonical.
+  iconLeft?: boolean;
+  iconRight?: boolean;
   // App-shell mode (optional). When `screen` is set, it replaces the home mock,
   // and `tabs` (4 entries) replaces the default nav tabs, so the same bar + orb
   // wrap a real feature screen with feature tabs.
@@ -159,6 +162,9 @@ interface HomeBarPreviewProps {
   activeTab?: number;
   onTabChange?: (i: number) => void;
   label?: string;
+  // Rendered above the phone frame (e.g. the app preview's "Mockups" switcher),
+  // so preview-only chrome stays OUTSIDE the phone's real bottom nav.
+  aboveFrame?: React.ReactNode;
 }
 
 export function HomeBarPreview({
@@ -170,11 +176,14 @@ export function HomeBarPreview({
   screenBg,
   bgKey,
   barStyle,
+  iconLeft = false,
+  iconRight = false,
   screen,
   tabs,
   activeTab = 0,
   onTabChange,
   label = 'Home bar (live)',
+  aboveFrame,
 }: HomeBarPreviewProps) {
   const dark = bgKey === 'dark';
   const glass = barStyle === 'glass';
@@ -188,6 +197,13 @@ export function HomeBarPreview({
   const itemText = dark ? 'text-white/90' : 'text-slate-700';
   const card = dark ? 'bg-white/10' : 'bg-white/60';
   const block = dark ? 'bg-white/15' : 'bg-white/50';
+  // Each side is null unless its toggle is on, so by default the orb renders
+  // clean (matches canonical). This is what removes Yair's "icons on the orb"
+  // regression, while still letting either side be switched on to preview it.
+  const overlayIcons = {
+    left: iconLeft ? <IconChatText size={24} /> : null,
+    right: iconRight ? <IconMic size={24} /> : null,
+  };
   return (
     <div className="flex flex-col items-center gap-3">
       <div
@@ -196,6 +212,7 @@ export function HomeBarPreview({
       >
         {label}
       </div>
+      {aboveFrame}
       {/* iPhone 17 Pro logical frame: 402 x 874 pt, so the bar spacing reads
           exactly like the real phone instead of a squeezed mock. */}
       <div
@@ -276,7 +293,7 @@ export function HomeBarPreview({
                 pulse={pulse}
                 mic={mic}
                 flat
-                overlayIcons={{ left: <IconChatText size={24} />, right: <IconMic size={24} /> }}
+                overlayIcons={overlayIcons}
               />
             </div>
             <div
