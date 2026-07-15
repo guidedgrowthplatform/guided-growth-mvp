@@ -14,6 +14,7 @@ import { READ_OPTIONS_ON_REQUEST_RULE } from './readOptionsOnRequestRule.js';
 import {
   CHECKIN_TOOL_ADDENDUM,
   CHECKIN_READONLY_ADDENDUM,
+  HABIT_COACHING_RULES,
   buildEveningWalkthrough,
   buildEveningOpener,
   buildMorningOpener,
@@ -145,6 +146,12 @@ export async function buildSystemPromptForRequest(
   // Opener turn calls no mutating tools — the tool-usage addendum is noise that
   // can push the opener toward premature writes.
   const checkinNudge = isCheckin && args.mode !== 'opener' ? `\n\n${CHECKIN_TOOL_ADDENDUM}` : '';
+  // Habit operating rules (Phase 0): only the FREE coach surface (HOME-CHECKIN),
+  // never the scripted MCHECK/ECHECK flows, which stay verbatim.
+  const habitRulesBlock =
+    args.screen_id === 'HOME-CHECKIN' && args.mode !== 'opener'
+      ? `\n\n${HABIT_COACHING_RULES}`
+      : '';
   // Read-only screens excludes the dedicated 3, so this never co-emits with checkinNudge.
   const readonlyNudge = isReadOnlyCheckinScreen(args.screen_id)
     ? `\n\n${CHECKIN_READONLY_ADDENDUM}`
@@ -192,7 +199,7 @@ export async function buildSystemPromptForRequest(
   const weeklyDayBlock = buildWeeklyDayRecommendBlock(args.screen_id, args.timezone);
 
   return {
-    systemPrompt: `${coachingPreamble}${onboardingGlobalBlock}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}\n\n${READ_OPTIONS_ON_REQUEST_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${upcomingEventsBlock}${alreadyFilledBlock}${optionsBlock}${weeklyDayBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${onboardingGlobalBlock}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}\n\n${READ_OPTIONS_ON_REQUEST_RULE}${onboardingNudge}${checkinNudge}${habitRulesBlock}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${upcomingEventsBlock}${alreadyFilledBlock}${optionsBlock}${weeklyDayBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
