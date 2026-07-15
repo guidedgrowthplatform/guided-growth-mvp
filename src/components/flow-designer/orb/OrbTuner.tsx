@@ -285,6 +285,15 @@ export function OrbTuner({ renderPreview }: OrbTunerProps = {}) {
             <button
               key={s}
               className={`ot-btn${barStyle === s ? 'on' : ''}`}
+              style={
+                barStyle === s
+                  ? {
+                      background: 'rgb(var(--color-primary))',
+                      color: '#fff',
+                      borderColor: 'transparent',
+                    }
+                  : undefined
+              }
               onClick={() => setBarStyle(s)}
             >
               {s === 'white' ? 'White' : s === 'glass' ? 'Glass' : 'Floating'}

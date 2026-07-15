@@ -59,16 +59,19 @@ const FLOATING_SCOOP_MASK =
 // invisible; only the center piece carries the scoop mask.
 function FloatingBarBackground() {
   const glass: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.5)',
+    background: 'rgba(255,255,255,0.62)',
     backdropFilter: 'blur(18px)',
     WebkitBackdropFilter: 'blur(18px)',
   };
   return (
     <div
-      className="absolute inset-x-4 bottom-2 top-0"
-      style={{ filter: 'drop-shadow(0 12px 32px rgba(20,30,60,0.18))' }}
+      className="absolute inset-x-5 bottom-3 top-0"
+      style={{ filter: 'drop-shadow(0 14px 34px rgba(20,30,60,0.28))' }}
     >
-      <div className="absolute inset-0 flex overflow-hidden rounded-[32px]">
+      <div
+        className="absolute inset-0 flex overflow-hidden rounded-[32px]"
+        style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.8)' }}
+      >
         <div className="h-full flex-1" style={glass} />
         <div
           className="h-full shrink-0"
