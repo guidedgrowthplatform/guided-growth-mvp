@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-const { computeCurrentStreak, prevCalendarDay } = await import('../buildSystemPrompt.js');
+const { streakEndingAt, prevCalendarDay } = await import('../buildSystemPrompt.js');
 
 describe('prevCalendarDay', () => {
   it('steps back one calendar day', () => {
@@ -17,35 +17,37 @@ describe('prevCalendarDay', () => {
   });
 });
 
-describe('computeCurrentStreak', () => {
-  const today = '2026-07-16';
+// streakEndingAt counts consecutive 'done' days ending EXACTLY at the anchor day.
+// The streak block passes YESTERDAY as the anchor (the run "through yesterday"), and
+// the coach adds today only when the user confirms they did the habit today.
+describe('streakEndingAt', () => {
   const set = (...days: string[]) => new Set(days);
+  const yesterday = '2026-07-15';
 
-  it('returns 0 for no completions', () => {
-    expect(computeCurrentStreak(set(), today)).toBe(0);
+  it('returns 0 when the anchor day itself is not done', () => {
+    expect(streakEndingAt(set('2026-07-13', '2026-07-14'), yesterday)).toBe(0);
+    expect(streakEndingAt(set(), yesterday)).toBe(0);
   });
-  it('returns 1 for only today', () => {
-    expect(computeCurrentStreak(set(today), today)).toBe(1);
+  it('returns 1 when only the anchor day is done', () => {
+    expect(streakEndingAt(set(yesterday), yesterday)).toBe(1);
   });
-  it('counts consecutive days ending today', () => {
-    expect(computeCurrentStreak(set('2026-07-14', '2026-07-15', today), today)).toBe(3);
+  it('counts consecutive days ending at the anchor', () => {
+    expect(streakEndingAt(set('2026-07-13', '2026-07-14', yesterday), yesterday)).toBe(3);
   });
-  it('counts from yesterday when today is not yet done', () => {
-    expect(computeCurrentStreak(set('2026-07-14', '2026-07-15'), today)).toBe(2);
+  it('stops at the first gap below the anchor', () => {
+    // yesterday + day-before-yesterday missing → run is just the anchor
+    expect(streakEndingAt(set(yesterday, '2026-07-13'), yesterday)).toBe(1);
   });
-  it('returns 0 when neither today nor yesterday is done', () => {
-    expect(computeCurrentStreak(set('2026-07-13', '2026-07-12'), today)).toBe(0);
+  it('ignores completions after the anchor (today is added by the coach, not here)', () => {
+    // today (07-16) done should NOT extend the through-yesterday count
+    expect(streakEndingAt(set('2026-07-14', yesterday, '2026-07-16'), yesterday)).toBe(2);
   });
-  it('stops at the first gap', () => {
-    // today done, yesterday missing → streak is just today
-    expect(computeCurrentStreak(set(today, '2026-07-14'), today)).toBe(1);
+  it('counts a run crossing a month boundary', () => {
+    expect(streakEndingAt(set('2026-02-27', '2026-02-28'), '2026-02-28')).toBe(2);
+    expect(streakEndingAt(set('2025-12-31', '2026-01-01'), '2026-01-01')).toBe(2);
   });
-  it('handles a positive-UTC-offset today string correctly (pure-string, tz-independent)', () => {
-    // A Kiritimati (UTC+14) user whose "today" is already resolved to 2026-07-16.
-    // The old noon-UTC bug returned 0 here; the pure helper returns 2.
-    expect(computeCurrentStreak(set('2026-07-15', '2026-07-16'), '2026-07-16')).toBe(2);
-  });
-  it('counts a streak crossing a month boundary', () => {
-    expect(computeCurrentStreak(set('2026-02-27', '2026-02-28', '2026-03-01'), '2026-03-01')).toBe(3);
+  it('is tz-independent (pure string), so a positive-offset anchor works', () => {
+    // A Kiritimati (UTC+14) user whose resolved yesterday is 2026-07-15.
+    expect(streakEndingAt(set('2026-07-14', '2026-07-15'), '2026-07-15')).toBe(2);
   });
 });

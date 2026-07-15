@@ -261,17 +261,12 @@ export function prevCalendarDay(day: string): string {
   return base.toISOString().slice(0, 10);
 }
 
-// Current streak: consecutive 'done' days ending today, or yesterday if today is
-// not yet done. Pure and string-based — no timezone or DST math happens here; the
-// caller resolves `today` in the user's timezone (via todayStr) and passes it in.
-export function computeCurrentStreak(doneDays: Set<string>, today: string): number {
-  let cursor: string | null = doneDays.has(today)
-    ? today
-    : doneDays.has(prevCalendarDay(today))
-      ? prevCalendarDay(today)
-      : null;
-  if (cursor === null) return 0;
+// Consecutive 'done' days ending EXACTLY at `day` (0 if `day` itself is not done).
+// Pure and string-based — no timezone or DST math here; the caller resolves the
+// anchor date in the user's timezone (via todayStr) and passes it in.
+export function streakEndingAt(doneDays: Set<string>, day: string): number {
   let n = 0;
+  let cursor = day;
   while (doneDays.has(cursor)) {
     n++;
     cursor = prevCalendarDay(cursor);
@@ -279,9 +274,13 @@ export function computeCurrentStreak(doneDays: Set<string>, today: string): numb
   return n;
 }
 
-// Current per-habit streak from the REAL completion log, so the evening coach can
-// celebrate a streak with an accurate number. Grouped by habit id (not name) so two
-// habits can never merge into a false streak. Only streaks of 2+ are surfaced.
+// Per-habit streak from the REAL completion log, so the evening coach can celebrate
+// with an accurate number. Grouped by habit id (not name) so two habits can never
+// merge. We report the run THROUGH YESTERDAY plus the "including today" total,
+// because the system prompt is built once per turn, BEFORE this turn's complete_habit
+// runs — computing "current including today" here would be stale (one too low) the
+// moment the user marks today done. Through-yesterday is stable within the turn, and
+// the coach adds today only when the user confirms they did it today.
 async function buildStreakBlock(anonId: string, timezone?: string): Promise<string> {
   const res = await pool.query<{ id: string; name: string; date: string }>(
     `SELECT h.id AS id, h.name AS name, c.date::text AS date
@@ -294,19 +293,28 @@ async function buildStreakBlock(anonId: string, timezone?: string): Promise<stri
   );
   if (res.rowCount === 0) return '';
   const today = todayStr(timezone || 'UTC');
+  const yesterday = prevCalendarDay(today);
   const byId = new Map<string, { name: string; days: Set<string> }>();
   for (const r of res.rows) {
     if (!byId.has(r.id)) byId.set(r.id, { name: r.name, days: new Set() });
     byId.get(r.id)!.days.add(r.date.slice(0, 10));
   }
   const streaks = [...byId.values()]
-    .map((h) => ({ name: h.name, streak: computeCurrentStreak(h.days, today) }))
-    .filter((s) => s.streak >= 2);
+    .map((h) => ({ name: h.name, through: streakEndingAt(h.days, yesterday) }))
+    .filter((s) => s.through >= 1);
   if (streaks.length === 0) return '';
   const lines = streaks
-    .map((s) => `- ${s.name.replace(/\s+/g, ' ').trim()}: ${s.streak} days in a row`)
+    .map(
+      (s) =>
+        `- ${s.name.replace(/\s+/g, ' ').trim()}: ${s.through} in a row through yesterday (${s.through + 1} including today)`,
+    )
     .join('\n');
-  return `\n\n## Streaks (real, from their log — use the exact number when you celebrate)\n${lines}`;
+  return (
+    `\n\n## Streaks (from their real log)\n` +
+    `Each line shows the run through yesterday and, in parentheses, the total INCLUDING today. ` +
+    `Use the "including today" number ONLY if the user actually did the habit today; if they did not, there is no current streak to celebrate.\n` +
+    lines
+  );
 }
 
 // The user's current reflection mode + prompts, so the coach (a) walks the right
