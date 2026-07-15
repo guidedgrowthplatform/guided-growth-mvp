@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
 import { type MutableRefObject } from 'react';
+import { IconChatText, IconMic } from '@/components/icons';
 import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from '@/components/orb/Orb';
 import type { BarStyle, OrbStates, PulseParams } from './orbPresets';
 
@@ -10,8 +11,11 @@ import type { BarStyle, OrbStates, PulseParams } from './orbPresets';
 // tuner's Background control, so you see the orb on the real app background. Build
 // and improve the bar around it here; keep the scoop path matched to BottomNav.
 
-// The scooped bar in two skins. White mirrors the real bar; Glass is the
-// glassmorph variant (translucent + backdrop blur) that matches the glass orb.
+// The scooped bar background in two skins. White mirrors the REAL bar
+// (layout/BottomNav.tsx NavBarBackground) 1:1: bg-surface fills + text-surface
+// scoop svg + the same drop shadow. Glass is the glassmorph variant (translucent
+// + backdrop blur + hairline highlight) that matches the glass orb. The scoop
+// path itself is identical in both.
 function BarBackground({ glass }: { glass: boolean }) {
   const glassFill = 'rgba(255,255,255,0.42)';
   const sideStyle: React.CSSProperties | undefined = glass
@@ -31,9 +35,9 @@ function BarBackground({ glass }: { glass: boolean }) {
           : 'drop-shadow(0px -4px 12px rgba(0,0,0,0.06))',
       }}
     >
-      <div className={glass ? 'h-full flex-1' : 'h-full flex-1 bg-white'} style={sideStyle} />
+      <div className={glass ? 'h-full flex-1' : 'h-full flex-1 bg-surface'} style={sideStyle} />
       <svg
-        className={glass ? 'block h-full shrink-0' : 'block h-full shrink-0 text-white'}
+        className={glass ? 'block h-full shrink-0' : 'block h-full shrink-0 text-surface'}
         width="140"
         height="72"
         viewBox="0 0 140 72"
@@ -44,34 +48,44 @@ function BarBackground({ glass }: { glass: boolean }) {
           fill={glass ? glassFill : 'currentColor'}
         />
       </svg>
-      <div className={glass ? 'h-full flex-1' : 'h-full flex-1 bg-white'} style={sideStyle} />
+      <div className={glass ? 'h-full flex-1' : 'h-full flex-1 bg-surface'} style={sideStyle} />
     </div>
   );
 }
 
-// The scoop bite masked out of the center piece only (same curve, filled white,
-// so as a mask it shows the piece everywhere except the bite).
+// Hex -> rgba, for tinting the bar with the orb's side colors.
+function hexA(hex: string, a: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16) || 0;
+  const g = parseInt(h.slice(2, 4), 16) || 0;
+  const b = parseInt(h.slice(4, 6), 16) || 0;
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// The scoop bite masked out of the CENTER piece only. The path is the
+// "bar minus the scoop bite" silhouette (same curve the other skins draw) filled
+// white, so as a mask it shows the piece everywhere EXCEPT the bite.
 const FLOATING_SCOOP_MASK =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='72' viewBox='0 0 140 72' preserveAspectRatio='none'%3E%3Cpath d='M0 0 L14 0 C17 0 19 1 20 4 C20 28 42 50 70 50 C98 50 120 28 120 4 C121 1 123 0 126 0 L140 0 L140 72 L0 72 Z' fill='%23fff'/%3E%3C/svg%3E\")";
 
-// The third skin: a detached floating glass pill that keeps the scoop notch, so
-// the orb nestles into a dip. All three pieces share the same glass so seams are
-// invisible; only the center piece carries the scoop mask.
+// The third bar skin: a detached floating glass pill that KEEPS the scoop notch,
+// so the orb still nestles into a dip instead of floating over a flat edge.
+// Three pieces, but ALL THREE share the identical translucent + backdrop-blur
+// glass, so their boundaries are invisible (the earlier version left the center
+// piece un-blurred, which showed as vertical seams). Only the fixed-width center
+// piece carries the scoop mask; the ends round via overflow + border-radius.
 function FloatingBarBackground() {
   const glass: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.62)',
+    background: 'rgba(255,255,255,0.5)',
     backdropFilter: 'blur(18px)',
     WebkitBackdropFilter: 'blur(18px)',
   };
   return (
     <div
-      className="absolute inset-x-5 bottom-3 top-0"
-      style={{ filter: 'drop-shadow(0 14px 34px rgba(20,30,60,0.28))' }}
+      className="absolute inset-x-4 bottom-2 top-0"
+      style={{ filter: 'drop-shadow(0 12px 32px rgba(20,30,60,0.18))' }}
     >
-      <div
-        className="absolute inset-0 flex overflow-hidden rounded-[32px]"
-        style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.8)' }}
-      >
+      <div className="absolute inset-0 flex overflow-hidden rounded-[32px]">
         <div className="h-full flex-1" style={glass} />
         <div
           className="h-full shrink-0"
@@ -92,22 +106,27 @@ function FloatingBarBackground() {
   );
 }
 
+// Mirrors the real NavTab (layout/BottomNav.tsx): active tab is text-primary,
+// inactive is text-content-tertiary. On the glass bar over a dark background the
+// inactive tone lightens so it stays readable; active stays primary.
 function Tab({
   icon,
   label,
   isActive,
+  tone,
   onClick,
 }: {
   icon: string;
   label: string;
   isActive?: boolean;
+  tone: string;
   onClick?: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-center justify-end ${isActive ? 'text-primary' : 'text-slate-400'}`}
+      className={`flex flex-col items-center justify-end ${isActive ? 'text-primary' : tone}`}
     >
       <Icon icon={icon} width={24} />
       <span className="mt-0.5 text-[10px] font-bold">{label}</span>
@@ -115,7 +134,7 @@ function Tab({
   );
 }
 
-// A feature tab in app-shell mode.
+// A feature tab in app-shell mode: same look as Tab, driven by a tabs array.
 export interface AppTab {
   icon: string;
   label: string;
@@ -130,8 +149,8 @@ interface HomeBarPreviewProps {
   // The app screen background, mirrored from the tuner's Background control.
   screenBg: string;
   bgKey: string; // 'light' | 'blue' | 'yellow' | 'dark' (drives text contrast)
-  // Bar skin: solid white, glassmorph, or the detached floating pill.
-  barStyle?: BarStyle;
+  // Bar skin: the current solid white, or the glassmorph variant.
+  barStyle: BarStyle;
   // App-shell mode (optional). When `screen` is set, it replaces the home mock,
   // and `tabs` (4 entries) replaces the default nav tabs, so the same bar + orb
   // wrap a real feature screen with feature tabs.
@@ -150,7 +169,7 @@ export function HomeBarPreview({
   mic,
   screenBg,
   bgKey,
-  barStyle = 'white',
+  barStyle,
   screen,
   tabs,
   activeTab = 0,
@@ -160,6 +179,10 @@ export function HomeBarPreview({
   const dark = bgKey === 'dark';
   const glass = barStyle === 'glass';
   const floating = barStyle === 'floating';
+  const glassy = glass || floating;
+  // Inactive-tab tone. White bar = the real bar's text-content-tertiary; on the
+  // glassy bars the app background shows through, so the tone follows it.
+  const tabTone = glassy ? (dark ? 'text-white/75' : 'text-slate-500') : 'text-content-tertiary';
   const subText = dark ? 'text-white/60' : 'text-slate-500';
   const titleText = dark ? 'text-white' : 'text-slate-800';
   const itemText = dark ? 'text-white/90' : 'text-slate-700';
@@ -173,20 +196,21 @@ export function HomeBarPreview({
       >
         {label}
       </div>
+      {/* iPhone 17 Pro logical frame: 402 x 874 pt, so the bar spacing reads
+          exactly like the real phone instead of a squeezed mock. */}
       <div
-        className="relative overflow-hidden rounded-[44px]"
+        className="relative overflow-hidden rounded-[55px]"
         style={{
-          width: 340,
-          height: 720,
+          width: 402,
+          height: 874,
           background: screenBg,
           boxShadow: '0 18px 50px rgba(20,30,60,.28)',
-          border: '6px solid #0b0e16',
         }}
       >
         {/* App-shell mode: a real feature screen fills the phone, scrolling under
             the bar. Otherwise the home content mock renders as before. */}
         {screen ? (
-          <div className="h-full overflow-y-auto" style={{ paddingBottom: 110 }}>
+          <div className="h-full overflow-y-auto" style={{ paddingBottom: 118 }}>
             {screen}
           </div>
         ) : (
@@ -230,6 +254,19 @@ export function HomeBarPreview({
         <div className="absolute inset-x-0 bottom-0">
           <div className="relative" style={{ height: 72 }}>
             {floating ? <FloatingBarBackground /> : <BarBackground glass={glass} />}
+            {/* Glow bleed: while a side talks, the bar borrows the orb's color
+                as a soft gradient rising from the notch, so nav and orb read as
+                one piece. Fades out at idle. */}
+            <div
+              className="pointer-events-none absolute left-1/2 top-0 z-40 -translate-x-1/2"
+              style={{
+                width: 240,
+                height: '100%',
+                background: `radial-gradient(130px 80px at 50% 0%, ${hexA(orbState === 'user' ? '#dc9612' : '#135bec', 0.3)}, transparent 72%)`,
+                opacity: orbState === 'idle' ? 0 : 1,
+                transition: 'opacity 0.5s ease',
+              }}
+            />
             <div className="absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-1/2">
               <Orb
                 size={91}
@@ -239,21 +276,30 @@ export function HomeBarPreview({
                 pulse={pulse}
                 mic={mic}
                 flat
+                overlayIcons={{ left: <IconChatText size={24} />, right: <IconMic size={24} /> }}
               />
             </div>
-            <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
+            <div
+              className={
+                floating
+                  ? 'relative grid h-full grid-cols-5 items-center px-6 pb-2'
+                  : 'relative grid h-full grid-cols-5 items-end px-6 pb-2'
+              }
+            >
               {tabs ? (
                 <>
                   <Tab
                     icon={tabs[0].icon}
                     label={tabs[0].label}
                     isActive={activeTab === 0}
+                    tone={tabTone}
                     onClick={() => onTabChange?.(0)}
                   />
                   <Tab
                     icon={tabs[1].icon}
                     label={tabs[1].label}
                     isActive={activeTab === 1}
+                    tone={tabTone}
                     onClick={() => onTabChange?.(1)}
                   />
                   <div />
@@ -261,25 +307,42 @@ export function HomeBarPreview({
                     icon={tabs[2].icon}
                     label={tabs[2].label}
                     isActive={activeTab === 2}
+                    tone={tabTone}
                     onClick={() => onTabChange?.(2)}
                   />
                   <Tab
                     icon={tabs[3].icon}
                     label={tabs[3].label}
                     isActive={activeTab === 3}
+                    tone={tabTone}
                     onClick={() => onTabChange?.(3)}
                   />
                 </>
               ) : (
                 <>
-                  <Tab icon="ic:round-home" label="Home" />
-                  <Tab icon="ic:round-leaderboard" label="Progress" />
+                  <Tab icon="ic:round-home" label="Home" isActive tone={tabTone} />
+                  <Tab icon="ic:round-leaderboard" label="Progress" tone={tabTone} />
                   <div />
-                  <Tab icon="mingcute:stopwatch-fill" label="Focus" />
-                  <Tab icon="ic:round-person" label="Profile" />
+                  <Tab icon="mingcute:stopwatch-fill" label="Focus" tone={tabTone} />
+                  <Tab icon="ic:round-person" label="Profile" tone={tabTone} />
                 </>
               )}
             </div>
+          </div>
+          {/* Safe-area strip. The real bar uses env(safe-area-inset-bottom); in
+              this mock we emulate the iPhone's 34pt home-indicator inset so the
+              bar sits exactly like it does on the phone. */}
+          <div
+            className={glassy ? 'relative' : 'relative bg-surface'}
+            style={{
+              height: 34,
+              ...(glass ? { background: 'rgba(255,255,255,0.42)' } : {}),
+            }}
+          >
+            <div
+              className="absolute bottom-2 left-1/2 h-[5px] w-[134px] -translate-x-1/2 rounded-full bg-slate-900/70"
+              aria-hidden="true"
+            />
           </div>
         </div>
       </div>
