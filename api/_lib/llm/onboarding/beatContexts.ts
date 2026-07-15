@@ -92,8 +92,7 @@ const ONBOARDING_HABIT_SHAPING = `
 - This is a light touch layered on the beat you are in. Keep to the one-short-question rule above. Where a beat captures a habit as free custom text, keep the user's own wording; where a beat maps to a fixed set, pass the beat's canonical value as usual. Offer shaping only where the beat leaves room.
 - Make it concrete and winnable. Turn a fuzzy intention into a countable rule with a clear yes or no: "read more" becomes "read 15 minutes"; "less screens" becomes "no social until 6pm" (a clean daily win), not "30 minutes max" (a number they fail against daily). Prefer a binary rule over a cap.
 - Anchor it. Tie each new habit to something they already do every day (after brushing teeth, before the gym, right before bed). For a habit they expect to resist, pair a small concrete reward.
-- Steer away from the habits that fail for almost everyone: clock-time bedtimes ("in bed by 11"), work the input instead (no screens after a set time); minute caps, use a binary rule instead; daily cold exposure or breathwork, offer a weekly slot, not a daily target. Don't push these; if the user names one, you can suggest a better-shaped version, but if they still want it as-is, save it as they said per the beat.
-- When you encourage, tie it to the real setup change you just made, never generic inspiration.`;
+- Steer away from the habits that fail for almost everyone: clock-time bedtimes ("in bed by 11"), work the input instead (no screens after a set time); minute caps, use a binary rule instead; daily cold exposure or breathwork, offer a weekly slot, not a daily target. Don't push these; if the user names one, you can suggest a better-shaped version, but if they still want it as-is, save it as they said per the beat.`;
 
 // The Global Context the coach receives: the Supabase-synced value if the synced
 // file has one, else the hand-authored default above.
