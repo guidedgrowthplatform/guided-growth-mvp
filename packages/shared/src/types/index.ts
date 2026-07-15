@@ -39,9 +39,13 @@ export interface AuthErrorBody {
 export type InputType = 'binary' | 'numeric' | 'short_text' | 'text';
 export type Frequency = 'daily' | 'weekdays' | 'weekends' | 'weekly';
 
-// Habit polarity. 'binary_do' = success when done (gym). 'binary_avoid' =
-// success when abstained (no news). Same win/miss calendar; only framing differs.
-export type HabitType = 'binary_do' | 'binary_avoid';
+// Habit polarity. CANONICAL values are 'binary_build' (build: do more of it,
+// success when done, e.g. gym) and 'binary_break' (break: stay away from it,
+// success when abstained, e.g. no news). 'binary_do' / 'binary_avoid' are the
+// LEGACY spellings kept for tolerance during the do/avoid -> build/break
+// migration (043_rename_habit_polarity.sql; new writes derive via dbHabitType).
+// Same win/miss calendar; only framing differs.
+export type HabitType = 'binary_build' | 'binary_break' | 'binary_do' | 'binary_avoid';
 
 // 'pending' = no completion row; stored rows are 'done' | 'missed'.
 export type HabitDayStatus = 'pending' | 'done' | 'missed';

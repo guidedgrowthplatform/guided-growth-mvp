@@ -111,7 +111,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     } else if (reps >= 7) {
       milestoneDays = 7;
       speak(
-        habit?.habitType === 'binary_avoid'
+        habit?.habitType === 'binary_avoid' || habit?.habitType === 'binary_break'
           ? "One week. You stayed clean seven days in a row. That's not luck \u2014 that's you."
           : "One week. You showed up seven days in a row. That's not luck \u2014 that's you.",
       );
@@ -162,7 +162,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
   }
 
   const milestones = buildMilestones(stats.totalRepetitions);
-  const isAvoid = habit.habitType === 'binary_avoid';
+  const isAvoid = habit.habitType === 'binary_avoid' || habit.habitType === 'binary_break';
 
   return (
     <BottomSheet

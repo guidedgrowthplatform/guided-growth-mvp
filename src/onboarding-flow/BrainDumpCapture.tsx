@@ -51,8 +51,9 @@ function leadPolarity(name: string): Polarity {
 }
 
 function habitTypeToPolarity(h: ApiParsedHabit): Polarity | undefined {
-  if (h.habitType === 'binary_avoid') return 'negative';
-  if (h.habitType === 'binary_do') return 'positive';
+  // Canonical build/break plus legacy do/avoid, tolerated during the migration.
+  if (h.habitType === 'binary_break' || h.habitType === 'binary_avoid') return 'negative';
+  if (h.habitType === 'binary_build' || h.habitType === 'binary_do') return 'positive';
   return undefined;
 }
 

@@ -28,7 +28,7 @@ export async function queryHabits(
       habit: {
         name: habit.name,
         frequency: habit.cadence,
-        type: habit.habit_type === 'binary_avoid' ? 'avoid' : 'do',
+        type: habit.habit_type === 'binary_avoid' || habit.habit_type === 'binary_break' ? 'avoid' : 'do',
         completed_today: row?.completed_today ?? false,
         completions_last_30_days: row?.last_30 ?? 0,
       },
@@ -58,7 +58,7 @@ export async function queryHabits(
     habits: rows.map((r) => ({
       name: r.name,
       frequency: r.cadence,
-      type: r.habit_type === 'binary_avoid' ? 'avoid' : 'do',
+      type: r.habit_type === 'binary_avoid' || r.habit_type === 'binary_break' ? 'avoid' : 'do',
     })),
     count: rows.length,
   });

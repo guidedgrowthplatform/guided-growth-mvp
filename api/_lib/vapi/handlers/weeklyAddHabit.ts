@@ -17,12 +17,12 @@
  * X-Vapi-Secret; identity arrives as `anon_id` injected by Vapi from static
  * call params.
  */
+import { dbHabitType } from '@gg/shared';
 import pool, { type Queryable } from '../../db.js';
 import {
   FREQUENCY_OPTIONS,
   HABIT_NAME_MAX_LEN,
   type FrequencyOption,
-  type HabitTypeOption,
 } from '../../llm/tools.weekly.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -109,9 +109,6 @@ export async function weeklyAddHabit(
     }
   }
 
-  const habitTypeRaw = getString(args, 'habit_type');
-  const habitType: HabitTypeOption = habitTypeRaw === 'binary_avoid' ? 'binary_avoid' : 'binary_do';
-
   const existing = await db.query<{ name: string }>(
     `SELECT name FROM user_habits
       WHERE anon_id = $1 AND name ILIKE $2 AND is_active = true AND archived_at IS NULL
@@ -124,6 +121,9 @@ export async function weeklyAddHabit(
   }
 
   const cadence = cadenceFromFrequency(frequency);
+  // Polarity comes from the habit NAME via the shared catalog/regex, never from
+  // an LLM-supplied habit_type, so a Break habit persists 'binary_break'.
+  const habitType = dbHabitType(name);
   const result = await db.query(
     `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, is_active, sort_order)
      VALUES ($1, $2, $3, $4, $5::int[], true, 9999)
