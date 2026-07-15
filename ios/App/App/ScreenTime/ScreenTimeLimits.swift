@@ -126,11 +126,20 @@ enum GGArming {
         )
         var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
         for budget in budgets {
-            events[DeviceActivityEvent.Name(budget.id)] = DeviceActivityEvent(
-                applications: budget.token.map { Set([$0]) } ?? [],
-                categories: budget.category.map { Set([$0]) } ?? [],
-                threshold: DateComponents(minute: budget.minutes)
-            )
+            let apps = budget.token.map { Set([$0]) } ?? []
+            let cats = budget.category.map { Set([$0]) } ?? []
+            let threshold = DateComponents(minute: budget.minutes)
+            if #available(iOS 17.4, *) {
+                // count today's usage so far — an already-exceeded budget trips immediately
+                events[DeviceActivityEvent.Name(budget.id)] = DeviceActivityEvent(
+                    applications: apps, categories: cats,
+                    threshold: threshold, includesPastActivity: true
+                )
+            } else {
+                events[DeviceActivityEvent.Name(budget.id)] = DeviceActivityEvent(
+                    applications: apps, categories: cats, threshold: threshold
+                )
+            }
         }
         do {
             try center.startMonitoring(

@@ -167,6 +167,7 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             })
             let controller = UIHostingController(rootView: view)
             controller.modalPresentationStyle = .fullScreen
+            controller.overrideUserInterfaceStyle = .light
             host = controller
             presenter.present(controller, animated: true)
         }
@@ -261,6 +262,7 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             })
             let controller = UIHostingController(rootView: view)
             controller.modalPresentationStyle = .formSheet
+            controller.overrideUserInterfaceStyle = .light
             host = controller
             presenter.present(controller, animated: true)
         }
