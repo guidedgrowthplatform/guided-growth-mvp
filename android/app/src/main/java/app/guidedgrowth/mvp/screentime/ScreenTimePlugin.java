@@ -152,6 +152,11 @@ public class ScreenTimePlugin extends Plugin {
             for (int i = 0; i < incoming.length(); i++) {
                 JSONObject in = incoming.getJSONObject(i);
                 String pkg = in.getString("packageName");
+                int minutes = in.getInt("minutes");
+                if (minutes < 1 || minutes > 24 * 60) {
+                    call.reject("Limits must be between 1 minute and 24 hours.");
+                    return;
+                }
                 String id = in.optString("id", "");
                 if (id.isEmpty()) id = existingIdFor(existing, pkg);
                 if (id.isEmpty()) id = UUID.randomUUID().toString();
@@ -164,6 +169,8 @@ public class ScreenTimePlugin extends Plugin {
             }
             GGScreenTime.saveBudgets(ctx, budgets);
             GGScreenTime.pruneBands(ctx, ids);
+            if (budgets.length() > 0) BandEvalWorker.schedule(ctx);
+            else BandEvalWorker.cancel(ctx);
             JSObject ret = new JSObject();
             ret.put("budgetCount", budgets.length());
             call.resolve(ret);
@@ -213,11 +220,13 @@ public class ScreenTimePlugin extends Plugin {
         }
         String range = call.getString("range", "today");
         long end = System.currentTimeMillis();
-        long start = "week".equals(range)
-            ? GGScreenTime.startOfToday() - 6L * 24 * 60 * 60 * 1000
-            : GGScreenTime.startOfToday();
         Set<String> selection = GGScreenTime.loadSelection(ctx);
-        java.util.Map<String, Long> ms = GGScreenTime.foregroundMillis(ctx, selection, start, end);
+        // today: precise event reconstruction; week: daily-bucket aggregates
+        // (event detail is only retained by the system for a few days)
+        java.util.Map<String, Long> ms = "week".equals(range)
+            ? GGScreenTime.aggregateForegroundMillis(
+                ctx, selection, GGScreenTime.startOfToday() - 6L * 24 * 60 * 60 * 1000, end)
+            : GGScreenTime.foregroundMillis(ctx, selection, GGScreenTime.startOfToday(), end);
         PackageManager pm = ctx.getPackageManager();
         JSArray rows = new JSArray();
         long total = 0;
@@ -300,8 +309,19 @@ public class ScreenTimePlugin extends Plugin {
 
     @PluginMethod
     public void disable(PluginCall call) {
+        BandEvalWorker.cancel(getContext());
         GGScreenTime.prefs(getContext()).edit().clear().apply();
         call.resolve();
+    }
+
+    // Re-arm the periodic evaluator after app update/reinstall (KEEP policy —
+    // no-op when already scheduled).
+    @Override
+    public void load() {
+        super.load();
+        if (GGScreenTime.loadBudgets(getContext()).length() > 0) {
+            BandEvalWorker.schedule(getContext());
+        }
     }
 
     private static String iconBase64(PackageManager pm, ApplicationInfo app) {

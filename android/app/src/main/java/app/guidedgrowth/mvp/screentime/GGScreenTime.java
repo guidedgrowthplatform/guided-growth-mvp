@@ -90,6 +90,7 @@ final class GGScreenTime {
         if (usm == null) return totals;
         UsageEvents events = usm.queryEvents(start, end);
         Map<String, Long> openedAt = new HashMap<>();
+        Map<String, Integer> openDepth = new HashMap<>();
         UsageEvents.Event event = new UsageEvents.Event();
         int resumed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
             ? UsageEvents.Event.ACTIVITY_RESUMED : UsageEvents.Event.MOVE_TO_FOREGROUND;
@@ -101,19 +102,42 @@ final class GGScreenTime {
             if (pkg == null || !packages.contains(pkg)) continue;
             int type = event.getEventType();
             if (type == resumed) {
-                // multiple activities of one app: keep the earliest open time
-                if (!openedAt.containsKey(pkg)) openedAt.put(pkg, event.getTimeStamp());
+                // depth counter: split-screen/multi-activity of one app = one session
+                int depth = openDepth.getOrDefault(pkg, 0);
+                if (depth == 0) openedAt.put(pkg, event.getTimeStamp());
+                openDepth.put(pkg, depth + 1);
             } else if (type == paused) {
-                Long open = openedAt.remove(pkg);
-                if (open != null) {
-                    long ms = Math.max(0, event.getTimeStamp() - open);
-                    totals.put(pkg, totals.getOrDefault(pkg, 0L) + ms);
+                int depth = openDepth.getOrDefault(pkg, 0);
+                if (depth <= 0) continue; // session opened before `start` — resume unseen
+                openDepth.put(pkg, depth - 1);
+                if (depth == 1) {
+                    Long open = openedAt.remove(pkg);
+                    if (open != null) {
+                        long ms = Math.max(0, event.getTimeStamp() - open);
+                        totals.put(pkg, totals.getOrDefault(pkg, 0L) + ms);
+                    }
                 }
             }
         }
         for (Map.Entry<String, Long> stillOpen : openedAt.entrySet()) {
             long ms = Math.max(0, end - stillOpen.getValue());
             totals.put(stillOpen.getKey(), totals.getOrDefault(stillOpen.getKey(), 0L) + ms);
+        }
+        return totals;
+    }
+
+    // Long ranges (week): daily-bucket aggregates — queryEvents detail is only
+    // retained for a few days, so event reconstruction under-reports there.
+    static Map<String, Long> aggregateForegroundMillis(
+            Context ctx, Set<String> packages, long start, long end) {
+        Map<String, Long> totals = new HashMap<>();
+        UsageStatsManager usm = (UsageStatsManager) ctx.getSystemService(Context.USAGE_STATS_SERVICE);
+        if (usm == null) return totals;
+        Map<String, android.app.usage.UsageStats> stats = usm.queryAndAggregateUsageStats(start, end);
+        for (Map.Entry<String, android.app.usage.UsageStats> entry : stats.entrySet()) {
+            if (packages.contains(entry.getKey())) {
+                totals.put(entry.getKey(), entry.getValue().getTotalTimeInForeground());
+            }
         }
         return totals;
     }
@@ -145,22 +169,35 @@ final class GGScreenTime {
         }
     }
 
-    // Reads today's usage, reduces every budget to a band, journals changes.
-    // Called from getBoundaryStates + drainBoundaryTransitions (app-open /
-    // foreground cadence — not a live feed).
+    // Reads usage, reduces every budget to a band, journals changes. Called
+    // from getBoundaryStates/drainBoundaryTransitions (app-open cadence) and
+    // BandEvalWorker (every ~4h in the background) — not a live feed.
     static void evaluateBands(Context ctx) throws JSONException {
         if (!usageAccessGranted(ctx)) return;
         String today = dayString(new Date());
         SharedPreferences p = prefs(ctx);
-        if (!today.equals(p.getString(KEY_BANDS_DATE, null))) rolloverBands(ctx, today);
+        String storedDate = p.getString(KEY_BANDS_DATE, null);
+        if (!today.equals(storedDate)) {
+            // close out yesterday first — a crossing that happened while GG
+            // stayed closed still gets journaled under its own date
+            long todayStart = startOfToday();
+            if (dayString(new Date(todayStart - 1)).equals(storedDate)) {
+                evaluateWindow(ctx, todayStart - 86_400_000L, todayStart, storedDate);
+            }
+            rolloverBands(ctx, today);
+        }
+        evaluateWindow(ctx, startOfToday(), System.currentTimeMillis(), today);
+    }
 
+    private static void evaluateWindow(Context ctx, long start, long end, String date)
+            throws JSONException {
         JSONArray budgets = loadBudgets(ctx);
         if (budgets.length() == 0) return;
         Set<String> packages = new HashSet<>();
         for (int i = 0; i < budgets.length(); i++) {
             packages.add(budgets.getJSONObject(i).getString("packageName"));
         }
-        Map<String, Long> ms = foregroundMillis(ctx, packages, startOfToday(), System.currentTimeMillis());
+        Map<String, Long> ms = foregroundMillis(ctx, packages, start, end);
 
         JSONObject bands = loadBands(ctx);
         for (int i = 0; i < budgets.length(); i++) {
@@ -173,10 +210,10 @@ final class GGScreenTime {
             String previous = bands.optString(id, "kept");
             if (bandRank(band) > bandRank(previous)) {
                 bands.put(id, band);
-                appendBandLog(ctx, id, band, previous, today);
+                appendBandLog(ctx, id, band, previous, date);
             }
         }
-        p.edit().putString(KEY_BANDS, bands.toString()).apply();
+        prefs(ctx).edit().putString(KEY_BANDS, bands.toString()).apply();
     }
 
     static void rolloverBands(Context ctx, String today) throws JSONException {
