@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { dbHabitType } from '@gg/shared';
 import {
   DEFAULT_REFLECTION_PROMPTS,
   type HabitType,
@@ -83,15 +84,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (habitConfigs) {
         let sortOrder = 0;
         for (const [name, config] of Object.entries(habitConfigs)) {
-          // Trust the explicit per-habit signal only. A category heuristic
-          // ("Break bad habits") mislabels positive replacement habits (e.g.
-          // "10-minute walk") as avoid; default to binary_do instead.
-          const habitType: HabitType =
-            config.habitType === 'binary_avoid' ? 'binary_avoid' : 'binary_do';
+          // Polarity is derived from the habit NAME via the shared catalog/regex,
+          // not from config.habitType (an LLM/category guess). A predefined Break
+          // habit ("No caffeine after 2 PM") persists 'binary_break'; a positive
+          // replacement habit ("10-minute walk") stays 'binary_build'. On a
+          // re-onboarding conflict we refresh habit_type too, so a corrected
+          // polarity overwrites the earlier row.
+          const habitType = dbHabitType(name);
           await client.query(
             `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, reminder_time, reminder_enabled, sort_order)
              VALUES ($1, $2, $3, 'daily', $4, $5, $6, $7)
              ON CONFLICT (anon_id, name) DO UPDATE SET
+               habit_type = EXCLUDED.habit_type,
                schedule_days = EXCLUDED.schedule_days,
                reminder_time = EXCLUDED.reminder_time,
                reminder_enabled = EXCLUDED.reminder_enabled,

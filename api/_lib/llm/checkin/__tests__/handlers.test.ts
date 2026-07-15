@@ -92,21 +92,76 @@ describe('create_habit', () => {
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
 
-  it('persists binary_avoid when habit_type is avoid', async () => {
+  // Polarity is derived from the habit NAME via @gg/shared, never from the
+  // LLM-supplied habit_type. See dbHabitType in packages/shared.
+  it('persists binary_break for a predefined Break habit', async () => {
     route([
       [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
       [
         /INSERT INTO user_habits/,
-        { rows: [{ id: 'h1', name: 'no news', cadence: 'daily', schedule_days: null }] },
+        {
+          rows: [
+            { id: 'h1', name: 'No caffeine after 2 PM', cadence: 'daily', schedule_days: null },
+          ],
+        },
       ],
     ]);
-    const r = await createHabit(CTX, { name: 'no news', habit_type: 'binary_avoid' });
+    const r = await createHabit(CTX, { name: 'No caffeine after 2 PM' });
     expect(r.ok).toBe(true);
     const [, params] = lastCall(/INSERT INTO user_habits/);
-    expect(params[2]).toBe('binary_avoid');
+    expect(params[2]).toBe('binary_break');
   });
 
-  it('defaults to binary_do when habit_type is omitted', async () => {
+  it('persists binary_build for a predefined Build habit', async () => {
+    route([
+      [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
+      [
+        /INSERT INTO user_habits/,
+        {
+          rows: [
+            { id: 'h1', name: 'Read 10 pages before bed', cadence: 'daily', schedule_days: null },
+          ],
+        },
+      ],
+    ]);
+    const r = await createHabit(CTX, { name: 'Read 10 pages before bed' });
+    expect(r.ok).toBe(true);
+    const [, params] = lastCall(/INSERT INTO user_habits/);
+    expect(params[2]).toBe('binary_build');
+  });
+
+  it('ignores an LLM-supplied habit_type and derives from the name', async () => {
+    route([
+      [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
+      [
+        /INSERT INTO user_habits/,
+        {
+          rows: [
+            { id: 'h1', name: 'No caffeine after 2 PM', cadence: 'daily', schedule_days: null },
+          ],
+        },
+      ],
+    ]);
+    // The LLM lies (says binary_do); the name is a Break habit, so we persist break.
+    await createHabit(CTX, { name: 'No caffeine after 2 PM', habit_type: 'binary_do' });
+    const [, params] = lastCall(/INSERT INTO user_habits/);
+    expect(params[2]).toBe('binary_break');
+  });
+
+  it('derives binary_break for a custom avoidance name via the regex fallback', async () => {
+    route([
+      [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
+      [
+        /INSERT INTO user_habits/,
+        { rows: [{ id: 'h1', name: 'no doomscrolling', cadence: 'daily', schedule_days: null }] },
+      ],
+    ]);
+    await createHabit(CTX, { name: 'no doomscrolling' });
+    const [, params] = lastCall(/INSERT INTO user_habits/);
+    expect(params[2]).toBe('binary_break');
+  });
+
+  it('derives binary_build for a custom positive name via the regex fallback', async () => {
     route([
       [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
       [
@@ -116,7 +171,7 @@ describe('create_habit', () => {
     ]);
     await createHabit(CTX, { name: 'gym' });
     const [, params] = lastCall(/INSERT INTO user_habits/);
-    expect(params[2]).toBe('binary_do');
+    expect(params[2]).toBe('binary_build');
   });
 });
 

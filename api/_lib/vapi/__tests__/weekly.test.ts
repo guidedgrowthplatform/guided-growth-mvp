@@ -215,19 +215,21 @@ describe('weeklyAddHabit', () => {
     const [sql, params] = pool.query.mock.calls[1];
     expect(sql).toMatch(/INSERT INTO user_habits/);
     expect(sql).not.toMatch(/onboarding_states/);
-    expect(params).toEqual([ANON, 'Stretch', 'binary_do', 'once_a_week', null]);
+    // 'Stretch' is a Build habit -> binary_build (derived from the name).
+    expect(params).toEqual([ANON, 'Stretch', 'binary_build', 'once_a_week', null]);
   });
 
-  it('defaults habit_type to binary_do, accepts binary_avoid', async () => {
+  it('derives habit_type from the name and ignores an LLM-supplied habit_type', async () => {
     pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
     pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'h9' }] });
+    // The LLM says binary_do; the name is an avoidance habit, so we persist break.
     await weeklyAddHabit({
       anon_id: ANON,
       name: 'No caffeine after 2pm',
-      habit_type: 'binary_avoid',
+      habit_type: 'binary_do',
     });
     const params = pool.query.mock.calls[1][1] as unknown[];
-    expect(params[2]).toBe('binary_avoid');
+    expect(params[2]).toBe('binary_break');
   });
 });
 

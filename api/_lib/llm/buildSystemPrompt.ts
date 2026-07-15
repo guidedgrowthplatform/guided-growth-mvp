@@ -224,7 +224,10 @@ async function buildCheckinHabitsBlock(anonId: string): Promise<string> {
   );
   if (res.rowCount === 0) return '';
   const lines = res.rows
-    .map((r) => `- ${r.name} — ${r.habit_type === 'binary_avoid' ? 'avoid' : 'do'}`)
+    .map(
+      (r) =>
+        `- ${r.name} — ${r.habit_type === 'binary_avoid' || r.habit_type === 'binary_break' ? 'avoid' : 'do'}`,
+    )
     .join('\n');
   return (
     `\n\n## Active Habits (polarity)\n` +

@@ -45,7 +45,7 @@ export async function completeHabit(
     habit: {
       id: habit.id,
       name: habit.name,
-      type: habit.habit_type === 'binary_avoid' ? 'avoid' : 'do',
+      type: habit.habit_type === 'binary_avoid' || habit.habit_type === 'binary_break' ? 'avoid' : 'do',
     },
     dates: completed,
   });

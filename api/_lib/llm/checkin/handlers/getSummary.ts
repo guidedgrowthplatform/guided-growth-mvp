@@ -41,7 +41,7 @@ export async function getSummary(ctx: CheckinHandlerCtx): Promise<ToolResult> {
     journal_entries: row?.journals ?? 0,
     habits: habitsRes.rows.map((r) => ({
       name: r.name,
-      type: r.habit_type === 'binary_avoid' ? 'avoid' : 'do',
+      type: r.habit_type === 'binary_avoid' || r.habit_type === 'binary_break' ? 'avoid' : 'do',
     })),
   });
 }
