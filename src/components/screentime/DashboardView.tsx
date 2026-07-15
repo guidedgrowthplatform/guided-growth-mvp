@@ -90,7 +90,7 @@ export function DashboardView({
 
       {nativeUsage ? (
         // real numbers, rendered on-device by the sandboxed report extension
-        <NativeUsageCard range={range} height={380} />
+        <NativeUsageCard range={range} height={480} />
       ) : (
         <>
           <div className="flex flex-col gap-1 text-center">

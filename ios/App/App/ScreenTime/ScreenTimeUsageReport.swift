@@ -9,20 +9,23 @@ extension DeviceActivityReport.Context {
 }
 
 enum GGReportFilter {
-    // range: "today" | "week"
+    // range: "today" | "week". Today uses HOURLY segments across yesterday+today
+    // (extension derives the by-hour chart + the vs-yesterday delta); week uses
+    // 7 daily segments. The extension infers the mode from segment duration.
     static func make(range: String) -> DeviceActivityFilter {
         let selection = ScreenTimePlugin.loadSelection() ?? FamilyActivitySelection()
         let cal = Calendar.current
         let now = Date()
-        let interval: DateInterval
+        let segment: DeviceActivityFilter.SegmentInterval
         if range == "week" {
             let start = cal.date(byAdding: .day, value: -6, to: cal.startOfDay(for: now))!
-            interval = DateInterval(start: start, end: now)
+            segment = .daily(during: DateInterval(start: start, end: now))
         } else {
-            interval = DateInterval(start: cal.startOfDay(for: now), end: now)
+            let start = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: now))!
+            segment = .hourly(during: DateInterval(start: start, end: now))
         }
         return DeviceActivityFilter(
-            segment: .daily(during: interval),
+            segment: segment,
             users: .all,
             devices: .init([.iPhone]),
             applications: selection.applicationTokens,

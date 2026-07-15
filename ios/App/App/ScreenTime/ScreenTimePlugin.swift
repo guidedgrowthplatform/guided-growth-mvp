@@ -200,8 +200,7 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
                 host.overrideUserInterfaceStyle = .light
                 host.view.layer.cornerRadius = 16
                 host.view.layer.masksToBounds = true
-                // display-only: let touches fall through so page scrolling works over the card
-                host.view.isUserInteractionEnabled = false
+                // interactive: the card's app list scrolls; page scrolls outside the card
                 container.addChild(host)
                 container.view.addSubview(host.view)
                 host.didMove(toParent: container)
