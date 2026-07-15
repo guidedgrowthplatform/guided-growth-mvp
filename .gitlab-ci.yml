@@ -99,6 +99,7 @@ deploy_preview:
       --secret id=envfile,src=$PREVIEW_ENV_FILE
       --build-arg VITE_PUBLIC_WEB_ORIGIN=https://$PREVIEW_HOST
       --build-arg VITE_APP_VERSION=$CI_COMMIT_SHORT_SHA
+      --build-arg ENVFILE_SHA=$(sha256sum $PREVIEW_ENV_FILE | cut -d' ' -f1)
       -t gg-preview:$CI_COMMIT_REF_SLUG .
     - docker rm -f gg-preview-$CI_COMMIT_REF_SLUG 2>/dev/null || true
     # Source the env (shell parses quotes/multiline correctly) and pass each var
