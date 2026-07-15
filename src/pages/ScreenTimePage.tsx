@@ -260,6 +260,7 @@ export function ScreenTimePage() {
           onEndBreak={() => void handleEndBreak()}
           onTurnOff={() => setConfirmTurnOff(true)}
           onShowNativeReport={isIos ? () => void handleShowNativeReport() : undefined}
+          nativeUsage={isIos && status?.status === 'approved'}
         />
       )}
 

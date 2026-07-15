@@ -25,6 +25,15 @@ export interface ScreenTimePickerResult {
 
 export type ScreenTimeResult<T = void> = { ok: true; value: T } | { ok: false; error: string };
 
+export interface UsageReportRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type UsageReportRange = 'today' | 'week';
+
 interface ScreenTimePlugin {
   isSupported(): Promise<{ supported: boolean }>;
   getStatus(): Promise<ScreenTimeStatus>;
@@ -32,6 +41,10 @@ interface ScreenTimePlugin {
   presentPicker(): Promise<ScreenTimePickerResult>;
   presentBudgetEditor(): Promise<{ budgetCount: number }>;
   showUsageReport(): Promise<void>;
+  attachUsageReport(opts: UsageReportRect & { range: UsageReportRange }): Promise<void>;
+  updateUsageReportRect(opts: UsageReportRect): Promise<void>;
+  setUsageReportRange(opts: { range: UsageReportRange }): Promise<void>;
+  detachUsageReport(): Promise<void>;
   applyShield(): Promise<void>;
   clearShield(): Promise<void>;
   disable(): Promise<void>;
@@ -103,6 +116,26 @@ export async function presentBudgetEditor(): Promise<ScreenTimeResult<{ budgetCo
 
 export async function showUsageReport(): Promise<ScreenTimeResult<void>> {
   return run((p) => p.showUsageReport());
+}
+
+// Inline (in-page) report — native card positioned over a placeholder div.
+export async function attachUsageReport(
+  rect: UsageReportRect,
+  range: UsageReportRange,
+): Promise<ScreenTimeResult<void>> {
+  return run((p) => p.attachUsageReport({ ...rect, range }));
+}
+
+export async function updateUsageReportRect(rect: UsageReportRect): Promise<void> {
+  await run((p) => p.updateUsageReportRect(rect));
+}
+
+export async function setUsageReportRange(range: UsageReportRange): Promise<void> {
+  await run((p) => p.setUsageReportRange({ range }));
+}
+
+export async function detachUsageReport(): Promise<void> {
+  await run((p) => p.detachUsageReport());
 }
 
 export async function applyShield(): Promise<ScreenTimeResult<void>> {

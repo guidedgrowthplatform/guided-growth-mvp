@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
 import { SegmentedControl } from '@/components/insights/SegmentedControl';
+import { NativeUsageCard } from './NativeUsageCard';
 import { SAMPLE_APPS, SUMMARY, type SampleApp, type UsageRange } from './sampleData';
 import { UsageBarChart } from './UsageBarChart';
 
@@ -15,6 +16,8 @@ interface DashboardViewProps {
   onTurnOff: () => void;
   /** iOS only — open the native DeviceActivityReport (real usage). */
   onShowNativeReport?: () => void;
+  /** iOS + authorized — embed the native report inline instead of the sample chart. */
+  nativeUsage?: boolean;
 }
 
 function AppRow({ app, onTap }: { app: SampleApp; onTap: () => void }) {
@@ -68,6 +71,7 @@ export function DashboardView({
   onEndBreak,
   onTurnOff,
   onShowNativeReport,
+  nativeUsage,
 }: DashboardViewProps) {
   const summary = SUMMARY[range];
   const apps = SAMPLE_APPS[range];
@@ -84,16 +88,23 @@ export function DashboardView({
         ]}
       />
 
-      <div className="flex flex-col gap-1 text-center">
-        <div className="text-[42px] font-extrabold tracking-[-1px] text-content">
-          {summary.total}
-        </div>
-        <div className="text-sm font-bold text-primary">{summary.caption}</div>
-      </div>
+      {nativeUsage ? (
+        // real numbers, rendered on-device by the sandboxed report extension
+        <NativeUsageCard range={range} />
+      ) : (
+        <>
+          <div className="flex flex-col gap-1 text-center">
+            <div className="text-[42px] font-extrabold tracking-[-1px] text-content">
+              {summary.total}
+            </div>
+            <div className="text-sm font-bold text-primary">{summary.caption}</div>
+          </div>
 
-      <UsageBarChart bars={summary.bars} labels={summary.labels} />
+          <UsageBarChart bars={summary.bars} labels={summary.labels} />
+        </>
+      )}
 
-      {onShowNativeReport && (
+      {onShowNativeReport && !nativeUsage && (
         <button
           type="button"
           onClick={onShowNativeReport}

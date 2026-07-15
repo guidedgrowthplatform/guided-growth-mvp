@@ -14,6 +14,10 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "presentPicker", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "presentBudgetEditor", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "showUsageReport", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "attachUsageReport", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "updateUsageReportRect", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setUsageReportRange", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "detachUsageReport", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "applyShield", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearShield", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "disable", returnType: CAPPluginReturnPromise),
@@ -22,6 +26,10 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
     private var store: ManagedSettingsStore {
         ManagedSettingsStore(named: .init(GG.storeName))
     }
+
+    // Inline report overlay (Maps-style: native view positioned over a WebView placeholder)
+    private var inlineHost: UIHostingController<ScreenTimeInlineReportView>?
+    private let inlineModel = GGInlineReportModel()
 
     // MARK: - Capability / status
 
@@ -158,6 +166,73 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             controller.modalPresentationStyle = .fullScreen
             host = controller
             presenter.present(controller, animated: true)
+        }
+    }
+
+    // MARK: - Inline usage report (embedded in the dashboard card)
+
+    private func rect(from call: CAPPluginCall) -> CGRect {
+        CGRect(
+            x: call.getDouble("x") ?? 0,
+            y: call.getDouble("y") ?? 0,
+            width: call.getDouble("width") ?? 0,
+            height: call.getDouble("height") ?? 0
+        )
+    }
+
+    @objc func attachUsageReport(_ call: CAPPluginCall) {
+        guard AuthorizationCenter.shared.authorizationStatus == .approved else {
+            call.reject("Screen Time access has not been approved yet.")
+            return
+        }
+        let frame = rect(from: call)
+        let range = call.getString("range") ?? "today"
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let container = self.bridge?.viewController else {
+                call.reject("No view controller to attach to.")
+                return
+            }
+            self.inlineModel.range = range
+            if self.inlineHost == nil {
+                let host = UIHostingController(rootView: ScreenTimeInlineReportView(model: self.inlineModel))
+                host.view.backgroundColor = .clear
+                // display-only: let touches fall through so page scrolling works over the card
+                host.view.isUserInteractionEnabled = false
+                container.addChild(host)
+                container.view.addSubview(host.view)
+                host.didMove(toParent: container)
+                self.inlineHost = host
+            }
+            self.inlineHost?.view.frame = frame
+            call.resolve()
+        }
+    }
+
+    @objc func updateUsageReportRect(_ call: CAPPluginCall) {
+        let frame = rect(from: call)
+        DispatchQueue.main.async { [weak self] in
+            self?.inlineHost?.view.frame = frame
+            call.resolve()
+        }
+    }
+
+    @objc func setUsageReportRange(_ call: CAPPluginCall) {
+        let range = call.getString("range") ?? "today"
+        DispatchQueue.main.async { [weak self] in
+            self?.inlineModel.range = range
+            call.resolve()
+        }
+    }
+
+    @objc func detachUsageReport(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            if let host = self?.inlineHost {
+                host.willMove(toParent: nil)
+                host.view.removeFromSuperview()
+                host.removeFromParent()
+            }
+            self?.inlineHost = nil
+            call.resolve()
         }
     }
 
