@@ -70,6 +70,28 @@ cd ios/App && xcodebuild -project App.xcodeproj -scheme App \
 9. Worktree needs `.vercel/` copied from the main repo for any vercel CLI use; use
    `npx vercel@37` (v54 watcher EMFILEs).
 
+## Android + coach data layer (added 2026-07-15)
+
+- **Coach data contract locked**: `docs/screentime/coach-data-contract.md` +
+  `packages/shared/src/types/screentime.ts`. Coach receives bands (kept/approaching/crossed),
+  never measured minutes. 7 new `screentime_*` session_log event types —
+  **migration `058_screentime_event_types.sql` must run on staging before events land (FK).**
+- **iOS band wiring**: each budget arms a second `<id>.warn` threshold at 80%; the monitor
+  journals band transitions to the App Group (`gg.bandlog.v1`); `ScreenTimeCoachBridge`
+  (App.tsx) drains the journal into session_log on launch/foreground. Threshold-event channel
+  is UNPROVEN on the device matrix — coach must treat bands as best-effort until verified.
+- **Android data track** (`android/.../screentime/`): `ScreenTimePlugin.java` +
+  `GGScreenTime.java`. UsageStats read + JS picker (`AndroidAppPicker`) + JS limits editor
+  (`AndroidLimitsView`); real names/icons stay on-device; boundary ids are UUIDs so
+  session_log stays name-free. NO blocking layer yet (AccessibilityService = later,
+  review-sensitive). Breaks hidden on Android (`canBreak=false`).
+- **Android build**: web build with the same env override, then `npm run cap:sync:android`,
+  then `cd android && JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+sh gradlew assembleDebug` (system JDK is 17 — Capacitor 8 needs 21; Android Studio's JBR
+  works). APKs land in `android/app/build/outputs/apk/{prod,qa}/debug/`.
+- Do NOT file to Google Play — filing answers are [v2 pending]. Internal-testing installs
+  (≤100 testers, no review) are the distribution path for now; permissions grant on-device.
+
 ## Filing / release linkage
 
 - Entitlement **granted** → before any TestFlight build: developer portal → each of the 5 App
