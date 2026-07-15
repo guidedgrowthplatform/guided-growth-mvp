@@ -156,17 +156,26 @@ export function ResetLibraryPage({
       </div>
 
       <div className="mt-5 flex flex-col gap-2.5 px-6">
-        {shownTracks.map((t) => (
-          <ResetTrackRow
-            key={t.id}
-            title={t.title}
-            whatFor={t.whatFor}
-            kind={t.kind}
-            durationSec={t.durationSec}
-            paired={Boolean(t.pairId)}
-            onClick={() => handleOpenTrack(t)}
-          />
-        ))}
+        {shownTracks.length === 0 ? (
+          <div className="mt-6 rounded-2xl border border-border-light bg-surface px-5 py-8 text-center">
+            <p className="text-sm font-medium text-content-secondary">Nothing here yet</p>
+            <p className="mt-1 text-sm text-content-tertiary">
+              Try another category, or check back soon for new resets.
+            </p>
+          </div>
+        ) : (
+          shownTracks.map((t) => (
+            <ResetTrackRow
+              key={t.id}
+              title={t.title}
+              whatFor={t.whatFor}
+              kind={t.kind}
+              durationSec={t.durationSec}
+              paired={Boolean(t.pairId)}
+              onClick={() => handleOpenTrack(t)}
+            />
+          ))
+        )}
       </div>
     </div>
   );

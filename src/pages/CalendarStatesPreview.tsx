@@ -99,7 +99,7 @@ function ConnectedPanel() {
           active={target === 'gg'}
           onClick={() => setTarget('gg')}
           title="A “Guided Growth” calendar"
-          subtitle="A separate calendar we create — your other events stay private"
+          subtitle="A separate calendar we create, so your other events stay private"
         />
         <TargetOption
           active={target === 'own'}

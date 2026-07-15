@@ -171,7 +171,7 @@ export function WeeklyCoachDetailPreview({
         </div>
         <p className="mt-2 text-sm leading-relaxed text-content">
           Your mornings are becoming automatic, that is real. The evening reset is the one that
-          slips on Wednesdays. Let us protect just Wednesday night. Small, and it lifts the whole
+          slips on Wednesdays. Let us protect just Wednesday evening. Small, and it lifts the whole
           week.
         </p>
       </Card>
