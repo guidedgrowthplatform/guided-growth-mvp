@@ -304,7 +304,7 @@ async function buildStreakBlock(anonId: string, timezone?: string): Promise<stri
     .filter((s) => s.streak >= 2);
   if (streaks.length === 0) return '';
   const lines = streaks
-    .map((s) => `- ${s.name.replace(/\s+/g, ' ').trim().slice(0, 80)}: ${s.streak} days in a row`)
+    .map((s) => `- ${s.name.replace(/\s+/g, ' ').trim()}: ${s.streak} days in a row`)
     .join('\n');
   return `\n\n## Streaks (real, from their log — use the exact number when you celebrate)\n${lines}`;
 }
