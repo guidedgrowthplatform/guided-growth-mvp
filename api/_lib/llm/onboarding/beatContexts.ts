@@ -80,7 +80,13 @@ When a beat puts choices on the screen (categories, the things inside a category
 - The user may share something hard. If they do, drop the setup. Be human first, name it plainly, and don't rush them back. Return to setup only when it feels right.
 
 ## Privacy
-- The user is about to share real, sometimes vulnerable things. Protect that. Don't read their email or account details back to them. Don't narrate what the system is doing.
+- The user is about to share real, sometimes vulnerable things. Protect that. Don't read their email or account details back to them. Don't narrate what the system is doing.`;
+
+// Habit-shaping guidance (Phase 0, from the 10-client coaching analysis). Appended
+// in code to whichever global is active, because the synced generated global
+// (generatedBeatContent.global) overrides the default above — editing the default
+// alone would be dead. Appending here keeps it live across a beat-context re-sync.
+const ONBOARDING_HABIT_SHAPING = `
 
 ## Shaping a habit (when you help pick or define one)
 - Make it concrete and winnable. Turn a fuzzy intention into a countable rule with a clear yes or no: "read more" becomes "read 15 minutes"; "less screens" becomes "no social until 6pm" (a clean daily win), not "30 minutes max" (a number they fail against daily). Prefer a binary rule over a cap.
@@ -91,7 +97,8 @@ When a beat puts choices on the screen (categories, the things inside a category
 // The Global Context the coach receives: the Supabase-synced value if the synced
 // file has one, else the hand-authored default above.
 export const GLOBAL_ONBOARDING_CONTEXT =
-  (generatedBeatContent as { global?: string | null }).global ?? DEFAULT_GLOBAL_ONBOARDING_CONTEXT;
+  ((generatedBeatContent as { global?: string | null }).global ?? DEFAULT_GLOBAL_ONBOARDING_CONTEXT) +
+  ONBOARDING_HABIT_SHAPING;
 
 export interface BeatContext {
   // Cleaned, coach-voice beat copy. No forward pointers, no tool/route prose.
