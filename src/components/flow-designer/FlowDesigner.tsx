@@ -257,7 +257,7 @@ export function FlowDesigner() {
   return (
     <div
       className="min-h-screen px-4 py-8"
-      style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#e8ecf1' }}
+      style={{ fontFamily: 'Poppins, -apple-system, sans-serif', background: '#e8ecf1' }}
     >
       <div className="mx-auto flex w-full max-w-[420px] flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-elevated">
         <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border-light bg-surface px-5 py-4">

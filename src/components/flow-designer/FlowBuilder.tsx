@@ -2933,7 +2933,7 @@ function PlayView({
     <div
       className="flex min-h-screen flex-col items-center gap-4 p-6"
       style={{
-        fontFamily: 'Urbanist, -apple-system, sans-serif',
+        fontFamily: 'Poppins, -apple-system, sans-serif',
         background: 'var(--color-canvas)',
       }}
     >
@@ -3370,7 +3370,7 @@ export function FlowBuilder() {
     return (
       <div
         className="flex min-h-screen flex-col items-center gap-6 p-5"
-        style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#0c0e14' }}
+        style={{ fontFamily: 'Poppins, -apple-system, sans-serif', background: '#0c0e14' }}
       >
         {modeBar}
         <OrbTuner />
@@ -3384,7 +3384,7 @@ export function FlowBuilder() {
     return (
       <div
         className="flex min-h-screen flex-col items-center gap-6 p-5"
-        style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#0c0e14' }}
+        style={{ fontFamily: 'Poppins, -apple-system, sans-serif', background: '#0c0e14' }}
       >
         {modeBar}
         <AppShellPreview />
@@ -3443,7 +3443,7 @@ export function FlowBuilder() {
           <div
             className="flex min-h-screen gap-5 p-5"
             style={{
-              fontFamily: 'Urbanist, -apple-system, sans-serif',
+              fontFamily: 'Poppins, -apple-system, sans-serif',
               background: 'var(--color-canvas)',
             }}
           >

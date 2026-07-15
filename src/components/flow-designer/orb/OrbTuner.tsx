@@ -541,8 +541,8 @@ export function OrbTuner({ renderPreview }: OrbTunerProps = {}) {
 }
 
 const OT_CSS = `
-.ot-workspace{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:40px;color:#e8e8ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-.ot-root{--D:172px;color:#e8e8ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;gap:18px;padding:8px}
+.ot-workspace{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:40px;color:#e8e8ee;font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.ot-root{--D:172px;color:#e8e8ee;font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;gap:18px;padding:8px}
 .ot-stage{width:min(380px,100%);height:302px;border-radius:30px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:46px;overflow:hidden;box-shadow:0 18px 50px rgba(20,30,60,.20), inset 0 0 0 1px rgba(255,255,255,.7)}
 .ot-panel{width:min(520px,100%);display:flex;flex-direction:column;gap:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:16px 18px;box-sizing:border-box}
 .ot-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
