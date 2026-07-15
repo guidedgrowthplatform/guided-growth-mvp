@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { formatTime12 } from '@/components/ui/TimePicker';
 import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
+import { polarityForHabit } from '@gg/shared';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY, SECTION_LABEL, SPACE } from './_beatStyle';
@@ -53,10 +54,10 @@ function PlanCard({ name, days, time }: { name: string; days: Set<number>; time?
   );
 }
 
-// Avoidance-style names ("no screens", "quit", "less", "cut") read as Break; the
-// rest as Build. A preview heuristic; the real polarity comes from capture.
+// Resolve polarity through the shared catalog map (predefined habits) with a
+// regex fallback for custom habits, so this preview matches the engine exactly.
 function inferPolarity(name: string): HabitPolarity {
-  return /\b(no|not|stop|quit|less|avoid|cut|reduce|off|after)\b/i.test(name) ? 'break' : 'build';
+  return polarityForHabit(name);
 }
 
 function FullPlanBeat(props?: Record<string, string>) {

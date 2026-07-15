@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { dbHabitType } from '@gg/shared';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { supabaseAdmin } from '../_lib/supabase.js';
@@ -75,8 +76,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         for (const [name, config] of Object.entries(habitConfigs)) {
           await client.query(
             `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, reminder_time, reminder_enabled, sort_order)
-             VALUES ($1, $2, 'binary_build', 'daily', $3, $4, $5, $6)
+             VALUES ($1, $2, $3, 'daily', $4, $5, $6, $7)
              ON CONFLICT (anon_id, name) DO UPDATE SET
+               habit_type = EXCLUDED.habit_type,
                schedule_days = EXCLUDED.schedule_days,
                reminder_time = EXCLUDED.reminder_time,
                reminder_enabled = EXCLUDED.reminder_enabled,
@@ -84,6 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             [
               user.anonId,
               name,
+              dbHabitType(name),
               config.days || null,
               config.time || null,
               config.reminder || false,

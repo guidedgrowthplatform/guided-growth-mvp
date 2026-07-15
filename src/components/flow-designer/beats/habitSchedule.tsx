@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
+import { polarityForHabit } from '@gg/shared';
 import { WEEKDAYS, toggleSetItem } from '@/components/onboarding/constants';
 import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
@@ -24,7 +25,7 @@ function HabitScheduleBeat(props?: Record<string, string>) {
 
   const [cfgs, setCfgs] = useState<Record<string, HabitCfg>>(() =>
     Object.fromEntries(
-      habits.map((h) => [h, { days: new Set(WEEKDAYS), polarity: 'build' as HabitPolarity }])
+      habits.map((h) => [h, { days: new Set(WEEKDAYS), polarity: polarityForHabit(h) as HabitPolarity }])
     )
   );
 
@@ -55,7 +56,7 @@ function HabitScheduleBeat(props?: Record<string, string>) {
     }));
   }
   function get(habit: string): HabitCfg {
-    return cfgs[habit] ?? { days: new Set(WEEKDAYS), polarity: 'build' };
+    return cfgs[habit] ?? { days: new Set(WEEKDAYS), polarity: polarityForHabit(habit) };
   }
 
   // Each habit card blooms in turn as the coach reaches it.
