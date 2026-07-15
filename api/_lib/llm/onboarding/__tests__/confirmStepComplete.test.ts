@@ -17,7 +17,7 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('confirm_step_complete', () => {
   it('advances on an unmapped screen without reading the row', async () => {
-    const r = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-ADV-CUSTOM' }, {});
+    const r = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-RECAP' }, {});
     expect(r).toEqual({ ok: true, result: { advance: true } });
     expect(pool.query).not.toHaveBeenCalled();
   });
@@ -101,6 +101,7 @@ describe('confirm_step_complete', () => {
       'ONBOARD-BEGINNER-07',
       'ONBOARD-ADVANCED',
       'ONBOARD-ADVANCED-04',
+      'ONBOARD-ADV-CUSTOM',
     ].sort();
 
     for (const screen_id of MAPPED) {
@@ -113,7 +114,7 @@ describe('confirm_step_complete', () => {
 
     // Representative unmapped screen advances unconditionally, no row read.
     vi.clearAllMocks();
-    const recap = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-ADV-CUSTOM' }, {});
+    const recap = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-RECAP' }, {});
     expect(recap).toMatchObject({ result: { advance: true } });
     expect(pool.query).not.toHaveBeenCalled();
   });

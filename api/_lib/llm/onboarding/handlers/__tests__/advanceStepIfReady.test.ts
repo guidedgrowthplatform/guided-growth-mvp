@@ -44,7 +44,7 @@ describe('advanceStepIfReady', () => {
 
   it('returns no_next_step for a screen absent from NEXT_STEP', async () => {
     pool.query.mockResolvedValueOnce({ rows: [{ data: {}, path: null, current_step: 5 }] });
-    const r = await advanceStepIfReady(ANON, 'ONBOARD-ADV-CUSTOM');
+    const r = await advanceStepIfReady(ANON, 'ONBOARD-RECAP');
     expect(r).toEqual({ advanced: false, reason: 'no_next_step' });
     expect(pool.query).toHaveBeenCalledTimes(1);
   });

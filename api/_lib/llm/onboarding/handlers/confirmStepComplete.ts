@@ -26,6 +26,8 @@ export const REQUIRED: Record<string, (row: Row) => boolean> = {
   'ONBOARD-ADVANCED': (r) =>
     typeof r.data?.brainDumpText === 'string' && r.data.brainDumpText.trim().length > 0,
   'ONBOARD-ADVANCED-04': (r) => isObject(r.data?.reflectionConfig),
+  'ONBOARD-ADV-CUSTOM': (r) =>
+    Array.isArray(r.data?.customPrompts) && r.data.customPrompts.length > 0,
 };
 
 // Value = that screen's page currentStep + 1 (the immediately-next screen). A
@@ -41,22 +43,30 @@ export const NEXT_STEP: Record<string, number> = {
   'ONBOARD-ADVANCED-02': 5,
   'ONBOARD-ADVANCED-03': 6,
   'ONBOARD-ADVANCED-04': 6,
+  'ONBOARD-ADV-CUSTOM': 6,
 };
 
 // Inverse of the flow: trusted (current_step, path) -> the source screen the
 // user is ON. Vapi's navigate_next supplies only target_step, so it derives the
 // source here rather than trusting the LLM's requested target. Steps 1-2 are
 // pre-fork (path-agnostic); step >= 3 splits on path.
-export function sourceScreenForStep(currentStep: number, path: string | null): string | undefined {
+export function sourceScreenForStep(
+  currentStep: number,
+  path: string | null,
+  data?: Record<string, unknown> | null,
+): string | undefined {
   if (currentStep === 1) return 'ONBOARD-01--FORM';
   if (currentStep === 2) return 'ONBOARD-FORK--FORM';
   if (path === 'braindump') {
-    // Step 5 braindump = the reflection-setup page (ONBOARD-ADVANCED-04,
-    // useAgentNavigation(5) in AdvancedStep6Page), which gates on
-    // reflectionConfig. ONBOARD-ADVANCED-03 has no page/gate at this step.
-    return { 3: 'ONBOARD-ADVANCED', 4: 'ONBOARD-ADVANCED-02', 5: 'ONBOARD-ADVANCED-04' }[
-      currentStep
-    ];
+    if (currentStep === 5) {
+      // Two possible step-5 pages: the custom-prompts editor (ONBOARD-ADV-CUSTOM)
+      // when the user chose custom prompts, else reflection setup (ONBOARD-ADVANCED-04).
+      const hasPrompts = Array.isArray(data?.customPrompts) && data.customPrompts.length > 0;
+      return hasPrompts && !isObject(data?.reflectionConfig)
+        ? 'ONBOARD-ADV-CUSTOM'
+        : 'ONBOARD-ADVANCED-04';
+    }
+    return { 3: 'ONBOARD-ADVANCED', 4: 'ONBOARD-ADVANCED-02' }[currentStep];
   }
   // Null path past the fork = corrupted row; fail closed, never gate as beginner.
   if (path === null) return undefined;
@@ -82,15 +92,24 @@ export type AdvanceResult =
   | { advanced: true; current_step: number };
 
 export type AtomicAdvanceResult =
-  | { advanced: false; reason: 'required_missing' | 'no_next_step' | 'no_source_screen' }
+  | {
+      advanced: false;
+      reason: 'required_missing' | 'no_next_step' | 'no_source_screen' | 'out_of_sequence';
+    }
   | { advanced: true; current_step: number };
 
-// Atomic variant for navigate_next: the source screen is derived from the SAME
-// locked row that the gate + UPDATE use, so a concurrent submit_path_choice
-// can't change `path` between the source-derivation read and the gate. Callers
-// pass a step-monotonic guarantee via GREATEST in the UPDATE. Separate from
-// advanceStepIfReady to keep that helper's contract unchanged for its callers.
-export async function advanceStepIfReadyAtomic(anonId: string): Promise<AtomicAdvanceResult> {
+// Atomic navigate for navigate_next: EVERY decision (back-nav vs forward vs
+// out-of-sequence, source screen, gate, write) runs against ONE FOR-UPDATE-
+// locked row, so no concurrent submit/advance can change current_step or path
+// between the decision and the write. Forward is exact-next only (target ==
+// locked step + 1); a larger target is rejected, so repeated calls can't chain
+// past unseen screens. target <= locked step is the documented back-nav WRITE
+// (assistant RULE 3): realtime on current_step is what drives client
+// navigation, so an ack without a write would leave the user stranded.
+export async function advanceStepIfReadyAtomic(
+  anonId: string,
+  targetStep: number,
+): Promise<AtomicAdvanceResult> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -99,8 +118,27 @@ export async function advanceStepIfReadyAtomic(anonId: string): Promise<AtomicAd
       [anonId],
     );
     const row = res.rows[0] ?? { data: null, path: null, current_step: null };
+    const lockedStep = row.current_step ?? 1;
 
-    const screenId = sourceScreenForStep(row.current_step ?? 1, row.path);
+    if (targetStep <= lockedStep) {
+      // Deliberate non-monotonic write: back-nav/lateral to an already-passed
+      // screen. Can't skip anything — every step <= lockedStep was gated on the
+      // way up, and returning forward re-runs the gates.
+      const moved = await client.query<{ current_step: number }>(
+        `UPDATE onboarding_states SET current_step = $2, updated_at = now()
+         WHERE anon_id = $1 RETURNING current_step`,
+        [anonId, targetStep],
+      );
+      await client.query('COMMIT');
+      return { advanced: true, current_step: moved.rows[0]?.current_step ?? targetStep };
+    }
+
+    if (targetStep > lockedStep + 1) {
+      await client.query('ROLLBACK');
+      return { advanced: false, reason: 'out_of_sequence' };
+    }
+
+    const screenId = sourceScreenForStep(lockedStep, row.path, row.data);
     if (!screenId) {
       await client.query('ROLLBACK');
       return { advanced: false, reason: 'no_source_screen' };
