@@ -15,7 +15,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import {
   type AndroidBudgetInput,
-  type AndroidUsageRow,
+  type AndroidUsage,
   applyShield,
   clearShield,
   disableScreenTime,
@@ -147,14 +147,14 @@ export function ScreenTimePage() {
     if (status?.status === 'approved') setView(status.hasSelection ? 'dashboard' : 'choose');
   }, [isAndroid, status, view]);
 
-  // Android real usage rows (on-device only)
-  const [androidUsage, setAndroidUsage] = useState<AndroidUsageRow[] | null>(null);
+  // Android real usage (on-device only)
+  const [androidUsage, setAndroidUsage] = useState<AndroidUsage | null>(null);
   const [androidBudgets, setAndroidBudgets] = useState<Required<AndroidBudgetInput>[]>([]);
 
   useEffect(() => {
     if (!isAndroid || status?.status !== 'approved') return;
     void getAndroidUsage(range).then((result) => {
-      if (result.ok) setAndroidUsage(result.value.apps);
+      if (result.ok) setAndroidUsage(result.value);
     });
     void getAppBudgets().then(setAndroidBudgets);
   }, [isAndroid, status, range, view]);
@@ -350,8 +350,8 @@ export function ScreenTimePage() {
   const androidApps = useMemo<SampleApp[] | undefined>(() => {
     if (!isAndroid || !androidUsage) return undefined;
     const limits = new Map(androidBudgets.map((b) => [b.packageName, b.minutes]));
-    const heaviest = Math.max(1, ...androidUsage.map((a) => a.minutes));
-    return [...androidUsage]
+    const heaviest = Math.max(1, ...androidUsage.apps.map((a) => a.minutes));
+    return [...androidUsage.apps]
       .sort((a, b) => b.minutes - a.minutes)
       .map((app) => {
         const limit = limits.get(app.packageName) ?? null;
@@ -359,7 +359,7 @@ export function ScreenTimePage() {
         return {
           id: app.packageName,
           name: app.label,
-          icon: 'mdi:cellphone',
+          icon: app.icon ?? 'mdi:cellphone',
           time: formatMinutes(app.minutes),
           fill,
           sub: limit ? `of your ${formatMinutes(limit)} limit` : 'no limit set',
@@ -373,13 +373,41 @@ export function ScreenTimePage() {
       });
   }, [isAndroid, androidUsage, androidBudgets]);
 
+  // Same visual grammar as the iOS native report card: today = by-hour bars
+  // (6 AM–11 PM) + vs-yesterday delta; week = 7 daily bars.
   const androidSummary = useMemo(() => {
     if (!isAndroid || !androidUsage) return undefined;
-    const total = androidUsage.reduce((sum, a) => sum + a.minutes, 0);
+    const normalize = (values: number[]) => {
+      const max = Math.max(1, ...values);
+      return values.map((v) => Math.round((v / max) * 100));
+    };
+    if (range === 'today') {
+      const yesterday = androidUsage.yesterdayTotalMinutes ?? 0;
+      const delta =
+        yesterday > 0
+          ? Math.round(((androidUsage.totalMinutes - yesterday) / yesterday) * 100)
+          : null;
+      return {
+        total: formatMinutes(androidUsage.totalMinutes),
+        caption:
+          delta === null
+            ? 'across your chosen apps today'
+            : delta <= 0
+              ? `↓ ${Math.abs(delta)}% vs yesterday`
+              : `↑ ${delta}% vs yesterday`,
+        bars: normalize((androidUsage.hourly ?? []).slice(6, 24)),
+        labels: ['6 AM', '12 PM', '6 PM', '11 PM'],
+      };
+    }
+    const daily = androidUsage.daily ?? [];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const todayIdx = new Date().getDay();
+    const labels = daily.map((_, i) => dayNames[(todayIdx - (daily.length - 1 - i) + 7) % 7]);
     return {
-      total: formatMinutes(total),
-      caption:
-        range === 'today' ? 'across your chosen apps today' : 'across your chosen apps this week',
+      total: formatMinutes(androidUsage.totalMinutes),
+      caption: `daily average ${formatMinutes(Math.round(androidUsage.totalMinutes / 7))}`,
+      bars: normalize(daily),
+      labels,
     };
   }, [isAndroid, androidUsage, range]);
 
@@ -438,7 +466,7 @@ export function ScreenTimePage() {
       {view === 'choose' &&
         (isAndroid ? (
           <AndroidAppPicker
-            initialSelection={(androidUsage ?? []).map((a) => a.packageName)}
+            initialSelection={(androidUsage?.apps ?? []).map((a) => a.packageName)}
             busy={busy}
             onSave={(packageNames) => void handleAndroidSavePicker(packageNames)}
             onCancel={() => setView(status?.hasSelection ? 'dashboard' : 'intro')}
@@ -454,7 +482,7 @@ export function ScreenTimePage() {
 
       {view === 'limits' && isAndroid && (
         <AndroidLimitsView
-          apps={androidUsage ?? []}
+          apps={androidUsage?.apps ?? []}
           currentLimits={new Map(androidBudgets.map((b) => [b.packageName, b.minutes]))}
           busy={busy}
           onSave={(budgets) => void handleAndroidSaveLimits(budgets)}

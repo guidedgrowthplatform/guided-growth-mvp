@@ -55,6 +55,15 @@ export interface AndroidUsageRow {
   packageName: string;
   label: string;
   minutes: number;
+  icon?: string; // data:image/png;base64 URL — on-device rendering only
+}
+
+export interface AndroidUsage {
+  apps: AndroidUsageRow[];
+  totalMinutes: number;
+  hourly?: number[]; // today only — 24 per-hour minute buckets
+  yesterdayTotalMinutes?: number; // today only
+  daily?: number[]; // week only — 7 day totals, oldest first
 }
 
 export interface AndroidBudgetInput {
@@ -88,9 +97,7 @@ interface ScreenTimePlugin {
   getSelection(): Promise<{ packageNames: string[] }>;
   setBudgets(opts: { budgets: AndroidBudgetInput[] }): Promise<{ budgetCount: number }>;
   getBudgets(): Promise<{ budgets: Required<AndroidBudgetInput>[] }>;
-  getUsage(opts: {
-    range: UsageReportRange;
-  }): Promise<{ apps: AndroidUsageRow[]; totalMinutes: number; range: UsageReportRange }>;
+  getUsage(opts: { range: UsageReportRange }): Promise<AndroidUsage & { range: UsageReportRange }>;
 }
 
 const OFF_NATIVE_MESSAGE = 'Screen Time is available in the mobile app.';
@@ -247,9 +254,6 @@ export async function getAppBudgets(): Promise<Required<AndroidBudgetInput>[]> {
 
 export async function getAndroidUsage(
   range: UsageReportRange,
-): Promise<ScreenTimeResult<{ apps: AndroidUsageRow[]; totalMinutes: number }>> {
-  const result = await run((p) => p.getUsage({ range }));
-  return result.ok
-    ? { ok: true, value: { apps: result.value.apps, totalMinutes: result.value.totalMinutes } }
-    : result;
+): Promise<ScreenTimeResult<AndroidUsage>> {
+  return run((p) => p.getUsage({ range }));
 }

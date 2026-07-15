@@ -86,8 +86,23 @@ final class GGScreenTime {
     static Map<String, Long> foregroundMillis(
             Context ctx, Set<String> packages, long start, long end) {
         Map<String, Long> totals = new HashMap<>();
+        for (Map.Entry<String, java.util.List<long[]>> entry
+                : sessionIntervals(ctx, packages, start, end).entrySet()) {
+            long sum = 0;
+            for (long[] iv : entry.getValue()) sum += iv[1] - iv[0];
+            totals.put(entry.getKey(), sum);
+        }
+        return totals;
+    }
+
+    // Best-effort foreground intervals [startMs, endMs] per package — feeds
+    // totals AND the by-hour chart (intervals split across buckets in the
+    // caller). On-device only.
+    static Map<String, java.util.List<long[]>> sessionIntervals(
+            Context ctx, Set<String> packages, long start, long end) {
+        Map<String, java.util.List<long[]>> intervals = new HashMap<>();
         UsageStatsManager usm = (UsageStatsManager) ctx.getSystemService(Context.USAGE_STATS_SERVICE);
-        if (usm == null) return totals;
+        if (usm == null) return intervals;
         UsageEvents events = usm.queryEvents(start, end);
         Map<String, Long> openedAt = new HashMap<>();
         Map<String, Integer> openDepth = new HashMap<>();
@@ -112,18 +127,20 @@ final class GGScreenTime {
                 openDepth.put(pkg, depth - 1);
                 if (depth == 1) {
                     Long open = openedAt.remove(pkg);
-                    if (open != null) {
-                        long ms = Math.max(0, event.getTimeStamp() - open);
-                        totals.put(pkg, totals.getOrDefault(pkg, 0L) + ms);
+                    if (open != null && event.getTimeStamp() > open) {
+                        intervals.computeIfAbsent(pkg, k -> new java.util.ArrayList<>())
+                            .add(new long[] {open, event.getTimeStamp()});
                     }
                 }
             }
         }
         for (Map.Entry<String, Long> stillOpen : openedAt.entrySet()) {
-            long ms = Math.max(0, end - stillOpen.getValue());
-            totals.put(stillOpen.getKey(), totals.getOrDefault(stillOpen.getKey(), 0L) + ms);
+            if (end > stillOpen.getValue()) {
+                intervals.computeIfAbsent(stillOpen.getKey(), k -> new java.util.ArrayList<>())
+                    .add(new long[] {stillOpen.getValue(), end});
+            }
         }
-        return totals;
+        return intervals;
     }
 
     // Long ranges (week): daily-bucket aggregates — queryEvents detail is only

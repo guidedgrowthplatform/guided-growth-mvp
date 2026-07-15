@@ -220,13 +220,56 @@ public class ScreenTimePlugin extends Plugin {
         }
         String range = call.getString("range", "today");
         long end = System.currentTimeMillis();
+        long dayStart = GGScreenTime.startOfToday();
+        long dayMs = 24L * 60 * 60 * 1000;
         Set<String> selection = GGScreenTime.loadSelection(ctx);
-        // today: precise event reconstruction; week: daily-bucket aggregates
-        // (event detail is only retained by the system for a few days)
-        java.util.Map<String, Long> ms = "week".equals(range)
-            ? GGScreenTime.aggregateForegroundMillis(
-                ctx, selection, GGScreenTime.startOfToday() - 6L * 24 * 60 * 60 * 1000, end)
-            : GGScreenTime.foregroundMillis(ctx, selection, GGScreenTime.startOfToday(), end);
+        JSObject ret = new JSObject();
+
+        // today: precise event reconstruction (+ by-hour buckets, vs-yesterday);
+        // week: daily-bucket aggregates (event detail is only retained a few days)
+        java.util.Map<String, Long> ms;
+        if ("week".equals(range)) {
+            ms = GGScreenTime.aggregateForegroundMillis(ctx, selection, dayStart - 6 * dayMs, end);
+            JSArray daily = new JSArray();
+            for (int day = 6; day >= 0; day--) {
+                long s = dayStart - day * dayMs;
+                java.util.Map<String, Long> dayTotals =
+                    GGScreenTime.aggregateForegroundMillis(ctx, selection, s, Math.min(s + dayMs, end));
+                long sum = 0;
+                for (long v : dayTotals.values()) sum += v;
+                daily.put(sum / 60_000L);
+            }
+            ret.put("daily", daily);
+        } else {
+            java.util.Map<String, java.util.List<long[]>> sessions =
+                GGScreenTime.sessionIntervals(ctx, selection, dayStart, end);
+            ms = new java.util.HashMap<>();
+            long[] hourly = new long[24];
+            for (java.util.Map.Entry<String, java.util.List<long[]>> e : sessions.entrySet()) {
+                long sum = 0;
+                for (long[] iv : e.getValue()) {
+                    sum += iv[1] - iv[0];
+                    // distribute the interval across hour buckets
+                    for (long t = iv[0]; t < iv[1]; ) {
+                        int hour = (int) Math.min(23, (t - dayStart) / 3_600_000L);
+                        long bucketEnd = dayStart + (hour + 1) * 3_600_000L;
+                        long chunk = Math.min(iv[1], bucketEnd) - t;
+                        if (hour >= 0) hourly[hour] += chunk;
+                        t += Math.max(1, chunk);
+                    }
+                }
+                ms.put(e.getKey(), sum);
+            }
+            JSArray hourlyMinutes = new JSArray();
+            for (long h : hourly) hourlyMinutes.put(h / 60_000L);
+            ret.put("hourly", hourlyMinutes);
+            java.util.Map<String, Long> yesterday =
+                GGScreenTime.aggregateForegroundMillis(ctx, selection, dayStart - dayMs, dayStart);
+            long ySum = 0;
+            for (long v : yesterday.values()) ySum += v;
+            ret.put("yesterdayTotalMinutes", ySum / 60_000L);
+        }
+
         PackageManager pm = ctx.getPackageManager();
         JSArray rows = new JSArray();
         long total = 0;
@@ -237,13 +280,22 @@ public class ScreenTimePlugin extends Plugin {
             row.put("packageName", pkg);
             row.put("label", labelFor(pm, pkg));
             row.put("minutes", minutes);
+            String icon = iconFor(pm, pkg);
+            if (icon != null) row.put("icon", icon);
             rows.put(row);
         }
-        JSObject ret = new JSObject();
         ret.put("apps", rows);
         ret.put("totalMinutes", total);
         ret.put("range", range);
         call.resolve(ret);
+    }
+
+    private static String iconFor(PackageManager pm, String pkg) {
+        try {
+            return iconBase64(pm, pm.getApplicationInfo(pkg, 0));
+        } catch (PackageManager.NameNotFoundException e) {
+            return null;
+        }
     }
 
     private static String labelFor(PackageManager pm, String pkg) {
