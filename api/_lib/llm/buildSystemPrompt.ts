@@ -11,6 +11,7 @@ import { fillBeatName } from './onboarding/fillBeatName.js';
 import { NO_PRENARRATION_RULE } from './noPrenarrationRule.js';
 import { NO_INTERNAL_NARRATION_RULE } from './noInternalNarrationRule.js';
 import { READ_OPTIONS_ON_REQUEST_RULE } from './readOptionsOnRequestRule.js';
+import { todayStr } from './checkin/handlers/shared.js';
 import {
   CHECKIN_TOOL_ADDENDUM,
   CHECKIN_READONLY_ADDENDUM,
@@ -247,13 +248,39 @@ async function buildCheckinHabitsBlock(anonId: string): Promise<string> {
   );
 }
 
+// Calendar-day predecessor of a YYYY-MM-DD string. The triple is treated as UTC
+// midnight so it is timezone- and DST-agnostic (no offset ever shifts the date).
+export function prevCalendarDay(day: string): string {
+  const [y, m, d] = day.split('-').map(Number);
+  const base = new Date(Date.UTC(y, m - 1, d));
+  base.setUTCDate(base.getUTCDate() - 1);
+  return base.toISOString().slice(0, 10);
+}
+
+// Current streak: consecutive 'done' days ending today, or yesterday if today is
+// not yet done. Pure and string-based — no timezone or DST math happens here; the
+// caller resolves `today` in the user's timezone (via todayStr) and passes it in.
+export function computeCurrentStreak(doneDays: Set<string>, today: string): number {
+  let cursor: string | null = doneDays.has(today)
+    ? today
+    : doneDays.has(prevCalendarDay(today))
+      ? prevCalendarDay(today)
+      : null;
+  if (cursor === null) return 0;
+  let n = 0;
+  while (doneDays.has(cursor)) {
+    n++;
+    cursor = prevCalendarDay(cursor);
+  }
+  return n;
+}
+
 // Current per-habit streak from the REAL completion log, so the evening coach can
-// celebrate a streak with an accurate number. Mirrors the client calcStreaks:
-// consecutive calendar days with a 'done' completion, ending today or yesterday.
-// Only habits with a streak of 2+ are surfaced (a "streak" of 1 is not a streak).
+// celebrate a streak with an accurate number. Grouped by habit id (not name) so two
+// habits can never merge into a false streak. Only streaks of 2+ are surfaced.
 async function buildStreakBlock(anonId: string, timezone?: string): Promise<string> {
-  const res = await pool.query<{ name: string; date: string }>(
-    `SELECT h.name AS name, c.date::text AS date
+  const res = await pool.query<{ id: string; name: string; date: string }>(
+    `SELECT h.id AS id, h.name AS name, c.date::text AS date
        FROM user_habits h
        JOIN habit_completions c ON c.habit_id = h.id
       WHERE h.anon_id = $1 AND h.is_active = true AND h.archived_at IS NULL
@@ -262,31 +289,14 @@ async function buildStreakBlock(anonId: string, timezone?: string): Promise<stri
     [anonId],
   );
   if (res.rowCount === 0) return '';
-  const byHabit = new Map<string, Set<string>>();
+  const today = todayStr(timezone || 'UTC');
+  const byId = new Map<string, { name: string; days: Set<string> }>();
   for (const r of res.rows) {
-    const day = r.date.slice(0, 10);
-    if (!byHabit.has(r.name)) byHabit.set(r.name, new Set());
-    byHabit.get(r.name)!.add(day);
+    if (!byId.has(r.id)) byId.set(r.id, { name: r.name, days: new Set() });
+    byId.get(r.id)!.days.add(r.date.slice(0, 10));
   }
-  const tz = timezone || 'UTC';
-  const dayStr = (d: Date): string => d.toLocaleDateString('en-CA', { timeZone: tz });
-  const now = new Date();
-  const today = dayStr(now);
-  const yDate = new Date(now);
-  yDate.setDate(yDate.getDate() - 1);
-  const yesterday = dayStr(yDate);
-  const currentStreak = (dates: Set<string>): number => {
-    if (!dates.has(today) && !dates.has(yesterday)) return 0;
-    const cursor = new Date(`${dates.has(today) ? today : yesterday}T12:00:00Z`);
-    let n = 0;
-    while (dates.has(dayStr(cursor))) {
-      n++;
-      cursor.setDate(cursor.getDate() - 1);
-    }
-    return n;
-  };
-  const streaks = [...byHabit.entries()]
-    .map(([name, dates]) => ({ name, streak: currentStreak(dates) }))
+  const streaks = [...byId.values()]
+    .map((h) => ({ name: h.name, streak: computeCurrentStreak(h.days, today) }))
     .filter((s) => s.streak >= 2);
   if (streaks.length === 0) return '';
   const lines = streaks.map((s) => `- ${s.name}: ${s.streak} days in a row`).join('\n');
