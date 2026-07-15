@@ -45,7 +45,7 @@ interface ScreenTimePlugin {
   updateUsageReportRect(opts: UsageReportRect): Promise<void>;
   setUsageReportRange(opts: { range: UsageReportRange }): Promise<void>;
   detachUsageReport(): Promise<void>;
-  applyShield(): Promise<void>;
+  applyShield(opts?: { minutes?: number }): Promise<void>;
   clearShield(): Promise<void>;
   disable(): Promise<void>;
 }
@@ -138,8 +138,9 @@ export async function detachUsageReport(): Promise<void> {
   await run((p) => p.detachUsageReport());
 }
 
-export async function applyShield(): Promise<ScreenTimeResult<void>> {
-  return run((p) => p.applyShield());
+// minutes: timed break (auto-lifts via the monitor); omitted = until ended manually
+export async function applyShield(minutes?: number): Promise<ScreenTimeResult<void>> {
+  return run((p) => p.applyShield(minutes ? { minutes } : {}));
 }
 
 export async function clearShield(): Promise<ScreenTimeResult<void>> {

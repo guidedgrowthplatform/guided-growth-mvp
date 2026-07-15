@@ -17,6 +17,7 @@ import {
   getScreenTimeStatus,
   isScreenTimeAvailable,
   presentAppPicker,
+  presentBudgetEditor,
   requestScreenTimeAuthorization,
   showUsageReport,
   type ScreenTimeStatus,
@@ -130,16 +131,31 @@ export function ScreenTimePage() {
   );
 
   const handleTakeBreak = useCallback(
-    () =>
+    (minutes: number | null) =>
       runBusy(async () => {
         if (isIos) {
-          const result = await applyShield();
+          const result = await applyShield(minutes ?? undefined);
           if (!result.ok) return addToast('error', result.error);
         }
         setOnBreak(true);
-        addToast('success', 'Break started. Your chosen apps are paused for now.');
+        addToast(
+          'success',
+          minutes
+            ? `Break started — your chosen apps rest for ${minutes >= 60 ? `${minutes / 60}h` : `${minutes}m`}.`
+            : 'Break started. Your chosen apps are paused for the rest of today.',
+        );
       }),
     [runBusy, isIos, addToast],
+  );
+
+  const handleEditLimits = useCallback(
+    () =>
+      runBusy(async () => {
+        const result = await presentBudgetEditor();
+        if (!result.ok) return addToast('error', result.error);
+        await refresh();
+      }),
+    [runBusy, addToast, refresh],
   );
 
   const handleEndBreak = useCallback(
@@ -256,11 +272,15 @@ export function ScreenTimePage() {
           onBreak={onBreak}
           busy={busy}
           onAppTap={handleAppTap}
-          onTakeBreak={() => void handleTakeBreak()}
+          onTakeBreak={(minutes) => void handleTakeBreak(minutes)}
           onEndBreak={() => void handleEndBreak()}
           onTurnOff={() => setConfirmTurnOff(true)}
           onShowNativeReport={isIos ? () => void handleShowNativeReport() : undefined}
           nativeUsage={isIos && status?.status === 'approved'}
+          onEditLimits={
+            isIos && status?.status === 'approved' ? () => void handleEditLimits() : undefined
+          }
+          budgetCount={status?.budgetCount ?? 0}
         />
       )}
 

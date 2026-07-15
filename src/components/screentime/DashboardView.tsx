@@ -1,8 +1,17 @@
 import { Icon } from '@iconify/react';
+import { useState } from 'react';
 import { SegmentedControl } from '@/components/insights/SegmentedControl';
 import { NativeUsageCard } from './NativeUsageCard';
 import { SAMPLE_APPS, SUMMARY, type SampleApp, type UsageRange } from './sampleData';
 import { UsageBarChart } from './UsageBarChart';
+
+/** Break length choices — null = until ended manually (rest of day fail-safe). */
+const BREAK_CHOICES: { label: string; minutes: number | null }[] = [
+  { label: '30m', minutes: 30 },
+  { label: '1h', minutes: 60 },
+  { label: '2h', minutes: 120 },
+  { label: 'Today', minutes: null },
+];
 
 interface DashboardViewProps {
   range: UsageRange;
@@ -11,9 +20,12 @@ interface DashboardViewProps {
   breakRemaining?: string;
   busy?: boolean;
   onAppTap: (app: SampleApp) => void;
-  onTakeBreak: () => void;
+  onTakeBreak: (minutes: number | null) => void;
   onEndBreak: () => void;
   onTurnOff: () => void;
+  /** iOS + authorized — opens the native per-app limits sheet. */
+  onEditLimits?: () => void;
+  budgetCount?: number;
   /** iOS only — open the native DeviceActivityReport (real usage). */
   onShowNativeReport?: () => void;
   /** iOS + authorized — embed the native report inline instead of the sample chart. */
@@ -72,9 +84,12 @@ export function DashboardView({
   onTurnOff,
   onShowNativeReport,
   nativeUsage,
+  onEditLimits,
+  budgetCount = 0,
 }: DashboardViewProps) {
   const summary = SUMMARY[range];
   const apps = SAMPLE_APPS[range];
+  const [breakChoice, setBreakChoice] = useState<number | null>(60);
 
   return (
     <div className="mt-4 flex flex-col gap-5">
@@ -102,6 +117,27 @@ export function DashboardView({
 
           <UsageBarChart bars={summary.bars} labels={summary.labels} />
         </>
+      )}
+
+      {onEditLimits && (
+        <button
+          type="button"
+          onClick={onEditLimits}
+          className="flex w-full items-center gap-3 rounded-2xl bg-surface p-4 text-left shadow-[0px_4px_20px_rgba(0,0,0,0.03)]"
+        >
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/[0.06]">
+            <Icon icon="mdi:timer-outline" width={22} className="text-primary" />
+          </div>
+          <div className="flex-1">
+            <div className="text-[15px] font-bold text-content">Daily limits</div>
+            <div className="text-xs text-content-tertiary">
+              {budgetCount > 0
+                ? `${budgetCount} limit${budgetCount === 1 ? '' : 's'} set — apps rest when they hit their limit`
+                : 'Set a daily time budget per app'}
+            </div>
+          </div>
+          <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary/60" />
+        </button>
       )}
 
       {onShowNativeReport && !nativeUsage && (
@@ -153,18 +189,39 @@ export function DashboardView({
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-3 rounded-2xl bg-surface p-4 shadow-[0px_4px_20px_rgba(0,0,0,0.03)]">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/[0.06]">
-              <Icon icon="mdi:timer-sand" width={22} className="text-primary" />
+          <div className="flex flex-col gap-3 rounded-2xl bg-surface p-4 shadow-[0px_4px_20px_rgba(0,0,0,0.03)]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/[0.06]">
+                <Icon icon="mdi:timer-sand" width={22} className="text-primary" />
+              </div>
+              <p className="flex-1 text-[13.5px] leading-snug text-content-secondary">
+                Pause your chosen apps for a little while.
+              </p>
             </div>
-            <p className="flex-1 text-[13.5px] leading-snug text-content-secondary">
-              Pause your chosen apps for a little while.
-            </p>
+            <div className="flex gap-2">
+              {BREAK_CHOICES.map((c) => {
+                const active = breakChoice === c.minutes;
+                return (
+                  <button
+                    key={c.label}
+                    type="button"
+                    onClick={() => setBreakChoice(c.minutes)}
+                    className={`flex-1 rounded-full py-2 text-[13px] font-bold transition-colors ${
+                      active
+                        ? 'bg-primary text-white'
+                        : 'bg-surface-secondary text-content-secondary'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                );
+              })}
+            </div>
             <button
               type="button"
               disabled={busy}
-              onClick={onTakeBreak}
-              className="flex h-10 items-center rounded-full bg-primary px-[18px] text-sm font-bold text-white disabled:opacity-50"
+              onClick={() => onTakeBreak(breakChoice)}
+              className="flex h-11 w-full items-center justify-center rounded-full bg-primary text-sm font-bold text-white disabled:opacity-50"
             >
               Take a break
             </button>

@@ -45,7 +45,7 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             "hasSelection": selection != nil,
             "applicationCount": selection?.applicationTokens.count ?? 0,
             "categoryCount": selection?.categoryTokens.count ?? 0,
-            "budgetCount": 0,
+            "budgetCount": GGMon.loadBudgets().count,
             "shieldActive": GG.defaults?.bool(forKey: GG.Keys.shieldActive) ?? false,
         ])
     }
@@ -116,33 +116,33 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("No apps selected yet — choose apps first.")
             return
         }
-        let store = self.store
-        store.shield.applications = selection.applicationTokens.isEmpty ? nil : selection.applicationTokens
-        store.shield.applicationCategories = selection.categoryTokens.isEmpty
-            ? nil : .specific(selection.categoryTokens)
-        store.shield.webDomains = selection.webDomainTokens.isEmpty ? nil : selection.webDomainTokens
+        // optional timed break; without minutes the 24h fail-safe still bounds it
+        let minutes = call.getInt("minutes")
+        let seconds = Double(minutes ?? 24 * 60) * 60
         GG.defaults?.set(true, forKey: GG.Keys.shieldActive)
-        // constraint 5 fail-safe: shields never outlive 24h without re-arm
-        GG.defaults?.set(Date().addingTimeInterval(24 * 3600).timeIntervalSince1970, forKey: GG.Keys.shieldExpiry)
+        GG.defaults?.set(Date().addingTimeInterval(seconds).timeIntervalSince1970, forKey: GG.Keys.shieldExpiry)
+        GGMon.rebuildShield()
+        if let minutes { GGArming.armBreak(minutes: minutes) }
         call.resolve()
     }
 
     @objc func clearShield(_ call: CAPPluginCall) {
-        liftShield()
+        GG.defaults?.set(false, forKey: GG.Keys.shieldActive)
+        GG.defaults?.removeObject(forKey: GG.Keys.shieldExpiry)
+        GGArming.stopBreak()
+        // keeps tripped-budget + paused shields — only the break lifts
+        GGMon.rebuildShield()
         call.resolve()
     }
 
     @objc func disable(_ call: CAPPluginCall) {
-        liftShield()
-        GG.defaults?.removeObject(forKey: GG.Keys.selection)
-        GG.defaults?.removeObject(forKey: GG.Keys.budgets)
-        call.resolve()
-    }
-
-    private func liftShield() {
+        GGArming.stopAll()
         store.clearAllSettings()
-        GG.defaults?.set(false, forKey: GG.Keys.shieldActive)
-        GG.defaults?.removeObject(forKey: GG.Keys.shieldExpiry)
+        for key in [GG.Keys.selection, GG.Keys.budgets, GG.Keys.shieldActive,
+                    GG.Keys.shieldExpiry, GGMon.Keys.tripped, GGMon.Keys.paused] {
+            GG.defaults?.removeObject(forKey: key)
+        }
+        call.resolve()
     }
 
     // MARK: - Usage report (M1 — DeviceActivityReport extension renders it)
@@ -242,7 +242,25 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
     // MARK: - Later milestones (stubs so JS never crashes)
 
     @objc func presentBudgetEditor(_ call: CAPPluginCall) {
-        call.reject("Daily limits are not available yet.")
+        guard AuthorizationCenter.shared.authorizationStatus == .approved else {
+            call.reject("Screen Time access has not been approved yet.")
+            return
+        }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let presenter = self.bridge?.viewController else {
+                call.reject("No view controller to present from.")
+                return
+            }
+            var host: UIHostingController<ScreenTimeLimitsView>?
+            let view = ScreenTimeLimitsView(onDone: {
+                host?.dismiss(animated: true)
+                call.resolve(["budgetCount": GGMon.loadBudgets().count])
+            })
+            let controller = UIHostingController(rootView: view)
+            controller.modalPresentationStyle = .formSheet
+            host = controller
+            presenter.present(controller, animated: true)
+        }
     }
 
     // MARK: - Selection persistence (App Group — the only shared channel)
