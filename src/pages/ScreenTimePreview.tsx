@@ -2,6 +2,9 @@ import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { BlockNowPreview } from '@/pages/BlockNowPreview';
 import { BlockSchedulePreview } from '@/pages/BlockSchedulePreview';
+import { RecoveryCalibrationPreview } from '@/pages/RecoveryCalibrationPreview';
+import { ReflectionCheckInPreview } from '@/pages/ReflectionCheckInPreview';
+import { SetupReasonsPreview } from '@/pages/SetupReasonsPreview';
 
 // Standalone, auth-free design mock of the Screen Time feature (opt-in digital
 // wellbeing / self-regulation, NEVER "parental controls"). Three key states via
@@ -10,7 +13,15 @@ import { BlockSchedulePreview } from '@/pages/BlockSchedulePreview';
 // reason, offers a reset instead). The Set up tab also opens the two block
 // flows (schedule / now). Route /__screentime. Mock only.
 
-type STView = 'setup' | 'usage' | 'blocked' | 'schedule' | 'blocknow';
+type STView =
+  | 'setup'
+  | 'usage'
+  | 'blocked'
+  | 'schedule'
+  | 'blocknow'
+  | 'reasons'
+  | 'reflection'
+  | 'recovery';
 
 interface AppRow {
   label: string; // the user's OWN label -- app names never reach our code (spec)
@@ -69,6 +80,7 @@ function SetupView({ onOpen }: { onOpen: (v: STView) => void }) {
         </p>
         <button
           type="button"
+          onClick={() => onOpen('reasons')}
           className="mt-5 w-full rounded-full bg-primary py-3.5 text-base font-bold text-white"
         >
           Choose apps
@@ -107,6 +119,25 @@ function SetupView({ onOpen }: { onOpen: (v: STView) => void }) {
           title="Block now"
           subtitle="Lock a few apps right away for a set time"
           onClick={() => onOpen('blocknow')}
+        />
+      </div>
+
+      {/* The coaching moments: what makes this a coach, not a blocker. */}
+      <p className="mt-1 text-xs font-bold uppercase tracking-wide text-content-tertiary">
+        Coaching moments
+      </p>
+      <div className="flex flex-col gap-2.5">
+        <SetupOption
+          icon="ph:moon-stars-bold"
+          title="Evening reflection"
+          subtitle="A kept or missed boundary, beside how the evening felt"
+          onClick={() => onOpen('reflection')}
+        />
+        <SetupOption
+          icon="ph:compass-tool-bold"
+          title="When a boundary slips"
+          subtitle="The coach recalibrates the plan, never a red failure"
+          onClick={() => onOpen('recovery')}
         />
       </div>
     </div>
@@ -219,28 +250,59 @@ function UsageView() {
 }
 
 function BlockedView() {
-  // The shield: calm and GREEN, never red or punitive; always states the reason;
-  // offers a way forward (a reset) instead of a dead block (spec constraint 4).
+  // The blocked moment (teardown 03): the wall becomes a conversation. Calm and
+  // GREEN, never red. It quotes the user's OWN reason back (stored at setup), and
+  // the override is honest and non-shaming: five intentional minutes, logged, never
+  // a red failure. "Talk to me" opens the coach, the one thing a voice app can do
+  // that a static wall cannot.
+  const [talking, setTalking] = useState(false);
   return (
-    <div className="flex flex-col items-center gap-6 rounded-3xl bg-emerald-50 px-6 py-12 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-        <Icon icon="ph:seal-check-bold" width={34} className="text-emerald-600" />
+    <div className="flex flex-col items-center gap-6 rounded-3xl bg-emerald-50 px-6 py-10 text-center">
+      {/* The orb stands in for the coach: tappable, alive, not a stop sign. */}
+      <div
+        className="flex h-20 w-20 items-center justify-center rounded-full shadow-lg"
+        style={{ background: 'radial-gradient(circle at 35% 30%, #34d399, #059669)' }}
+      >
+        <Icon icon="ph:pause-bold" width={32} className="text-white" />
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-emerald-900">That is your 30 minutes on Socials</h2>
-        <p className="mt-2 text-base text-emerald-700">Back tomorrow. Nice work stepping away.</p>
+        <h2 className="text-2xl font-bold text-emerald-900">This is your pause point</h2>
+        <p className="mt-2 text-base leading-relaxed text-emerald-700">
+          You told me late-night feeds are usually to wind down, not to get pulled back in.
+        </p>
       </div>
+
+      {talking && (
+        <div className="flex w-full items-start gap-3 rounded-2xl bg-white/70 p-4 text-left">
+          <Icon icon="ph:sparkle-bold" width={20} className="mt-0.5 shrink-0 text-emerald-600" />
+          <p className="text-sm leading-relaxed text-emerald-900">
+            What are you hoping this gives you right now? If it is winding down, I can put on a
+            2-minute reset instead. If not, we can take five honest minutes.
+          </p>
+        </div>
+      )}
+
       <div className="flex w-full flex-col gap-2.5">
         <button
           type="button"
+          onClick={() => setTalking(true)}
           className="w-full rounded-full bg-emerald-600 py-3.5 text-base font-bold text-white"
         >
-          Take a 2-minute reset instead
+          Talk to me
+        </button>
+        <button
+          type="button"
+          className="w-full rounded-full border border-emerald-200 bg-white/60 py-3.5 text-base font-bold text-emerald-800"
+        >
+          Take 5 intentional minutes
         </button>
         <button type="button" className="w-full py-2 text-sm font-semibold text-emerald-700">
-          Open Guided Growth
+          Back to my day
         </button>
       </div>
+      <p className="text-xs text-emerald-600">
+        Whatever you choose is logged honestly. No streak breaks here.
+      </p>
     </div>
   );
 }
@@ -248,9 +310,13 @@ function BlockedView() {
 export function ScreenTimePreview() {
   const [view, setView] = useState<STView>('usage');
 
-  // The two block flows open full-screen from Set up, with a back to Set up.
+  // The block flows and coaching moments open full-screen from Set up, with a
+  // back to Set up.
   if (view === 'schedule') return <BlockSchedulePreview onBack={() => setView('setup')} />;
   if (view === 'blocknow') return <BlockNowPreview onBack={() => setView('setup')} />;
+  if (view === 'reasons') return <SetupReasonsPreview onBack={() => setView('setup')} />;
+  if (view === 'reflection') return <ReflectionCheckInPreview onBack={() => setView('setup')} />;
+  if (view === 'recovery') return <RecoveryCalibrationPreview onBack={() => setView('setup')} />;
 
   return (
     <div className="min-h-dvh bg-primary-bg px-5 pb-16 pt-[max(2.5rem,env(safe-area-inset-top))]">
