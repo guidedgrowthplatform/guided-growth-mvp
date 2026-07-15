@@ -6,6 +6,7 @@ export type CheckinToolName =
   | 'create_habit'
   | 'complete_habit'
   | 'mark_rest'
+  | 'mark_missed'
   | 'update_habit'
   | 'delete_habit'
   | 'create_metric'
@@ -101,6 +102,29 @@ export const CHECKIN_TOOLS: readonly CheckinToolDefinition[] = [
         dates: {
           type: 'array',
           description: 'Multiple dates to mark as rest (same formats as date).',
+          items: { type: 'string' },
+        },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'mark_missed',
+    description:
+      'Mark a habit MISSED for a day the user says they did not do it, so the miss is recorded and the streak break is honest. Call ONLY when the user explicitly says they missed / skipped / did not do a habit they meant to DO (e.g. "I did not get to the gym", "skipped meditation", "missed my run today"). Do NOT use it for an avoid-habit SLIP (a slip on a "no news" / "no smoking" habit stays an unmarked day, see polarity), and never mark a miss the user did not state. Defaults to today.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Habit name to mark missed.' },
+        date: {
+          type: 'string',
+          description:
+            'Single date: "today" (default), "yesterday", a weekday name, or YYYY-MM-DD. Must not be in the future.',
+        },
+        dates: {
+          type: 'array',
+          description: 'Multiple dates to mark missed (same formats as date).',
           items: { type: 'string' },
         },
       },

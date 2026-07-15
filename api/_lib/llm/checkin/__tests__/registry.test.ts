@@ -3,7 +3,7 @@ import { CHECKIN_TOOLS, CHECKIN_TOOL_NAMES, isCheckinToolName } from '../schemas
 import { getCheckinTools, getReadOnlyCheckinTools, isCheckinScreen } from '../registry.js';
 
 describe('CHECKIN_TOOLS', () => {
-  it('exposes the sixteen canonical tool names', () => {
+  it('exposes the seventeen canonical tool names', () => {
     expect(CHECKIN_TOOLS.map((t) => t.name).sort()).toEqual([
       'complete_habit',
       'create_habit',
@@ -13,6 +13,7 @@ describe('CHECKIN_TOOLS', () => {
       'get_summary',
       'log_metric',
       'log_reflection',
+      'mark_missed',
       'mark_rest',
       'query_checkin',
       'query_habits',
@@ -89,6 +90,17 @@ describe('CHECKIN_TOOLS', () => {
         },
         {
           "name": "mark_rest",
+          "properties": [
+            "date",
+            "dates",
+            "name",
+          ],
+          "required": [
+            "name",
+          ],
+        },
+        {
+          "name": "mark_missed",
           "properties": [
             "date",
             "dates",
@@ -216,8 +228,8 @@ describe('CHECKIN_TOOLS', () => {
 });
 
 describe('CHECKIN_TOOL_NAMES + isCheckinToolName', () => {
-  it('set contains exactly sixteen names', () => {
-    expect(CHECKIN_TOOL_NAMES.size).toBe(16);
+  it('set contains exactly seventeen names', () => {
+    expect(CHECKIN_TOOL_NAMES.size).toBe(17);
   });
 
   it('accepts known names, rejects others', () => {
@@ -271,6 +283,12 @@ describe('getCheckinTools / isCheckinScreen', () => {
     expect(checkinNames(getCheckinTools('HOME-CHECKIN'))).toContain('mark_rest');
     expect(checkinNames(getCheckinTools('ECHECK-01', 'chat'))).not.toContain('mark_rest');
     expect(checkinNames(getCheckinTools('MCHECK-01', 'chat'))).not.toContain('mark_rest');
+  });
+
+  it('mark_missed (Rule 8 durable miss) is a free-coach action: exposed on HOME-CHECKIN, never on the scripted flows', () => {
+    expect(checkinNames(getCheckinTools('HOME-CHECKIN'))).toContain('mark_missed');
+    expect(checkinNames(getCheckinTools('ECHECK-01', 'chat'))).not.toContain('mark_missed');
+    expect(checkinNames(getCheckinTools('MCHECK-01', 'chat'))).not.toContain('mark_missed');
   });
 
   it('opener mode on a scripted screen collapses to just the always-on read-only pair (the dedicated opener tool comes from getCheckinOpenerTools instead)', () => {

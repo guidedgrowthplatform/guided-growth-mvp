@@ -2,6 +2,7 @@ import type { ToolResult } from '../tools.js';
 import { createHabit } from './handlers/createHabit.js';
 import { completeHabit } from './handlers/completeHabit.js';
 import { markRest } from './handlers/markRest.js';
+import { markMissed } from './handlers/markMissed.js';
 import { updateHabit } from './handlers/updateHabit.js';
 import { deleteHabit } from './handlers/deleteHabit.js';
 import { createMetric } from './handlers/createMetric.js';
@@ -24,6 +25,7 @@ const HANDLERS: Record<CheckinToolName, Handler> = {
   create_habit: createHabit,
   complete_habit: completeHabit,
   mark_rest: markRest,
+  mark_missed: markMissed,
   update_habit: updateHabit,
   delete_habit: deleteHabit,
   create_metric: createMetric,
