@@ -72,6 +72,7 @@ interface StateDef {
   sel: OrbStateSel; // idle | coach | user
   size: number;
   centered: boolean; // big body orb vs notch orb
+  blank?: boolean; // blank canvas (no home mock, no bar) for redesign
   bg: BgKey;
   look: OrbParams;
   pulse: PulseParams;
@@ -97,14 +98,15 @@ function initialStates(): StateDef[] {
     {
       id: 'talk-big',
       title: 'Coach talking, big (beat 2)',
-      sub: 'The greeting orb blooming full-screen while the coach speaks.',
+      sub: 'The greeting orb blooming on a blank canvas, ready to redesign.',
       sel: 'coach',
       size: 168,
       centered: true,
+      blank: true,
       bg: 'blue',
       look: clone(DEFAULT_PARAMS.talk),
       pulse: clone(BEAT3_PULSE),
-      mic: false,
+      mic: true,
     },
     {
       id: 'talk-small',
@@ -116,7 +118,7 @@ function initialStates(): StateDef[] {
       bg: 'blue',
       look: clone(DEFAULT_PARAMS.talk),
       pulse: clone(DEFAULT_PULSE),
-      mic: false,
+      mic: true,
     },
     {
       id: 'mic-pulse',
@@ -298,6 +300,7 @@ export function OrbStates() {
               bgKey={s.bg}
               orbSize={s.size}
               centered={s.centered}
+              blank={s.blank}
               label={s.title}
             />
           </div>
