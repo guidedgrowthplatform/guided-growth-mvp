@@ -169,6 +169,11 @@ export async function buildSystemPromptForRequest(
   // Habit polarity must be known BEFORE the first tool call so a cold
   // single-turn slip ("I caved on no-news") isn't recorded as a win.
   const checkinHabitsBlock = isCheckin ? await buildCheckinHabitsBlock(args.anon_id) : '';
+  // Real per-habit streaks for the evening celebration (Phase 2) and the free coach.
+  const streakBlock =
+    args.screen_id === 'ECHECK-01' || args.screen_id === 'HOME-CHECKIN'
+      ? await buildStreakBlock(args.anon_id, args.timezone)
+      : '';
   // The evening reflection uses THIS USER'S configured questions (not hardcoded),
   // so ECHECK-01 needs the settings block; HOME-CHECKIN keeps it for free-form
   // journaling + update_reflection edits. Morning has no reflection, so MCHECK
@@ -199,7 +204,7 @@ export async function buildSystemPromptForRequest(
   const weeklyDayBlock = buildWeeklyDayRecommendBlock(args.screen_id, args.timezone);
 
   return {
-    systemPrompt: `${coachingPreamble}${onboardingGlobalBlock}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}\n\n${READ_OPTIONS_ON_REQUEST_RULE}${onboardingNudge}${checkinNudge}${habitRulesBlock}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${upcomingEventsBlock}${alreadyFilledBlock}${optionsBlock}${weeklyDayBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${onboardingGlobalBlock}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}\n\n${READ_OPTIONS_ON_REQUEST_RULE}${onboardingNudge}${checkinNudge}${habitRulesBlock}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${streakBlock}${reflectionSettingsBlock}${upcomingEventsBlock}${alreadyFilledBlock}${optionsBlock}${weeklyDayBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
@@ -240,6 +245,52 @@ async function buildCheckinHabitsBlock(anonId: string): Promise<string> {
     `Before calling complete_habit for an avoid habit, confirm the user actually abstained. ` +
     `If they slipped ("I caved", "I watched the news"), do NOT complete it — that day is simply left unmarked.`
   );
+}
+
+// Current per-habit streak from the REAL completion log, so the evening coach can
+// celebrate a streak with an accurate number. Mirrors the client calcStreaks:
+// consecutive calendar days with a 'done' completion, ending today or yesterday.
+// Only habits with a streak of 2+ are surfaced (a "streak" of 1 is not a streak).
+async function buildStreakBlock(anonId: string, timezone?: string): Promise<string> {
+  const res = await pool.query<{ name: string; date: string }>(
+    `SELECT h.name AS name, c.date::text AS date
+       FROM user_habits h
+       JOIN habit_completions c ON c.habit_id = h.id
+      WHERE h.anon_id = $1 AND h.is_active = true AND h.archived_at IS NULL
+        AND c.status = 'done'
+      ORDER BY h.sort_order ASC, c.date ASC`,
+    [anonId],
+  );
+  if (res.rowCount === 0) return '';
+  const byHabit = new Map<string, Set<string>>();
+  for (const r of res.rows) {
+    const day = r.date.slice(0, 10);
+    if (!byHabit.has(r.name)) byHabit.set(r.name, new Set());
+    byHabit.get(r.name)!.add(day);
+  }
+  const tz = timezone || 'UTC';
+  const dayStr = (d: Date): string => d.toLocaleDateString('en-CA', { timeZone: tz });
+  const now = new Date();
+  const today = dayStr(now);
+  const yDate = new Date(now);
+  yDate.setDate(yDate.getDate() - 1);
+  const yesterday = dayStr(yDate);
+  const currentStreak = (dates: Set<string>): number => {
+    if (!dates.has(today) && !dates.has(yesterday)) return 0;
+    const cursor = new Date(`${dates.has(today) ? today : yesterday}T12:00:00Z`);
+    let n = 0;
+    while (dates.has(dayStr(cursor))) {
+      n++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return n;
+  };
+  const streaks = [...byHabit.entries()]
+    .map(([name, dates]) => ({ name, streak: currentStreak(dates) }))
+    .filter((s) => s.streak >= 2);
+  if (streaks.length === 0) return '';
+  const lines = streaks.map((s) => `- ${s.name}: ${s.streak} days in a row`).join('\n');
+  return `\n\n## Streaks (real, from their log — use the exact number when you celebrate)\n${lines}`;
 }
 
 // The user's current reflection mode + prompts, so the coach (a) walks the right
