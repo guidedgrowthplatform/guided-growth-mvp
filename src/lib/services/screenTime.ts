@@ -14,6 +14,8 @@ export interface ScreenTimeStatus {
   categoryCount: number;
   budgetCount: number;
   shieldActive: boolean;
+  /** Epoch seconds the current break auto-lifts at (0 = no active break). */
+  breakEndsAt?: number;
 }
 
 export interface ScreenTimePickerResult {

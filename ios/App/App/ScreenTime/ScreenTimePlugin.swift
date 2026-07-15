@@ -47,6 +47,9 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             "categoryCount": selection?.categoryTokens.count ?? 0,
             "budgetCount": GGMon.loadBudgets().count,
             "shieldActive": GG.defaults?.bool(forKey: GG.Keys.shieldActive) ?? false,
+            // epoch seconds the current break auto-lifts at (0 = no break)
+            "breakEndsAt": (GG.defaults?.bool(forKey: GG.Keys.shieldActive) ?? false)
+                ? (GG.defaults?.double(forKey: GG.Keys.shieldExpiry) ?? 0) : 0,
         ])
     }
 

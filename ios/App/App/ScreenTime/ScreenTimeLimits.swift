@@ -16,15 +16,18 @@ enum GGMon {
         static let budgets = "gg.budgets.v1"
         static let tripped = "gg.tripped.v1"
         static let paused = "gg.paused.v1"
+        static let pausedCats = "gg.pausedcats.v1"
         static let shieldActive = "gg.shield.active.v1"
         static let shieldExpiry = "gg.shield.expiry.v1"
     }
 
     static var defaults: UserDefaults? { UserDefaults(suiteName: appGroup) }
 
+    // exactly one of token/category is set (apps or whole categories can have limits)
     struct GGBudget: Codable, Identifiable {
         let id: String
-        let token: ApplicationToken
+        var token: ApplicationToken?
+        var category: ActivityCategoryToken?
         var minutes: Int
     }
 
@@ -58,8 +61,18 @@ enum GGMon {
         defaults?.set(arr, forKey: Keys.paused)
     }
 
+    static func loadPausedCats() -> [ActivityCategoryToken] {
+        guard let arr = defaults?.array(forKey: Keys.pausedCats) as? [Data] else { return [] }
+        return arr.compactMap { try? JSONDecoder().decode(ActivityCategoryToken.self, from: $0) }
+    }
+
+    static func savePausedCats(_ tokens: [ActivityCategoryToken]) {
+        let arr = tokens.compactMap { try? JSONEncoder().encode($0) }
+        defaults?.set(arr, forKey: Keys.pausedCats)
+    }
+
     // The single source of truth for what is shielded:
-    // (break active → whole selection) ∪ tripped budgets ∪ paused apps.
+    // (break active → whole selection) ∪ tripped budgets ∪ paused apps/categories.
     static func rebuildShield() {
         let store = ManagedSettingsStore(named: .init(storeName))
         var breakActive = defaults?.bool(forKey: Keys.shieldActive) ?? false
@@ -83,11 +96,11 @@ enum GGMon {
         }
         let tripped = Set(defaults?.stringArray(forKey: Keys.tripped) ?? [])
         for budget in loadBudgets() where tripped.contains(budget.id) {
-            apps.insert(budget.token)
+            if let token = budget.token { apps.insert(token) }
+            if let cat = budget.category { cats.insert(cat) }
         }
-        for token in loadPaused() {
-            apps.insert(token)
-        }
+        for token in loadPaused() { apps.insert(token) }
+        for cat in loadPausedCats() { cats.insert(cat) }
 
         if apps.isEmpty && cats.isEmpty && webs.isEmpty {
             store.clearAllSettings()
@@ -114,7 +127,8 @@ enum GGArming {
         var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
         for budget in budgets {
             events[DeviceActivityEvent.Name(budget.id)] = DeviceActivityEvent(
-                applications: [budget.token],
+                applications: budget.token.map { Set([$0]) } ?? [],
+                categories: budget.category.map { Set([$0]) } ?? [],
                 threshold: DateComponents(minute: budget.minutes)
             )
         }
@@ -122,7 +136,7 @@ enum GGArming {
             try center.startMonitoring(
                 DeviceActivityName(GGMon.dailyActivity), during: schedule, events: events)
         } catch {
-            CAPLogPrint("[ScreenTime] armDaily failed: \(error)")
+            print("[ScreenTime] armDaily failed: \(error)")
         }
     }
 
@@ -148,8 +162,12 @@ enum GGArming {
     static func stopAll() {
         DeviceActivityCenter().stopMonitoring()
     }
+}
 
-    private static func CAPLogPrint(_ msg: String) { print(msg) }
+// A limit target — an individual app or a whole category from the picker.
+enum GGLimitTarget: Hashable {
+    case app(ApplicationToken)
+    case category(ActivityCategoryToken)
 }
 
 // ── Limits sheet (native — real names/icons stay out of JS) ──
@@ -169,20 +187,42 @@ private func limitLabel(_ minutes: Int) -> String {
 struct ScreenTimeLimitsView: View {
     let onDone: () -> Void
 
-    @State private var tokens: [ApplicationToken] = Array(
-        (GGMon.loadSelection() ?? FamilyActivitySelection()).applicationTokens)
+    @State private var targets: [GGLimitTarget]
     @State private var budgets: [GGMon.GGBudget] = GGMon.loadBudgets()
     @State private var paused: [ApplicationToken] = GGMon.loadPaused()
+    @State private var pausedCats: [ActivityCategoryToken] = GGMon.loadPausedCats()
+
+    init(onDone: @escaping () -> Void) {
+        self.onDone = onDone
+        let sel = GGMon.loadSelection() ?? FamilyActivitySelection()
+        var list: [GGLimitTarget] = sel.categoryTokens.map { .category($0) }
+        list += sel.applicationTokens.map { .app($0) }
+        _targets = State(initialValue: list)
+    }
+
+    private func budget(for target: GGLimitTarget) -> GGMon.GGBudget? {
+        switch target {
+        case .app(let t): return budgets.first { $0.token == t }
+        case .category(let c): return budgets.first { $0.category == c }
+        }
+    }
+
+    private func isPaused(_ target: GGLimitTarget) -> Bool {
+        switch target {
+        case .app(let t): return paused.contains(t)
+        case .category(let c): return pausedCats.contains(c)
+        }
+    }
 
     var body: some View {
         NavigationView {
             Group {
-                if tokens.isEmpty {
+                if targets.isEmpty {
                     VStack(spacing: 8) {
-                        Text("No apps selected yet")
+                        Text("Nothing selected yet")
                             .font(.headline)
                             .foregroundColor(ggInk)
-                        Text("Choose apps on the Screen Time page first — then set a daily limit for each here.")
+                        Text("Choose apps or categories on the Screen Time page first — then set a daily limit for each here.")
                             .font(.subheadline)
                             .foregroundColor(ggSecondary)
                             .multilineTextAlignment(.center)
@@ -190,25 +230,28 @@ struct ScreenTimeLimitsView: View {
                     }
                 } else {
                     List {
-                        Section(footer: Text("Limits reset at midnight. When an app reaches its limit, it rests for the rest of the day.")) {
-                            ForEach(Array(tokens.enumerated()), id: \.offset) { _, token in
+                        Section(footer: Text("Limits reset at midnight. When an app or category reaches its limit, it rests for the rest of the day.")) {
+                            ForEach(targets, id: \.self) { target in
                                 NavigationLink {
                                     ScreenTimeLimitDetailView(
-                                        token: token,
-                                        budget: budgets.first { $0.token == token },
-                                        isPaused: paused.contains(token),
-                                        onSave: { minutes in setBudget(token, minutes: minutes) },
-                                        onPause: { pauseNow(token) },
-                                        onUnpause: { unpause(token) },
-                                        onRemove: { remove(token) }
+                                        target: target,
+                                        budget: budget(for: target),
+                                        isPaused: isPaused(target),
+                                        onSave: { minutes in setBudget(target, minutes: minutes) },
+                                        onPause: { pauseNow(target) },
+                                        onUnpause: { unpause(target) },
+                                        onRemove: { remove(target) }
                                     )
                                 } label: {
                                     HStack(spacing: 12) {
-                                        Label(token)
-                                            .labelStyle(.titleAndIcon)
+                                        targetLabel(target)
                                             .foregroundColor(ggInk)
                                         Spacer()
-                                        if let b = budgets.first(where: { $0.token == token }) {
+                                        if isPaused(target) {
+                                            Text("paused")
+                                                .font(.system(size: 13, weight: .bold))
+                                                .foregroundColor(ggBlue)
+                                        } else if let b = budget(for: target) {
                                             Text(limitLabel(b.minutes))
                                                 .font(.system(size: 13, weight: .bold))
                                                 .foregroundColor(ggBlue)
@@ -233,44 +276,74 @@ struct ScreenTimeLimitsView: View {
         .navigationViewStyle(.stack)
     }
 
-    private func setBudget(_ token: ApplicationToken, minutes: Int?) {
-        budgets.removeAll { $0.token == token }
+    private func setBudget(_ target: GGLimitTarget, minutes: Int?) {
+        // detail's exit-save fires after Remove too — never resurrect a removed target
+        guard targets.contains(target) else { return }
+        switch target {
+        case .app(let t): budgets.removeAll { $0.token == t }
+        case .category(let c): budgets.removeAll { $0.category == c }
+        }
         if let minutes {
-            budgets.append(GGMon.GGBudget(id: UUID().uuidString, token: token, minutes: minutes))
+            switch target {
+            case .app(let t):
+                budgets.append(GGMon.GGBudget(id: UUID().uuidString, token: t, category: nil, minutes: minutes))
+            case .category(let c):
+                budgets.append(GGMon.GGBudget(id: UUID().uuidString, token: nil, category: c, minutes: minutes))
+            }
         }
         GGMon.saveBudgets(budgets)
         GGArming.armDaily()
         GGMon.rebuildShield()
     }
 
-    private func pauseNow(_ token: ApplicationToken) {
-        if !paused.contains(token) { paused.append(token) }
-        GGMon.savePaused(paused)
+    private func pauseNow(_ target: GGLimitTarget) {
+        switch target {
+        case .app(let t): if !paused.contains(t) { paused.append(t) }; GGMon.savePaused(paused)
+        case .category(let c): if !pausedCats.contains(c) { pausedCats.append(c) }; GGMon.savePausedCats(pausedCats)
+        }
         GGMon.rebuildShield()
     }
 
-    private func unpause(_ token: ApplicationToken) {
-        paused.removeAll { $0 == token }
-        GGMon.savePaused(paused)
+    private func unpause(_ target: GGLimitTarget) {
+        switch target {
+        case .app(let t): paused.removeAll { $0 == t }; GGMon.savePaused(paused)
+        case .category(let c): pausedCats.removeAll { $0 == c }; GGMon.savePausedCats(pausedCats)
+        }
         GGMon.rebuildShield()
     }
 
-    private func remove(_ token: ApplicationToken) {
-        tokens.removeAll { $0 == token }
+    private func remove(_ target: GGLimitTarget) {
+        targets.removeAll { $0 == target }
         var selection = GGMon.loadSelection() ?? FamilyActivitySelection()
-        selection.applicationTokens.remove(token)
+        switch target {
+        case .app(let t):
+            selection.applicationTokens.remove(t)
+            budgets.removeAll { $0.token == t }
+            paused.removeAll { $0 == t }
+            GGMon.savePaused(paused)
+        case .category(let c):
+            selection.categoryTokens.remove(c)
+            budgets.removeAll { $0.category == c }
+            pausedCats.removeAll { $0 == c }
+            GGMon.savePausedCats(pausedCats)
+        }
         GGMon.saveSelection(selection)
-        budgets.removeAll { $0.token == token }
         GGMon.saveBudgets(budgets)
-        paused.removeAll { $0 == token }
-        GGMon.savePaused(paused)
         GGArming.armDaily()
         GGMon.rebuildShield()
     }
 }
 
+@ViewBuilder
+func targetLabel(_ target: GGLimitTarget) -> some View {
+    switch target {
+    case .app(let token): Label(token).labelStyle(.titleAndIcon)
+    case .category(let token): Label(token).labelStyle(.titleAndIcon)
+    }
+}
+
 struct ScreenTimeLimitDetailView: View {
-    let token: ApplicationToken
+    let target: GGLimitTarget
     let budget: GGMon.GGBudget?
     let isPaused: Bool
     let onSave: (Int?) -> Void
@@ -285,11 +358,11 @@ struct ScreenTimeLimitDetailView: View {
     private let presets: [(String, Int)] = [("30m", 30), ("1h", 60), ("2h", 120), ("3h", 180)]
 
     init(
-        token: ApplicationToken, budget: GGMon.GGBudget?, isPaused: Bool,
+        target: GGLimitTarget, budget: GGMon.GGBudget?, isPaused: Bool,
         onSave: @escaping (Int?) -> Void, onPause: @escaping () -> Void,
         onUnpause: @escaping () -> Void, onRemove: @escaping () -> Void
     ) {
-        self.token = token
+        self.target = target
         self.budget = budget
         self.isPaused = isPaused
         self.onSave = onSave
@@ -305,9 +378,7 @@ struct ScreenTimeLimitDetailView: View {
             Section {
                 HStack {
                     Spacer()
-                    Label(token)
-                        .labelStyle(.titleAndIcon)
-                        .font(.headline)
+                    targetLabel(target).font(.headline)
                     Spacer()
                 }
                 .listRowBackground(Color.clear)
@@ -349,7 +420,7 @@ struct ScreenTimeLimitDetailView: View {
                     }
                 }
             } footer: {
-                Text("When the limit is reached, this app rests until tomorrow.")
+                Text("When the limit is reached, it rests until tomorrow.")
             }
 
             Section {

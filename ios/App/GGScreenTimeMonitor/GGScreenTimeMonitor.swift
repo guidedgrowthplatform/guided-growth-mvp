@@ -14,6 +14,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             // new day: tripped budgets + pauses reset
             GGMon.defaults?.removeObject(forKey: GGMon.Keys.tripped)
             GGMon.defaults?.removeObject(forKey: GGMon.Keys.paused)
+            GGMon.defaults?.removeObject(forKey: GGMon.Keys.pausedCats)
             GGMon.rebuildShield()
         }
     }
@@ -27,6 +28,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         if activity.rawValue == GGMon.dailyActivity {
             GGMon.defaults?.removeObject(forKey: GGMon.Keys.tripped)
             GGMon.defaults?.removeObject(forKey: GGMon.Keys.paused)
+            GGMon.defaults?.removeObject(forKey: GGMon.Keys.pausedCats)
             GGMon.rebuildShield()
         }
     }

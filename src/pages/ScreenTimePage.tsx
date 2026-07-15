@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppDetailView } from '@/components/screentime/AppDetailView';
 import { ChooseAppsView, type ChosenApp } from '@/components/screentime/ChooseAppsView';
@@ -136,6 +136,7 @@ export function ScreenTimePage() {
         if (isIos) {
           const result = await applyShield(minutes ?? undefined);
           if (!result.ok) return addToast('error', result.error);
+          await refresh();
         }
         setOnBreak(true);
         addToast(
@@ -145,7 +146,7 @@ export function ScreenTimePage() {
             : 'Break started. Your chosen apps are paused for the rest of today.',
         );
       }),
-    [runBusy, isIos, addToast],
+    [runBusy, isIos, addToast, refresh],
   );
 
   const handleEditLimits = useCallback(
@@ -203,6 +204,22 @@ export function ScreenTimePage() {
       }),
     [runBusy, addToast],
   );
+
+  // live break countdown (real end time from native; ticks every 30s)
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (!onBreak) return;
+    const id = setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [onBreak]);
+  const breakRemaining = useMemo(() => {
+    const ends = status?.breakEndsAt ?? 0;
+    if (!ends) return undefined;
+    const mins = Math.max(0, Math.round((ends * 1000 - nowTick) / 60_000));
+    if (mins > 12 * 60) return 'resting for the rest of today';
+    if (mins >= 60) return `${Math.floor(mins / 60)}h ${mins % 60}m to go`;
+    return `${mins}m to go`;
+  }, [status, nowTick]);
 
   // --- render ---
 
@@ -273,6 +290,7 @@ export function ScreenTimePage() {
           busy={busy}
           onAppTap={handleAppTap}
           onTakeBreak={(minutes) => void handleTakeBreak(minutes)}
+          breakRemaining={breakRemaining}
           onEndBreak={() => void handleEndBreak()}
           onTurnOff={() => setConfirmTurnOff(true)}
           onShowNativeReport={isIos ? () => void handleShowNativeReport() : undefined}

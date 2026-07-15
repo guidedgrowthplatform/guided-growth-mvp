@@ -76,7 +76,7 @@ export function DashboardView({
   range,
   onRangeChange,
   onBreak,
-  breakRemaining = '22 minutes to go',
+  breakRemaining = 'your chosen apps are resting',
   busy,
   onAppTap,
   onTakeBreak,

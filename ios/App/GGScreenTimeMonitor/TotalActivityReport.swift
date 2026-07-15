@@ -15,15 +15,18 @@ enum GGMon {
         static let budgets = "gg.budgets.v1"
         static let tripped = "gg.tripped.v1"
         static let paused = "gg.paused.v1"
+        static let pausedCats = "gg.pausedcats.v1"
         static let shieldActive = "gg.shield.active.v1"
         static let shieldExpiry = "gg.shield.expiry.v1"
     }
 
     static var defaults: UserDefaults? { UserDefaults(suiteName: appGroup) }
 
+    // exactly one of token/category is set (apps or whole categories can have limits)
     struct GGBudget: Codable {
         let id: String
-        let token: ApplicationToken
+        var token: ApplicationToken?
+        var category: ActivityCategoryToken?
         var minutes: Int
     }
 
@@ -40,6 +43,11 @@ enum GGMon {
     static func loadPaused() -> [ApplicationToken] {
         guard let arr = defaults?.array(forKey: Keys.paused) as? [Data] else { return [] }
         return arr.compactMap { try? JSONDecoder().decode(ApplicationToken.self, from: $0) }
+    }
+
+    static func loadPausedCats() -> [ActivityCategoryToken] {
+        guard let arr = defaults?.array(forKey: Keys.pausedCats) as? [Data] else { return [] }
+        return arr.compactMap { try? JSONDecoder().decode(ActivityCategoryToken.self, from: $0) }
     }
 
     // The single source of truth for what is shielded:
@@ -68,10 +76,14 @@ enum GGMon {
         }
         let tripped = Set(defaults?.stringArray(forKey: Keys.tripped) ?? [])
         for budget in loadBudgets() where tripped.contains(budget.id) {
-            apps.insert(budget.token)
+            if let token = budget.token { apps.insert(token) }
+            if let cat = budget.category { cats.insert(cat) }
         }
         for token in loadPaused() {
             apps.insert(token)
+        }
+        for cat in loadPausedCats() {
+            cats.insert(cat)
         }
 
         if apps.isEmpty && cats.isEmpty && webs.isEmpty {
