@@ -54,14 +54,18 @@ export function isHabitScheduledOnDate(
   return scheduleDays.includes(dow);
 }
 
+// Rule 7: a rest day BRIDGES the flame streak (skipped, not counted) rather than
+// breaking it; a done day counts, anything else (missed/pending) stops the run.
 export function calcCurrentStreak(completions: HabitCompletion[], fromDate: string): number {
-  const done = completions.filter((c) => c.status === 'done');
-  if (done.length === 0) return 0;
-  const dates = [...new Set(done.map((c) => c.date))].sort().reverse();
+  const done = new Set(completions.filter((c) => c.status === 'done').map((c) => c.date));
+  if (done.size === 0) return 0;
+  const rest = new Set(completions.filter((c) => c.status === 'rest').map((c) => c.date));
   let streak = 0;
   const checkDate = new Date(fromDate + 'T00:00:00');
-  while (dates.includes(fmtLocal(checkDate))) {
-    streak++;
+  while (true) {
+    const d = fmtLocal(checkDate);
+    if (done.has(d)) streak++;
+    else if (!rest.has(d)) break;
     checkDate.setDate(checkDate.getDate() - 1);
   }
   return streak;
@@ -140,6 +144,7 @@ export function useHabitsForDate(date: string, screenId?: string) {
       const ds = await getDataService();
       if (next === 'done') await ds.completeHabit(habitId, date);
       else if (next === 'missed') await ds.missHabit(habitId, date);
+      else if (next === 'rest') await ds.restHabit(habitId, date);
       else await ds.clearHabit(habitId, date);
       return { habitId, next };
     },

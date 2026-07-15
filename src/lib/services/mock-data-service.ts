@@ -11,6 +11,7 @@ import type {
   CheckInRecord,
   FocusSession,
 } from './data-service.interface';
+import { calcHabitStreaks } from '@/utils/habitStreak';
 
 const STORAGE_KEYS = {
   habits: 'mvp03_habits',
@@ -56,52 +57,12 @@ function setStore<T>(key: string, data: T[]): void {
 }
 
 // Calculate current streak for a habit
+// Rest-aware (Rule 7): a rest bridges the streak. Delegates to the shared helper
+// so the mock and the live useHabitDetail path compute streaks identically.
 function calcStreaks(completions: HabitCompletion[]): { current: number; longest: number } {
-  if (completions.length === 0) return { current: 0, longest: 0 };
-
-  const dates = [...new Set(completions.map((c) => c.date))].sort().reverse();
-
-  let longest = 0;
-  let streak = 0;
-  const today = new Date();
-
-  // Check if today or yesterday is completed (allows for "haven't completed today yet")
-  const todayDate = todayStr();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayDate = fmtLocalDate(yesterday);
-
-  const sortedAsc = [...dates].sort();
-
-  for (let i = 0; i < sortedAsc.length; i++) {
-    if (i === 0) {
-      streak = 1;
-    } else {
-      const prev = new Date(sortedAsc[i - 1]);
-      const curr = new Date(sortedAsc[i]);
-      const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
-      if (diff === 1) {
-        streak++;
-      } else {
-        longest = Math.max(longest, streak);
-        streak = 1;
-      }
-    }
-  }
-  longest = Math.max(longest, streak);
-
-  // Current streak: count back from today/yesterday
-  let current = 0;
-  if (dates.includes(todayDate) || dates.includes(yesterdayDate)) {
-    const startDate = dates.includes(todayDate) ? todayDate : yesterdayDate;
-    const checkDate = new Date(startDate);
-    while (dates.includes(fmtLocalDate(checkDate))) {
-      current++;
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-  }
-
-  return { current, longest };
+  const done = completions.filter((c) => c.status === 'done').map((c) => c.date);
+  const rest = completions.filter((c) => c.status === 'rest').map((c) => c.date);
+  return calcHabitStreaks(done, rest, todayStr());
 }
 
 export class MockDataService implements DataService {
@@ -170,7 +131,7 @@ export class MockDataService implements DataService {
   private setHabitDayStatus(
     habitId: string,
     date: string,
-    status: 'done' | 'missed',
+    status: 'done' | 'missed' | 'rest',
   ): HabitCompletion {
     const completions = getStore<HabitCompletion>(STORAGE_KEYS.completions);
     const existing = completions.find((c) => c.habitId === habitId && c.date === date);
@@ -199,6 +160,10 @@ export class MockDataService implements DataService {
 
   async missHabit(habitId: string, date: string): Promise<HabitCompletion> {
     return this.setHabitDayStatus(habitId, date, 'missed');
+  }
+
+  async restHabit(habitId: string, date: string): Promise<HabitCompletion> {
+    return this.setHabitDayStatus(habitId, date, 'rest');
   }
 
   async clearHabit(habitId: string, date: string): Promise<void> {
@@ -327,17 +292,22 @@ export class MockDataService implements DataService {
     const totalDays = period === 'week' ? 7 : 30;
     startDate.setDate(startDate.getDate() - totalDays);
 
-    const completions = (
-      await this.getCompletions(habitId, fmtLocalDate(startDate), todayStr())
-    ).filter((c) => c.status === 'done');
-    const uniqueDays = new Set(completions.map((c) => c.date)).size;
-    const { current, longest } = calcStreaks(completions);
+    const allCompletions = await this.getCompletions(habitId, fmtLocalDate(startDate), todayStr());
+    const doneCompletions = allCompletions.filter((c) => c.status === 'done');
+    const uniqueDays = new Set(doneCompletions.map((c) => c.date)).size;
+    // Rest days are days off (Rule 7): drop them from the denominator so a rest
+    // never lowers the performance score.
+    const restDays = new Set(
+      allCompletions.filter((c) => c.status === 'rest').map((c) => c.date),
+    ).size;
+    const effectiveDays = Math.max(0, totalDays - restDays);
+    const { current, longest } = calcStreaks(allCompletions);
 
     return {
       habit,
       completionsThisPeriod: uniqueDays,
-      totalDaysInPeriod: totalDays,
-      completionRate: Math.round((uniqueDays / totalDays) * 100),
+      totalDaysInPeriod: effectiveDays,
+      completionRate: effectiveDays > 0 ? Math.round((uniqueDays / effectiveDays) * 100) : 0,
       currentStreak: current,
       longestStreak: longest,
     };

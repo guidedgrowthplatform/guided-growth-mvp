@@ -261,14 +261,24 @@ export function prevCalendarDay(day: string): string {
   return base.toISOString().slice(0, 10);
 }
 
-// Consecutive 'done' days ending EXACTLY at `day` (0 if `day` itself is not done).
-// Pure and string-based — no timezone or DST math here; the caller resolves the
-// anchor date in the user's timezone (via todayStr) and passes it in.
-export function streakEndingAt(doneDays: Set<string>, day: string): number {
+// Consecutive 'done' days ending EXACTLY at `day` (0 if `day` itself is neither
+// done nor a bridging rest). Rest days BRIDGE the run (Rule 7: a rest does not
+// break a streak) — they are skipped without counting, so the number is done-days
+// only. Pure and string-based — no timezone or DST math here; the caller resolves
+// the anchor date in the user's timezone (via todayStr) and passes it in.
+export function streakEndingAt(
+  doneDays: Set<string>,
+  day: string,
+  restDays?: Set<string>,
+): number {
   let n = 0;
   let cursor = day;
-  while (doneDays.has(cursor)) {
-    n++;
+  while (true) {
+    if (doneDays.has(cursor)) {
+      n++;
+    } else if (!restDays || !restDays.has(cursor)) {
+      break;
+    }
     cursor = prevCalendarDay(cursor);
   }
   return n;
@@ -281,38 +291,51 @@ export function streakEndingAt(doneDays: Set<string>, day: string): number {
 // runs — computing "current including today" here would be stale (one too low) the
 // moment the user marks today done. Through-yesterday is stable within the turn, and
 // the coach adds today only when the user confirms they did it today.
+// One streak line for the coach. When today is ALREADY a rest, the streak holds at
+// `through` (a rest protects it but never extends it), so the hypothetical
+// "+1 including today" is suppressed to avoid over-claiming a rest as a win and to
+// match the client streak (which returns `through` on a rest-today).
+export function formatStreakLine(name: string, through: number, restToday: boolean): string {
+  const clean = name.replace(/\s+/g, ' ').trim();
+  return restToday
+    ? `- ${clean}: ${through} in a row, protected through today's rest (a rest does not add to it, so it stays ${through})`
+    : `- ${clean}: ${through} in a row through yesterday (${through + 1} including today)`;
+}
+
 async function buildStreakBlock(anonId: string, timezone?: string): Promise<string> {
-  const res = await pool.query<{ id: string; name: string; date: string }>(
-    `SELECT h.id AS id, h.name AS name, c.date::text AS date
+  const res = await pool.query<{ id: string; name: string; date: string; status: string }>(
+    `SELECT h.id AS id, h.name AS name, c.date::text AS date, c.status AS status
        FROM user_habits h
        JOIN habit_completions c ON c.habit_id = h.id
       WHERE h.anon_id = $1 AND c.anon_id = $1 AND h.is_active = true AND h.archived_at IS NULL
-        AND c.status = 'done'
+        AND c.status IN ('done', 'rest')
       ORDER BY h.sort_order ASC, c.date ASC`,
     [anonId],
   );
   if (res.rowCount === 0) return '';
   const today = todayStr(timezone || 'UTC');
   const yesterday = prevCalendarDay(today);
-  const byId = new Map<string, { name: string; days: Set<string> }>();
+  const byId = new Map<string, { name: string; done: Set<string>; rest: Set<string> }>();
   for (const r of res.rows) {
-    if (!byId.has(r.id)) byId.set(r.id, { name: r.name, days: new Set() });
-    byId.get(r.id)!.days.add(r.date.slice(0, 10));
+    if (!byId.has(r.id)) byId.set(r.id, { name: r.name, done: new Set(), rest: new Set() });
+    const day = r.date.slice(0, 10);
+    if (r.status === 'rest') byId.get(r.id)!.rest.add(day);
+    else byId.get(r.id)!.done.add(day);
   }
   const streaks = [...byId.values()]
-    .map((h) => ({ name: h.name, through: streakEndingAt(h.days, yesterday) }))
+    .map((h) => ({
+      name: h.name,
+      through: streakEndingAt(h.done, yesterday, h.rest),
+      restToday: h.rest.has(today),
+    }))
     .filter((s) => s.through >= 1);
   if (streaks.length === 0) return '';
-  const lines = streaks
-    .map(
-      (s) =>
-        `- ${s.name.replace(/\s+/g, ' ').trim()}: ${s.through} in a row through yesterday (${s.through + 1} including today)`,
-    )
-    .join('\n');
+  const lines = streaks.map((s) => formatStreakLine(s.name, s.through, s.restToday)).join('\n');
   return (
     `\n\n## Streaks (from their real log)\n` +
     `Each line shows the run through yesterday and, in parentheses, the total INCLUDING today. ` +
-    `Use the "including today" number ONLY if the user actually did the habit today; if they did not, there is no current streak to celebrate.\n` +
+    `Use the "including today" number ONLY if the user actually did the habit today; if they did not, there is no current streak to celebrate. ` +
+    `A line that says the streak is protected through today's rest already holds at that number: a rest does NOT increase it.\n` +
     lines
   );
 }

@@ -5,7 +5,7 @@ import pool from '../db.js';
 // across habits, state check-ins, and reflections, plus enough of the prior
 // weekly session to let the coach reference it ("last week you said...").
 
-export type HabitDayCellStatus = 'done' | 'missed' | 'pending';
+export type HabitDayCellStatus = 'done' | 'missed' | 'rest' | 'pending';
 
 export interface WeekDataHabitDay {
   date: string; // yyyy-MM-dd
@@ -209,10 +209,17 @@ export async function buildWeekData(
     let scheduledCount = 0;
     const days: WeekDataHabitDay[] = dates.map((date) => {
       const scheduled = isScheduled(h.schedule_days, dayOfWeek(date));
-      if (scheduled) scheduledCount++;
       const rawStatus = byDate?.get(date);
       const status: HabitDayCellStatus =
-        rawStatus === 'done' ? 'done' : rawStatus === 'missed' ? 'missed' : 'pending';
+        rawStatus === 'done'
+          ? 'done'
+          : rawStatus === 'missed'
+            ? 'missed'
+            : rawStatus === 'rest'
+              ? 'rest'
+              : 'pending';
+      // A rest is a day off (Rule 7): excluded from the scheduled total, neither win nor miss.
+      if (scheduled && status !== 'rest') scheduledCount++;
       if (status === 'done') doneCount++;
       return { date, scheduled, status };
     });
@@ -306,6 +313,7 @@ export async function buildWeekData(
 const DAY_CELL_MARKERS: Record<HabitDayCellStatus | 'off', string> = {
   done: 'x',
   missed: 'm',
+  rest: 'r',
   pending: '.',
   off: '_',
 };
@@ -330,7 +338,7 @@ export function renderWeekDataBlock(week: WeekData): string {
   lines.push('');
 
   if (week.habits.length > 0) {
-    lines.push('Habits (x done, m missed, . pending, _ not scheduled):');
+    lines.push('Habits (x done, m missed, r rest, . pending, _ not scheduled):');
     for (const habit of week.habits) {
       const markers = habit.days.map(habitDayMarker).join(' ');
       lines.push(
@@ -376,7 +384,7 @@ export function renderWeekDataBlock(week: WeekData): string {
 
 // ─── buildWeekGridPayload ────────────────────────────────────────────────
 
-export type HabitWeekCell = 'done' | 'missed' | 'gap' | 'off';
+export type HabitWeekCell = 'done' | 'missed' | 'rest' | 'gap' | 'off';
 
 export interface WeekGridRow {
   name: string;
@@ -394,6 +402,7 @@ export interface WeekGridPayload {
 
 function gridCell(day: WeekDataHabitDay): HabitWeekCell {
   if (!day.scheduled) return 'off';
+  if (day.status === 'rest') return 'rest'; // day off, not counted as scheduled
   if (day.status === 'done') return 'done';
   if (day.status === 'missed') return 'missed';
   return 'gap'; // scheduled + pending = never reported

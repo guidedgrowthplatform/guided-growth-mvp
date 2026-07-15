@@ -10,12 +10,16 @@ import {
   isHabitVisibleOnDate,
 } from '../useHabitsForDate';
 
-function completion(date: string, status: 'done' | 'missed' = 'done'): HabitCompletion {
+function completion(date: string, status: 'done' | 'missed' | 'rest' = 'done'): HabitCompletion {
   return { id: date, habitId: 'h', date, completedAt: `${date}T08:00:00Z`, status };
 }
 
 function missed(date: string): HabitCompletion {
   return completion(date, 'missed');
+}
+
+function rest(date: string): HabitCompletion {
+  return completion(date, 'rest');
 }
 
 describe('calcCurrentStreak', () => {
@@ -54,6 +58,21 @@ describe('calcCurrentStreak', () => {
   it('breaks the run on a missed day', () => {
     const rows = [completion('2026-04-29'), missed('2026-04-30'), completion('2026-05-01')];
     expect(calcCurrentStreak(rows, '2026-05-01')).toBe(1);
+  });
+
+  it('bridges a rest day between done days (Rule 7): does not break, does not count', () => {
+    const rows = [completion('2026-04-29'), rest('2026-04-30'), completion('2026-05-01')];
+    expect(calcCurrentStreak(rows, '2026-05-01')).toBe(2);
+  });
+
+  it('protects the streak when the anchor day itself is a rest', () => {
+    const rows = [completion('2026-04-29'), completion('2026-04-30'), rest('2026-05-01')];
+    expect(calcCurrentStreak(rows, '2026-05-01')).toBe(2);
+  });
+
+  it('bridges multiple consecutive rests', () => {
+    const rows = [completion('2026-04-28'), rest('2026-04-29'), rest('2026-04-30'), completion('2026-05-01')];
+    expect(calcCurrentStreak(rows, '2026-05-01')).toBe(2);
   });
 });
 

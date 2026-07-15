@@ -5,6 +5,7 @@ import type { JSONSchema } from '../jsonSchemaTypes.js';
 export type CheckinToolName =
   | 'create_habit'
   | 'complete_habit'
+  | 'mark_rest'
   | 'update_habit'
   | 'delete_habit'
   | 'create_metric'
@@ -77,6 +78,29 @@ export const CHECKIN_TOOLS: readonly CheckinToolDefinition[] = [
         dates: {
           type: 'array',
           description: 'Multiple dates to mark complete (same formats as date).',
+          items: { type: 'string' },
+        },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'mark_rest',
+    description:
+      'Mark a habit as a REST day — a deliberate, planned skip (recovery, a day off) that PROTECTS the streak instead of breaking it. Call ONLY when the user says they are intentionally resting this habit (e.g. "resting my legs today", "taking a rest day from the gym", "skipping meditation on purpose"). Do NOT use for a miss / forgot / ran out of time — that is simply an unmarked day, never a rest. Defaults to today.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Habit name to mark as a rest day.' },
+        date: {
+          type: 'string',
+          description:
+            'Single date: "today" (default), "yesterday", a weekday name, or YYYY-MM-DD. Must not be in the future.',
+        },
+        dates: {
+          type: 'array',
+          description: 'Multiple dates to mark as rest (same formats as date).',
           items: { type: 'string' },
         },
       },

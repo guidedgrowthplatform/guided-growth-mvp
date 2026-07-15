@@ -1,4 +1,4 @@
-import { Check, Minus, X } from 'lucide-react';
+import { Check, Minus, Moon, X } from 'lucide-react';
 import { Fragment } from 'react';
 import type { CalendarCell } from '@/hooks/useHabitDetail';
 
@@ -14,6 +14,8 @@ function cellClass(status: CalendarCell['status']): string {
       return 'bg-success';
     case 'missed':
       return 'border-2 border-danger bg-surface';
+    case 'rest':
+      return 'border border-border-light bg-surface-secondary';
     case 'today-done':
       return 'bg-success';
     case 'today':
@@ -65,6 +67,7 @@ export function StreakCalendarGrid({ data }: StreakCalendarGridProps) {
                 <Check size={14} className="text-white" />
               )}
               {cell.status === 'missed' && <X size={14} className="text-danger" />}
+              {cell.status === 'rest' && <Moon size={13} className="text-content-tertiary" />}
               {cell.status === 'unscheduled-past' && (
                 <Minus size={14} className="text-content-tertiary" />
               )}

@@ -232,7 +232,7 @@ export class SupabaseDataService implements DataService {
   private async setHabitDayStatus(
     habitId: string,
     date: string,
-    status: 'done' | 'missed',
+    status: 'done' | 'missed' | 'rest',
   ): Promise<HabitCompletion> {
     if (date > todayStr()) throw new Error('Cannot mark habit for future dates');
 
@@ -277,6 +277,10 @@ export class SupabaseDataService implements DataService {
 
   async missHabit(habitId: string, date: string): Promise<HabitCompletion> {
     return this.setHabitDayStatus(habitId, date, 'missed');
+  }
+
+  async restHabit(habitId: string, date: string): Promise<HabitCompletion> {
+    return this.setHabitDayStatus(habitId, date, 'rest');
   }
 
   async clearHabit(habitId: string, date: string): Promise<void> {
@@ -594,15 +598,18 @@ export class SupabaseDataService implements DataService {
     startDate.setDate(startDate.getDate() - daysBack);
     const startStr = startDate.toISOString().split('T')[0];
 
-    const completions = (await this.getCompletions(habitId, startStr)).filter(
-      (c) => c.status === 'done',
-    );
+    const all = await this.getCompletions(habitId, startStr);
+    const doneCount = all.filter((c) => c.status === 'done').length;
+    // Rest days are days off (Rule 7): drop them from the denominator so a rest
+    // never lowers the performance score.
+    const restDays = new Set(all.filter((c) => c.status === 'rest').map((c) => c.date)).size;
+    const effectiveDays = Math.max(0, daysBack - restDays);
 
     return {
       habit,
-      completionsThisPeriod: completions.length,
-      totalDaysInPeriod: daysBack,
-      completionRate: (completions.length / daysBack) * 100,
+      completionsThisPeriod: doneCount,
+      totalDaysInPeriod: effectiveDays,
+      completionRate: effectiveDays > 0 ? (doneCount / effectiveDays) * 100 : 0,
       currentStreak: 0,
       longestStreak: 0,
     };

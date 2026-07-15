@@ -111,6 +111,32 @@ describe('buildWeekData: 3-state day mapping', () => {
     expect(gym.scheduledCount).toBe(3); // Mon, Wed, Fri in the window
   });
 
+  it('maps a rest row to status rest and excludes it from scheduledCount (Rule 7)', async () => {
+    const client = makeClient(
+      emptyRoutes({
+        habits: [
+          {
+            id: 'h1',
+            name: 'Gym',
+            habit_type: 'binary_do',
+            cadence: '3x/week',
+            schedule_days: [1, 3, 5], // Mon, Wed, Fri
+          },
+        ],
+        completions: [
+          { habit_id: 'h1', date: '2026-06-08', status: 'done' }, // Mon
+          { habit_id: 'h1', date: '2026-06-10', status: 'rest' }, // Wed
+        ],
+      }),
+    );
+    const week = await buildWeekData(client, ANON_ID, WEEK_END);
+    const gym = week.habits[0];
+    const byDate = new Map(gym.days.map((d) => [d.date, d]));
+    expect(byDate.get('2026-06-10')).toMatchObject({ scheduled: true, status: 'rest' });
+    expect(gym.doneCount).toBe(1);
+    expect(gym.scheduledCount).toBe(2); // Mon + Fri; the Wed rest is a day off
+  });
+
   it('null/empty schedule_days means scheduled every day (cadence-default daily)', async () => {
     const client = makeClient(
       emptyRoutes({
@@ -269,6 +295,36 @@ describe('buildWeekGridPayload: cell mapping', () => {
     const grid = buildWeekGridPayload(week);
     expect(grid.overallScheduled).toBe(0);
     expect(grid.overallPercent).toBe(0);
+  });
+
+  it('maps a rest to a rest cell and excludes it from the scheduled total (Rule 7)', async () => {
+    const client = makeClient(
+      emptyRoutes({
+        habits: [
+          {
+            id: 'h1',
+            name: 'Gym',
+            habit_type: 'binary_do',
+            cadence: '3x/week',
+            schedule_days: [1, 3, 5], // Mon, Wed, Fri
+          },
+        ],
+        completions: [
+          { habit_id: 'h1', date: '2026-06-08', status: 'done' }, // Mon
+          { habit_id: 'h1', date: '2026-06-10', status: 'rest' }, // Wed: a rest, not a miss
+          // Fri (06-12) pending -> gap
+        ],
+      }),
+    );
+    const week = await buildWeekData(client, ANON_ID, WEEK_END);
+    const grid = buildWeekGridPayload(week);
+    const row = grid.rows[0];
+    // Wed renders as 'rest', not 'gap'/'missed'
+    expect(row.cells).toEqual(['done', 'off', 'rest', 'off', 'gap', 'off', 'off']);
+    // the rest Wed is NOT in the scheduled denominator: only Mon + Fri
+    expect(row.scheduled).toBe(2);
+    expect(row.done).toBe(1);
+    expect(grid.overallPercent).toBe(50); // 1 of 2
   });
 });
 

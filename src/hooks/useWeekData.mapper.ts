@@ -11,6 +11,7 @@
  * Cell rule (mirrors the skimmer WeeklyHabitsSummary + isHabitScheduledOnDate):
  *   - a completion row with status 'done'   -> 'done'
  *   - a completion row with status 'missed' -> 'missed'
+ *   - a completion row with status 'rest'   -> 'rest'  (day off, not counted as scheduled)
  *   - scheduled that day, no row            -> 'gap'   (never reported)
  *   - not scheduled that day                -> 'off'
  *
@@ -92,8 +93,9 @@ export function buildWeekGrid(
     const cells: HabitWeekCell[] = windowDates.map((date) => {
       const isScheduled = isHabitScheduledOnDate(habit.scheduleDays, date);
       if (!isScheduled) return 'off';
-      scheduled++;
       const row = byDate?.get(date);
+      if (row?.status === 'rest') return 'rest'; // a day off — not counted in the scheduled total
+      scheduled++;
       if (row?.status === 'done') {
         done++;
         return 'done';

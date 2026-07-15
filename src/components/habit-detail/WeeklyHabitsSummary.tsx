@@ -1,11 +1,12 @@
-import { Check, Minus, X } from 'lucide-react';
+import { Check, Minus, Moon, X } from 'lucide-react';
 
-// Four cell states:
+// Five cell states:
 //   done   -> green check (reported, done)
 //   missed -> red X       (reported, not done)
+//   rest   -> moon        (a deliberate rest; protects the streak, not a miss)
 //   off    -> gray cell + dash (NOT scheduled that day; totally fine, not a problem)
 //   gap    -> blank, nothing there (scheduled but NEVER reported; the thing to avoid)
-export type HabitWeekCell = 'done' | 'missed' | 'gap' | 'off';
+export type HabitWeekCell = 'done' | 'missed' | 'rest' | 'gap' | 'off';
 
 interface WeeklyHabitsSummaryProps {
   overallPercent: number;
@@ -35,6 +36,15 @@ function StatusCell({ status }: { status: HabitWeekCell }) {
     return (
       <div className="flex aspect-square items-center justify-center rounded-sm border-2 border-danger bg-surface">
         <X size={13} className="text-danger" />
+      </div>
+    );
+  }
+
+  if (status === 'rest') {
+    // A deliberate rest. Bridges the streak instead of breaking it.
+    return (
+      <div className="flex aspect-square items-center justify-center rounded-sm border border-border-light bg-surface-secondary">
+        <Moon size={12} className="text-content-tertiary" />
       </div>
     );
   }

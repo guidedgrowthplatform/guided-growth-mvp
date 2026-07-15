@@ -4,6 +4,7 @@ import { queryKeys } from '@/lib/query';
 import type { Habit, HabitCompletion } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
 import { useAuthStore } from '@/stores/authStore';
+import { calcHabitStreaks } from '@/utils/habitStreak';
 
 export interface HabitDetailStats {
   completionRate: number;
@@ -18,6 +19,7 @@ export type CalendarCell = {
   status:
     | 'done'
     | 'missed'
+    | 'rest'
     | 'empty'
     | 'today'
     | 'today-done'
@@ -51,43 +53,6 @@ const EMPTY_STATS: HabitDetailStats = {
 function todayStr(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function calcStreaks(dates: string[]): { current: number; longest: number } {
-  if (dates.length === 0) return { current: 0, longest: 0 };
-
-  const unique = [...new Set(dates)].sort();
-  let longest = 0;
-  let streak = 0;
-
-  for (let i = 0; i < unique.length; i++) {
-    if (i === 0) {
-      streak = 1;
-    } else {
-      const prev = new Date(unique[i - 1]);
-      const curr = new Date(unique[i]);
-      const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
-      streak = diff === 1 ? streak + 1 : 1;
-    }
-    longest = Math.max(longest, streak);
-  }
-
-  const today = todayStr();
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-  let current = 0;
-  if (unique.includes(today) || unique.includes(yesterdayStr)) {
-    const start = unique.includes(today) ? today : yesterdayStr;
-    const checkDate = new Date(start);
-    while (unique.includes(checkDate.toISOString().split('T')[0])) {
-      current++;
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-  }
-
-  return { current, longest };
 }
 
 function parseCadence(
@@ -127,6 +92,7 @@ function parseCadence(
 
 function buildCalendarGrid(
   completionDates: Set<string>,
+  restDates: Set<string>,
   activeDays: boolean[],
   startDate: string,
 ): { month: string; grid: CalendarCell[][] } {
@@ -155,6 +121,11 @@ function buildCalendarGrid(
 
       if (dateStr < startDate) {
         row.push({ status: 'unscheduled-past', day: dayNum });
+        continue;
+      }
+
+      if (restDates.has(dateStr)) {
+        row.push({ status: 'rest', day: dayNum });
         continue;
       }
 
@@ -223,16 +194,23 @@ export function useHabitDetail(habitId: string | undefined): HabitDetailData {
         : null;
 
   const dates = completions.filter((c) => c.status === 'done').map((c) => c.date);
-  const { current: currentStreak, longest: longestStreak } = calcStreaks(dates);
+  const restDates = completions.filter((c) => c.status === 'rest').map((c) => c.date);
+  const { current: currentStreak, longest: longestStreak } = calcHabitStreaks(
+    dates,
+    restDates,
+    todayStr(),
+  );
 
   const { activeDays, label: frequencyLabel } = habit
     ? parseCadence(habit.frequency, habit.scheduleDays)
     : { activeDays: Array(7).fill(true) as boolean[], label: '' };
 
   const completionDates = new Set(dates);
+  const restDateSet = new Set(restDates);
   const habitStartDate = habit ? habit.createdAt.split('T')[0] : todayStr();
   const { month: calendarMonth, grid: calendarData } = buildCalendarGrid(
     completionDates,
+    restDateSet,
     activeDays,
     habitStartDate,
   );
@@ -251,8 +229,9 @@ export function useHabitDetail(habitId: string | undefined): HabitDetailData {
   for (let d = startDay; d <= today; d++) {
     const dow = new Date(year, month, d).getDay();
     if (activeDays[dow]) {
-      activeDaysCount++;
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      if (restDateSet.has(dateStr)) continue; // a rest is a day off — neither a win nor a miss
+      activeDaysCount++;
       if (!completionDates.has(dateStr)) {
         missedCount++;
       }

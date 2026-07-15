@@ -100,6 +100,15 @@ function createDataServiceTests(name: string, factory: () => DataService) {
         expect(c.status).toBe('missed');
       });
 
+      it('should mark a habit as a rest day', async () => {
+        const habit = await svc.createHabit('Test');
+        const c = await svc.restHabit(habit.id, '2026-03-05');
+        expect(c.status).toBe('rest');
+        const completions = await svc.getCompletions(habit.id, '2026-03-05', '2026-03-05');
+        expect(completions).toHaveLength(1);
+        expect(completions[0].status).toBe('rest');
+      });
+
       it('should flip missed to done on re-complete (one row per day)', async () => {
         const habit = await svc.createHabit('Test');
         await svc.missHabit(habit.id, '2026-03-05');
@@ -199,6 +208,22 @@ function createDataServiceTests(name: string, factory: () => DataService) {
         expect(summary).toBeDefined();
         expect(summary.habit.name).toBe('Meditation');
         expect(summary.completionsThisPeriod).toBeGreaterThanOrEqual(0);
+      });
+
+      it('excludes rest days from the performance denominator (Rule 7)', async () => {
+        const habit = await svc.createHabit('Meditation');
+        const iso = (d: Date) =>
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        await svc.completeHabit(habit.id, iso(today));
+        await svc.restHabit(habit.id, iso(yesterday));
+        const summary = await svc.getHabitSummary(habit.id, 'week');
+        // 1 done; the rest day drops out of the 7-day window denominator -> 6.
+        expect(summary.completionsThisPeriod).toBe(1);
+        expect(summary.totalDaysInPeriod).toBe(6);
+        expect(summary.completionRate).toBe(Math.round((1 / 6) * 100));
       });
 
       it('should return a weekly summary', async () => {
