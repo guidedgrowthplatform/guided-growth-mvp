@@ -52,6 +52,13 @@ interface HomeBarPreviewProps {
   // The app screen background, mirrored from the tuner's Background control.
   screenBg: string;
   bgKey: string; // 'light' | 'blue' | 'yellow' | 'dark' (drives text contrast)
+  // Orb size in the notch. Defaults to the real bar size (91).
+  orbSize?: number;
+  // When true, the orb blooms big in the phone body (the coach-greeting state)
+  // and the notch stays empty. Used by the Orb states page.
+  centered?: boolean;
+  // Caption above the phone.
+  label?: string;
 }
 
 export function HomeBarPreview({
@@ -62,6 +69,9 @@ export function HomeBarPreview({
   mic,
   screenBg,
   bgKey,
+  orbSize = 91,
+  centered = false,
+  label = 'Home bar (live)',
 }: HomeBarPreviewProps) {
   const dark = bgKey === 'dark';
   const subText = dark ? 'text-white/60' : 'text-slate-500';
@@ -75,11 +85,17 @@ export function HomeBarPreview({
         className="text-[11px] font-semibold uppercase"
         style={{ color: '#8a92a8', letterSpacing: '.09em' }}
       >
-        Home bar (live)
+        {label}
       </div>
       <div
         className="relative overflow-hidden rounded-[44px]"
-        style={{ width: 340, height: 720, background: screenBg, boxShadow: '0 18px 50px rgba(20,30,60,.28)', border: '6px solid #0b0e16' }}
+        style={{
+          width: 340,
+          height: 720,
+          background: screenBg,
+          boxShadow: '0 18px 50px rgba(20,30,60,.28)',
+          border: '6px solid #0b0e16',
+        }}
       >
         {/* Home content mock, so the bar and orb read in a real context. Cards are
             translucent so they sit on whatever app background is selected. */}
@@ -118,21 +134,38 @@ export function HomeBarPreview({
           </div>
         </div>
 
+        {/* The big blooming orb: shown in the phone body for the coach-greeting
+            (big talking) state. The notch stays empty in this mode. */}
+        {centered && (
+          <div className="absolute left-1/2 top-[42%] z-40 -translate-x-1/2 -translate-y-1/2">
+            <Orb
+              size={orbSize}
+              state={orbState}
+              style={orbStyle}
+              params={params}
+              pulse={pulse}
+              mic={mic}
+            />
+          </div>
+        )}
+
         {/* The home bar: scooped background, the live orb in the notch, four tabs. */}
         <div className="absolute inset-x-0 bottom-0">
           <div className="relative" style={{ height: 72 }}>
             <BarBackground />
-            <div className="absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-1/2">
-              <Orb
-                size={91}
-                state={orbState}
-                style={orbStyle}
-                params={params}
-                pulse={pulse}
-                mic={mic}
-                flat
-              />
-            </div>
+            {!centered && (
+              <div className="absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-1/2">
+                <Orb
+                  size={orbSize}
+                  state={orbState}
+                  style={orbStyle}
+                  params={params}
+                  pulse={pulse}
+                  mic={mic}
+                  flat
+                />
+              </div>
+            )}
             <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
               <Tab icon="ic:round-home" label="Home" />
               <Tab icon="ic:round-leaderboard" label="Progress" />
