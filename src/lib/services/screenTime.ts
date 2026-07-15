@@ -1,4 +1,9 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import type {
+  ScreenTimeBandTransition,
+  ScreenTimeBoundary,
+  ScreenTimeBoundaryState,
+} from '@gg/shared/types/screentime';
 
 // iOS-only digital-wellbeing feature backed by Apple's Screen Time APIs
 // (FamilyControls). App names never reach JS — the native picker/report render
@@ -47,6 +52,11 @@ interface ScreenTimePlugin {
   updateUsageReportRect(opts: UsageReportRect): Promise<void>;
   setUsageReportRange(opts: { range: UsageReportRange }): Promise<void>;
   detachUsageReport(): Promise<void>;
+  getBoundaryStates(): Promise<{
+    boundaries: ScreenTimeBoundary[];
+    states: ScreenTimeBoundaryState[];
+  }>;
+  drainBoundaryTransitions(): Promise<{ transitions: ScreenTimeBandTransition[] }>;
   applyShield(opts?: { minutes?: number }): Promise<void>;
   clearShield(): Promise<void>;
   disable(): Promise<void>;
@@ -138,6 +148,23 @@ export async function setUsageReportRange(range: UsageReportRange): Promise<void
 
 export async function detachUsageReport(): Promise<void> {
   await run((p) => p.detachUsageReport());
+}
+
+// Coach data contract (docs/screentime/coach-data-contract.md) — bands, never
+// minutes. Both fall back to empty off-iOS so callers need no platform checks.
+export async function getBoundaryStates(): Promise<{
+  boundaries: ScreenTimeBoundary[];
+  states: ScreenTimeBoundaryState[];
+}> {
+  const result = await run((p) => p.getBoundaryStates());
+  return result.ok ? result.value : { boundaries: [], states: [] };
+}
+
+// Destructive read: native clears its journal. Callers must log every entry
+// (logEvent is write-ahead local, so a failed POST still retries).
+export async function drainBoundaryTransitions(): Promise<ScreenTimeBandTransition[]> {
+  const result = await run((p) => p.drainBoundaryTransitions());
+  return result.ok ? result.value.transitions : [];
 }
 
 // minutes: timed break (auto-lifts via the monitor); omitted = until ended manually

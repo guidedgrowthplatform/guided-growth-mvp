@@ -10,10 +10,12 @@ import { ScreenTimeIntro } from '@/components/screentime/ScreenTimeIntro';
 import { ShieldPreview, type ShieldReason } from '@/components/screentime/ShieldPreview';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { useToast } from '@/contexts/ToastContext';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import {
   applyShield,
   clearShield,
   disableScreenTime,
+  getBoundaryStates,
   getScreenTimeStatus,
   isScreenTimeAvailable,
   presentAppPicker,
@@ -46,6 +48,7 @@ function ExplainerCard({ title, body }: { title: string; body: string }) {
 export function ScreenTimePage() {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { logEvent } = useSessionLog();
   const isIos = isScreenTimeAvailable();
 
   const [status, setStatus] = useState<ScreenTimeStatus | null>(null);
@@ -138,6 +141,7 @@ export function ScreenTimePage() {
           if (!result.ok) return addToast('error', result.error);
           await refresh();
         }
+        logEvent('screentime_break_started', minutes ? { minutes } : {});
         setOnBreak(true);
         addToast(
           'success',
@@ -146,17 +150,38 @@ export function ScreenTimePage() {
             : 'Break started. Your chosen apps are paused for the rest of today.',
         );
       }),
-    [runBusy, isIos, addToast, refresh],
+    [runBusy, isIos, addToast, refresh, logEvent],
   );
 
   const handleEditLimits = useCallback(
     () =>
       runBusy(async () => {
+        // diff boundaries around the native editor → boundary_set/removed events
+        const before = (await getBoundaryStates()).boundaries;
         const result = await presentBudgetEditor();
         if (!result.ok) return addToast('error', result.error);
+        const after = (await getBoundaryStates()).boundaries;
+        const beforeById = new Map(before.map((b) => [b.id, b]));
+        for (const b of after) {
+          const prev = beforeById.get(b.id);
+          if (!prev || prev.limitMinutes !== b.limitMinutes) {
+            logEvent('screentime_boundary_set', {
+              boundary_id: b.id,
+              kind: b.kind,
+              limit_minutes: b.limitMinutes,
+              window: b.window,
+            });
+          }
+        }
+        const afterIds = new Set(after.map((b) => b.id));
+        for (const b of before) {
+          if (!afterIds.has(b.id)) {
+            logEvent('screentime_boundary_removed', { boundary_id: b.id });
+          }
+        }
         await refresh();
       }),
-    [runBusy, addToast, refresh],
+    [runBusy, addToast, refresh, logEvent],
   );
 
   const handleEndBreak = useCallback(
@@ -166,10 +191,11 @@ export function ScreenTimePage() {
           const result = await clearShield();
           if (!result.ok) return addToast('error', result.error);
         }
+        logEvent('screentime_break_ended', { reason: 'ended_manually' });
         setOnBreak(false);
         addToast('success', 'Break ended. Your apps are available again.');
       }),
-    [runBusy, isIos, addToast],
+    [runBusy, isIos, addToast, logEvent],
   );
 
   const handleTurnOff = useCallback(() => {

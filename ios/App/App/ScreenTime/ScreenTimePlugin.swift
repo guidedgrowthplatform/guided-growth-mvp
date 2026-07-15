@@ -18,6 +18,8 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "updateUsageReportRect", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setUsageReportRange", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "detachUsageReport", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getBoundaryStates", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "drainBoundaryTransitions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "applyShield", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearShield", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "disable", returnType: CAPPluginReturnPromise),
@@ -110,6 +112,37 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    // MARK: - Coach bands (docs/screentime/coach-data-contract.md)
+
+    // Bands only — never app names, never measured minutes.
+    @objc func getBoundaryStates(_ call: CAPPluginCall) {
+        let budgets = GGMon.loadBudgets()
+        let today = GGMon.dayString()
+        // a bands dict from a previous day reads as kept (rollover not yet run)
+        let bands = GG.defaults?.string(forKey: GGMon.Keys.bandsDate) == today
+            ? GGMon.loadBands() : [:]
+        call.resolve([
+            "boundaries": budgets.map { [
+                "id": $0.id,
+                "kind": $0.token != nil ? "app" : "category",
+                "limitMinutes": $0.minutes,
+                "window": "daily",
+            ] },
+            "states": budgets.map { [
+                "boundaryId": $0.id,
+                "band": bands[$0.id] ?? "kept",
+                "date": today,
+            ] },
+        ])
+    }
+
+    // Returns + clears the pending band-transition journal (monitor-written).
+    @objc func drainBoundaryTransitions(_ call: CAPPluginCall) {
+        let log = GG.defaults?.array(forKey: GGMon.Keys.bandLog) as? [[String: Any]] ?? []
+        GG.defaults?.removeObject(forKey: GGMon.Keys.bandLog)
+        call.resolve(["transitions": log])
+    }
+
     // MARK: - Shield ("Take a break" + M2a demo path)
 
     @objc func applyShield(_ call: CAPPluginCall) {
@@ -142,7 +175,9 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         GGArming.stopAll()
         store.clearAllSettings()
         for key in [GG.Keys.selection, GG.Keys.budgets, GG.Keys.shieldActive,
-                    GG.Keys.shieldExpiry, GGMon.Keys.tripped, GGMon.Keys.paused] {
+                    GG.Keys.shieldExpiry, GGMon.Keys.tripped, GGMon.Keys.paused,
+                    GGMon.Keys.pausedCats, GGMon.Keys.bands, GGMon.Keys.bandsDate,
+                    GGMon.Keys.bandLog] {
             GG.defaults?.removeObject(forKey: key)
         }
         call.resolve()

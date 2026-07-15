@@ -11,10 +11,11 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
         if activity.rawValue == GGMon.dailyActivity {
-            // new day: tripped budgets + pauses reset
+            // new day: tripped budgets + pauses reset, coach bands roll over to kept
             GGMon.defaults?.removeObject(forKey: GGMon.Keys.tripped)
             GGMon.defaults?.removeObject(forKey: GGMon.Keys.paused)
             GGMon.defaults?.removeObject(forKey: GGMon.Keys.pausedCats)
+            GGMon.rolloverBands()
             GGMon.rebuildShield()
         }
     }
@@ -38,11 +39,18 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     ) {
         super.eventDidReachThreshold(event, activity: activity)
         guard activity.rawValue == GGMon.dailyActivity else { return }
+        let name = event.rawValue
+        // "<id>.warn" = approaching threshold — coach band only, no shield
+        if name.hasSuffix(GGMon.warnSuffix) {
+            GGMon.raiseBand(String(name.dropLast(GGMon.warnSuffix.count)), to: "approaching")
+            return
+        }
         var tripped = GGMon.defaults?.stringArray(forKey: GGMon.Keys.tripped) ?? []
-        if !tripped.contains(event.rawValue) {
-            tripped.append(event.rawValue)
+        if !tripped.contains(name) {
+            tripped.append(name)
             GGMon.defaults?.set(tripped, forKey: GGMon.Keys.tripped)
         }
+        GGMon.raiseBand(name, to: "crossed")
         GGMon.rebuildShield()
     }
 }

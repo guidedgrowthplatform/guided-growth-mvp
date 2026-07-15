@@ -18,6 +18,9 @@ enum GGMon {
         static let pausedCats = "gg.pausedcats.v1"
         static let shieldActive = "gg.shield.active.v1"
         static let shieldExpiry = "gg.shield.expiry.v1"
+        static let bands = "gg.bands.v1"
+        static let bandsDate = "gg.bandsdate.v1"
+        static let bandLog = "gg.bandlog.v1"
     }
 
     static var defaults: UserDefaults? { UserDefaults(suiteName: appGroup) }
@@ -48,6 +51,67 @@ enum GGMon {
     static func loadPausedCats() -> [ActivityCategoryToken] {
         guard let arr = defaults?.array(forKey: Keys.pausedCats) as? [Data] else { return [] }
         return arr.compactMap { try? JSONDecoder().decode(ActivityCategoryToken.self, from: $0) }
+    }
+
+    // ── Coach band state (docs/screentime/coach-data-contract.md) ──
+    // Band per budget for today: kept → approaching → crossed. Escalate-only
+    // within a day; day rollover resets. Every change is journaled to bandLog
+    // for the app to drain into session_log — ids + bands only, never app
+    // names or measured minutes.
+
+    static let warnSuffix = ".warn"
+    static let warnFraction = 0.8 // approaching at 80% of the limit (tunable)
+
+    private static let bandRank = ["kept": 0, "approaching": 1, "crossed": 2]
+
+    static func dayString(_ date: Date = Date()) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: date)
+    }
+
+    static func loadBands() -> [String: String] {
+        (defaults?.dictionary(forKey: Keys.bands) as? [String: String]) ?? [:]
+    }
+
+    static func raiseBand(_ id: String, to band: String) {
+        let today = dayString()
+        if defaults?.string(forKey: Keys.bandsDate) != today { rolloverBands(to: today) }
+        var bands = loadBands()
+        let previous = bands[id] ?? "kept"
+        guard (bandRank[band] ?? 0) > (bandRank[previous] ?? 0) else { return }
+        bands[id] = band
+        defaults?.set(bands, forKey: Keys.bands)
+        appendBandLog(id: id, band: band, previous: previous, date: today)
+    }
+
+    static func rolloverBands(to today: String = dayString()) {
+        for (id, band) in loadBands() where band != "kept" {
+            appendBandLog(id: id, band: "kept", previous: band, date: today)
+        }
+        defaults?.set([String: String](), forKey: Keys.bands)
+        defaults?.set(today, forKey: Keys.bandsDate)
+    }
+
+    // budgets edited/removed → drop bands for ids that no longer exist
+    static func pruneBands(validIds: Set<String>) {
+        var bands = loadBands()
+        let stale = bands.keys.filter { !validIds.contains($0) }
+        guard !stale.isEmpty else { return }
+        for key in stale { bands.removeValue(forKey: key) }
+        defaults?.set(bands, forKey: Keys.bands)
+    }
+
+    private static func appendBandLog(id: String, band: String, previous: String, date: String) {
+        var log = defaults?.array(forKey: Keys.bandLog) as? [[String: Any]] ?? []
+        log.append([
+            "boundaryId": id, "band": band, "previousBand": previous,
+            "date": date, "at": Date().timeIntervalSince1970,
+        ])
+        if log.count > 200 { log.removeFirst(log.count - 200) }
+        defaults?.set(log, forKey: Keys.bandLog)
     }
 
     // The single source of truth for what is shielded:
