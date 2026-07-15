@@ -196,6 +196,10 @@ public class ScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             if self.inlineHost == nil {
                 let host = UIHostingController(rootView: ScreenTimeInlineReportView(model: self.inlineModel))
                 host.view.backgroundColor = .clear
+                // match the app's light card look regardless of system dark mode
+                host.overrideUserInterfaceStyle = .light
+                host.view.layer.cornerRadius = 16
+                host.view.layer.masksToBounds = true
                 // display-only: let touches fall through so page scrolling works over the card
                 host.view.isUserInteractionEnabled = false
                 container.addChild(host)

@@ -90,7 +90,7 @@ export function DashboardView({
 
       {nativeUsage ? (
         // real numbers, rendered on-device by the sandboxed report extension
-        <NativeUsageCard range={range} />
+        <NativeUsageCard range={range} height={380} />
       ) : (
         <>
           <div className="flex flex-col gap-1 text-center">
@@ -115,18 +115,20 @@ export function DashboardView({
         </button>
       )}
 
-      <div className="flex flex-col gap-2.5">
-        <p className="px-1 text-xs font-extrabold uppercase tracking-[1.2px] text-content-tertiary">
-          Your apps
-        </p>
-        <div className="overflow-hidden rounded-2xl bg-surface shadow-[0px_4px_20px_rgba(0,0,0,0.03)]">
-          {apps.map((app, i) => (
-            <div key={app.id} className={i > 0 ? 'border-t border-border-light' : ''}>
-              <AppRow app={app} onTap={() => onAppTap(app)} />
-            </div>
-          ))}
+      {!nativeUsage && (
+        <div className="flex flex-col gap-2.5">
+          <p className="px-1 text-xs font-extrabold uppercase tracking-[1.2px] text-content-tertiary">
+            Your apps
+          </p>
+          <div className="overflow-hidden rounded-2xl bg-surface shadow-[0px_4px_20px_rgba(0,0,0,0.03)]">
+            {apps.map((app, i) => (
+              <div key={app.id} className={i > 0 ? 'border-t border-border-light' : ''}>
+                <AppRow app={app} onTap={() => onAppTap(app)} />
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex flex-col gap-2.5">
         <p className="px-1 text-xs font-extrabold uppercase tracking-[1.2px] text-content-tertiary">
