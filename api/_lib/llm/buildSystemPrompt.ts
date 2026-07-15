@@ -286,7 +286,7 @@ async function buildStreakBlock(anonId: string, timezone?: string): Promise<stri
     `SELECT h.id AS id, h.name AS name, c.date::text AS date
        FROM user_habits h
        JOIN habit_completions c ON c.habit_id = h.id
-      WHERE h.anon_id = $1 AND h.is_active = true AND h.archived_at IS NULL
+      WHERE h.anon_id = $1 AND c.anon_id = $1 AND h.is_active = true AND h.archived_at IS NULL
         AND c.status = 'done'
       ORDER BY h.sort_order ASC, c.date ASC`,
     [anonId],
