@@ -146,7 +146,9 @@ export function DashboardView({
             <div className="text-[15px] font-bold text-content">Daily limits</div>
             <div className="text-xs text-content-tertiary">
               {budgetCount > 0
-                ? `${budgetCount} limit${budgetCount === 1 ? '' : 's'} set — apps rest when they hit their limit`
+                ? canBreak
+                  ? `${budgetCount} limit${budgetCount === 1 ? '' : 's'} set — apps rest when they hit their limit`
+                  : `${budgetCount} limit${budgetCount === 1 ? '' : 's'} set — your coach follows how they're going`
                 : 'Set a daily time budget per app'}
             </div>
           </div>
