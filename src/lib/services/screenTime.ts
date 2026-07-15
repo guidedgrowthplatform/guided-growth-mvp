@@ -5,9 +5,10 @@ import type {
   ScreenTimeBoundaryState,
 } from '@gg/shared/types/screentime';
 
-// iOS-only digital-wellbeing feature backed by Apple's Screen Time APIs
-// (FamilyControls). App names never reach JS — the native picker/report render
-// them; JS only ever sees counts.
+// Digital-wellbeing feature. iOS: Apple Screen Time APIs (FamilyControls) —
+// app names never reach JS (native picker/report render them). Android:
+// UsageStatsManager — real names/icons DO reach JS to render our own picker
+// and usage list, but they never leave the device (coach-data-contract.md).
 
 export type ScreenTimeAuthStatus = 'notDetermined' | 'denied' | 'approved';
 
@@ -41,6 +42,27 @@ export interface UsageReportRect {
 
 export type UsageReportRange = 'today' | 'week';
 
+export type ScreenTimePlatform = 'ios' | 'android' | 'web';
+
+// Android-only shapes (real names/icons — on-device rendering only)
+export interface AndroidInstalledApp {
+  packageName: string;
+  label: string;
+  icon?: string; // data:image/png;base64 URL
+}
+
+export interface AndroidUsageRow {
+  packageName: string;
+  label: string;
+  minutes: number;
+}
+
+export interface AndroidBudgetInput {
+  id?: string; // omit for new — native mints a UUID (ids must stay name-free)
+  packageName: string;
+  minutes: number;
+}
+
 interface ScreenTimePlugin {
   isSupported(): Promise<{ supported: boolean }>;
   getStatus(): Promise<ScreenTimeStatus>;
@@ -60,9 +82,18 @@ interface ScreenTimePlugin {
   applyShield(opts?: { minutes?: number }): Promise<void>;
   clearShield(): Promise<void>;
   disable(): Promise<void>;
+  // Android-only
+  getInstalledApps(): Promise<{ apps: AndroidInstalledApp[] }>;
+  setSelection(opts: { packageNames: string[] }): Promise<{ applicationCount: number }>;
+  getSelection(): Promise<{ packageNames: string[] }>;
+  setBudgets(opts: { budgets: AndroidBudgetInput[] }): Promise<{ budgetCount: number }>;
+  getBudgets(): Promise<{ budgets: Required<AndroidBudgetInput>[] }>;
+  getUsage(opts: {
+    range: UsageReportRange;
+  }): Promise<{ apps: AndroidUsageRow[]; totalMinutes: number; range: UsageReportRange }>;
 }
 
-const OFF_IOS_MESSAGE = 'Screen Time is available in the iPhone app.';
+const OFF_NATIVE_MESSAGE = 'Screen Time is available in the mobile app.';
 
 const UNSUPPORTED_STATUS: ScreenTimeStatus = {
   supported: false,
@@ -76,8 +107,13 @@ const UNSUPPORTED_STATUS: ScreenTimeStatus = {
 
 let plugin: ScreenTimePlugin | null = null;
 
+export function getScreenTimePlatform(): ScreenTimePlatform {
+  const platform = Capacitor.getPlatform();
+  return platform === 'ios' || platform === 'android' ? platform : 'web';
+}
+
 export function isScreenTimeAvailable(): boolean {
-  return Capacitor.getPlatform() === 'ios';
+  return getScreenTimePlatform() !== 'web';
 }
 
 function getPlugin(): ScreenTimePlugin | null {
@@ -93,7 +129,7 @@ function toMessage(err: unknown): string {
 
 async function run<T>(fn: (p: ScreenTimePlugin) => Promise<T>): Promise<ScreenTimeResult<T>> {
   const p = getPlugin();
-  if (!p) return { ok: false, error: OFF_IOS_MESSAGE };
+  if (!p) return { ok: false, error: OFF_NATIVE_MESSAGE };
   try {
     return { ok: true, value: await fn(p) };
   } catch (err) {
@@ -178,4 +214,42 @@ export async function clearShield(): Promise<ScreenTimeResult<void>> {
 
 export async function disableScreenTime(): Promise<ScreenTimeResult<void>> {
   return run((p) => p.disable());
+}
+
+// ── Android-only (names/icons stay on-device) ──
+
+export async function getInstalledApps(): Promise<ScreenTimeResult<AndroidInstalledApp[]>> {
+  const result = await run((p) => p.getInstalledApps());
+  return result.ok ? { ok: true, value: result.value.apps } : result;
+}
+
+export async function setAppSelection(
+  packageNames: string[],
+): Promise<ScreenTimeResult<{ applicationCount: number }>> {
+  return run((p) => p.setSelection({ packageNames }));
+}
+
+export async function getAppSelection(): Promise<string[]> {
+  const result = await run((p) => p.getSelection());
+  return result.ok ? result.value.packageNames : [];
+}
+
+export async function setAppBudgets(
+  budgets: AndroidBudgetInput[],
+): Promise<ScreenTimeResult<{ budgetCount: number }>> {
+  return run((p) => p.setBudgets({ budgets }));
+}
+
+export async function getAppBudgets(): Promise<Required<AndroidBudgetInput>[]> {
+  const result = await run((p) => p.getBudgets());
+  return result.ok ? result.value.budgets : [];
+}
+
+export async function getAndroidUsage(
+  range: UsageReportRange,
+): Promise<ScreenTimeResult<{ apps: AndroidUsageRow[]; totalMinutes: number }>> {
+  const result = await run((p) => p.getUsage({ range }));
+  return result.ok
+    ? { ok: true, value: { apps: result.value.apps, totalMinutes: result.value.totalMinutes } }
+    : result;
 }

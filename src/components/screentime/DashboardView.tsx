@@ -30,6 +30,11 @@ interface DashboardViewProps {
   onShowNativeReport?: () => void;
   /** iOS + authorized — embed the native report inline instead of the sample chart. */
   nativeUsage?: boolean;
+  /** Android — real rows/summary from UsageStats replace the sample data. */
+  appsOverride?: SampleApp[];
+  summaryOverride?: { total: string; caption: string; bars?: number[]; labels?: string[] };
+  /** Breaks need the blocking layer — false hides the break card (Android v1). */
+  canBreak?: boolean;
 }
 
 function AppRow({ app, onTap }: { app: SampleApp; onTap: () => void }) {
@@ -39,9 +44,13 @@ function AppRow({ app, onTap }: { app: SampleApp; onTap: () => void }) {
       onClick={onTap}
       className="flex w-full items-center gap-3 px-4 py-[13px] text-left"
     >
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/[0.06]">
-        <Icon icon={app.icon} width={22} className="text-primary" />
-      </div>
+      {app.icon.startsWith('data:') ? (
+        <img src={app.icon} alt="" className="h-10 w-10 flex-shrink-0 rounded-2xl" />
+      ) : (
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/[0.06]">
+          <Icon icon={app.icon} width={22} className="text-primary" />
+        </div>
+      )}
       <div className="flex min-w-0 flex-1 flex-col gap-[5px]">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[15px] font-bold text-content">{app.name}</span>
@@ -86,9 +95,12 @@ export function DashboardView({
   nativeUsage,
   onEditLimits,
   budgetCount = 0,
+  appsOverride,
+  summaryOverride,
+  canBreak = true,
 }: DashboardViewProps) {
-  const summary = SUMMARY[range];
-  const apps = SAMPLE_APPS[range];
+  const summary = summaryOverride ?? SUMMARY[range];
+  const apps = appsOverride ?? SAMPLE_APPS[range];
   const [breakChoice, setBreakChoice] = useState<number | null>(60);
 
   return (
@@ -115,7 +127,9 @@ export function DashboardView({
             <div className="text-sm font-bold text-primary">{summary.caption}</div>
           </div>
 
-          <UsageBarChart bars={summary.bars} labels={summary.labels} />
+          {summary.bars && summary.labels && (
+            <UsageBarChart bars={summary.bars} labels={summary.labels} />
+          )}
         </>
       )}
 
@@ -166,68 +180,70 @@ export function DashboardView({
         </div>
       )}
 
-      <div className="flex flex-col gap-2.5">
-        <p className="px-1 text-xs font-extrabold uppercase tracking-[1.2px] text-content-tertiary">
-          A moment of quiet
-        </p>
-        {onBreak ? (
-          <div className="flex items-center gap-3 rounded-2xl bg-primary/[0.08] p-4">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-surface">
-              <Icon icon="mdi:timer-sand" width={22} className="text-primary" />
-            </div>
-            <div className="flex flex-1 flex-col gap-0.5">
-              <span className="text-[15px] font-bold text-primary-dark">On a break</span>
-              <span className="text-[13px] font-semibold text-primary">{breakRemaining}</span>
-            </div>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onEndBreak}
-              className="flex h-10 items-center rounded-full bg-surface px-[18px] text-sm font-bold text-primary-dark disabled:opacity-50"
-            >
-              End break
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3 rounded-2xl bg-surface p-4 shadow-[0px_4px_20px_rgba(0,0,0,0.03)]">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/[0.06]">
+      {canBreak && (
+        <div className="flex flex-col gap-2.5">
+          <p className="px-1 text-xs font-extrabold uppercase tracking-[1.2px] text-content-tertiary">
+            A moment of quiet
+          </p>
+          {onBreak ? (
+            <div className="flex items-center gap-3 rounded-2xl bg-primary/[0.08] p-4">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-surface">
                 <Icon icon="mdi:timer-sand" width={22} className="text-primary" />
               </div>
-              <p className="flex-1 text-[13.5px] leading-snug text-content-secondary">
-                Pause your chosen apps for a little while.
-              </p>
+              <div className="flex flex-1 flex-col gap-0.5">
+                <span className="text-[15px] font-bold text-primary-dark">On a break</span>
+                <span className="text-[13px] font-semibold text-primary">{breakRemaining}</span>
+              </div>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onEndBreak}
+                className="flex h-10 items-center rounded-full bg-surface px-[18px] text-sm font-bold text-primary-dark disabled:opacity-50"
+              >
+                End break
+              </button>
             </div>
-            <div className="flex gap-2">
-              {BREAK_CHOICES.map((c) => {
-                const active = breakChoice === c.minutes;
-                return (
-                  <button
-                    key={c.label}
-                    type="button"
-                    onClick={() => setBreakChoice(c.minutes)}
-                    className={`flex-1 rounded-full py-2 text-[13px] font-bold transition-colors ${
-                      active
-                        ? 'bg-primary text-white'
-                        : 'bg-surface-secondary text-content-secondary'
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                );
-              })}
+          ) : (
+            <div className="flex flex-col gap-3 rounded-2xl bg-surface p-4 shadow-[0px_4px_20px_rgba(0,0,0,0.03)]">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/[0.06]">
+                  <Icon icon="mdi:timer-sand" width={22} className="text-primary" />
+                </div>
+                <p className="flex-1 text-[13.5px] leading-snug text-content-secondary">
+                  Pause your chosen apps for a little while.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {BREAK_CHOICES.map((c) => {
+                  const active = breakChoice === c.minutes;
+                  return (
+                    <button
+                      key={c.label}
+                      type="button"
+                      onClick={() => setBreakChoice(c.minutes)}
+                      className={`flex-1 rounded-full py-2 text-[13px] font-bold transition-colors ${
+                        active
+                          ? 'bg-primary text-white'
+                          : 'bg-surface-secondary text-content-secondary'
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onTakeBreak(breakChoice)}
+                className="flex h-11 w-full items-center justify-center rounded-full bg-primary text-sm font-bold text-white disabled:opacity-50"
+              >
+                Take a break
+              </button>
             </div>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onTakeBreak(breakChoice)}
-              className="flex h-11 w-full items-center justify-center rounded-full bg-primary text-sm font-bold text-white disabled:opacity-50"
-            >
-              Take a break
-            </button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       <button
         type="button"
@@ -237,7 +253,7 @@ export function DashboardView({
       >
         <span className="text-sm font-bold text-content-secondary">Turn off Screen Time</span>
         <span className="text-center text-xs text-content-tertiary">
-          Everything pauses immediately. Your data stays on your iPhone.
+          Everything pauses immediately. Your data stays on your phone.
         </span>
       </button>
     </div>
