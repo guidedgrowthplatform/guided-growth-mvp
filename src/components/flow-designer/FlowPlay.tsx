@@ -187,7 +187,7 @@ export function FlowPlay() {
           Mute voice
         </label>
         <span style={{ fontSize: 12, color: '#94a3b8' }}>
-          {idx + 1} / {BEATS.length} · {beat.screenId ?? beat.id}
+          {idx + 1} / {BEATS.length} · {beat.id}
         </span>
       </div>
 

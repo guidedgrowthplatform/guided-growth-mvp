@@ -3,7 +3,7 @@
 
 Reads the "Beats Context" tab (beat-level: engine, mode, opener, tools, flags) and the
 "Beat Elements" tab (per-element micro-lines), and emits a committed TS map
-(src/components/flow-designer/beatMetadata.ts) keyed by screen_id. The builder merges
+(src/components/flow-designer/beatMetadata.ts) keyed by beat id. The builder merges
 this into each beat's `meta` on hydrate (withBeatMeta), the same way voiceScriptsAudio.ts
 feeds mp3Assets. Re-run to refresh after the beats session edits the sheet.
 
@@ -31,6 +31,36 @@ OUT = PROJECT_ROOT / "src/components/flow-designer/beatMetadata.ts"
 
 # Sheet Engine -> builder voiceEngine enum (Vapi | Cartesia | MP3 | None).
 ENGINE_MAP = {"silent": "None", "mp3": "MP3", "cartesia": "Cartesia", "vapi": "Vapi", "none": "None"}
+
+# Legacy Sheet "Screen ID" -> render beat id bridge.
+# The render's beatsSource.ts no longer carries a screenId field (id is the only
+# join key), so this table cannot be re-derived from the render source at runtime.
+# It was derived once from beatsSource at the screenId->beatId rename (Stage 2):
+# for a screenId owned by exactly one beat, the beat id; for a screenId shared by
+# a base + variant beat, the base id; for a split-family Sheet key (BEGINNER-02),
+# the family's colon-base beat id. Sheet keys with no render beat are skipped.
+SCREEN_ID_TO_BEAT_ID = {
+    "COACH-GREETING": "onboarding-beat-3-coach-greeting",
+    "MIC-PERMISSION": "onboarding-beat-5-mic-permission",
+    "ONBOARD-AUTH--FORM": "onboarding-beat-4-sign-up",
+    "ONBOARD-01--FORM": "onboarding-beat-6-profile:greeting",
+    "ONBOARD-STATE-CHECK": "onboarding-beat-7-state-check",
+    "ONBOARD-MORNING-SETUP": "onboarding-beat-8-morning-checkin-setup",
+    "ONBOARD-BEGINNER-07": "onboarding-beat-9-evening-reflection-setup",
+    "ONBOARD-FORK--FORM": "onboarding-beat-10-experience-fork",
+    "ONBOARD-BEGINNER-01": "onboarding-beginner-beat-11-pick-category",
+    "ONBOARD-BEGINNER-02": "onboarding-beginner-beat-12-pick-goals",
+    "ONBOARD-BEGINNER-03": "onboarding-beginner-beat-13-pick-habits",
+    "ONBOARD-BEGINNER-04": "onboarding-beginner-beat-14-schedule-habits",
+    "ONBOARD-ADVANCED": "onboarding-advanced-beat-15-capture-existing-habits",
+    "ONBOARD-ADVANCED-FREQUENCY": "onboarding-advanced-beat-16-schedule-existing-habits",
+    "ONBOARD-COMPLETE": "onboarding-beat-17-plan-review",
+    "ONBOARD-WEEKLY-PROJECTION-BLANK": "onboarding-beat-18-week-projection:empty",
+    "ONBOARD-WEEKLY-PROJECTION-FULL": "onboarding-beat-18-week-projection:best",
+    "ONBOARD-WEEKLY-PROJECTION-P78": "onboarding-beat-18-week-projection:likely",
+    "ONBOARD-WEEKLY-PROJECTION-P36": "onboarding-beat-18-week-projection:some",
+    "ONBOARD-WEEKLY-PROJECTION-GAPS": "onboarding-beat-18-week-projection:avoid",
+}
 
 # Beats Context columns we consume (by header name).
 C_SCREEN = "Screen ID"
@@ -132,12 +162,18 @@ def main() -> int:
         if sid in elements:
             meta["perElement"] = elements[sid]
 
-        beats[sid] = meta
+        # Translate the legacy Sheet Screen ID to the render beat id (the only
+        # join key). Skip Sheet rows that have no corresponding render beat.
+        beat_id = SCREEN_ID_TO_BEAT_ID.get(sid)
+        if not beat_id:
+            print(f"skip: no render beat for Screen ID {sid!r}", file=sys.stderr)
+            continue
+        beats[beat_id] = meta
 
     lines = [
         '// GENERATED from the Master Sheet "Beats Context" + "Beat Elements" tabs.',
         "// Regenerate: python3 scripts/voice-sync/gen_beat_metadata.py",
-        "// Per-onboarding-beat authoring metadata, keyed by screen_id. Merged into each",
+        "// Per-onboarding-beat authoring metadata, keyed by beat id. Merged into each",
         "// beat's meta on hydrate (withBeatMeta). Wording is provisional; wire against the",
         "// engine, flags, elementIds, and order. showsAsBubble false = spoken, component",
         "// carries the words (no chat bubble). openerMode A = no framing opener (control",

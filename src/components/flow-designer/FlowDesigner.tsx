@@ -13,7 +13,7 @@ import {
 import { kindOf, raf, runBeatNarration, runBeatScript, sample, stopSpeech } from './beatNarration';
 import { BEAT_DEFS } from './beats';
 import { COACH_BG } from './beats/_beatStyle';
-import { BEATS_SOURCE, BEAT_BY_SCREEN_ID, type BeatEntry, type ScriptLine } from './beatsSource';
+import { BEATS_SOURCE, BEAT_BY_ID, type BeatEntry, type ScriptLine } from './beatsSource';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 
 /**
@@ -55,12 +55,12 @@ const REGISTRY_MAP: Record<string, BeatDef> = Object.fromEntries(BEAT_DEFS.map((
 // The annotated view and the rendered beat components read their coach copy from
 // each beat's script[]. There is no second metadata store: these helpers pull the
 // opener, the coach bubbles, and a named component element's line straight off the
-// script, keyed by screenId, so the words the component shows are the words the
+// script, keyed by beat id, so the words the component shows are the words the
 // engine speaks.
-const ENTRY_BY_SCREEN_ID = BEAT_BY_SCREEN_ID;
+const ENTRY_BY_ID = BEAT_BY_ID;
 
-function entryFor(screenId?: string): BeatEntry | undefined {
-  return screenId ? ENTRY_BY_SCREEN_ID[screenId] : undefined;
+function entryFor(id?: string): BeatEntry | undefined {
+  return id ? ENTRY_BY_ID[id] : undefined;
 }
 
 // The opening coach line: the script line bound to opener/opener-line, else the
@@ -91,8 +91,8 @@ function scriptElementLine(entry: BeatEntry | undefined, elementId: string): str
 // The coach-copy props each beat component needs, derived from script[]. Merged
 // into the beat's props so the rendered component shows the same words the engine
 // speaks.
-function metadataPropsForBeat(type: string, screenId?: string): Record<string, string> {
-  const entry = entryFor(screenId);
+function metadataPropsForBeat(type: string, id?: string): Record<string, string> {
+  const entry = entryFor(id);
   if (!entry) return {};
   const opener = scriptOpener(entry);
   const bubbles = scriptBubbles(entry);
@@ -520,7 +520,7 @@ function ContextKeyValue({ label, value }: { label: string; value: string }) {
 }
 
 function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
-  const entry = beat.screenId ? ENTRY_BY_SCREEN_ID[beat.screenId] : undefined;
+  const entry = ENTRY_BY_ID[beat.id];
   const resolvedProps = beat.props ? Object.entries(beat.props) : [];
 
   if (!entry) {
@@ -586,11 +586,6 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
             {beat.type}
             {beat.path ? ` · ${PATH_STYLE[beat.path].label}` : ''}
           </div>
-          {beat.screenId && (
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-              Screen ID: {beat.screenId}
-            </div>
-          )}
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -704,14 +699,8 @@ function TinyChip({
   );
 }
 
-function ScriptPanel({
-  screenId,
-  showExpectedUser,
-}: {
-  screenId?: string;
-  showExpectedUser: boolean;
-}) {
-  const entry = screenId ? ENTRY_BY_SCREEN_ID[screenId] : undefined;
+function ScriptPanel({ id, showExpectedUser }: { id?: string; showExpectedUser: boolean }) {
+  const entry = id ? ENTRY_BY_ID[id] : undefined;
 
   if (!entry || entry.script.length === 0) {
     return (
@@ -867,7 +856,6 @@ interface FlowBeat {
   props?: Record<string, string>;
   engine: VoiceEngine;
   mode: VoiceMode;
-  screenId?: string;
   path?: BeatPath;
   // Hide the docked orb on this beat. The orb fades out before the account step
   // and fades back in at mic permission, so the account beat shows no orb.
@@ -884,7 +872,7 @@ interface FlowBeat {
 // the five weekly-projection frames.
 //
 // Derived from the ONE source (beatsSource.ts). The order, id, type, engine,
-// mode, screenId, path, hideOrb, and structural props all come from there, so
+// mode, path, hideOrb, and structural props all come from there, so
 // the render has a single authored store.
 export const BASE_BEATS: FlowBeat[] = BEATS_SOURCE.map((b) => ({
   id: b.id,
@@ -892,7 +880,6 @@ export const BASE_BEATS: FlowBeat[] = BEATS_SOURCE.map((b) => ({
   props: b.props ?? undefined,
   engine: b.voiceEngine,
   mode: b.voiceMode,
-  screenId: b.screenId ?? undefined,
   path: b.path,
   hideOrb: b.hideOrb || undefined,
   script: b.script,
@@ -902,7 +889,7 @@ export const BEATS: FlowBeat[] = BASE_BEATS.map((beat) => ({
   ...beat,
   props: {
     ...(beat.props ?? {}),
-    ...metadataPropsForBeat(beat.type, beat.screenId),
+    ...metadataPropsForBeat(beat.type, beat.id),
   },
 }));
 
@@ -1408,7 +1395,7 @@ function FlowPhoneFrame({
               </div>
               {showWords && (
                 <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP, paddingTop: 8 }}>
-                  <ScriptPanel screenId={b.screenId} showExpectedUser={showExpectedUser} />
+                  <ScriptPanel id={b.id} showExpectedUser={showExpectedUser} />
                 </div>
               )}
             </div>

@@ -99,7 +99,7 @@ function firstOpener(beat) {
 
 const exportBeats = beats.map((beat, index) => ({
   index: index + 1,
-  screenId: beat.screenId ?? null,
+  id: beat.id,
   opener: firstOpener(beat),
   path: beat.path ?? null,
 }));
