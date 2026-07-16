@@ -99,7 +99,7 @@ When a beat puts choices on the screen (categories, the things inside a category
 
 export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
-    id: 'splash',
+    id: 'onboarding-beat-1-splash',
     name: 'Splash',
     order: 0,
     path: 'both',
@@ -115,7 +115,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     script: [],
   },
   {
-    id: 'get-started',
+    id: 'onboarding-beat-2-get-started',
     name: 'Get started',
     order: 1,
     path: 'both',
@@ -131,7 +131,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     script: [],
   },
   {
-    id: 'coach-greeting',
+    id: 'onboarding-beat-3-coach-greeting',
     name: 'Coach greeting',
     order: 2,
     path: 'both',
@@ -162,7 +162,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'sign-up',
+    id: 'onboarding-beat-4-sign-up',
     name: 'Sign up',
     order: 3,
     path: 'both',
@@ -179,7 +179,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     script: [],
   },
   {
-    id: 'mic-permission',
+    id: 'onboarding-beat-5-mic-permission',
     name: 'Mic permission',
     order: 4,
     path: 'both',
@@ -215,7 +215,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L2: Profile split into two single-engine beats. This greeting beat is
     // Cartesia (live, has {name}); the asks beat that follows is MP3.
-    id: 'profile-greeting',
+    id: 'onboarding-beat-6-profile:greeting',
     name: 'Profile greeting',
     order: 5,
     path: 'both',
@@ -246,7 +246,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   },
   {
     // L2: the asks beat. MP3, single-engine. Collects age and gender.
-    id: 'profile-asks',
+    id: 'onboarding-beat-6-profile:asks',
     name: 'Profile asks (age + gender)',
     order: 6,
     path: 'both',
@@ -289,7 +289,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'state-check',
+    id: 'onboarding-beat-7-state-check',
     name: 'State check-in',
     order: 7,
     path: 'both',
@@ -368,7 +368,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'checkin',
+    id: 'onboarding-beat-8-morning-checkin-setup',
     name: 'Morning check-in setup',
     order: 8,
     path: 'both',
@@ -450,7 +450,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'reflection',
+    id: 'onboarding-beat-9-evening-reflection-setup',
     name: 'Evening reflection setup',
     order: 9,
     path: 'both',
@@ -565,7 +565,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'fork',
+    id: 'onboarding-beat-10-experience-fork',
     name: 'Path fork',
     order: 10,
     path: 'both',
@@ -619,7 +619,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'category',
+    id: 'onboarding-beginner-beat-11-pick-category',
     name: 'Category',
     order: 11,
     path: 'beginner',
@@ -674,7 +674,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'category-women',
+    id: 'onboarding-beginner-beat-11-pick-category:women',
     name: 'Category (women’s art)',
     order: 12,
     path: 'beginner',
@@ -733,7 +733,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
     // picked upstream (Sleep better). Named once, one fewer beat than a separate reaction.
-    id: 'goals-sleep',
+    id: 'onboarding-beginner-beat-12-pick-goals:sleep',
     name: 'Goals (Sleep better)',
     order: 13,
     path: 'beginner',
@@ -768,7 +768,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
     // picked upstream (Move more). Named once, one fewer beat than a separate reaction.
-    id: 'goals-move',
+    id: 'onboarding-beginner-beat-12-pick-goals:move',
     name: 'Goals (Move more)',
     order: 14,
     path: 'beginner',
@@ -803,7 +803,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
     // picked upstream (Eat better). Named once, one fewer beat than a separate reaction.
-    id: 'goals-eat',
+    id: 'onboarding-beginner-beat-12-pick-goals:eat',
     name: 'Goals (Eat better)',
     order: 15,
     path: 'beginner',
@@ -838,7 +838,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
     // picked upstream (Feel more energized). Named once, one fewer beat than a separate reaction.
-    id: 'goals-energy',
+    id: 'onboarding-beginner-beat-12-pick-goals:energy',
     name: 'Goals (Feel more energized)',
     order: 16,
     path: 'beginner',
@@ -873,7 +873,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
     // picked upstream (Reduce stress). Named once, one fewer beat than a separate reaction.
-    id: 'goals-stress',
+    id: 'onboarding-beginner-beat-12-pick-goals:stress',
     name: 'Goals (Reduce stress)',
     order: 17,
     path: 'beginner',
@@ -908,7 +908,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
     // picked upstream (Improve focus). Named once, one fewer beat than a separate reaction.
-    id: 'goals-focus',
+    id: 'onboarding-beginner-beat-12-pick-goals:focus',
     name: 'Goals (Improve focus)',
     order: 18,
     path: 'beginner',
@@ -943,7 +943,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
     // picked upstream (Break bad habits). Named once, one fewer beat than a separate reaction.
-    id: 'goals-break',
+    id: 'onboarding-beginner-beat-12-pick-goals:break',
     name: 'Goals (Break bad habits)',
     order: 19,
     path: 'beginner',
@@ -978,7 +978,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
     // picked upstream (Get more organized). Named once, one fewer beat than a separate reaction.
-    id: 'goals-organize',
+    id: 'onboarding-beginner-beat-12-pick-goals:organize',
     name: 'Goals (Get more organized)',
     order: 20,
     path: 'beginner',
@@ -1011,7 +1011,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'goal-custom',
+    id: 'onboarding-beginner-beat-12-pick-goals:custom',
     name: 'Create your own goal',
     order: 21,
     path: 'beginner',
@@ -1042,7 +1042,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'habits',
+    id: 'onboarding-beginner-beat-13-pick-habits',
     name: 'Habits',
     order: 22,
     path: 'beginner',
@@ -1088,7 +1088,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Fall asleep earlier).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-fall-asleep-earlier',
+    id: 'onboarding-beginner-beat-13-pick-habits:fall-asleep-earlier',
     name: 'Habits (Fall asleep earlier)',
     order: 23,
     path: 'beginner',
@@ -1123,7 +1123,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Wake up earlier).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-wake-earlier',
+    id: 'onboarding-beginner-beat-13-pick-habits:wake-earlier',
     name: 'Habits (Wake up earlier)',
     order: 24,
     path: 'beginner',
@@ -1158,7 +1158,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Sleep more consistently).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-sleep-consistently',
+    id: 'onboarding-beginner-beat-13-pick-habits:sleep-consistently',
     name: 'Habits (Sleep more consistently)',
     order: 25,
     path: 'beginner',
@@ -1193,7 +1193,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Sleep more deeply).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-sleep-deeply',
+    id: 'onboarding-beginner-beat-13-pick-habits:sleep-deeply',
     name: 'Habits (Sleep more deeply)',
     order: 26,
     path: 'beginner',
@@ -1228,7 +1228,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Walk more).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-walk-more',
+    id: 'onboarding-beginner-beat-13-pick-habits:walk-more',
     name: 'Habits (Walk more)',
     order: 27,
     path: 'beginner',
@@ -1263,7 +1263,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Exercise consistently).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-exercise-consistently',
+    id: 'onboarding-beginner-beat-13-pick-habits:exercise-consistently',
     name: 'Habits (Exercise consistently)',
     order: 28,
     path: 'beginner',
@@ -1298,7 +1298,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Improve mobility).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-mobility',
+    id: 'onboarding-beginner-beat-13-pick-habits:mobility',
     name: 'Habits (Improve mobility)',
     order: 29,
     path: 'beginner',
@@ -1333,7 +1333,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Eat more intentionally).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-eat-intentionally',
+    id: 'onboarding-beginner-beat-13-pick-habits:eat-intentionally',
     name: 'Habits (Eat more intentionally)',
     order: 30,
     path: 'beginner',
@@ -1368,7 +1368,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Reduce overeating).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-reduce-overeating',
+    id: 'onboarding-beginner-beat-13-pick-habits:reduce-overeating',
     name: 'Habits (Reduce overeating)',
     order: 31,
     path: 'beginner',
@@ -1403,7 +1403,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Plan food better).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-plan-food',
+    id: 'onboarding-beginner-beat-13-pick-habits:plan-food',
     name: 'Habits (Plan food better)',
     order: 32,
     path: 'beginner',
@@ -1438,7 +1438,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Have more morning energy).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-morning-energy',
+    id: 'onboarding-beginner-beat-13-pick-habits:morning-energy',
     name: 'Habits (Have more morning energy)',
     order: 33,
     path: 'beginner',
@@ -1473,7 +1473,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Avoid afternoon crashes).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-avoid-crashes',
+    id: 'onboarding-beginner-beat-13-pick-habits:avoid-crashes',
     name: 'Habits (Avoid afternoon crashes)',
     order: 34,
     path: 'beginner',
@@ -1508,7 +1508,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Keep energy more stable).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-stable-energy',
+    id: 'onboarding-beginner-beat-13-pick-habits:stable-energy',
     name: 'Habits (Keep energy more stable)',
     order: 35,
     path: 'beginner',
@@ -1543,7 +1543,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Feel calmer during the day).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-calmer-day',
+    id: 'onboarding-beginner-beat-13-pick-habits:calmer-day',
     name: 'Habits (Feel calmer during the day)',
     order: 36,
     path: 'beginner',
@@ -1578,7 +1578,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Reduce evening stress).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-evening-stress',
+    id: 'onboarding-beginner-beat-13-pick-habits:evening-stress',
     name: 'Habits (Reduce evening stress)',
     order: 37,
     path: 'beginner',
@@ -1613,7 +1613,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Feel less overwhelmed).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-less-overwhelmed',
+    id: 'onboarding-beginner-beat-13-pick-habits:less-overwhelmed',
     name: 'Habits (Feel less overwhelmed)',
     order: 38,
     path: 'beginner',
@@ -1648,7 +1648,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Start work with less friction).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-start-work',
+    id: 'onboarding-beginner-beat-13-pick-habits:start-work',
     name: 'Habits (Start work with less friction)',
     order: 39,
     path: 'beginner',
@@ -1683,7 +1683,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Do deeper work).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-deeper-work',
+    id: 'onboarding-beginner-beat-13-pick-habits:deeper-work',
     name: 'Habits (Do deeper work)',
     order: 40,
     path: 'beginner',
@@ -1718,7 +1718,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Procrastinate less).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-procrastinate-less',
+    id: 'onboarding-beginner-beat-13-pick-habits:procrastinate-less',
     name: 'Habits (Procrastinate less)',
     order: 41,
     path: 'beginner',
@@ -1753,7 +1753,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Smoking).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-smoking',
+    id: 'onboarding-beginner-beat-13-pick-habits:smoking',
     name: 'Habits (Smoking)',
     order: 42,
     path: 'beginner',
@@ -1788,7 +1788,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Weed).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-weed',
+    id: 'onboarding-beginner-beat-13-pick-habits:weed',
     name: 'Habits (Weed)',
     order: 43,
     path: 'beginner',
@@ -1823,7 +1823,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Alcohol).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-alcohol',
+    id: 'onboarding-beginner-beat-13-pick-habits:alcohol',
     name: 'Habits (Alcohol)',
     order: 44,
     path: 'beginner',
@@ -1858,7 +1858,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Porn).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-porn',
+    id: 'onboarding-beginner-beat-13-pick-habits:porn',
     name: 'Habits (Porn)',
     order: 45,
     path: 'beginner',
@@ -1893,7 +1893,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Phone use).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-phone-use',
+    id: 'onboarding-beginner-beat-13-pick-habits:phone-use',
     name: 'Habits (Phone use)',
     order: 46,
     path: 'beginner',
@@ -1928,7 +1928,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Late-night snacking).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-late-snacking',
+    id: 'onboarding-beginner-beat-13-pick-habits:late-snacking',
     name: 'Habits (Late-night snacking)',
     order: 47,
     path: 'beginner',
@@ -1964,7 +1964,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Caffeine).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-caffeine',
+    id: 'onboarding-beginner-beat-13-pick-habits:caffeine',
     name: 'Habits (Caffeine)',
     order: 48,
     path: 'beginner',
@@ -1999,7 +1999,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Stay on top of tasks).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-stay-on-tasks',
+    id: 'onboarding-beginner-beat-13-pick-habits:stay-on-tasks',
     name: 'Habits (Stay on top of tasks)',
     order: 49,
     path: 'beginner',
@@ -2034,7 +2034,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Keep spaces tidy).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-tidy-spaces',
+    id: 'onboarding-beginner-beat-13-pick-habits:tidy-spaces',
     name: 'Habits (Keep spaces tidy)',
     order: 50,
     path: 'beginner',
@@ -2069,7 +2069,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Handle life admin better).
     // Count-agnostic wording ("a habit or two") serves one-goal and two-goal alike.
-    id: 'habits-life-admin',
+    id: 'onboarding-beginner-beat-13-pick-habits:life-admin',
     name: 'Habits (Handle life admin better)',
     order: 51,
     path: 'beginner',
@@ -2102,7 +2102,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'habit-custom',
+    id: 'onboarding-beginner-beat-13-pick-habits:custom',
     name: 'Create your own habit',
     order: 52,
     path: 'beginner',
@@ -2133,7 +2133,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'schedule',
+    id: 'onboarding-beginner-beat-14-schedule-habits',
     name: 'Habit schedule',
     order: 53,
     path: 'beginner',
@@ -2188,7 +2188,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'advanced-capture',
+    id: 'onboarding-advanced-beat-15-capture-existing-habits',
     name: 'Advanced capture',
     order: 54,
     path: 'advanced',
@@ -2244,7 +2244,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'advanced-frequency',
+    id: 'onboarding-advanced-beat-16-schedule-existing-habits',
     name: 'Advanced frequency',
     order: 55,
     path: 'advanced',
@@ -2311,7 +2311,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'plan',
+    id: 'onboarding-beat-17-plan-review',
     name: 'Plan confirm',
     order: 56,
     path: 'both',
@@ -2342,7 +2342,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'weekly-blank',
+    id: 'onboarding-beat-18-week-projection:empty',
     name: 'Weekly projection (blank)',
     order: 57,
     path: 'both',
@@ -2374,7 +2374,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'weekly-full',
+    id: 'onboarding-beat-18-week-projection:best',
     name: 'Weekly projection (full)',
     order: 58,
     path: 'both',
@@ -2406,7 +2406,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'weekly-p78',
+    id: 'onboarding-beat-18-week-projection:likely',
     name: 'Weekly projection (78%)',
     order: 59,
     path: 'both',
@@ -2439,7 +2439,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'weekly-p36',
+    id: 'onboarding-beat-18-week-projection:some',
     name: 'Weekly projection (36%)',
     order: 60,
     path: 'both',
@@ -2472,7 +2472,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     ],
   },
   {
-    id: 'weekly-gaps',
+    id: 'onboarding-beat-18-week-projection:avoid',
     name: 'Weekly projection (gaps)',
     order: 61,
     path: 'both',
