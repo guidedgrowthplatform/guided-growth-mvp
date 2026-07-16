@@ -5,7 +5,7 @@ import { orbIdle, orbSpeaking } from '@/components/orb/orbView';
 import { SpokenWordsCtx } from './beatKit';
 import { runBeatScript, stopSpeech } from './beatNarration';
 import { COACH_BG } from './beats/_beatStyle';
-import { BEATS, IsolatedBeat } from './FlowDesigner';
+import { BEATS, IsolatedBeat, beatNumberFromId } from './FlowDesigner';
 
 // Play mode: runs the real onboarding beats in order in a single phone, speaking
 // each opener and per-element line with the browser voice (a stand-in for the
@@ -186,8 +186,12 @@ export function FlowPlay() {
           <input type="checkbox" checked={muted} onChange={(e) => setMuted(e.target.checked)} />{' '}
           Mute voice
         </label>
-        <span style={{ fontSize: 12, color: '#94a3b8' }}>
-          {idx + 1} / {BEATS.length} · {beat.id}
+        <span
+          style={{ fontSize: 12, color: '#94a3b8' }}
+          data-beat-id={beat.id}
+          data-beat-number={beatNumberFromId(beat.id, idx)}
+        >
+          Beat {beatNumberFromId(beat.id, idx)} · pos {idx + 1}/{BEATS.length} · {beat.id}
         </span>
       </div>
 

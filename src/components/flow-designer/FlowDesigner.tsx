@@ -367,11 +367,20 @@ function PathBanner({ path, edge }: { path?: BeatPath; edge: 'start' | 'end' }) 
 
 // A thin divider plus the beat number above each beat, so a beat's position in
 // the flow is clear at a glance.
+// The beat number in the annotated render comes from the beat id (beat-<n>-...),
+// NOT the array position, so variants of one beat share their base number and the
+// heading can never contradict the id. Falls back to position if unparseable.
+export function beatNumberFromId(id: string, fallbackIndex: number): number {
+  const m = id.match(/beat-(\d+)-/);
+  return m ? Number(m[1]) : fallbackIndex + 1;
+}
+
 function BeatDivider({ n }: { n: number }) {
   return (
     <div style={{ marginTop: 28, marginBottom: 10 }}>
       <div style={{ height: 1, background: '#cbd5e1', width: '100%' }} />
       <div
+        data-beat-number={n}
         style={{
           marginTop: 6,
           marginLeft: TAG_COL_W + TAG_GAP,
@@ -1364,7 +1373,7 @@ function FlowPhoneFrame({
         const isEnd = branched && b.path !== beats[i + 1]?.path;
         return (
           <div key={b.id} data-beat-id={b.id} style={{ marginBottom: 34 }}>
-            {showWords && <BeatDivider n={i + 1} />}
+            {showWords && <BeatDivider n={beatNumberFromId(b.id, i)} />}
             {showWords && isStart && <PathBanner path={b.path} edge="start" />}
             <div style={{ display: 'flex', alignItems: 'flex-start' }}>
               {/* Left rail: compact voice tag on non-onboarding tabs, full metadata
