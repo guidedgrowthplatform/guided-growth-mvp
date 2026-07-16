@@ -2,8 +2,10 @@ import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { BlockNowPreview } from '@/pages/BlockNowPreview';
 import { BlockSchedulePreview } from '@/pages/BlockSchedulePreview';
+import { PrivacyPreview } from '@/pages/PrivacyPreview';
 import { RecoveryCalibrationPreview } from '@/pages/RecoveryCalibrationPreview';
 import { ReflectionCheckInPreview } from '@/pages/ReflectionCheckInPreview';
+import { SetBoundaryPreview } from '@/pages/SetBoundaryPreview';
 import { SetupReasonsPreview } from '@/pages/SetupReasonsPreview';
 
 // Standalone, auth-free design mock of the Screen Time feature (opt-in digital
@@ -21,7 +23,9 @@ type STView =
   | 'blocknow'
   | 'reasons'
   | 'reflection'
-  | 'recovery';
+  | 'recovery'
+  | 'boundary'
+  | 'privacy';
 
 interface AppRow {
   label: string; // the user's OWN label -- app names never reach our code (spec)
@@ -120,6 +124,12 @@ function SetupView({ onOpen }: { onOpen: (v: STView) => void }) {
           subtitle="Lock a few apps right away for a set time"
           onClick={() => onOpen('blocknow')}
         />
+        <SetupOption
+          icon="ph:shield-check-bold"
+          title="Set a soft boundary"
+          subtitle="One window, one soft limit the coach watches, no wall"
+          onClick={() => onOpen('boundary')}
+        />
       </div>
 
       {/* The coaching moments: what makes this a coach, not a blocker. */}
@@ -138,6 +148,17 @@ function SetupView({ onOpen }: { onOpen: (v: STView) => void }) {
           title="When a boundary slips"
           subtitle="The coach recalibrates the plan, never a red failure"
           onClick={() => onOpen('recovery')}
+        />
+      </div>
+
+      {/* Trust, shown not promised: exactly what the coach can and cannot see. */}
+      <p className="mt-1 text-xs font-bold uppercase tracking-wide text-content-tertiary">Trust</p>
+      <div className="flex flex-col gap-2.5">
+        <SetupOption
+          icon="ph:eye-bold"
+          title="What I can see"
+          subtitle="The exact, checkable list of what the coach knows and never knows"
+          onClick={() => onOpen('privacy')}
         />
       </div>
     </div>
@@ -176,9 +197,63 @@ function SetupOption({
 function UsageView() {
   const [range, setRange] = useState<'today' | 'week'>('today');
   const total = APPS.reduce((s, a) => s + a.usedMin, 0);
+  // Two honest views of the same week (teardown 05): the user's exact numbers, and
+  // the smaller, privacy-preserving slice the coach actually works from.
+  const [lens, setLens] = useState<'you' | 'coach'>('you');
+
+  const lensToggle = (
+    <div className="flex gap-1 rounded-full bg-surface-secondary p-1">
+      {(['you', 'coach'] as const).map((k) => (
+        <button
+          key={k}
+          type="button"
+          onClick={() => setLens(k)}
+          className={`flex-1 rounded-full py-2 text-sm font-bold transition-colors ${
+            lens === k ? 'bg-surface text-content shadow-sm' : 'text-content-tertiary'
+          }`}
+        >
+          {k === 'you' ? 'Your view' : 'What the coach sees'}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (lens === 'coach') {
+    return (
+      <div className="flex flex-col gap-5">
+        {lensToggle}
+        <div className="rounded-3xl bg-surface p-6 shadow-card">
+          <div className="flex items-center gap-2">
+            <Icon icon="ph:sparkle-bold" width={20} className="text-primary" />
+            <p className="text-sm font-bold text-content">What I actually work from</p>
+          </div>
+          <div className="mt-4 flex flex-col gap-3">
+            {[
+              'Late-night feeds crossed its 60-minute boundary tonight',
+              'The social category ran over its evening window',
+              'What you told me: your reasons, and your check-ins',
+            ].map((c) => (
+              <div key={c} className="flex items-start gap-2.5">
+                <Icon icon="ph:check-bold" width={16} className="mt-0.5 shrink-0 text-primary" />
+                <span className="text-sm text-content">{c}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-start gap-2 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <Icon icon="ph:eye-slash-bold" width={20} className="mt-0.5 shrink-0 text-primary" />
+          <p className="text-sm text-content">
+            I never see exact minutes or app names. That stays on your phone. Your view has the full
+            numbers.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">
+      {lensToggle}
       <div className="flex gap-1 self-start rounded-full bg-surface-secondary p-1">
         {(['today', 'week'] as const).map((r) => (
           <button
@@ -317,6 +392,8 @@ export function ScreenTimePreview() {
   if (view === 'reasons') return <SetupReasonsPreview onBack={() => setView('setup')} />;
   if (view === 'reflection') return <ReflectionCheckInPreview onBack={() => setView('setup')} />;
   if (view === 'recovery') return <RecoveryCalibrationPreview onBack={() => setView('setup')} />;
+  if (view === 'boundary') return <SetBoundaryPreview onBack={() => setView('setup')} />;
+  if (view === 'privacy') return <PrivacyPreview onBack={() => setView('setup')} />;
 
   return (
     <div className="min-h-dvh bg-primary-bg px-5 pb-16 pt-[max(2.5rem,env(safe-area-inset-top))]">
