@@ -310,7 +310,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: '/voice/ob/onboard_state_check_1.wav',
       },
       {
-        seq: 3,
+        seq: 2,
         words: "How's your sleep?",
         bindsTo: {
           kind: 'component',
@@ -322,7 +322,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: '/voice/ob/state_sleep.wav',
       },
       {
-        seq: 4,
+        seq: 3,
         words: "How's your mood?",
         bindsTo: {
           kind: 'component',
@@ -334,7 +334,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: '/voice/ob/state_mood.wav',
       },
       {
-        seq: 5,
+        seq: 4,
         words: "How's your energy?",
         bindsTo: {
           kind: 'component',
@@ -346,7 +346,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         clipPath: '/voice/ob/state_energy.wav',
       },
       {
-        seq: 6,
+        seq: 5,
         words: "How's your stress?",
         bindsTo: {
           kind: 'component',
