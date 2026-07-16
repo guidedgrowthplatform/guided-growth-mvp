@@ -1346,8 +1346,38 @@ function PlayableBeat({
   );
 }
 
+// A colon suffix identifies a runtime variation of the same logical beat. Keep
+// that relationship in the render rather than letting a long run of variants
+// look like unrelated screens.
+function baseBeatId(id: string): string {
+  return id.split(':', 1)[0];
+}
+
+interface BeatGroup {
+  baseId: string;
+  firstIndex: number;
+  base?: { beat: FlowBeat; index: number };
+  variants: { beat: FlowBeat; index: number }[];
+}
+
+function groupBeats(beats: FlowBeat[]): BeatGroup[] {
+  const byBaseId = new Map<string, BeatGroup>();
+  for (const [index, beat] of beats.entries()) {
+    const baseId = baseBeatId(beat.id);
+    const group = byBaseId.get(baseId) ?? { baseId, firstIndex: index, variants: [] };
+    if (beat.id === baseId) {
+      group.base = { beat, index };
+    } else {
+      group.variants.push({ beat, index });
+    }
+    byBaseId.set(baseId, group);
+  }
+  return [...byBaseId.values()];
+}
+
 // Shared phone frame renderer. Each beat renders in its OWN phone card, with the
-// source-of-truth rail in the left margin on the Onboarding tab.
+// source-of-truth rail in the left margin on the Onboarding tab. Variants stay
+// nested under their base id and are collapsed by default.
 function FlowPhoneFrame({
   beats,
   showWords = false,
@@ -1362,57 +1392,138 @@ function FlowPhoneFrame({
   onRequestPlay: (id: string | null) => void;
 }) {
   const frameWidth = showWords ? TOTAL_W + WORDS_GAP + WORDS_COL_W : TOTAL_W;
+
+  const beatRow = (b: FlowBeat, i: number) => {
+    const branched = b.path === 'beginner' || b.path === 'advanced';
+    const isStart = branched && b.path !== beats[i - 1]?.path;
+    const isEnd = branched && b.path !== beats[i + 1]?.path;
+    return (
+      <div key={b.id} data-beat-id={b.id} style={{ marginBottom: 34 }}>
+        {showWords && <BeatDivider n={beatNumberFromId(b.id, i)} />}
+        {showWords && isStart && <PathBanner path={b.path} edge="start" />}
+        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+          {/* Left rail: compact voice tag on non-onboarding tabs, full metadata
+              panel on the onboarding tab. */}
+          <div
+            style={{
+              flex: `0 0 ${TAG_COL_W}px`,
+              paddingRight: TAG_GAP,
+              paddingTop: showWords ? 8 : 96,
+            }}
+          >
+            {showWords ? (
+              <SourceOfTruthPanel beat={b} />
+            ) : (
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <VoiceTag engine={b.engine} mode={b.mode} />
+              </div>
+            )}
+          </div>
+          {/* Phone column: a self-contained phone with the orb, playable in place. */}
+          <div style={{ flex: `0 0 ${PHONE_W}px` }}>
+            <PlayableBeat
+              beat={b}
+              active={playingId === b.id}
+              onRequestPlay={onRequestPlay}
+              onDone={() => onRequestPlay(null)}
+            />
+          </div>
+          {showWords && (
+            <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP, paddingTop: 8 }}>
+              <ScriptPanel id={b.id} showExpectedUser={showExpectedUser} />
+            </div>
+          )}
+        </div>
+        {showWords && isEnd && <PathBanner path={b.path} edge="end" />}
+      </div>
+    );
+  };
+
+  const groupedRows = groupBeats(beats).map((group) => {
+    if (group.variants.length === 0) {
+      // A singleton is still a normal beat row.
+      return group.base ? beatRow(group.base.beat, group.base.index) : null;
+    }
+    return (
+      <VariantBeatGroup
+        key={group.baseId}
+        group={group}
+        renderBeat={beatRow}
+        showWords={showWords}
+      />
+    );
+  });
+
   return (
     <div style={{ width: frameWidth, maxWidth: '100%', margin: '0 auto' }}>
       {/* Per-beat rows. The source-of-truth rail (left) and the phone (right) are
           top-aligned in one row. A path banner sits above the row when the beat
           starts a path branch. */}
-      {beats.map((b, i) => {
-        const branched = b.path === 'beginner' || b.path === 'advanced';
-        const isStart = branched && b.path !== beats[i - 1]?.path;
-        const isEnd = branched && b.path !== beats[i + 1]?.path;
-        return (
-          <div key={b.id} data-beat-id={b.id} style={{ marginBottom: 34 }}>
-            {showWords && <BeatDivider n={beatNumberFromId(b.id, i)} />}
-            {showWords && isStart && <PathBanner path={b.path} edge="start" />}
-            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-              {/* Left rail: compact voice tag on non-onboarding tabs, full metadata
-                  panel on the onboarding tab. */}
-              <div
-                style={{
-                  flex: `0 0 ${TAG_COL_W}px`,
-                  paddingRight: TAG_GAP,
-                  paddingTop: showWords ? 8 : 96,
-                }}
-              >
-                {showWords ? (
-                  <SourceOfTruthPanel beat={b} />
-                ) : (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <VoiceTag engine={b.engine} mode={b.mode} />
-                  </div>
-                )}
-              </div>
-              {/* Phone column: a self-contained phone with the orb, playable in place. */}
-              <div style={{ flex: `0 0 ${PHONE_W}px` }}>
-                <PlayableBeat
-                  beat={b}
-                  active={playingId === b.id}
-                  onRequestPlay={onRequestPlay}
-                  onDone={() => onRequestPlay(null)}
-                />
-              </div>
-              {showWords && (
-                <div style={{ flex: `0 0 ${WORDS_COL_W}px`, marginLeft: WORDS_GAP, paddingTop: 8 }}>
-                  <ScriptPanel id={b.id} showExpectedUser={showExpectedUser} />
-                </div>
-              )}
-            </div>
-            {showWords && isEnd && <PathBanner path={b.path} edge="end" />}
-          </div>
-        );
-      })}
+      {groupedRows}
     </div>
+  );
+}
+
+function VariantBeatGroup({
+  group,
+  renderBeat,
+  showWords,
+}: {
+  group: BeatGroup;
+  renderBeat: (beat: FlowBeat, index: number) => ReactNode;
+  showWords: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const beatNumber = beatNumberFromId(group.baseId, group.firstIndex);
+  return (
+    <section
+      data-beat-group-id={group.baseId}
+      data-variant-count={group.variants.length}
+      data-variants-collapsed={!open}
+      style={{ marginBottom: 34 }}
+    >
+      {group.base
+        ? renderBeat(group.base.beat, group.base.index)
+        : showWords && <BeatDivider n={beatNumber} />}
+      <button
+        type="button"
+        aria-controls={`${group.baseId}-variants`}
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        style={{
+          width: '100%',
+          textAlign: 'left',
+          cursor: 'pointer',
+          border: '1px solid #cbd5e1',
+          borderRadius: 12,
+          background: '#eef2f7',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          fontFamily: 'Urbanist, -apple-system, sans-serif',
+        }}
+      >
+        <span aria-hidden="true" style={{ fontSize: 16, color: '#475569' }}>
+          {open ? '▾' : '▸'}
+        </span>
+        <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
+          Beat {beatNumber} variants
+        </span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#3730a3' }}>
+          {group.variants.length} {open ? 'hide' : 'show'}
+        </span>
+      </button>
+      {open && (
+        <div
+          id={`${group.baseId}-variants`}
+          data-beat-variants={group.baseId}
+          style={{ marginTop: 20 }}
+        >
+          {group.variants.map(({ beat, index }) => renderBeat(beat, index))}
+        </div>
+      )}
+    </section>
   );
 }
 
