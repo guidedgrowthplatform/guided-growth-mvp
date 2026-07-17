@@ -21,10 +21,23 @@ import {
 } from './beatsSource';
 import {
   GLOBAL_AMENDED_CONTRACTS,
+  GLOBAL_CANONICAL_ENUMS,
+  GLOBAL_CONSUMER_CONTRACT,
+  GLOBAL_CONVERSATION_MODEL,
+  GLOBAL_DATA_PASSING_ROWS,
+  GLOBAL_DECISIONS,
+  GLOBAL_ENFORCEMENT_REGISTRY,
   GLOBAL_LAYER_PROVENANCE,
   GLOBAL_LAYER_RULES,
+  GLOBAL_LAYER_CONFLICT_SEMANTICS,
+  GLOBAL_LAYER_TOPIC_RULE_IDS,
   GLOBAL_REACTIVE_SLOTS,
+  GLOBAL_RESOLVED_DATA_CONTRACTS,
+  GLOBAL_RETIRED_ENFORCER_MAPPINGS,
+  GLOBAL_TOOL_FAILURE_ROWS,
+  GLOBAL_UNRESOLVED_GOVERNANCE,
   type EnforcementStatus,
+  type GlobalDisplayRow,
 } from './globalLayer';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 
@@ -716,9 +729,21 @@ function GlobalContextPanel() {
     PARTIAL: { background: '#fef3c7', color: '#92400e' },
     'NOT-IMPLEMENTED': { background: '#fee2e2', color: '#991b1b' },
   };
+  const rulesFor = (ids: readonly string[]) => GLOBAL_LAYER_RULES.filter((rule) => ids.includes(rule.id));
+  const baseDetails = {
+    style: { border: '1px solid #e2e8f0', borderRadius: 9, background: '#fff', padding: '9px 10px' },
+  };
+  const Enforcers = ({ enforcers }: { enforcers: readonly { id: string; status: EnforcementStatus }[] }) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+      {enforcers.map((enforcer) => <span key={enforcer.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: '1px solid #cbd5e1', borderRadius: 999, background: '#fff', padding: '2px 6px', fontSize: 10 }}><code>{enforcer.id}</code><span style={{ borderRadius: 999, padding: '1px 4px', fontSize: 9, fontWeight: 800, ...statusColors[enforcer.status] }}>{enforcer.status}</span></span>)}
+    </div>
+  );
+  const Rules = ({ ids }: { ids: readonly string[] }) => <div style={{ display: 'grid', gap: 8 }}>{rulesFor(ids).map((rule) => <article key={rule.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#f8fafc', padding: '9px 10px' }}><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontWeight: 800 }}><code>{rule.id}</code><span>{rule.severity}</span><span>— {rule.title}</span></div><div style={{ marginTop: 5 }}>{rule.text}</div>{rule.example && <div style={{ marginTop: 5, color: '#475569' }}><strong>Example:</strong> {rule.example}</div>}<Enforcers enforcers={rule.enforcedBy} /></article>)}</div>;
+  const Rows = ({ rows }: { rows: readonly GlobalDisplayRow[] }) => <div style={{ display: 'grid', gap: 6 }}>{rows.map((row) => <div key={row.label} style={{ borderLeft: '3px solid #94a3b8', paddingLeft: 8 }}><strong>{row.label}:</strong> {row.value}</div>)}</div>;
+  const Topic = ({ number, title, children }: { number: number; title: string; children: ReactNode }) => <details {...baseDetails}><summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 800, color: '#334155' }}>{number}. {title}</summary><div style={{ display: 'grid', gap: 10, marginTop: 10 }}>{children}</div></details>;
 
   return (
-    <details
+    <section
       data-rail-section="global-context"
       style={{
         maxWidth: TOTAL_W,
@@ -730,66 +755,22 @@ function GlobalContextPanel() {
         boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
       }}
     >
-      <summary
-        style={{
-          cursor: 'pointer',
-          fontSize: 12,
-          fontWeight: 800,
-          color: '#334155',
-          letterSpacing: '0.05em',
-          textTransform: 'uppercase',
-        }}
-      >
-        Global rules — full proposed set (26 rules, 8 slots, 5 contracts)
-      </summary>
+      <div style={{ fontSize: 12, fontWeight: 800, color: '#334155', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Global layer — full proposed set, by topic</div>
       <div style={{ display: 'grid', gap: 14, marginTop: 12, color: '#334155', fontSize: 12, lineHeight: 1.5 }}>
         <div style={{ border: '1px solid #fecaca', borderRadius: 8, background: '#fff1f2', color: '#9f1239', fontWeight: 800, padding: '8px 10px' }}>
           {GLOBAL_LAYER_PROVENANCE}
         </div>
-        <div style={{ color: '#64748b' }}>
-          Conflict semantics: a narrower trigger wins only when it does not loosen another MUST; unresolved MUST conflicts or overlapping slots block activation rather than inventing coach copy. SHOULD never overrides MUST.
-        </div>
-        <section>
-          <h3 style={{ margin: '0 0 8px', fontSize: 13 }}>Behavioral rules</h3>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {GLOBAL_LAYER_RULES.map((rule) => (
-              <article key={rule.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#f8fafc', padding: '9px 10px' }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, fontWeight: 800 }}>
-                  <code>{rule.id}</code><span>{rule.severity}</span><span>— {rule.title}</span>
-                </div>
-                <div style={{ marginTop: 5 }}>{rule.text}</div>
-                {rule.example && <div style={{ marginTop: 5, color: '#475569' }}><strong>Example:</strong> {rule.example}</div>}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
-                  {rule.enforcedBy.map((enforcer) => (
-                    <span key={enforcer.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: '1px solid #cbd5e1', borderRadius: 999, background: '#fff', padding: '2px 6px', fontSize: 10 }}>
-                      <code>{enforcer.id}</code>
-                      <span style={{ borderRadius: 999, padding: '1px 4px', fontSize: 9, fontWeight: 800, ...statusColors[enforcer.status] }}>{enforcer.status}</span>
-                    </span>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-        <section>
-          <h3 style={{ margin: '0 0 8px', fontSize: 13 }}>Locked reactive slots</h3>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {GLOBAL_REACTIVE_SLOTS.map((slot) => (
-              <article key={slot.id} style={{ border: '1px solid #dbeafe', borderRadius: 8, background: '#eff6ff', padding: '9px 10px' }}>
-                <code style={{ fontWeight: 800 }}>{slot.id}</code>
-                {slot.responseRows.map((row) => <div key={row.label} style={{ marginTop: 4 }}><strong>{row.label}:</strong> {row.value}</div>)}
-              </article>
-            ))}
-          </div>
-        </section>
-        <section>
-          <h3 style={{ margin: '0 0 8px', fontSize: 13 }}>Amended contracts</h3>
-          <div style={{ display: 'grid', gap: 6 }}>
-            {GLOBAL_AMENDED_CONTRACTS.map((contract) => <div key={contract.id} style={{ borderLeft: '3px solid #94a3b8', paddingLeft: 8 }}><code>{contract.id}</code> — {contract.responsibility}</div>)}
-          </div>
-        </section>
+        <Topic number={1} title="Authority, precedence, and safety"><div style={{ color: '#64748b' }}><strong>Conflict semantics:</strong> {GLOBAL_LAYER_CONFLICT_SEMANTICS}</div><Rules ids={GLOBAL_LAYER_TOPIC_RULE_IDS.authority} /></Topic>
+        <Topic number={2} title="Coach output and conversation model"><Rules ids={GLOBAL_LAYER_TOPIC_RULE_IDS.coach} /><Rows rows={GLOBAL_CONVERSATION_MODEL} /></Topic>
+        <Topic number={3} title="Current-beat input and picker behavior"><Rules ids={GLOBAL_LAYER_TOPIC_RULE_IDS.input} /><div style={{ display: 'grid', gap: 8 }}>{GLOBAL_REACTIVE_SLOTS.map((slot) => <article key={slot.id} style={{ border: '1px solid #dbeafe', borderRadius: 8, background: '#eff6ff', padding: '9px 10px' }}><code style={{ fontWeight: 800 }}>{slot.id}</code>{slot.responseRows.map((row) => <div key={row.label} style={{ marginTop: 4 }}><strong>{row.label}:</strong> {row.value}</div>)}</article>)}</div></Topic>
+        <Topic number={4} title="Progress, state, and completion"><Rules ids={GLOBAL_LAYER_TOPIC_RULE_IDS.progress} /><Rows rows={GLOBAL_DATA_PASSING_ROWS} /><Rows rows={GLOBAL_AMENDED_CONTRACTS.map((contract) => ({ label: contract.id, value: contract.responsibility }))} /></Topic>
+        <Topic number={5} title="Tool failure"><Rules ids={GLOBAL_LAYER_TOPIC_RULE_IDS.failure} /><Rows rows={GLOBAL_TOOL_FAILURE_ROWS} /></Topic>
+        <Topic number={6} title="Consumer contract"><div style={{ color: '#64748b', fontWeight: 800 }}>Adjacent implementation contract — it names required readers; it is not runtime policy.</div><Rows rows={GLOBAL_CONSUMER_CONTRACT} /></Topic>
+        <Topic number={7} title={`Enforcement registry (${GLOBAL_ENFORCEMENT_REGISTRY.length} rows)`}><div style={{ display: 'grid', gap: 6 }}>{GLOBAL_ENFORCEMENT_REGISTRY.map((entry) => <article key={entry.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 9px' }}><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', fontWeight: 800 }}><code>{entry.id}</code><span>{entry.kind}</span><span style={{ borderRadius: 999, padding: '1px 5px', fontSize: 9, ...statusColors[entry.status] }}>{entry.status}</span></div><div>{entry.meaning} <span style={{ color: '#64748b' }}>Owner: {entry.owner}</span></div></article>)}</div><Rows rows={GLOBAL_RETIRED_ENFORCER_MAPPINGS} /></Topic>
+        <Topic number={8} title="Canonical enums and data contracts"><Rows rows={GLOBAL_CANONICAL_ENUMS} /><div style={{ display: 'grid', gap: 8 }}>{GLOBAL_RESOLVED_DATA_CONTRACTS.map((contract) => <article key={contract.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 9px' }}><code style={{ fontWeight: 800 }}>{contract.id}</code><div><strong>Producer:</strong> {contract.producer}</div><div><strong>Consumers:</strong> {contract.consumers}</div><div><strong>Shape:</strong> {contract.shape}</div><div><strong>Persistence:</strong> {contract.persistence}</div><div><strong>Invariant:</strong> {contract.invariant}</div></article>)}</div></Topic>
+        <Topic number={9} title="Decisions and unresolved governance"><div style={{ display: 'grid', gap: 8 }}>{GLOBAL_DECISIONS.map((decision) => <article key={decision.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 9px' }}><code>{decision.id}</code><div><strong>Question:</strong> {decision.question}</div><div><strong>Decision:</strong> {decision.decision}</div></article>)}</div><Rows rows={GLOBAL_UNRESOLVED_GOVERNANCE} /></Topic>
       </div>
-    </details>
+    </section>
   );
 }
 

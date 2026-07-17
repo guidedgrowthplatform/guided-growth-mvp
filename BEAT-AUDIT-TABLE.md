@@ -75,25 +75,3 @@ This table follows the render’s grouping: one lane-dash official id per row, w
 ## Source-matches-render proposal
 
 **Proposal — no changes made.** Reshape `src/components/flow-designer/beatsSource.ts` so it exports an ordered collection of 18 official beat entries keyed by the lane-dash ids above. Put each colon-suffix entry in that official entry’s `variations` array, retaining its suffix, render fields, and order. Derive the flat playback list only where the renderer needs it, while `FlowDesigner` reads the nested shape for its groups. **Estimated effort: 0.5–1 day**, including TypeScript type updates and focused render/playback regression checks.
-
----
-
-## Decision record: the state / habit / reflection split (2026-07-17, third call)
-
-**RULED (both agreed on the call):** the morning flow is THREE distinct parts, not one:
-1. **State check**: sleep / mood / energy / stress (the morning state).
-2. **Habit check**: marking habits done/missed. Currently mixed into the morning check-in; it MUST separate.
-3. **Reflection**: the evening flow.
-
-**What this changes:**
-- The earlier "state-check writes daily_checkins atomically" ruling is superseded AS WRITTEN; the intent
-  stands (onboarding writes must match how the daily flow will always work, no onboarding-special shape),
-  but the exact wiring follows the three-part model.
-- The state-check acceptance rows that assert the dual write are tagged PENDING-BACKEND-WIRING in the
-  render until the wiring lands.
-
-**OPEN (who closes it):**
-- The wiring proposal for the three-part model: authored on the backend side, posted on the ai-bus for
-  review, approved before any build (backend changes need review per Yair).
-- Items 2 (atomic reflection settings via migration 051's real columns) and 3 (plan-confirm persists
-  status=completed + completed_at) are UNCHANGED by the split and are building now.
