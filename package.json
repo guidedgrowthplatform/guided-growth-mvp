@@ -41,6 +41,7 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "check:links": "node scripts/render-link-integrity-check.mjs",
+    "verify:objective1": "node scripts/verify-objective1.mjs",
     "check:beats": "npm run check:render && npm run check:links"
   },
   "lint-staged": {
