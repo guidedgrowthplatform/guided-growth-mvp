@@ -4,75 +4,330 @@
 
 /** Which componentType owns a persist step, per fork lane (spine beats own both). */
 export const STEP_OWNERS: Record<number, Partial<Record<string, string>>> = {
-  "1": {
-    "simple": "profile-input",
-    "braindump": "profile-input"
-  },
-  "2": {
-    "simple": "path-selection",
-    "braindump": "path-selection"
-  },
   "3": {
-    "simple": "category-grid",
-    "braindump": "advanced-capture"
-  },
-  "4": {
-    "simple": "goals-list",
-    "braindump": "advanced-frequency"
-  },
-  "5": {
-    "simple": "habit-picker"
+    "": "auth"
   },
   "6": {
-    "simple": "state-check",
-    "braindump": "state-check"
+    "": "profile-input"
   },
   "7": {
-    "simple": "morning-checkin-setup",
-    "braindump": "morning-checkin-setup"
+    "": "state-check"
   },
   "8": {
-    "simple": "reflection-card",
-    "braindump": "reflection-card"
+    "": "morning-checkin-setup"
   },
   "9": {
-    "simple": "weekly-day-picker",
-    "braindump": "weekly-day-picker"
+    "": "reflection-card"
+  },
+  "10": {
+    "": "path-selection"
+  },
+  "11": {
+    "": "category-grid"
+  },
+  "12": {
+    "": "category-grid"
+  },
+  "13": {
+    "": "goals-list"
+  },
+  "14": {
+    "": "goals-list"
+  },
+  "15": {
+    "": "goals-list"
+  },
+  "16": {
+    "": "goals-list"
+  },
+  "17": {
+    "": "goals-list"
+  },
+  "18": {
+    "": "goals-list"
+  },
+  "19": {
+    "": "goals-list"
+  },
+  "20": {
+    "": "goals-list"
+  },
+  "21": {
+    "": "custom-entry"
+  },
+  "22": {
+    "": "habit-picker"
+  },
+  "23": {
+    "": "habit-picker"
+  },
+  "24": {
+    "": "habit-picker"
+  },
+  "25": {
+    "": "habit-picker"
+  },
+  "26": {
+    "": "habit-picker"
+  },
+  "27": {
+    "": "habit-picker"
+  },
+  "28": {
+    "": "habit-picker"
+  },
+  "29": {
+    "": "habit-picker"
+  },
+  "30": {
+    "": "habit-picker"
+  },
+  "31": {
+    "": "habit-picker"
+  },
+  "32": {
+    "": "habit-picker"
+  },
+  "33": {
+    "": "habit-picker"
+  },
+  "34": {
+    "": "habit-picker"
+  },
+  "35": {
+    "": "habit-picker"
+  },
+  "36": {
+    "": "habit-picker"
+  },
+  "37": {
+    "": "habit-picker"
+  },
+  "38": {
+    "": "habit-picker"
+  },
+  "39": {
+    "": "habit-picker"
+  },
+  "40": {
+    "": "habit-picker"
+  },
+  "41": {
+    "": "habit-picker"
+  },
+  "42": {
+    "": "habit-picker"
+  },
+  "43": {
+    "": "habit-picker"
+  },
+  "44": {
+    "": "habit-picker"
+  },
+  "45": {
+    "": "habit-picker"
+  },
+  "46": {
+    "": "habit-picker"
+  },
+  "47": {
+    "": "habit-picker"
+  },
+  "48": {
+    "": "habit-picker"
+  },
+  "49": {
+    "": "habit-picker"
+  },
+  "50": {
+    "": "habit-picker"
+  },
+  "51": {
+    "": "habit-picker"
+  },
+  "52": {
+    "": "custom-entry"
+  },
+  "53": {
+    "": "habit-schedule"
+  },
+  "54": {
+    "": "advanced-capture"
+  },
+  "55": {
+    "": "advanced-frequency"
+  },
+  "56": {
+    "": "into-app"
   }
 };
 
 /** The componentType being LEFT at each STORED step (one-ahead display scale), per lane. */
 /** The forward advance gate prefers this over STEP_OWNERS (B50). */
 export const ADVANCE_GATE_OWNERS: Record<number, Partial<Record<string, string>>> = {
-  "1": {
-    "simple": "profile-input",
-    "braindump": "profile-input"
-  },
-  "2": {
-    "simple": "path-selection",
-    "braindump": "path-selection"
-  },
   "3": {
-    "simple": "category-grid",
-    "braindump": "advanced-capture"
-  },
-  "4": {
-    "simple": "goals-list",
-    "braindump": "advanced-frequency"
-  },
-  "5": {
-    "simple": "habit-picker"
+    "": "auth"
   },
   "6": {
-    "simple": "habit-schedule"
+    "": "profile-input"
+  },
+  "7": {
+    "": "state-check"
+  },
+  "8": {
+    "": "morning-checkin-setup"
+  },
+  "9": {
+    "": "reflection-card"
+  },
+  "10": {
+    "": "path-selection"
+  },
+  "11": {
+    "": "category-grid"
+  },
+  "12": {
+    "": "category-grid"
+  },
+  "13": {
+    "": "goals-list"
+  },
+  "14": {
+    "": "goals-list"
+  },
+  "15": {
+    "": "goals-list"
+  },
+  "16": {
+    "": "goals-list"
+  },
+  "17": {
+    "": "goals-list"
+  },
+  "18": {
+    "": "goals-list"
+  },
+  "19": {
+    "": "goals-list"
+  },
+  "20": {
+    "": "goals-list"
+  },
+  "21": {
+    "": "custom-entry"
+  },
+  "22": {
+    "": "habit-picker"
+  },
+  "23": {
+    "": "habit-picker"
+  },
+  "24": {
+    "": "habit-picker"
+  },
+  "25": {
+    "": "habit-picker"
+  },
+  "26": {
+    "": "habit-picker"
+  },
+  "27": {
+    "": "habit-picker"
+  },
+  "28": {
+    "": "habit-picker"
+  },
+  "29": {
+    "": "habit-picker"
+  },
+  "30": {
+    "": "habit-picker"
+  },
+  "31": {
+    "": "habit-picker"
+  },
+  "32": {
+    "": "habit-picker"
+  },
+  "33": {
+    "": "habit-picker"
+  },
+  "34": {
+    "": "habit-picker"
+  },
+  "35": {
+    "": "habit-picker"
+  },
+  "36": {
+    "": "habit-picker"
+  },
+  "37": {
+    "": "habit-picker"
+  },
+  "38": {
+    "": "habit-picker"
+  },
+  "39": {
+    "": "habit-picker"
+  },
+  "40": {
+    "": "habit-picker"
+  },
+  "41": {
+    "": "habit-picker"
+  },
+  "42": {
+    "": "habit-picker"
+  },
+  "43": {
+    "": "habit-picker"
+  },
+  "44": {
+    "": "habit-picker"
+  },
+  "45": {
+    "": "habit-picker"
+  },
+  "46": {
+    "": "habit-picker"
+  },
+  "47": {
+    "": "habit-picker"
+  },
+  "48": {
+    "": "habit-picker"
+  },
+  "49": {
+    "": "habit-picker"
+  },
+  "50": {
+    "": "habit-picker"
+  },
+  "51": {
+    "": "habit-picker"
+  },
+  "52": {
+    "": "custom-entry"
+  },
+  "53": {
+    "": "habit-schedule"
+  },
+  "54": {
+    "": "advanced-capture"
+  },
+  "55": {
+    "": "advanced-frequency"
+  },
+  "56": {
+    "": "into-app"
   }
 };
 
 /** Identity beats: the data tool saves AND advances; never advance_step here. */
-export const SELF_ADVANCING_SCREENS: readonly string[] = ["ONBOARD-STATE-CHECK","ONBOARD-MORNING-SETUP","ONBOARD-BEGINNER-07","ONBOARD-WEEKLY-SETUP"];
+export const SELF_ADVANCING_SCREENS: readonly string[] = [];
 
 /** The advance_step ladder taught to the LLM (beginner path, one-ahead on shared steps). */
-export const ADVANCE_LADDER = "profile(1)→2, path(2)→3, category(3)→4, goals(4)→5, habit-select(5)→6, habit-schedule(6)→7";
+export const ADVANCE_LADDER = "onboarding-beat-4-sign-up(3)→4, onboarding-beat-6-profile:asks(6)→7, onboarding-beat-7-state-check(7)→8, onboarding-beat-8-morning-checkin-setup(8)→9, onboarding-beat-9-evening-reflection-setup(9)→10, onboarding-beat-10-experience-fork(10)→11, onboarding-beginner-beat-11-pick-category(11)→12, onboarding-beginner-beat-11-pick-category:women(12)→13, onboarding-beginner-beat-12-pick-goals:sleep(13)→14, onboarding-beginner-beat-12-pick-goals:move(14)→15, onboarding-beginner-beat-12-pick-goals:eat(15)→16, onboarding-beginner-beat-12-pick-goals:energy(16)→17, onboarding-beginner-beat-12-pick-goals:stress(17)→18, onboarding-beginner-beat-12-pick-goals:focus(18)→19, onboarding-beginner-beat-12-pick-goals:break(19)→20, onboarding-beginner-beat-12-pick-goals:organize(20)→21, onboarding-beginner-beat-12-pick-goals:custom(21)→22, onboarding-beginner-beat-13-pick-habits(22)→23, onboarding-beginner-beat-13-pick-habits:fall-asleep-earlier(23)→24, onboarding-beginner-beat-13-pick-habits:wake-earlier(24)→25, onboarding-beginner-beat-13-pick-habits:sleep-consistently(25)→26, onboarding-beginner-beat-13-pick-habits:sleep-deeply(26)→27, onboarding-beginner-beat-13-pick-habits:walk-more(27)→28, onboarding-beginner-beat-13-pick-habits:exercise-consistently(28)→29, onboarding-beginner-beat-13-pick-habits:mobility(29)→30, onboarding-beginner-beat-13-pick-habits:eat-intentionally(30)→31, onboarding-beginner-beat-13-pick-habits:reduce-overeating(31)→32, onboarding-beginner-beat-13-pick-habits:plan-food(32)→33, onboarding-beginner-beat-13-pick-habits:morning-energy(33)→34, onboarding-beginner-beat-13-pick-habits:avoid-crashes(34)→35, onboarding-beginner-beat-13-pick-habits:stable-energy(35)→36, onboarding-beginner-beat-13-pick-habits:calmer-day(36)→37, onboarding-beginner-beat-13-pick-habits:evening-stress(37)→38, onboarding-beginner-beat-13-pick-habits:less-overwhelmed(38)→39, onboarding-beginner-beat-13-pick-habits:start-work(39)→40, onboarding-beginner-beat-13-pick-habits:deeper-work(40)→41, onboarding-beginner-beat-13-pick-habits:procrastinate-less(41)→42, onboarding-beginner-beat-13-pick-habits:smoking(42)→43, onboarding-beginner-beat-13-pick-habits:weed(43)→44, onboarding-beginner-beat-13-pick-habits:alcohol(44)→45, onboarding-beginner-beat-13-pick-habits:porn(45)→46, onboarding-beginner-beat-13-pick-habits:phone-use(46)→47, onboarding-beginner-beat-13-pick-habits:late-snacking(47)→48, onboarding-beginner-beat-13-pick-habits:caffeine(48)→49, onboarding-beginner-beat-13-pick-habits:stay-on-tasks(49)→50, onboarding-beginner-beat-13-pick-habits:tidy-spaces(50)→51, onboarding-beginner-beat-13-pick-habits:life-admin(51)→52, onboarding-beginner-beat-13-pick-habits:custom(52)→53, onboarding-beginner-beat-14-schedule-habits(53)→54, onboarding-advanced-beat-15-capture-existing-habits(54)→55, onboarding-advanced-beat-16-schedule-existing-habits(55)→56, onboarding-beat-17-plan-review(56)→57";
 
 /** Highest identity step; legacy screen ids map past it by hand. */
-export const MAX_STEP = 9;
+export const MAX_STEP = 56;

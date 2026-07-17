@@ -1,9 +1,17 @@
 /** Phase B adapter: Phase A contract -> renderer FlowDocument. */
-import type { BeatNode, FlowComponentType, FlowDocument, VoiceConfig } from '../../src/onboarding-flow/types';
+import type {
+  BeatNode,
+  FlowComponentType,
+  FlowDocument,
+  VoiceConfig,
+} from '../../src/onboarding-flow/types';
 import type { ContractBeat, OnboardingContractV1 } from '../onboarding/lib/readContract';
 
 /** Contract beat types accepted by the current renderer. Unknown types fail loudly. */
 export const FLOW_BEAT_TYPES: Readonly<Record<string, FlowComponentType | null>> = {
+  splash: 'primary-button',
+  'get-started': 'primary-button',
+  'splash-intro': 'coach-bubble',
   auth: 'auth',
   'mic-permission': 'mic-permission',
   'profile-input': 'profile-input',
@@ -57,7 +65,10 @@ function voice(beat: ContractBeat): VoiceConfig {
 
 function flowComponent(beat: ContractBeat): FlowComponentType {
   const component = FLOW_BEAT_TYPES[beat.type];
-  if (!component) throw new Error(`[flow:sync] contract beat ${beat.id} has unsupported flow type "${beat.type}"`);
+  if (!component)
+    throw new Error(
+      `[flow:sync] contract beat ${beat.id} has unsupported flow type "${beat.type}"`,
+    );
   return component;
 }
 
@@ -65,12 +76,15 @@ function contractNode(
   beat: ContractBeat,
   nextId: string | null,
   screenId: string,
+  backId: string | null,
 ): BeatNode {
   const componentType = flowComponent(beat);
   const voiceConfig = voice(beat);
   const recorded = beat.script.filter((line) => line.clip !== null && line.clipPath !== null);
   const vapi = beat.voice.engine === 'Vapi';
-  const hybrid = beat.voice.perLine.some((line) => line.resolution === 'recorded') && beat.voice.perLine.some((line) => line.resolution === 'live');
+  const hybrid =
+    beat.voice.perLine.some((line) => line.resolution === 'recorded') &&
+    beat.voice.perLine.some((line) => line.resolution === 'live');
   return {
     id: beat.id,
     type: 'beat',
@@ -78,25 +92,79 @@ function contractNode(
     name: beat.name,
     screenId,
     nextId,
-    backId: beat.parent,
+    backId,
     context: { screenId, screenName: beat.name, contextBlock: beat.context },
     componentType,
     componentProps: beat.props,
     voice: voiceConfig,
     meta: {
       voiceOut: {
-        engine: beat.voice.engine === 'MP3' ? 'mp3' : beat.voice.engine === 'Cartesia' ? 'cartesia' : vapi ? 'vapi' : 'none',
+        engine:
+          beat.voice.engine === 'MP3'
+            ? 'mp3'
+            : beat.voice.engine === 'Cartesia'
+              ? 'cartesia'
+              : vapi
+                ? 'vapi'
+                : 'none',
         mode: beat.voice.mode === 'Improvise' ? 'generative' : 'verbatim',
-        ...(recorded.length > 0 ? { mp3Assets: recorded.map((line) => ({ id: line.clip as string, label: line.clip as string, file: line.clipPath as string, transcript: line.words, opener: line.seq === beat.openerSeq ? line.words : undefined, timing: line.seq === beat.openerSeq ? 'opener' as const : 'element' as const })) } : {}),
+        ...(recorded.length > 0
+          ? {
+              mp3Assets: recorded.map((line) => ({
+                id: line.clip as string,
+                label: line.clip as string,
+                file: line.clipPath as string,
+                transcript: line.words,
+                opener: line.seq === beat.openerSeq ? line.words : undefined,
+                timing: line.seq === beat.openerSeq ? ('opener' as const) : ('element' as const),
+              })),
+            }
+          : {}),
       },
-      voiceIn: { engine: vapi ? 'vapi' : voiceConfig.expectsInput ? 'soniox' : 'none', enabled: voiceConfig.expectsInput, micRequired: voiceConfig.expectsInput, armOnBeatLoad: voiceConfig.expectsInput },
-      fill: { brain: vapi ? 'vapi' : voiceConfig.expectsInput ? 'direct-llm' : 'none', llmActive: voiceConfig.expectsInput, allowedTools: beat.allowedTools },
+      voiceIn: {
+        engine: vapi ? 'vapi' : voiceConfig.expectsInput ? 'soniox' : 'none',
+        enabled: voiceConfig.expectsInput,
+        micRequired: voiceConfig.expectsInput,
+        armOnBeatLoad: voiceConfig.expectsInput,
+      },
+      fill: {
+        brain: vapi ? 'vapi' : voiceConfig.expectsInput ? 'direct-llm' : 'none',
+        llmActive: voiceConfig.expectsInput,
+        allowedTools: beat.allowedTools,
+      },
       path: vapi ? 'path-1-vapi' : 'path-3-direct-llm',
-      orb: { voiceOn: beat.voice.engine !== 'Silent', micOn: voiceConfig.expectsInput, bloomed: beat.voice.engine !== 'Silent' },
-      toggles: { expectsInput: voiceConfig.expectsInput, directLlmAllowed: voiceConfig.directLlmAllowed, instantOpenerEligible: vapi, suppressVapiDuringMp3: hybrid, continueVapiAfterMp3: hybrid, autoplayRequiresUnlock: recorded.length > 0, qaForceEngineAllowed: true },
-      engine: { nodeId: beat.id, backId: beat.parent ?? undefined, persistStep: beat.advance.mode === 'manual' ? null : beat.order, pathField: false, captureFields: beat.beatIO.dataIn.map((entry) => entry.key), toolName: first(beat.allowedTools), toolAdvancesStep: beat.advance.mode === 'self', toolPersistsFields: beat.beatIO.dataOut.map((entry) => entry.key) },
+      orb: {
+        voiceOn: beat.voice.engine !== 'Silent',
+        micOn: voiceConfig.expectsInput,
+        bloomed: beat.voice.engine !== 'Silent',
+      },
+      toggles: {
+        expectsInput: voiceConfig.expectsInput,
+        directLlmAllowed: voiceConfig.directLlmAllowed,
+        instantOpenerEligible: vapi,
+        suppressVapiDuringMp3: hybrid,
+        continueVapiAfterMp3: hybrid,
+        autoplayRequiresUnlock: recorded.length > 0,
+        qaForceEngineAllowed: true,
+      },
+      engine: {
+        nodeId: beat.id,
+        backId: backId ?? undefined,
+        persistStep: beat.advance.mode === 'manual' ? null : beat.order,
+        pathField: false,
+        captureFields: beat.beatIO.dataIn.map((entry) => entry.key),
+        toolName: first(beat.allowedTools),
+        toolAdvancesStep: beat.advance.mode === 'self',
+        toolPersistsFields: beat.beatIO.dataOut.map((entry) => entry.key),
+      },
     },
-    tool: first(beat.allowedTools) ? { toolName: first(beat.allowedTools) as string, persistsFields: beat.beatIO.dataOut.map((entry) => entry.key), advancesStep: beat.advance.mode === 'self' } : null,
+    tool: first(beat.allowedTools)
+      ? {
+          toolName: first(beat.allowedTools) as string,
+          persistsFields: beat.beatIO.dataOut.map((entry) => entry.key),
+          advancesStep: beat.advance.mode === 'self',
+        }
+      : null,
     persist: beat.advance.mode === 'manual' ? null : { step: beat.order },
     hideOrb: beat.hideOrb,
   };
@@ -109,7 +177,17 @@ function contractNode(
 export function contractToFlowDocument(contract: OnboardingContractV1): FlowDocument {
   const ordered = [...contract.beats].sort((a, b) => a.order - b.order);
   const legacyScreens = screenIds(contract);
-  const nodes = ordered.map((beat, index) => contractNode(beat, ordered[index + 1]?.id ?? null, legacyScreens.get(beat.id) ?? beat.id));
+  const beatIds = new Set(ordered.map((beat) => beat.id));
+  const nodes = ordered.map((beat, index) =>
+    contractNode(
+      beat,
+      ordered[index + 1]?.id ?? null,
+      legacyScreens.get(beat.id) ?? beat.id,
+      beat.parent === null || beatIds.has(beat.parent)
+        ? beat.parent
+        : (ordered[index - 1]?.id ?? null),
+    ),
+  );
   if (nodes.length === 0) throw new Error('[flow:sync] contract contains no flow beats');
   return {
     flowId: 'onboarding-contract-v1',
