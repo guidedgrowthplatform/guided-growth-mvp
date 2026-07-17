@@ -1,0 +1,450 @@
+// Generated source-contract fixture.
+export const BEAT_AUDIO_SELECTION_MAP: Record<string, { engine: string; clipPath: string | null; liveSlots: readonly string[] }> = {
+  "onboarding-beat-3-coach-greeting:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/coach_greeting.mp3",
+    "liveSlots": []
+  },
+  "onboarding-beat-5-mic-permission:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/mic_permission_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-6-profile:greeting:1": {
+    "engine": "cartesia",
+    "clipPath": null,
+    "liveSlots": [
+      "name"
+    ]
+  },
+  "onboarding-beat-6-profile:asks:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_01_form_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-6-profile:asks:2": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_01_form_2.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-7-state-check:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_state_check_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-7-state-check:2": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/state_sleep.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-7-state-check:3": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/state_mood.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-7-state-check:4": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/state_energy.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-7-state-check:5": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/state_stress.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-8-morning-checkin-setup:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_morning_setup_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-8-morning-checkin-setup:2": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-beat-8-morning-checkin-setup:3": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-beat-8-morning-checkin-setup:4": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-beat-8-morning-checkin-setup:5": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_morning_setup_2.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-9-evening-reflection-setup:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_07_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-9-evening-reflection-setup:2": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/reflect_proud.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-9-evening-reflection-setup:3": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/reflect_forgive.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-9-evening-reflection-setup:4": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/reflect_grateful.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-9-evening-reflection-setup:5": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/reflect_alt.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-9-evening-reflection-setup:6": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-beat-9-evening-reflection-setup:7": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/reflect_time.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-9-evening-reflection-setup:8": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-beat-10-experience-fork:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_fork_form_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-10-experience-fork:2": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/fork_question.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-10-experience-fork:3": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-11-pick-category:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_01_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-11-pick-category:2": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-11-pick-category:3": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/create_your_own.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-11-pick-category:women:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_01_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-11-pick-category:women:2": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-11-pick-category:women:3": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/create_your_own.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-12-pick-goals:sleep:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_02_sleep.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-12-pick-goals:move:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_02_move.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-12-pick-goals:eat:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_02_eat.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-12-pick-goals:energy:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_02_energy.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-12-pick-goals:stress:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_02_stress.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-12-pick-goals:focus:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_02_focus.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-12-pick-goals:break:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_02_break.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-12-pick-goals:organize:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_02_organize.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-12-pick-goals:custom:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_02_custom_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:2": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:fall-asleep-earlier:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_fall_asleep_earlier.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:wake-earlier:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_wake_earlier.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:sleep-consistently:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_sleep_consistently.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:sleep-deeply:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_sleep_deeply.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:walk-more:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_walk_more.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:exercise-consistently:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_exercise_consistently.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:mobility:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_mobility.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:eat-intentionally:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_eat_intentionally.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:reduce-overeating:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_reduce_overeating.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:plan-food:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_plan_food.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:morning-energy:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_morning_energy.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:avoid-crashes:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_avoid_crashes.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:stable-energy:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_stable_energy.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:calmer-day:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_calmer_day.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:evening-stress:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_evening_stress.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:less-overwhelmed:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_less_overwhelmed.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:start-work:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_start_work.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:deeper-work:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_deeper_work.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:procrastinate-less:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_procrastinate_less.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:smoking:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_smoking.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:weed:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_weed.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:alcohol:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_alcohol.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:porn:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_porn.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:phone-use:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_phone_use.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:late-snacking:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_late_snacking.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:caffeine:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_caffeine.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:stay-on-tasks:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_stay_on_tasks.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:tidy-spaces:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_tidy_spaces.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:life-admin:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_goal_life_admin.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-13-pick-habits:custom:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_03_custom_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-14-schedule-habits:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_04_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-14-schedule-habits:2": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_beginner_04_2.wav",
+    "liveSlots": []
+  },
+  "onboarding-beginner-beat-14-schedule-habits:3": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-advanced-beat-15-capture-existing-habits:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_advanced_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-advanced-beat-15-capture-existing-habits:2": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-advanced-beat-15-capture-existing-habits:3": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/close.wav",
+    "liveSlots": []
+  },
+  "onboarding-advanced-beat-16-schedule-existing-habits:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_advanced_frequency_days.wav",
+    "liveSlots": []
+  },
+  "onboarding-advanced-beat-16-schedule-existing-habits:2": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_advanced_frequency_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-advanced-beat-16-schedule-existing-habits:3": {
+    "engine": "mp3",
+    "clipPath": null,
+    "liveSlots": []
+  },
+  "onboarding-advanced-beat-16-schedule-existing-habits:4": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_advanced_frequency_2.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-17-plan-review:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_complete_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-18-week-projection:empty:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_weekly_projection_blank_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-18-week-projection:best:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_weekly_projection_full_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-18-week-projection:likely:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_weekly_projection_p78_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-18-week-projection:some:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_weekly_projection_p36_1.wav",
+    "liveSlots": []
+  },
+  "onboarding-beat-18-week-projection:avoid:1": {
+    "engine": "mp3",
+    "clipPath": "/voice/ob/onboard_weekly_projection_gaps_1.wav",
+    "liveSlots": []
+  }
+} as const;

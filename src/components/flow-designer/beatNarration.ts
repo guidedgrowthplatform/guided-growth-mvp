@@ -5,6 +5,7 @@
 // emits drive the on-screen text + card reveals so the sync is visible.
 
 import type { ScriptLine } from './beatsSource';
+import { BEAT_AUDIO_SELECTION_MAP } from './beatAudioSelectionMap';
 import { clipSrc } from './voiceClips';
 
 export type Kind = 'beatplayer' | 'card' | 'grid' | 'coachonly';
@@ -335,7 +336,8 @@ function scriptTarget(line: ScriptLine): { bubbleStep: number | null; reveal: nu
 // clipPath can never silently drop a recorded line to the browser voice.
 function playLine(line: ScriptLine, muted: boolean, onWord?: (n: number) => void): Promise<void> {
   const words = sample(line.words);
-  const src = line.voice !== null ? (clipSrc(line.words) ?? line.clipPath) : null;
+  const selection = BEAT_AUDIO_SELECTION_MAP[`${line.bindsTo.screen}:${line.seq}`];
+  const src = selection?.engine === 'mp3' ? (clipSrc(line.words) ?? selection.clipPath) : null;
   if (src) return playClip(src, words, muted, onWord);
   return speak(words, muted, onWord);
 }

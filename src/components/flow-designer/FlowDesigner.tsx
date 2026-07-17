@@ -19,6 +19,7 @@ import {
   type BeatEntry,
   type ScriptLine,
 } from './beatsSource';
+import { BEAT_IDENTITY_MAP } from './beatIdentityMap';
 import {
   GLOBAL_AMENDED_CONTRACTS,
   GLOBAL_CANONICAL_ENUMS,
@@ -1628,6 +1629,8 @@ export const BASE_BEATS: FlowBeat[] = BEATS_SOURCE.map((b) => ({
   hideOrb: b.hideOrb || undefined,
   script: b.script,
 }));
+
+export const FLOW_BEAT_IDENTITY_MAP = BEAT_IDENTITY_MAP;
 
 export const BEATS: FlowBeat[] = BASE_BEATS.map((beat) => ({
   ...beat,

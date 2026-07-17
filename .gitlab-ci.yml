@@ -37,6 +37,17 @@ render-checks-report:
         - src/components/flow-designer/**/*
         - scripts/render-consistency-check.mjs
         - scripts/render-link-integrity-check.mjs
+        - scripts/id-alias-check.mjs
+        - scripts/audio-ownership-check.mjs
+        - scripts/decisions-coverage-check.mjs
+        - scripts/reveal-timing-check.mjs
+        - scripts/render-contract-utils.mjs
+        - src/components/flow-designer/beatsSource.ts
+        - src/components/flow-designer/beatIdentityMap.ts
+        - src/components/flow-designer/beatIdentityMap.json
+        - src/components/flow-designer/beatAudioSelectionMap.ts
+        - src/components/flow-designer/beatAudioSelectionMap.json
+        - src/components/flow-designer/beatNarration.ts
         - scripts/verify-objective1.mjs
         - package.json
         - package-lock.json

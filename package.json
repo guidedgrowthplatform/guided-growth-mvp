@@ -42,7 +42,11 @@
     "build-storybook": "storybook build",
     "check:links": "node scripts/render-link-integrity-check.mjs",
     "verify:objective1": "node scripts/verify-objective1.mjs",
-    "check:beats": "npm run check:render && npm run check:links"
+    "check:beats": "npm run check:render && npm run check:links && npm run check:id-aliases && npm run check:audio-ownership && npm run check:decisions-coverage && npm run check:reveal-timing",
+    "check:id-aliases": "node scripts/id-alias-check.mjs",
+    "check:audio-ownership": "node scripts/audio-ownership-check.mjs",
+    "check:decisions-coverage": "node scripts/decisions-coverage-check.mjs",
+    "check:reveal-timing": "node scripts/reveal-timing-check.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
