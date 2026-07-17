@@ -1,0 +1,71 @@
+{
+  "beats": {
+    "welcome": {
+      "contractSeq": null,
+      "lines": [
+        {
+          "clipId": "welcome",
+          "lockedText": "Welcome to Guided Growth.",
+          "voiceResolution": "recorded",
+          "renderWav": {
+            "canonicalPath": "public/voice/ob/welcome.wav",
+            "legacyPath": "public/voice/ob/welcome.wav"
+          },
+          "appMp3": {
+            "canonicalPath": "public/voice/onboarding/welcome.mp3",
+            "legacyPath": "public/voice/onboarding/ONBOARD-WELCOME.mp3"
+          }
+        },
+        {
+          "clipId": "welcome-women",
+          "lockedText": "Welcome to Guided Growth.",
+          "voiceResolution": "recorded",
+          "renderWav": {
+            "canonicalPath": "public/voice/ob/welcome-women.wav",
+            "legacyPath": "public/voice/ob/welcome-women.wav"
+          },
+          "appMp3": {
+            "canonicalPath": "public/voice/onboarding/welcome-women.mp3",
+            "legacyPath": "public/voice/onboarding/ONBOARD-WELCOME.mp3"
+          }
+        }
+      ],
+      "opener": {
+        "clipId": "welcome",
+        "lockedText": "Welcome to Guided Growth.",
+        "voiceResolution": "recorded",
+        "renderWav": {
+          "canonicalPath": "public/voice/ob/welcome.wav",
+          "legacyPath": "public/voice/ob/welcome.wav"
+        },
+        "appMp3": {
+          "canonicalPath": "public/voice/onboarding/welcome.mp3",
+          "legacyPath": "public/voice/onboarding/ONBOARD-WELCOME.mp3"
+        }
+      }
+    },
+    "profile": {
+      "contractSeq": null,
+      "lines": [
+        {
+          "clipId": "path-opener",
+          "lockedText": "Choose your path.",
+          "voiceResolution": "recorded",
+          "renderWav": {
+            "canonicalPath": "public/voice/ob/path-opener.wav",
+            "legacyPath": "public/voice/ob/path-opener.wav"
+          }
+        }
+      ],
+      "opener": {
+        "clipId": "path-opener",
+        "lockedText": "Choose your path.",
+        "voiceResolution": "recorded",
+        "renderWav": {
+          "canonicalPath": "public/voice/ob/path-opener.wav",
+          "legacyPath": "public/voice/ob/path-opener.wav"
+        }
+      }
+    }
+  }
+}

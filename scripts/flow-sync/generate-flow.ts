@@ -1,5 +1,5 @@
 /**
- * Flow sync: regenerate the engine flow JSON from the designer source of truth.
+ * Flow sync: regenerate the engine flow JSON from the selected source of truth.
  *
  * Reads the mirrored designer DEFAULT_FLOW (src/onboarding-flow/transform/
  * designerSource.ts), runs the transform, validates the result against the engine
@@ -26,6 +26,8 @@ import {
 import { designerToFlowDocument } from '../../src/onboarding-flow/transform/designerToFlow';
 import { deriveStepMaps } from '../../src/onboarding-flow/transform/deriveStepMaps';
 import type { FlowDocument } from '../../src/onboarding-flow/types';
+import { contractToFlowDocument } from './contractToFlow';
+import { readOnboardingContract } from '../onboarding/lib/readContract';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FLOWS_DIR = resolve(here, '../../src/onboarding-flow/flows');
@@ -33,6 +35,7 @@ const OUT_PATH = resolve(FLOWS_DIR, 'onboarding-beginner-v1.generated.json');
 // The api tree does not import across src/ (Vercel trace + api tsconfig lanes), so
 // its derived step maps are emitted as a self-contained generated module.
 const API_STEP_MAPS_PATH = resolve(here, '../../api/_lib/llm/onboarding/stepMaps.generated.ts');
+const DEFAULT_CONTRACT_PATH = resolve(here, '../../src/onboarding-flow/flows/onboarding-contract.v1.json');
 
 // Linear flows shipped from the builder: one Export in, one generated flow out.
 const LINEAR_EXPORTS = [
@@ -104,11 +107,19 @@ function writeApiStepMaps(onboardingFlow: FlowDocument): void {
 }
 
 function main(): void {
-  // The builder Export IS the source of truth; a broken or empty Export fails
-  // the zod parse loud (L1-1), so no hand-typed mirror fallback exists anymore.
-  const source = DESIGNER_ONBOARDING_FLOW_FROM_JSON;
-  console.log('[flow:sync] source = designer-source.json (' + source.length + ' beats)');
-  const onboardingFlow = designerToFlowDocument(source);
+  const sourceMode = process.env.FLOW_SYNC_SOURCE ?? 'designer';
+  if (sourceMode !== 'designer' && sourceMode !== 'contract') {
+    throw new Error('[flow:sync] FLOW_SYNC_SOURCE must be "designer" or "contract"');
+  }
+
+  const onboardingFlow = sourceMode === 'contract'
+    ? contractToFlowDocument(readOnboardingContract(process.env.ONBOARDING_CONTRACT_PATH ?? DEFAULT_CONTRACT_PATH).contract)
+    : designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
+  console.log(
+    sourceMode === 'contract'
+      ? '[flow:sync] source = contract (' + (process.env.ONBOARDING_CONTRACT_PATH ?? DEFAULT_CONTRACT_PATH) + ')'
+      : '[flow:sync] source = designer-source.json (' + DESIGNER_ONBOARDING_FLOW_FROM_JSON.length + ' beats)',
+  );
   gateAndWrite(onboardingFlow, OUT_PATH);
   writeApiStepMaps(onboardingFlow);
 

@@ -1,0 +1,274 @@
+{
+  "schemaId": "guided-growth.onboarding-contract",
+  "schemaVersion": 1,
+  "sourceGitSha": "phaseb-fixture",
+  "contractRevision": "phaseb-fixture-v1",
+  "globalContext": "Minimal Phase B contract fixture used only for generator wiring.",
+  "toolArgumentSchemas": {
+    "submit_profile": { "type": "object" },
+    "submit_path_choice": { "type": "object" }
+  },
+  "variantSelections": [
+    {
+      "id": "welcome-art",
+      "baseBeatId": "welcome",
+      "decisionKey": "profile.gender",
+      "defaultBeatId": "welcome",
+      "cases": [{ "equals": "female", "beatId": "welcome-women" }]
+    }
+  ],
+  "legacyCrosswalk": {
+    "status": "transitional-delete-after-migration",
+    "entries": [
+      { "legacyScreenId": "ONBOARD-WELCOME", "beatId": "welcome" },
+      { "legacyScreenId": "ONBOARD-WELCOME", "beatId": "welcome-women" },
+      { "legacyScreenId": "ONBOARD-01--FORM", "beatId": "profile" },
+      { "legacyScreenId": "ONBOARD-FORK", "beatId": "path" },
+      { "legacyScreenId": "ONBOARD-BEGINNER-01", "beatId": "category" },
+      { "legacyScreenId": "ONBOARD-INTO-APP", "beatId": "finish" }
+    ]
+  },
+  "renames": {},
+  "beats": [
+    {
+      "id": "welcome",
+      "name": "Welcome",
+      "order": 1,
+      "path": "both",
+      "type": "coach-bubble",
+      "parent": null,
+      "advance": { "mode": "self", "gateOwner": null },
+      "context": "Welcome context.",
+      "openerSeq": 1,
+      "allowedTools": [],
+      "expectedResponse": null,
+      "voice": {
+        "engine": "MP3",
+        "mode": "Verbatim",
+        "perLine": [{ "seq": 1, "resolution": "recorded", "liveAllowed": false }]
+      },
+      "hideOrb": false,
+      "props": {},
+      "elements": [],
+      "script": [
+        {
+          "seq": 1,
+          "words": "Welcome to Guided Growth.",
+          "bindsTo": { "kind": null, "element": null, "screen": null },
+          "voice": "coach",
+          "clip": "welcome",
+          "clipPath": "public/voice/ob/welcome.wav",
+          "expectedUser": null
+        }
+      ],
+      "scriptMeta": { "reveal": [], "timing": [] },
+      "beatIO": { "dataIn": [], "dataOut": [] },
+      "conversation": null,
+      "acceptanceCriteria": [],
+      "applicableDecisions": []
+    },
+    {
+      "id": "welcome-women",
+      "name": "Welcome",
+      "order": 2,
+      "path": "both",
+      "type": "coach-bubble",
+      "parent": "welcome",
+      "advance": { "mode": "self", "gateOwner": null },
+      "context": "Women variant context.",
+      "openerSeq": 1,
+      "allowedTools": [],
+      "expectedResponse": null,
+      "voice": {
+        "engine": "MP3",
+        "mode": "Verbatim",
+        "perLine": [{ "seq": 1, "resolution": "recorded", "liveAllowed": false }]
+      },
+      "hideOrb": false,
+      "props": {},
+      "elements": [],
+      "script": [
+        {
+          "seq": 1,
+          "words": "Welcome to Guided Growth.",
+          "bindsTo": { "kind": null, "element": null, "screen": null },
+          "voice": "coach",
+          "clip": "welcome-women",
+          "clipPath": "public/voice/ob/welcome-women.wav",
+          "expectedUser": null
+        }
+      ],
+      "scriptMeta": { "reveal": [], "timing": [] },
+      "beatIO": { "dataIn": [], "dataOut": [] },
+      "conversation": null,
+      "acceptanceCriteria": [],
+      "applicableDecisions": []
+    },
+    {
+      "id": "profile",
+      "name": "Profile",
+      "order": 3,
+      "path": "both",
+      "type": "profile-input",
+      "parent": "welcome",
+      "advance": { "mode": "self", "gateOwner": null },
+      "context": "Profile context.",
+      "openerSeq": 1,
+      "allowedTools": ["submit_profile"],
+      "expectedResponse": { "kind": "profile", "schema": { "type": "object" } },
+      "voice": {
+        "engine": "Vapi",
+        "mode": "Improvise",
+        "perLine": [{ "seq": 1, "resolution": "live", "liveAllowed": true }]
+      },
+      "hideOrb": false,
+      "props": { "fields": ["name"] },
+      "elements": [],
+      "script": [
+        {
+          "seq": 1,
+          "words": "What should I call you?",
+          "bindsTo": { "kind": null, "element": null, "screen": null },
+          "voice": "coach",
+          "clip": null,
+          "clipPath": null,
+          "expectedUser": { "kind": "profile", "schema": { "type": "object" } }
+        }
+      ],
+      "scriptMeta": { "reveal": [], "timing": [] },
+      "beatIO": {
+        "dataIn": [],
+        "dataOut": [
+          {
+            "key": "nickname",
+            "persistence": "account",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ]
+      },
+      "conversation": null,
+      "acceptanceCriteria": [],
+      "applicableDecisions": []
+    },
+    {
+      "id": "path",
+      "name": "Choose path",
+      "order": 4,
+      "path": "both",
+      "type": "path-selection",
+      "parent": "profile",
+      "advance": { "mode": "self", "gateOwner": null },
+      "context": "Path context.",
+      "openerSeq": 1,
+      "allowedTools": ["submit_path_choice"],
+      "expectedResponse": { "kind": "path", "schema": { "type": "object" } },
+      "voice": {
+        "engine": "Cartesia",
+        "mode": "Verbatim",
+        "perLine": [
+          { "seq": 1, "resolution": "recorded", "liveAllowed": false },
+          { "seq": 2, "resolution": "live", "liveAllowed": true }
+        ]
+      },
+      "hideOrb": false,
+      "props": {},
+      "elements": [],
+      "script": [
+        {
+          "seq": 1,
+          "words": "Choose your path.",
+          "bindsTo": { "kind": null, "element": null, "screen": null },
+          "voice": "coach",
+          "clip": "path-opener",
+          "clipPath": "public/voice/ob/path-opener.wav",
+          "expectedUser": null
+        },
+        {
+          "seq": 2,
+          "words": "Tell me which path fits.",
+          "bindsTo": { "kind": null, "element": null, "screen": null },
+          "voice": "coach",
+          "clip": null,
+          "clipPath": null,
+          "expectedUser": { "kind": "path", "schema": { "type": "object" } }
+        }
+      ],
+      "scriptMeta": { "reveal": [], "timing": [] },
+      "beatIO": {
+        "dataIn": [],
+        "dataOut": [
+          {
+            "key": "path",
+            "persistence": "session",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ]
+      },
+      "conversation": null,
+      "acceptanceCriteria": [],
+      "applicableDecisions": []
+    },
+    {
+      "id": "category",
+      "name": "Category",
+      "order": 5,
+      "path": "beginner",
+      "type": "category-grid",
+      "parent": "path",
+      "advance": { "mode": "gated", "gateOwner": "category" },
+      "context": "Category context.",
+      "openerSeq": 1,
+      "allowedTools": [],
+      "expectedResponse": { "kind": "category", "schema": { "type": "string" } },
+      "voice": {
+        "engine": "Silent",
+        "mode": null,
+        "perLine": [{ "seq": 1, "resolution": "silent", "liveAllowed": false }]
+      },
+      "hideOrb": false,
+      "props": {},
+      "elements": [],
+      "script": [
+        {
+          "seq": 1,
+          "words": "Pick a category.",
+          "bindsTo": { "kind": null, "element": null, "screen": null },
+          "voice": null,
+          "clip": null,
+          "clipPath": null,
+          "expectedUser": { "kind": "category", "schema": { "type": "string" } }
+        }
+      ],
+      "scriptMeta": { "reveal": [], "timing": [] },
+      "beatIO": { "dataIn": [], "dataOut": [] },
+      "conversation": null,
+      "acceptanceCriteria": [],
+      "applicableDecisions": []
+    },
+    {
+      "id": "finish",
+      "name": "Into app",
+      "order": 6,
+      "path": "both",
+      "type": "into-app",
+      "parent": "category",
+      "advance": { "mode": "manual", "gateOwner": null },
+      "context": "Finish context.",
+      "openerSeq": null,
+      "allowedTools": [],
+      "expectedResponse": null,
+      "voice": { "engine": "Silent", "mode": null, "perLine": [] },
+      "hideOrb": true,
+      "props": {},
+      "elements": [],
+      "script": [],
+      "scriptMeta": { "reveal": [], "timing": [] },
+      "beatIO": { "dataIn": [], "dataOut": [] },
+      "conversation": null,
+      "acceptanceCriteria": [],
+      "applicableDecisions": []
+    }
+  ]
+}
