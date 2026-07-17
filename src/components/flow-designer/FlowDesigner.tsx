@@ -16,10 +16,16 @@ import { COACH_BG } from './beats/_beatStyle';
 import {
   BEATS_SOURCE,
   BEAT_BY_ID,
-  GLOBAL_CONTEXT,
   type BeatEntry,
   type ScriptLine,
 } from './beatsSource';
+import {
+  GLOBAL_AMENDED_CONTRACTS,
+  GLOBAL_LAYER_PROVENANCE,
+  GLOBAL_LAYER_RULES,
+  GLOBAL_REACTIVE_SLOTS,
+  type EnforcementStatus,
+} from './globalLayer';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 
 /**
@@ -705,6 +711,12 @@ function beatEnforcementIds(entry: BeatEntry): readonly string[] {
 }
 
 function GlobalContextPanel() {
+  const statusColors: Record<EnforcementStatus, { background: string; color: string }> = {
+    REAL: { background: '#dcfce7', color: '#166534' },
+    PARTIAL: { background: '#fef3c7', color: '#92400e' },
+    'NOT-IMPLEMENTED': { background: '#fee2e2', color: '#991b1b' },
+  };
+
   return (
     <details
       data-rail-section="global-context"
@@ -728,25 +740,55 @@ function GlobalContextPanel() {
           textTransform: 'uppercase',
         }}
       >
-        Global coach context and rules — expand to read all
+        Global rules — full proposed set (26 rules, 8 slots, 5 contracts)
       </summary>
-      <pre
-        style={{
-          margin: '12px 0 0',
-          whiteSpace: 'pre-wrap',
-          overflowWrap: 'anywhere',
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-          fontSize: 11,
-          lineHeight: 1.5,
-          color: '#334155',
-          background: '#f8fafc',
-          border: '1px solid #eef2f7',
-          borderRadius: 8,
-          padding: '10px 12px',
-        }}
-      >
-        {GLOBAL_CONTEXT}
-      </pre>
+      <div style={{ display: 'grid', gap: 14, marginTop: 12, color: '#334155', fontSize: 12, lineHeight: 1.5 }}>
+        <div style={{ border: '1px solid #fecaca', borderRadius: 8, background: '#fff1f2', color: '#9f1239', fontWeight: 800, padding: '8px 10px' }}>
+          {GLOBAL_LAYER_PROVENANCE}
+        </div>
+        <div style={{ color: '#64748b' }}>
+          Conflict semantics: a narrower trigger wins only when it does not loosen another MUST; unresolved MUST conflicts or overlapping slots block activation rather than inventing coach copy. SHOULD never overrides MUST.
+        </div>
+        <section>
+          <h3 style={{ margin: '0 0 8px', fontSize: 13 }}>Behavioral rules</h3>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {GLOBAL_LAYER_RULES.map((rule) => (
+              <article key={rule.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#f8fafc', padding: '9px 10px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, fontWeight: 800 }}>
+                  <code>{rule.id}</code><span>{rule.severity}</span><span>— {rule.title}</span>
+                </div>
+                <div style={{ marginTop: 5 }}>{rule.text}</div>
+                {rule.example && <div style={{ marginTop: 5, color: '#475569' }}><strong>Example:</strong> {rule.example}</div>}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+                  {rule.enforcedBy.map((enforcer) => (
+                    <span key={enforcer.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: '1px solid #cbd5e1', borderRadius: 999, background: '#fff', padding: '2px 6px', fontSize: 10 }}>
+                      <code>{enforcer.id}</code>
+                      <span style={{ borderRadius: 999, padding: '1px 4px', fontSize: 9, fontWeight: 800, ...statusColors[enforcer.status] }}>{enforcer.status}</span>
+                    </span>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section>
+          <h3 style={{ margin: '0 0 8px', fontSize: 13 }}>Locked reactive slots</h3>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {GLOBAL_REACTIVE_SLOTS.map((slot) => (
+              <article key={slot.id} style={{ border: '1px solid #dbeafe', borderRadius: 8, background: '#eff6ff', padding: '9px 10px' }}>
+                <code style={{ fontWeight: 800 }}>{slot.id}</code>
+                {slot.responseRows.map((row) => <div key={row.label} style={{ marginTop: 4 }}><strong>{row.label}:</strong> {row.value}</div>)}
+              </article>
+            ))}
+          </div>
+        </section>
+        <section>
+          <h3 style={{ margin: '0 0 8px', fontSize: 13 }}>Amended contracts</h3>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {GLOBAL_AMENDED_CONTRACTS.map((contract) => <div key={contract.id} style={{ borderLeft: '3px solid #94a3b8', paddingLeft: 8 }}><code>{contract.id}</code> — {contract.responsibility}</div>)}
+          </div>
+        </section>
+      </div>
     </details>
   );
 }
