@@ -331,7 +331,7 @@ function tagLabel(engine: VoiceEngine, mode: VoiceMode): string {
   return mode ? `${engine} · ${mode}` : engine;
 }
 
-function VoiceTag({ engine, mode }: { engine: VoiceEngine; mode: VoiceMode }) {
+function VoiceTag({ engine, mode, qaOnly = false }: { engine: VoiceEngine; mode: VoiceMode; qaOnly?: boolean }) {
   const s = ENGINE_STYLE[engine];
   return (
     <div
@@ -352,6 +352,7 @@ function VoiceTag({ engine, mode }: { engine: VoiceEngine; mode: VoiceMode }) {
     >
       <Icon icon={s.icon} style={{ width: 12, height: 12 }} />
       {tagLabel(engine, mode)}
+      {qaOnly && ' · QA-ONLY'}
     </div>
   );
 }
@@ -403,6 +404,7 @@ function PathBanner({ path, edge }: { path?: BeatPath; edge: 'start' | 'end' }) 
 // NOT the array position, so variants of one beat share their base number and the
 // heading can never contradict the id. Falls back to position if unparseable.
 export function beatNumberFromId(id: string, fallbackIndex: number): number {
+  if (id === 'onboarding-beat-0-qa-control') return 0;
   const m = id.match(/beat-(\d+)-/);
   return m ? Number(m[1]) : fallbackIndex + 1;
 }
@@ -777,6 +779,7 @@ function GlobalContextPanel() {
 
 function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
   const entry = ENTRY_BY_ID[beat.id];
+  const qaOnly = ENTRY_BY_ID[beat.id]?.qaOnly ?? false;
   const resolvedProps = beat.props ? Object.entries(beat.props) : [];
 
   if (!entry) {
@@ -789,7 +792,7 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
           fontFamily: 'Urbanist, -apple-system, sans-serif',
         }}
       >
-        <VoiceTag engine={beat.engine} mode={beat.mode} />
+        <VoiceTag engine={beat.engine} mode={beat.mode} qaOnly={qaOnly} />
         <div
           style={{
             background: '#fff',
@@ -823,7 +826,7 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
         fontFamily: 'Urbanist, -apple-system, sans-serif',
       }}
     >
-      <VoiceTag engine={beat.engine} mode={beat.mode} />
+      <VoiceTag engine={beat.engine} mode={beat.mode} qaOnly={qaOnly} />
       <div
         style={{
           background: '#fff',
@@ -847,7 +850,8 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           <WordsFlagChip label={beat.engine} tone="engine" />
           {beat.mode && <WordsFlagChip label={beat.mode} tone="note" />}
-          {beat.engine === 'Cartesia' && <WordsFlagChip label="live, name" tone="live" />}
+              {beat.engine === 'Cartesia' && <WordsFlagChip label="live, name" tone="live" />}
+              {entry.qaOnly && <WordsFlagChip label="QA-ONLY" tone="note" />}
         </div>
 
         <ContextSection title="Beat metadata" defaultOpen>
@@ -873,6 +877,9 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
             rows={[
               { label: 'Name', value: entry.name },
               { label: 'Order', value: String(entry.order) },
+              ...(entry.qaOnly
+                ? [{ label: 'QA-only', value: 'yes — excluded from production flow generation (NOT-IMPLEMENTED)' }]
+                : []),
               { label: 'Voice engine', value: entry.voiceEngine },
               { label: 'Voice mode', value: entry.voiceMode ?? 'none' },
               { label: 'Hide orb', value: entry.hideOrb ? 'yes' : 'no' },
@@ -1605,6 +1612,7 @@ interface FlowBeat {
   // Hide the docked orb on this beat. The orb fades out before the account step
   // and fades back in at mic permission, so the account beat shows no orb.
   hideOrb?: boolean;
+  qaOnly?: boolean;
   // The ordered lines Play iterates (the one-source playback driver). Present on
   // onboarding beats (from beatsSource); absent on the hand-authored check-in
   // beats, which still play through the legacy narration path.
@@ -1627,18 +1635,23 @@ export const BASE_BEATS: FlowBeat[] = BEATS_SOURCE.map((b) => ({
   mode: b.voiceMode,
   path: b.path,
   hideOrb: b.hideOrb || undefined,
+  qaOnly: b.qaOnly,
   script: b.script,
 }));
 
 export const FLOW_BEAT_IDENTITY_MAP = BEAT_IDENTITY_MAP;
 
-export const BEATS: FlowBeat[] = BASE_BEATS.map((beat) => ({
+export const ANNOTATED_BEATS: FlowBeat[] = BASE_BEATS.map((beat) => ({
   ...beat,
   props: {
     ...(beat.props ?? {}),
     ...metadataPropsForBeat(beat.type, beat.id),
   },
 }));
+
+// The QA launcher belongs in the annotated reference render, but not in the
+// generated runtime flow: real onboarding begins with the splash.
+export const BEATS: FlowBeat[] = ANNOTATED_BEATS.filter((beat) => !beat.qaOnly);
 
 // --- Morning check-in beats ---
 // Source: MORNING_CHECKIN_FLOW in FlowBuilder.tsx.
@@ -1779,7 +1792,7 @@ const TABS: TabDef[] = [
   {
     id: 'onboarding',
     label: 'Onboarding',
-    beats: BEATS,
+    beats: ANNOTATED_BEATS,
     title: 'Onboarding flow',
     subtitle: 'Real flow-builder components, v3 content. Voice delivery tagged in the left margin.',
   },
@@ -2085,7 +2098,7 @@ function FlowPhoneFrame({
               <SourceOfTruthPanel beat={b} />
             ) : (
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <VoiceTag engine={b.engine} mode={b.mode} />
+                <VoiceTag engine={b.engine} mode={b.mode} qaOnly={ENTRY_BY_ID[b.id]?.qaOnly} />
               </div>
             )}
             <div

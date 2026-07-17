@@ -1,4 +1,4 @@
-18 official beats appear in the onboarding render, in beat-id order: `1` through `18`.
+19 official beats appear in the annotated onboarding render, in beat-id order: `0` through `18`.
 The render presents five official beats with colon-suffix variations; together those groups contain 47 variation entries.
 This table follows the render’s grouping: one lane-dash official id per row, with its colon-suffix entries directly beneath it.
 
@@ -6,6 +6,7 @@ This table follows the render’s grouping: one lane-dash official id per row, w
 
 | # | official id | purpose | # variations | voice engine | tools |
 |---:|---|---|---:|---|---|
+| 0 | `onboarding-beat-0-qa-control` | **QA-ONLY** launcher: pick a test user and log in, restart fresh, replay preview, or reset data; Vapi/audio QA toggles sit in the toolbar. | 0 | Silent | — |
 | 1 | `onboarding-beat-1-splash` | Shows the branded opening splash. | 0 | Silent | — |
 | 2 | `onboarding-beat-2-get-started` | Presents the entry point to begin onboarding. | 0 | Silent | — |
 | 3 | `onboarding-beat-3-coach-greeting` | Introduces the coach and the onboarding conversation. | 0 | MP3 | — |
@@ -72,6 +73,6 @@ This table follows the render’s grouping: one lane-dash official id per row, w
 | 18.4 | `:some` | 36% partial week. | — | MP3 | — |
 | 18.5 | `:avoid` | Unreported-gap close. | — | MP3 | — |
 
-## Source-matches-render proposal
+## Source-matches-render status
 
-**Proposal — no changes made.** Reshape `src/components/flow-designer/beatsSource.ts` so it exports an ordered collection of 18 official beat entries keyed by the lane-dash ids above. Put each colon-suffix entry in that official entry’s `variations` array, retaining its suffix, render fields, and order. Derive the flat playback list only where the renderer needs it, while `FlowDesigner` reads the nested shape for its groups. **Estimated effort: 0.5–1 day**, including TypeScript type updates and focused render/playback regression checks.
+`src/components/flow-designer/beatsSource.ts` now exports 63 dense render entries: 19 official beats (`0` through `18`) plus 44 colon-suffix variations. Beat `0` is the QA-only launcher and appears only in the annotated render; the runtime `BEATS` flow excludes `qaOnly` entries, so production playback still starts with splash.

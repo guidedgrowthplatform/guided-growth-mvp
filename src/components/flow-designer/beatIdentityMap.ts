@@ -1,6 +1,7 @@
 // Generated source-contract fixture.
 export const BEAT_IDENTITY_MAP: Record<string, Record<string, string>> = {
   "route": {
+    "/onboarding/qa": "onboarding-beat-0-qa-control",
     "/onboarding/splash (app launch)": "onboarding-beat-1-splash",
     "/onboarding/get-started (app launch continuation)": "onboarding-beat-2-get-started",
     "/onboarding/coach-greeting": "onboarding-beat-3-coach-greeting",

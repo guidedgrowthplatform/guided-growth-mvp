@@ -27,6 +27,7 @@ const SANCTIONED_DELTAS = [
     new: 'How old are you, and how do you identify?',
   },
 ];
+const DECLARED_ADDITIONS = ['onboarding-beat-0-qa-control'];
 const require = createRequire(import.meta.url);
 
 function fail(message) {
@@ -129,7 +130,9 @@ function lockedCopyDeltas(baseline, target) {
       deltas.push({ path: `${oldBeat.id}`, old: 'present', new: 'missing' });
       continue;
     }
-    diffValues(oldBeat, newBeat, oldBeat.id, deltas);
+    const { order: _oldOrder, ...oldBeatWithoutOrder } = oldBeat;
+    const { order: _newOrder, ...newBeatWithoutOrder } = newBeat;
+    diffValues(oldBeatWithoutOrder, newBeatWithoutOrder, oldBeat.id, deltas);
   }
   return deltas;
 }
@@ -171,13 +174,26 @@ function main() {
   const baseline = loadBaseline();
   const target = loadModule(readFileSync(path.join(ROOT, BEATS_PATH), 'utf8'), 'target.ts').BEATS_SOURCE;
   const map = JSON.parse(readFileSync(path.join(ROOT, MAP_PATH), 'utf8'));
-  if (baseline.length !== 62 || target.length !== 62) {
-    fail(`structure: expected 62 beats, got baseline=${baseline.length}, target=${target.length}`);
+  if (baseline.length !== 62 || target.length !== 63) {
+    fail(`structure: expected baseline=62 and target=63 beats, got baseline=${baseline.length}, target=${target.length}`);
   }
-  if (new Set(target.map((beat) => beat.id)).size !== 62) fail('structure: target IDs are not unique');
+  if (new Set(target.map((beat) => beat.id)).size !== 63) fail('structure: target IDs are not unique');
   const baselineIds = baseline.map((beat) => beat.id);
-  const targetIds = target.map((beat) => beat.id);
-  if (JSON.stringify(baselineIds) !== JSON.stringify(targetIds)) fail('structure: target ID sequence differs from baseline');
+  const additions = target.filter((beat) => !baselineIds.includes(beat.id));
+  if (JSON.stringify(additions.map((beat) => beat.id)) !== JSON.stringify(DECLARED_ADDITIONS)) {
+    fail(
+      `structure: declared additions differ: expected ${JSON.stringify(DECLARED_ADDITIONS)}, got ${JSON.stringify(additions.map((beat) => beat.id))}`,
+    );
+  }
+  if (!additions[0]?.qaOnly) fail('structure: declared Beat 0 addition must be qaOnly');
+  const targetExistingIds = target.filter((beat) => baselineIds.includes(beat.id)).map((beat) => beat.id);
+  if (JSON.stringify(baselineIds) !== JSON.stringify(targetExistingIds)) fail('structure: original target ID sequence differs from baseline');
+  for (const baselineBeat of baseline) {
+    const targetBeat = target.find((beat) => beat.id === baselineBeat.id);
+    if (targetBeat.order !== baselineBeat.order + 1) {
+      fail(`structure: original beat ${baselineBeat.id} must shift order by exactly one for Beat 0`);
+    }
+  }
   assertExpectedDeltas(lockedCopyDeltas(baseline, target));
 
   const targetById = new Map(target.map((beat) => [beat.id, beat]));
@@ -207,7 +223,7 @@ function main() {
     if (!targetById.get(targetId)?.bible?.components) fail(`coverage components: ${oldId}`);
   }
   checkNoLegacyConsumer();
-  console.log('Objective 1 verified: 62 beats, exactly 2 locked-copy deltas, rich contracts and coverage complete.');
+  console.log('Objective 1 verified: baseline 62 beats + declared QA-only Beat 0 = 63 entries, exactly 2 locked-copy deltas on original beats, rich contracts and coverage complete.');
 }
 
 main();

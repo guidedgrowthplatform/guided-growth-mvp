@@ -38,10 +38,10 @@ function QAControlScreen({
   loginDesc = 'Sign in and go to where this user left off.',
   restartLabel = 'Restart onboarding (fresh)',
   restartDesc = 'Delete this user data, keep the account, run onboarding from the top.',
-  reonboardLabel = 'Re-run onboarding (keep data)',
-  reonboardDesc = 'Go through onboarding again with the data already saved.',
+  reonboardLabel = 'Replay flow (preview)',
+  reonboardDesc = 'Walk the full flow again in preview mode. Saved data untouched (and not loaded).',
   resetLabel = 'Reset data only',
-  resetDesc = 'Wipe this user data, keep the account. No onboarding.',
+  resetDesc = 'Wipe this user data, keep the account. You stay on this screen.',
 }: Record<string, string | undefined>) {
   const userList = (users ?? '')
     .split(',')

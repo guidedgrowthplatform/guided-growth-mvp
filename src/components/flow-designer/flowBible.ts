@@ -63,6 +63,10 @@ export interface BeatDatum {
   readonly note?: string;
 }
 
+export interface BeatEntry {
+  readonly qaOnly?: boolean;
+}
+
 export interface BeatIO {
   readonly dataIn: readonly BeatDatum[];
   readonly dataOut: readonly BeatDatum[];
