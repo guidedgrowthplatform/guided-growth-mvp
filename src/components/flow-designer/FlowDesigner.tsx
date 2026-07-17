@@ -669,6 +669,41 @@ function ContextRows({
   );
 }
 
+function EnforcementChips({ ids }: { ids: readonly string[] }) {
+  if (!ids.length) return <NoneMarker />;
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+      {ids.map((id) => (
+        <WordsFlagChip key={id} label={id} tone="note" />
+      ))}
+    </div>
+  );
+}
+
+function beatEnforcementIds(entry: BeatEntry): readonly string[] {
+  const bible = entry.bible;
+  if (!bible) return [];
+
+  const ids = [
+    ...(bible.identity?.enforcedBy ?? []),
+    ...(bible.scriptMeta?.enforcedBy ?? []),
+    ...(bible.components?.enforcedBy ?? []),
+    ...(bible.voice?.enforcedBy ?? []),
+    ...(bible.rulesContext ?? []).flatMap((rule) => rule.enforcedBy),
+    ...(bible.rulesCode ?? []).flatMap((rule) => rule.enforcedBy),
+    ...(bible.contextProse?.enforcedBy ?? []),
+    ...(bible.allowedTools?.enforcedBy ?? []),
+    ...(bible.persistence?.enforcedBy ?? []),
+    ...(bible.flow?.enforcedBy ?? []),
+    ...(bible.edges?.enforcedBy ?? []),
+    ...(bible.acceptance?.enforcedBy ?? []),
+    ...(bible.applicableDecisions?.enforcedBy ?? []),
+  ];
+
+  return [...new Set(ids)];
+}
+
 function GlobalContextPanel() {
   return (
     <details
@@ -799,7 +834,13 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
             {entry.allowedTools && (
               <ContextKeyValue label="Allowed tools" value={entry.allowedTools} />
             )}
-            {!entry.expectedResponse && !entry.allowedTools && <NoneMarker />}
+            <ContextKeyValue
+              label="Enforcement"
+              value={<EnforcementChips ids={beatEnforcementIds(entry)} />}
+            />
+            {!entry.expectedResponse && !entry.allowedTools && !beatEnforcementIds(entry).length && (
+              <NoneMarker />
+            )}
           </div>
         </ContextSection>
 
@@ -875,7 +916,7 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
         </ContextSection>
 
         <ContextSection
-          title={`Resolved props${resolvedProps.length ? ` (${resolvedProps.length})` : ''}`}
+          title={`Component inputs${resolvedProps.length ? ` (${resolvedProps.length})` : ''}`}
         >
           {resolvedProps.length ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1065,6 +1106,18 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
                         label="Live allowed"
                         value={voice?.liveAllowed ?? <NoneMarker />}
                       />
+                      <ContextKeyValue
+                        label="Interruptible"
+                        value={
+                          line.interruptible === undefined ? (
+                            <NoneMarker>default</NoneMarker>
+                          ) : line.interruptible ? (
+                            'yes'
+                          ) : (
+                            'no'
+                          )
+                        }
+                      />
                     </div>
                   </div>
                 );
@@ -1091,6 +1144,63 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
                 value={String(entry.bible.conversation.maxTurns)}
               />
               <ContextKeyValue label="On max turns" value={entry.bible.conversation.onMaxTurns} />
+              {entry.bible.conversation.responseTimeMs !== undefined && (
+                <ContextKeyValue
+                  label="Response time"
+                  value={`${entry.bible.conversation.responseTimeMs} ms`}
+                />
+              )}
+              {entry.bible.conversation.endpointPatienceMs !== undefined && (
+                <ContextKeyValue
+                  label="Endpoint patience"
+                  value={`${entry.bible.conversation.endpointPatienceMs} ms`}
+                />
+              )}
+              {entry.bible.conversation.bargeInPolicy !== undefined && (
+                <ContextKeyValue
+                  label="Barge-in policy"
+                  value={entry.bible.conversation.bargeInPolicy}
+                />
+              )}
+              {entry.bible.conversation.turnDetection !== undefined && (
+                <ContextKeyValue
+                  label="Turn detection"
+                  value={entry.bible.conversation.turnDetection}
+                />
+              )}
+              {entry.bible.conversation.smartTurnCompletionThreshold !== undefined && (
+                <ContextKeyValue
+                  label="Smart turn completion"
+                  value={String(entry.bible.conversation.smartTurnCompletionThreshold)}
+                />
+              )}
+              {entry.bible.conversation.maxSilenceBeforeRepromptMs !== undefined && (
+                <ContextKeyValue
+                  label="Max silence before reprompt"
+                  value={`${entry.bible.conversation.maxSilenceBeforeRepromptMs} ms`}
+                />
+              )}
+              {entry.bible.conversation.maxTurnLengthMs !== undefined && (
+                <ContextKeyValue
+                  label="Max turn length"
+                  value={`${entry.bible.conversation.maxTurnLengthMs} ms`}
+                />
+              )}
+              {entry.bible.conversation.sttLanguageHints !== undefined && (
+                <ContextKeyValue
+                  label="STT language hints"
+                  value={entry.bible.conversation.sttLanguageHints.join(', ')}
+                />
+              )}
+              {entry.bible.conversation.sttVocabulary !== undefined && (
+                <ContextKeyValue
+                  label="STT vocabulary"
+                  value={entry.bible.conversation.sttVocabulary.join(', ')}
+                />
+              )}
+              {entry.bible.conversation.ttsVoiceId !== undefined && (
+                <ContextKeyValue label="TTS voice ID" value={entry.bible.conversation.ttsVoiceId} />
+              )}
               <ContextTable
                 columns={['on', 'reply', 'then', 'voice']}
                 rows={entry.bible.conversation.branches.map((branch) => [
@@ -1191,7 +1301,7 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
                 rule.id,
                 rule.severity,
                 rule.rule,
-                rule.enforcedBy.join(', '),
+                <EnforcementChips ids={rule.enforcedBy} />,
               ])}
             />
             <ContextSubheading>Code rules</ContextSubheading>
@@ -1201,7 +1311,7 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
                 rule.id,
                 rule.severity,
                 rule.rule,
-                rule.enforcedBy.join(', '),
+                <EnforcementChips ids={rule.enforcedBy} />,
               ])}
             />
           </div>
@@ -1360,6 +1470,11 @@ function ScriptPanel({ id, showExpectedUser }: { id?: string; showExpectedUser: 
                 {voiceStyle && <TinyChip label={line.voice as string} s={voiceStyle} />}
                 {line.clip && (
                   <span style={{ fontSize: 10.5, color: '#94a3b8' }}>clip: {line.clip}</span>
+                )}
+                {line.verbatim !== undefined && (
+                  <span style={{ fontSize: 10.5, color: '#64748b' }}>
+                    verbatim: {line.verbatim ? 'yes' : 'no'}
+                  </span>
                 )}
               </div>
               {showExpectedUser && line.expectedUser && (

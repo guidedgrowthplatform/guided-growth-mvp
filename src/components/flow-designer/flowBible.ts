@@ -3,6 +3,22 @@
 
 export type SourceStatus = 'verified' | 'copy-pending' | 'app-reconcile-pending' | 'needs-yair';
 
+export type ScriptVoice = 'verbatim' | 'mp3' | 'cartesia' | null;
+export type BindKind = 'bubble' | 'component';
+
+export interface ScriptLine {
+  readonly seq: number;
+  readonly words: string;
+  readonly bindsTo: { readonly kind: BindKind; readonly element: string; readonly screen: string };
+  readonly voice: ScriptVoice;
+  readonly clip: string | null;
+  readonly clipPath: string | null;
+  readonly expectedUser?: string;
+  readonly interruptible?: boolean;
+  /** Say EXACTLY these words via LIVE TTS. Per Yair's ruling, verbatim lines must not use pre-rendered MP3 so the coach can still improvise around them. */
+  readonly verbatim?: boolean;
+}
+
 export interface TurnBranch {
   readonly on: string;
   readonly reply: string;
@@ -15,6 +31,28 @@ export interface BeatConversation {
   readonly branches: readonly TurnBranch[];
   readonly maxTurns: number;
   readonly onMaxTurns: string;
+  /** RESERVED for the PipeCat integration. */
+  readonly responseTimeMs?: number;
+  /** RESERVED for the PipeCat integration. */
+  readonly endpointPatienceMs?: number;
+  /** RESERVED for the PipeCat integration. */
+  readonly bargeInPolicy?: 'never' | 'after-first-sentence' | 'always';
+  readonly turnDetection?: 'smart' | 'timer';
+  /** Lib default: 0.50. Production runs: 0.45. Higher values make the system more patient. */
+  readonly smartTurnCompletionThreshold?: number;
+  readonly maxSilenceBeforeRepromptMs?: number;
+  readonly maxTurnLengthMs?: number;
+  readonly sttLanguageHints?: string[];
+  /** Pronunciation-lexicon hook for names the pipeline mangles. */
+  readonly sttVocabulary?: string[];
+  /** Rare override; the global default is the coach voice. */
+  readonly ttsVoiceId?: string;
+  /**
+   * Intentionally excluded: TTS speed/emotion are disabled in Sonic 3.5 and would be dead knobs.
+   * Engine/provider are environment cost choices, not per-beat content. 429 fallback and
+   * mp3FallbackClipId remain unmodeled because their behavior has been unverified since 2026-06;
+   * specify them only after measurement.
+   */
 }
 
 export interface BeatDatum {

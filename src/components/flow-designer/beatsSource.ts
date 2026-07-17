@@ -1,4 +1,13 @@
-import type { BeatElementLine, BeatIO, BibleSections } from './flowBible';
+import type {
+  BeatElementLine,
+  BeatIO,
+  BibleSections,
+  BindKind,
+  ScriptLine,
+  ScriptVoice,
+} from './flowBible';
+
+export type { ScriptLine } from './flowBible';
 
 // THE ONE SOURCE for the onboarding render. Each beat lives in ONE entry here:
 // the left fields (id, name, order, path, type, context, allowedTools,
@@ -14,19 +23,6 @@ import type { BeatElementLine, BeatIO, BibleSections } from './flowBible';
 export type BeatPath = 'beginner' | 'advanced' | 'both';
 export type VoiceEngine = 'MP3' | 'Cartesia' | 'Vapi' | 'Silent';
 export type VoiceMode = 'Verbatim' | 'Improvise' | null;
-export type ScriptVoice = 'verbatim' | 'mp3' | 'cartesia' | null;
-export type BindKind = 'bubble' | 'component';
-
-export interface ScriptLine {
-  readonly seq: number;
-  readonly words: string;
-  readonly bindsTo: { readonly kind: BindKind; readonly element: string; readonly screen: string };
-  readonly voice: ScriptVoice;
-  readonly clip: string | null;
-  readonly clipPath: string | null;
-  readonly expectedUser?: string;
-}
-
 export interface BeatEntry {
   readonly id: string;
   readonly name: string;
