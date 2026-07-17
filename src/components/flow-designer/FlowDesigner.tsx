@@ -515,7 +515,7 @@ function ContextSection({
   );
 }
 
-function ContextKeyValue({ label, value }: { label: string; value: string }) {
+function ContextKeyValue({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <div
@@ -530,6 +530,91 @@ function ContextKeyValue({ label, value }: { label: string; value: string }) {
         {label}
       </div>
       <div style={{ fontSize: 12.5, lineHeight: 1.45, color: '#334155' }}>{value}</div>
+    </div>
+  );
+}
+
+function ContextSubheading({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        color: '#94a3b8',
+        letterSpacing: '0.04em',
+        textTransform: 'uppercase',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function NoneMarker({ children = 'none' }: { children?: ReactNode }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        width: 'fit-content',
+        padding: '2px 7px',
+        borderRadius: 99,
+        border: '1px solid #e2e8f0',
+        background: '#f8fafc',
+        color: '#94a3b8',
+        fontSize: 10.5,
+        fontStyle: 'italic',
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function ContextTable({
+  columns,
+  rows,
+}: {
+  columns: readonly string[];
+  rows: readonly (readonly ReactNode[])[];
+}) {
+  if (!rows.length) return <NoneMarker />;
+
+  return (
+    <div style={{ overflowX: 'auto', border: '1px solid #eef2f7', borderRadius: 8 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10.5, color: '#334155' }}>
+        <thead style={{ background: '#f8fafc', color: '#64748b' }}>
+          <tr>
+            {columns.map((column) => (
+              <th
+                key={column}
+                style={{
+                  padding: '6px 7px',
+                  textAlign: 'left',
+                  fontSize: 9.5,
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  verticalAlign: 'top',
+                }}
+              >
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index} style={{ borderTop: '1px solid #eef2f7' }}>
+              {row.map((cell, cellIndex) => (
+                <td key={cellIndex} style={{ padding: '6px 7px', lineHeight: 1.35, verticalAlign: 'top' }}>
+                  {cell || <NoneMarker />}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -617,6 +702,7 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
             {entry.allowedTools && (
               <ContextKeyValue label="Allowed tools" value={entry.allowedTools} />
             )}
+            {!entry.expectedResponse && !entry.allowedTools && <NoneMarker />}
           </div>
         </ContextSection>
 
@@ -643,9 +729,7 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
               {entry.context}
             </pre>
           ) : (
-            <div style={{ fontSize: 12.5, color: '#94a3b8' }}>
-              No coach behavior context for this beat (structural or newer beat).
-            </div>
+            <NoneMarker>No coach behavior context</NoneMarker>
           )}
         </ContextSection>
 
@@ -659,8 +743,136 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
               ))}
             </div>
           ) : (
-            <div style={{ fontSize: 12.5, color: '#94a3b8' }}>This beat has no explicit props.</div>
+            <NoneMarker>No explicit props</NoneMarker>
           )}
+        </ContextSection>
+
+        <ContextSection title="Persistence">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <ContextSubheading>Data in</ContextSubheading>
+            <ContextTable
+              columns={['key', 'from', 'written by', 'table / column', 'note']}
+              rows={(entry.io?.dataIn ?? []).map((datum) => [
+                datum.key,
+                datum.from,
+                datum.writtenBy,
+                datum.persistsTo,
+                datum.note,
+              ])}
+            />
+            <ContextSubheading>Data out</ContextSubheading>
+            <ContextTable
+              columns={['key', 'from', 'written by', 'table / column', 'note']}
+              rows={(entry.io?.dataOut ?? []).map((datum) => [
+                datum.key,
+                datum.from,
+                datum.writtenBy,
+                datum.persistsTo,
+                datum.note,
+              ])}
+            />
+          </div>
+        </ContextSection>
+
+        <ContextSection title="Tools">
+          {entry.bible?.allowedTools ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <ContextKeyValue
+                label="Allowed"
+                value={entry.bible.allowedTools.tools.join(', ') || <NoneMarker />}
+              />
+              <ContextKeyValue label="Call rules" value={entry.bible.allowedTools.callRules} />
+              <ContextTable
+                columns={['tool', 'argument schema', 'when']}
+                rows={entry.bible.allowedTools.specs.map((spec) => [spec.tool, spec.args, spec.when])}
+              />
+            </div>
+          ) : (
+            <NoneMarker />
+          )}
+        </ContextSection>
+
+        <ContextSection title={`Script detail (${entry.script.length})`}>
+          {entry.script.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {entry.script.map((line) => {
+                const timing = entry.bible?.scriptMeta?.rows.find((row) => row.seq === line.seq);
+                const voice = entry.bible?.voice?.perLine.find((row) => row.seq === line.seq);
+                return (
+                  <div key={line.seq} style={{ borderTop: '1px solid #eef2f7', paddingTop: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#475569' }}>Line {line.seq}</div>
+                    <div style={{ marginTop: 4, fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}>
+                      {line.words || <NoneMarker>silent reveal</NoneMarker>}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 7 }}>
+                      <ContextKeyValue label="Reveal gate" value={timing?.reveal ?? <NoneMarker />} />
+                      <ContextKeyValue label="Timing" value={timing?.timing ?? <NoneMarker />} />
+                      <ContextKeyValue
+                        label="Voice resolution"
+                        value={voice?.resolvesTo ?? (line.clip ? `recorded clip ${line.clip}` : <NoneMarker />)}
+                      />
+                      <ContextKeyValue label="Live allowed" value={voice?.liveAllowed ?? <NoneMarker />} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <NoneMarker />
+          )}
+        </ContextSection>
+
+        <ContextSection title="Conversation">
+          {entry.bible?.conversation ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <ContextKeyValue label="Opens" value={entry.bible.conversation.opens} />
+              <ContextKeyValue label="Max turns" value={String(entry.bible.conversation.maxTurns)} />
+              <ContextKeyValue label="On max turns" value={entry.bible.conversation.onMaxTurns} />
+              <ContextTable
+                columns={['on', 'reply', 'then', 'voice']}
+                rows={entry.bible.conversation.branches.map((branch) => [
+                  branch.on,
+                  branch.reply,
+                  branch.then,
+                  branch.voice,
+                ])}
+              />
+            </div>
+          ) : (
+            <NoneMarker />
+          )}
+        </ContextSection>
+
+        <ContextSection title="Acceptance">
+          <ContextTable
+            columns={['criterion', 'check']}
+            rows={(entry.bible?.acceptance?.rows ?? []).map((row) => [row.criterion, row.check])}
+          />
+        </ContextSection>
+
+        <ContextSection title="Rules">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <ContextSubheading>Context rules</ContextSubheading>
+            <ContextTable
+              columns={['id', 'severity', 'rule', 'enforced by']}
+              rows={(entry.bible?.rulesContext ?? []).map((rule) => [
+                rule.id,
+                rule.severity,
+                rule.rule,
+                rule.enforcedBy.join(', '),
+              ])}
+            />
+            <ContextSubheading>Code rules</ContextSubheading>
+            <ContextTable
+              columns={['id', 'severity', 'rule', 'enforced by']}
+              rows={(entry.bible?.rulesCode ?? []).map((rule) => [
+                rule.id,
+                rule.severity,
+                rule.rule,
+                rule.enforcedBy.join(', '),
+              ])}
+            />
+          </div>
         </ContextSection>
       </div>
     </div>
