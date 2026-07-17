@@ -250,16 +250,28 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check: 'the brand splash renders on cold start; no interactive tiles or inputs appear',
+            criterion:
+              'On cold start, the splash renders before get-started and contains no input control that accepts tap, text, or voice data.',
+            check: 'harness',
           },
           {
-            criterion: 'stays silent',
-            check: 'no coach audio or bubble plays (silent structural beat)',
+            criterion:
+              'No coach audio, transcript line, synthesized speech, or bubble is emitted during the splash because `script` is empty.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'the flow proceeds to get-started with no user action required',
+            criterion: 'The tool-call log remains empty for the entire beat.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'A before/after persistence snapshot has no onboarding user-data mutation because `dataOut` is empty.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'The beat advances to get-started only after the splash display lifecycle completes; a stray tap or voice event does not create a save or alternate branch.',
+            check: 'harness',
           },
         ],
         enforcedBy: ['component-registry-check', 'eval:parity-walk'],
@@ -416,16 +428,28 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check: 'the get-started frame renders with the single Get started affordance',
+            criterion:
+              'The beat remains on get-started indefinitely until the user activates the Get started control; elapsed time, silence, and voice input do not advance it.',
+            check: 'harness',
           },
           {
-            criterion: 'stays silent',
-            check: 'no coach audio or bubble plays (silent structural beat)',
+            criterion:
+              'One valid tap advances exactly once to coach-greeting; double-tap does not skip coach-greeting or create duplicate navigation.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'the tap proceeds to coach-greeting; no data is captured',
+            criterion:
+              'No coach audio, bubble, transcript line, or improvised greeting is emitted because `script` is empty.',
+            check: 'harness',
+          },
+          {
+            criterion: 'The tool-call log remains empty before and after the tap.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'A before/after persistence snapshot has no user-data mutation because `dataOut` is empty.',
+            check: 'db-probe',
           },
         ],
         enforcedBy: ['component-registry-check', 'eval:parity-walk'],
@@ -648,16 +672,34 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'says the right thing',
-            check: 'the recorded greeting plays verbatim from coach_greeting',
+            criterion:
+              'The rendered words equal the full source `script[0].words`, and playback uses the source clip rather than live synthesis.',
+            check: 'harness',
           },
           {
-            criterion: 'shows the right thing',
-            check: 'a single coach bubble renders; no interactive tiles or inputs appear',
+            criterion:
+              'No lead-in, filler, paraphrase, response to the user, or trailing sentence is spoken before or after the locked line.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'the flow auto-advances to sign-up when the clip ends, with no user action',
+            criterion:
+              "The beat does not advance before the greeting clip's end event and advances exactly once after that event.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'User speech, taps, or text during playback are not captured, persisted, or answered and do not interrupt the required transition.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The tool-call log remains empty and a DB diff shows no user-data mutation because `dataOut` is empty.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'If audio playback fails, the exact greeting remains visible as text and the beat still advances; it must not leave a silent blocked screen.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -897,22 +939,43 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders the auth-signup screen with Apple / Google / email options, nothing preselected',
+            criterion:
+              'The beat emits no coach audio or invented sign-up instructions because `script` is empty.',
+            check: 'harness',
           },
           {
-            criterion: 'stays silent',
-            check: 'no coach audio or bubble plays during auth (silent-beat check)',
+            criterion: 'Starting an auth provider without completing it does not advance the flow.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'advance fires only after a valid session is established and the name is captured',
+            criterion:
+              'A successful provider callback advances only after a valid authenticated `session` is available to server hydration.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check: 'an authenticated session resumes past sign-up; the beat is not re-shown',
+            criterion:
+              'The auth account contains the provider-derived `profile.name`; the test fails if the beat writes an invented onboarding name field instead.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'The auth result exposes both source outputs: provider-derived `profile.name` on the auth account and a hydrated `session`; no additional onboarding field is asserted.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Cancelling the provider sheet leaves sign-in options visible, makes no completed-session transition, and permits a new attempt.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'An auth error displays a retryable failure state, does not advance, and does not leave a partial authenticated session treated as success.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'No onboarding coach tool is called; authentication is the only write mechanism on this beat.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -1207,16 +1270,53 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check: 'phone renders the mic-permission screen with the Allow / Not now controls',
+            criterion:
+              'The rendered opener equals the source words, playback uses the cited clip, and no pressure, benefit claim, or filler is added.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the opener plays verbatim from mic_permission_1',
+            criterion:
+              'Tapping Allow opens the OS permission request; the OS stub returns granted, reports `device.micGranted = true`, and the beat advances exactly once.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'either Allow or Not now advances the flow; skipping is never penalized',
+            criterion:
+              'With OS permission undecided, tapping Allow displays the native permission sheet; the app does not activate or transmit microphone audio before the OS grants access.',
+            check: 'manual',
+          },
+          {
+            criterion:
+              "Tapping Not now does not open the OS permission request, leaves mic access ungranted, speaks exactly “That's completely fine, you can just type.” when that edge audio is available, and advances.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'If the OS denies the request or permission was later revoked, the app does not activate the mic, does not loop or reopen the prompt, falls back to typing, and advances.',
+            check: 'manual',
+          },
+          {
+            criterion:
+              'Returning to this beat after denial or revocation does not trigger a native prompt until the user taps Allow again.',
+            check: 'manual',
+          },
+          {
+            criterion: 'Silence alone does not select Allow or Not now and does not advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'No DB row or onboarding field is written for `device.micGranted`, because the source persistence destination is explicitly `none (OS permission)`.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'The tool-call log remains empty on grant, denial, skip, and blocked-OS branches.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The rendered and spoken copy never says microphone access is mandatory or blocks onboarding after denial.',
+            check: 'harness',
           },
         ],
         enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
@@ -1469,16 +1569,34 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'says the right thing',
-            check: 'the greeting plays verbatim with the captured name filled into the {name} slot',
+            criterion:
+              'With a hydrated name, the coach says the locked sentence byte-for-byte after replacing only `{name}` with that name.',
+            check: 'harness',
           },
           {
-            criterion: 'shows the right thing',
-            check: 'a single coach bubble renders; no interactive tiles or inputs appear',
+            criterion:
+              'The live voice contains no literal `{name}`, blank pause, duplicate name, added question, or improvised tail.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'the flow auto-advances to profile-asks when the clip ends, with no user action',
+            criterion:
+              "The beat advances only after the live line's completion event and advances to profile asks exactly once.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'If the name is missing, the coach uses the source-required name-free warm fallback, does not vocalize an empty slot, and still advances.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'If audio fails, the resolved line is visible as text and the beat advances rather than blocking.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'User input during the line is not captured or persisted, the tool log remains empty, and a DB diff is empty because `dataOut` is empty.',
+            check: 'db-probe',
           },
         ],
         enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'advance-gate-check'],
@@ -1858,23 +1976,54 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders the age input and the Male / Female / Other gender selector, nothing preselected',
+            criterion:
+              "The coach emits only the source asks “How old are you, and how do you identify?” and, when needed, “What's your gender?”, with no unrelated profile questions.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'both prompts spoken verbatim; gender is never skippable (rules.context evals)',
+            criterion:
+              'A valid tap/text/voice answer containing both fields calls `submit_profile` once with numeric `age` and canonical `gender` equal to `Male`, `Female`, or `Other`, never raw wording.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'both fields captured via submit_profile with a canonical gender, then advance_step',
+            criterion:
+              'An age-only answer retains the age, asks only for gender, and does not call `submit_profile` or `advance_step` yet.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'age + gender persist, the beat is not re-asked, current_step resumes past profile-asks',
+            criterion:
+              'A gender-only or otherwise partial answer leaves the beat gated and asks only for the missing required field.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Nonsense or nonnumeric age is not stored; the coach gives one light redirect and re-asks plainly.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'A refusal to provide gender is not converted to `Other`, is not stored, and cannot advance; the coach plainly re-asks and leaves the tap path available.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'On success, DB values at `onboarding_states.data.age` and `.gender` exactly match the submitted canonical values and no category/goal/habit field changes.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` occurs only after `submit_profile` succeeds; on first tool failure the same payload retries once, and on second failure the entries remain, failure is surfaced, and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Silence, off-topic input, and max-turn exhaustion never fabricate either field or bypass the two-field gate.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Any tool other than `submit_profile` or `advance_step`, or either tool called out of order, fails the beat.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -2299,17 +2448,54 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders the four state cards (sleep, mood, energy, stress); no second card set appears',
+            criterion:
+              "The framing plus “How's your sleep/mood/energy/stress?” lines play in source sequence, verbatim, with no extra dimension or interpretation.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the framing opener and the four questions play verbatim, each asked once',
+            criterion:
+              'Tap and voice paths both map each dimension only to an integer 1–5 and visibly retain previously completed cards.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'all four cards filled, then record_checkin and advance_step',
+            criterion:
+              '`record_checkin` is called exactly once only after all four values exist, with `{ sleep, mood, energy, stress, source: "onboarding" }`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Leaving any card unrated blocks both `record_checkin` and `advance_step`; the coach prompts only for the missing dimension.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'An out-of-range, ambiguous, or nonnumeric voice rating is not coerced or stored and triggers a targeted retry for that dimension.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The onboarding state-check record and `daily_checkins` record contain the same four scores and onboarding source as one atomic success; neither side may exist alone.',
+            check: 'db-probe',
+            pendingBackendWiring: true,
+          },
+          {
+            criterion: '`advance_step` fires only after atomic persistence succeeds.',
+            check: 'harness',
+            pendingBackendWiring: true,
+          },
+          {
+            criterion:
+              'On save failure, ratings stay selected, the call retries once, a second failure is surfaced, and neither partial persistence nor advance is accepted.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'When the heavy-input fixture is sent, no rating is guessed, neither tool is called, the beat does not advance, and the next coach turn acknowledges the disclosure before any state-check re-ask.',
+            check: 'harness',
+          },
+          {
+            criterion: 'No tool outside `record_checkin` and `advance_step` is called.',
+            check: 'harness',
           },
         ],
         enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
@@ -2753,17 +2939,48 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders the time picker, day picker, and reminder toggle (reminder ON by default)',
+            criterion:
+              'Every non-empty morning script line is spoken byte-for-byte in sequence; empty script entries reveal controls without generating coach speech.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the setup framing and consistency nudge play verbatim',
+            criterion:
+              'Time and day controls can be completed by tap, and equivalent voice input resolves to the same canonical config shown in the UI.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'a time and days set via submit_morning_checkin, then advance_step',
+            criterion:
+              'The coach does not read visible time/day options aloud and does not improvise beyond the locked recommendation.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_morning_checkin` is not called until every source-required config value is valid; partial time/day input remains on this beat.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Invalid time, unsupported day wording, or ambiguous relative timing is not guessed; the coach asks one short question for the missing/ambiguous value.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'A refusal or silence leaves the setup unsubmitted and unadvanced; the recommendation may be re-presented, but the system must not silently accept a default.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'After success, `onboarding_states.data.morningCheckin` exactly matches the submitted `checkin.config`; no reflection or habit config changes.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows one successful `submit_morning_checkin`; a first failure retries once, a second is surfaced with selections retained, and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_morning_checkin` and `advance_step` appear in the tool log.',
+            check: 'harness',
           },
         ],
         enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
@@ -3316,22 +3533,58 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders the style selector (suggested / your template / freeform), a time picker, and a reminder toggle',
+            criterion:
+              'Every non-empty reflection script line, including the three default questions and timing recommendation, is emitted byte-for-byte and in source order.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'the framing, three questions, and time line play verbatim; the styles are not read aloud',
+            criterion:
+              'Empty script entries only reveal reflection controls; the coach does not invent speech for them or read visible choices as a list.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'a style and time captured via submit_reflection_config, then advance_step',
+            criterion:
+              'Tap and voice paths can select the default questions, free-talk mode, or the supported custom-prompt path and render the same config state.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check: 'the config persists in reflection_settings, the beat is not re-asked',
+            criterion:
+              '`submit_custom_prompts` receives only 1–10 prompts, each 1–280 characters, and preserves every accepted prompt verbatim rather than rewriting it.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero prompts, an eleventh prompt, or a prompt outside 1–280 characters is rejected in place and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_reflection_config` is called only after a valid reflection mode/schedule is present; `submit_custom_prompts` is called only when custom prompts were actually chosen.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `reflection_settings.config` equals `reflection.config`, and `.customPrompts` is absent/unchanged for non-custom paths or exactly equals submitted verbatim prompts for custom paths.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              "Silence, refusal, or incomplete scheduling does not create a default choice behind the user's back and does not call `advance_step`.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Invalid or ambiguous voice input triggers one targeted clarification and retains already valid selections.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Save calls retry once on failure; a second failure is surfaced, input remains available, and `advance_step` is forbidden until all required writes succeed.',
+            check: 'harness',
+          },
+          {
+            criterion: 'No tool outside the three quoted tools is called.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -3795,22 +4048,54 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check: 'phone renders the two path cards, single-select, nothing preselected',
+            criterion:
+              'The coach says “One more question before we set up your habits.” and “Do you already track habits or is this new to you?” byte-for-byte, then stops.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'framing spoken verbatim, fork question verbal-only, no read-aloud list, no filler tail',
+            criterion:
+              'The empty third script line reveals the second path card silently; no option list, reassurance tail, or “both are fine” copy is spoken.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'the path captured via submit_path_choice, then advance_step; routes beginner or advanced',
+            criterion:
+              'Tapping either path and speaking an unambiguous equivalent both map to exactly `beginner` or `advanced`.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check: 'the path persists, the beat is not re-asked, current_step resumes past fork',
+            criterion:
+              'New/tried-and-dropped-off/wants-guidance resolves to `beginner`; an existing list/system resolves to `advanced`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Ambiguous input calls `ask_clarification` at most as needed and asks the source short contrast; it does not call `submit_path_choice` yet.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal, silence, off-topic input, and max-turn re-ask do not select a path or advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_path_choice` is called once with `path` equal to `beginner` or `advanced`, and DB `onboarding_states.data.path` exactly matches it.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows only a successful path save and routes to the matching branch; it never flashes or enters the opposite branch.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'On save failure, retry once with the same path; after a second failure surface it, retain the selection, and do not advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'No tool outside the quoted three is called, and locked lines are never live-improvised.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -4266,29 +4551,53 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders category-grid default variant, 8 tiles + create-your-own, single-select, nothing preselected (diff phone vs components)',
+            criterion:
+              'The coach speaks the two non-empty source lines byte-for-byte; category-card reveal is silent and visible options are not read aloud.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, create-your-own verbal-only, no read / praise / contrarian / platitude (rules.context evals)',
+            criterion:
+              'A category tap and an unambiguous spoken category select the same canonical visible label.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'exactly one category captured via submit_category, then advance_step; two-category attempt resolves to one first (flow gate)',
+            criterion:
+              'Exactly one category is submitted; a changed selection replaces the pending choice rather than creating two categories.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'category persists, beat not re-asked, current_step resumes past category (persistence resume key)',
+            criterion:
+              'A custom-category path requires non-empty user-provided category text and does not invent or rewrite a category for the user.',
+            check: 'harness',
           },
           {
-            criterion: 'variant is correct',
-            check:
-              "Male and Other render this default beat; gender === 'Female' renders category-women (cat-default-variant)",
+            criterion:
+              'Vague input asks one short clarification; silence or an empty card state triggers a neutral display check, not recitation of the category list.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal or repeated non-selection remains on this beat with the tap path available; it does not submit a default or skip ahead.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_category` fires once only after a valid category exists; DB inspection verifies the exact `onboarding.category` value at the source-marked `onboarding_states.data` destination without assuming an unverified nested key.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows successful save only; a failed save retries once, then surfaces failure with the selected card retained and no advance.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_category` and `advance_step` are called.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              "The women variation's rendered asset matches that entry's source artwork while spoken copy, tools, value semantics, persistence contract, edge behavior, and gate remain unchanged.",
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -4777,29 +5086,53 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders category-grid variant female, 8 tiles + create-your-own, single-select, nothing preselected (diff phone vs components)',
+            criterion:
+              'The coach speaks the two non-empty source lines byte-for-byte; category-card reveal is silent and visible options are not read aloud.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, create-your-own verbal-only, no read / praise / contrarian / platitude (rules.context evals)',
+            criterion:
+              'A category tap and an unambiguous spoken category select the same canonical visible label.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'exactly one category captured via submit_category, then advance_step; two-category attempt resolves to one first (flow gate)',
+            criterion:
+              'Exactly one category is submitted; a changed selection replaces the pending choice rather than creating two categories.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'category persists, beat not re-asked, current_step resumes past category-women (persistence resume key)',
+            criterion:
+              'A custom-category path requires non-empty user-provided category text and does not invent or rewrite a category for the user.',
+            check: 'harness',
           },
           {
-            criterion: 'variant is correct',
-            check:
-              "gender === 'Female' renders this beat; Male and Other render default category (catw-women-variant)",
+            criterion:
+              'Vague input asks one short clarification; silence or an empty card state triggers a neutral display check, not recitation of the category list.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal or repeated non-selection remains on this beat with the tap path available; it does not submit a default or skip ahead.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_category` fires once only after a valid category exists; DB inspection verifies the exact `onboarding.category` value at the source-marked `onboarding_states.data` destination without assuming an unverified nested key.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows successful save only; a failed save retries once, then surfaces failure with the selected card retained and no advance.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_category` and `advance_step` are called.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              "The women variation's rendered asset matches that entry's source artwork while spoken copy, tools, value semantics, persistence contract, edge behavior, and gate remain unchanged.",
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -5281,29 +5614,58 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders goals-list for Sleep better, 4 tiles + create-your-own, multi-select 1-2, nothing preselected (diff phone vs components)',
+            criterion:
+              "For the active variation, the coach emits that variation's `script[].words` byte-for-byte and does not borrow copy or labels from another category.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, category named once, no read / praise / contrarian / platitude (rules.context evals)',
+            criterion:
+              'Tap and voice paths map only to canonical labels visible for the active variation; raw synonyms are normalized to an existing label, never persisted as a new invented label.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'one or two goals captured via submit_goals, then advance_step; a three-goal attempt resolves to two first (flow gate)',
+            criterion:
+              'One or two valid goals enable submission; zero goals and three-or-more goals block both save and advance.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'goals + count persist, beat not re-asked, current_step resumes past goals-sleep (persistence resume key)',
+            criterion:
+              "When three or more are named, the coach asks “Which two matter most right now?”, retains candidate context, and submits only the user's resolved two.",
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* opener; the goal count sets the downstream habit distribution',
+            criterion:
+              "Vague “in general” input maps only when unambiguous; otherwise the coach asks the variation's one short pin-down question and does not invent a label.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Silence or missing tiles triggers the neutral display check and never causes the coach to read the goal list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal/off-topic/max-turn behavior returns to a one-line goal re-ask and leaves the tap path available; no default goal is selected and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_goals` is called once with an array of exactly 1–2 canonical goals; DB `onboarding.goals` equals that array at the source-marked `onboarding_states.data` destination.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'No separate `goalCount` or equivalent field is persisted; downstream count is demonstrably derived from `goals.length`.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows successful save only; save failure retries once, then surfaces with selected tiles retained and no advance.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_goals` and `advance_step` appear in the tool log.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -5757,29 +6119,58 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders goals-list for Move more, 3 tiles + create-your-own, multi-select 1-2, nothing preselected (diff phone vs components)',
+            criterion:
+              "For the active variation, the coach emits that variation's `script[].words` byte-for-byte and does not borrow copy or labels from another category.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, category named once, no read / praise / contrarian / platitude (rules.context evals)',
+            criterion:
+              'Tap and voice paths map only to canonical labels visible for the active variation; raw synonyms are normalized to an existing label, never persisted as a new invented label.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'one or two goals captured via submit_goals, then advance_step; a three-goal attempt resolves to two first (flow gate)',
+            criterion:
+              'One or two valid goals enable submission; zero goals and three-or-more goals block both save and advance.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'goals + count persist, beat not re-asked, current_step resumes past goals-move (persistence resume key)',
+            criterion:
+              "When three or more are named, the coach asks “Which two matter most right now?”, retains candidate context, and submits only the user's resolved two.",
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* opener; the goal count sets the downstream habit distribution',
+            criterion:
+              "Vague “in general” input maps only when unambiguous; otherwise the coach asks the variation's one short pin-down question and does not invent a label.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Silence or missing tiles triggers the neutral display check and never causes the coach to read the goal list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal/off-topic/max-turn behavior returns to a one-line goal re-ask and leaves the tap path available; no default goal is selected and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_goals` is called once with an array of exactly 1–2 canonical goals; DB `onboarding.goals` equals that array at the source-marked `onboarding_states.data` destination.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'No separate `goalCount` or equivalent field is persisted; downstream count is demonstrably derived from `goals.length`.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows successful save only; save failure retries once, then surfaces with selected tiles retained and no advance.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_goals` and `advance_step` appear in the tool log.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -6249,29 +6640,58 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders goals-list for Eat better, 3 tiles + create-your-own, multi-select 1-2, nothing preselected (diff phone vs components)',
+            criterion:
+              "For the active variation, the coach emits that variation's `script[].words` byte-for-byte and does not borrow copy or labels from another category.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, category named once, no read / praise / contrarian / platitude (rules.context evals)',
+            criterion:
+              'Tap and voice paths map only to canonical labels visible for the active variation; raw synonyms are normalized to an existing label, never persisted as a new invented label.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'one or two goals captured via submit_goals, then advance_step; a three-goal attempt resolves to two first (flow gate)',
+            criterion:
+              'One or two valid goals enable submission; zero goals and three-or-more goals block both save and advance.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'goals + count persist, beat not re-asked, current_step resumes past goals-eat (persistence resume key)',
+            criterion:
+              "When three or more are named, the coach asks “Which two matter most right now?”, retains candidate context, and submits only the user's resolved two.",
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* opener; the goal count sets the downstream habit distribution',
+            criterion:
+              "Vague “in general” input maps only when unambiguous; otherwise the coach asks the variation's one short pin-down question and does not invent a label.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Silence or missing tiles triggers the neutral display check and never causes the coach to read the goal list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal/off-topic/max-turn behavior returns to a one-line goal re-ask and leaves the tap path available; no default goal is selected and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_goals` is called once with an array of exactly 1–2 canonical goals; DB `onboarding.goals` equals that array at the source-marked `onboarding_states.data` destination.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'No separate `goalCount` or equivalent field is persisted; downstream count is demonstrably derived from `goals.length`.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows successful save only; save failure retries once, then surfaces with selected tiles retained and no advance.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_goals` and `advance_step` appear in the tool log.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -6742,29 +7162,58 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders goals-list for Feel more energized, 3 tiles + create-your-own, multi-select 1-2, nothing preselected (diff phone vs components)',
+            criterion:
+              "For the active variation, the coach emits that variation's `script[].words` byte-for-byte and does not borrow copy or labels from another category.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, category named once, no read / praise / contrarian / platitude (rules.context evals)',
+            criterion:
+              'Tap and voice paths map only to canonical labels visible for the active variation; raw synonyms are normalized to an existing label, never persisted as a new invented label.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'one or two goals captured via submit_goals, then advance_step; a three-goal attempt resolves to two first (flow gate)',
+            criterion:
+              'One or two valid goals enable submission; zero goals and three-or-more goals block both save and advance.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'goals + count persist, beat not re-asked, current_step resumes past goals-energy (persistence resume key)',
+            criterion:
+              "When three or more are named, the coach asks “Which two matter most right now?”, retains candidate context, and submits only the user's resolved two.",
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* opener; the goal count sets the downstream habit distribution',
+            criterion:
+              "Vague “in general” input maps only when unambiguous; otherwise the coach asks the variation's one short pin-down question and does not invent a label.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Silence or missing tiles triggers the neutral display check and never causes the coach to read the goal list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal/off-topic/max-turn behavior returns to a one-line goal re-ask and leaves the tap path available; no default goal is selected and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_goals` is called once with an array of exactly 1–2 canonical goals; DB `onboarding.goals` equals that array at the source-marked `onboarding_states.data` destination.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'No separate `goalCount` or equivalent field is persisted; downstream count is demonstrably derived from `goals.length`.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows successful save only; save failure retries once, then surfaces with selected tiles retained and no advance.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_goals` and `advance_step` appear in the tool log.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -7234,29 +7683,58 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders goals-list for Reduce stress, 3 tiles + create-your-own, multi-select 1-2, nothing preselected (diff phone vs components)',
+            criterion:
+              "For the active variation, the coach emits that variation's `script[].words` byte-for-byte and does not borrow copy or labels from another category.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, category named once, no read / praise / contrarian / platitude (rules.context evals)',
+            criterion:
+              'Tap and voice paths map only to canonical labels visible for the active variation; raw synonyms are normalized to an existing label, never persisted as a new invented label.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'one or two goals captured via submit_goals, then advance_step; a three-goal attempt resolves to two first (flow gate)',
+            criterion:
+              'One or two valid goals enable submission; zero goals and three-or-more goals block both save and advance.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'goals + count persist, beat not re-asked, current_step resumes past goals-stress (persistence resume key)',
+            criterion:
+              "When three or more are named, the coach asks “Which two matter most right now?”, retains candidate context, and submits only the user's resolved two.",
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* opener; the goal count sets the downstream habit distribution',
+            criterion:
+              "Vague “in general” input maps only when unambiguous; otherwise the coach asks the variation's one short pin-down question and does not invent a label.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Silence or missing tiles triggers the neutral display check and never causes the coach to read the goal list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal/off-topic/max-turn behavior returns to a one-line goal re-ask and leaves the tap path available; no default goal is selected and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_goals` is called once with an array of exactly 1–2 canonical goals; DB `onboarding.goals` equals that array at the source-marked `onboarding_states.data` destination.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'No separate `goalCount` or equivalent field is persisted; downstream count is demonstrably derived from `goals.length`.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows successful save only; save failure retries once, then surfaces with selected tiles retained and no advance.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_goals` and `advance_step` appear in the tool log.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -7726,29 +8204,58 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders goals-list for Improve focus, 3 tiles + create-your-own, multi-select 1-2, nothing preselected (diff phone vs components)',
+            criterion:
+              "For the active variation, the coach emits that variation's `script[].words` byte-for-byte and does not borrow copy or labels from another category.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, category named once, no read / praise / contrarian / platitude (rules.context evals)',
+            criterion:
+              'Tap and voice paths map only to canonical labels visible for the active variation; raw synonyms are normalized to an existing label, never persisted as a new invented label.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'one or two goals captured via submit_goals, then advance_step; a three-goal attempt resolves to two first (flow gate)',
+            criterion:
+              'One or two valid goals enable submission; zero goals and three-or-more goals block both save and advance.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'goals + count persist, beat not re-asked, current_step resumes past goals-focus (persistence resume key)',
+            criterion:
+              "When three or more are named, the coach asks “Which two matter most right now?”, retains candidate context, and submits only the user's resolved two.",
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* opener; the goal count sets the downstream habit distribution',
+            criterion:
+              "Vague “in general” input maps only when unambiguous; otherwise the coach asks the variation's one short pin-down question and does not invent a label.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Silence or missing tiles triggers the neutral display check and never causes the coach to read the goal list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal/off-topic/max-turn behavior returns to a one-line goal re-ask and leaves the tap path available; no default goal is selected and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_goals` is called once with an array of exactly 1–2 canonical goals; DB `onboarding.goals` equals that array at the source-marked `onboarding_states.data` destination.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'No separate `goalCount` or equivalent field is persisted; downstream count is demonstrably derived from `goals.length`.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows successful save only; save failure retries once, then surfaces with selected tiles retained and no advance.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_goals` and `advance_step` appear in the tool log.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -8218,29 +8725,58 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders goals-list for Break bad habits, 7 tiles + create-your-own, multi-select 1-2, nothing preselected (diff phone vs components)',
+            criterion:
+              "For the active variation, the coach emits that variation's `script[].words` byte-for-byte and does not borrow copy or labels from another category.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, category named once, no read / praise / contrarian / platitude (rules.context evals)',
+            criterion:
+              'Tap and voice paths map only to canonical labels visible for the active variation; raw synonyms are normalized to an existing label, never persisted as a new invented label.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'one or two goals captured via submit_goals, then advance_step; a three-goal attempt resolves to two first (flow gate)',
+            criterion:
+              'One or two valid goals enable submission; zero goals and three-or-more goals block both save and advance.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'goals + count persist, beat not re-asked, current_step resumes past goals-break (persistence resume key)',
+            criterion:
+              "When three or more are named, the coach asks “Which two matter most right now?”, retains candidate context, and submits only the user's resolved two.",
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* opener; the goal count sets the downstream habit distribution',
+            criterion:
+              "Vague “in general” input maps only when unambiguous; otherwise the coach asks the variation's one short pin-down question and does not invent a label.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Silence or missing tiles triggers the neutral display check and never causes the coach to read the goal list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal/off-topic/max-turn behavior returns to a one-line goal re-ask and leaves the tap path available; no default goal is selected and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_goals` is called once with an array of exactly 1–2 canonical goals; DB `onboarding.goals` equals that array at the source-marked `onboarding_states.data` destination.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'No separate `goalCount` or equivalent field is persisted; downstream count is demonstrably derived from `goals.length`.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows successful save only; save failure retries once, then surfaces with selected tiles retained and no advance.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_goals` and `advance_step` appear in the tool log.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -8711,29 +9247,58 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders goals-list for Get more organized, 3 tiles + create-your-own, multi-select 1-2, nothing preselected (diff phone vs components)',
+            criterion:
+              "For the active variation, the coach emits that variation's `script[].words` byte-for-byte and does not borrow copy or labels from another category.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, category named once, no read / praise / contrarian / platitude (rules.context evals)',
+            criterion:
+              'Tap and voice paths map only to canonical labels visible for the active variation; raw synonyms are normalized to an existing label, never persisted as a new invented label.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'one or two goals captured via submit_goals, then advance_step; a three-goal attempt resolves to two first (flow gate)',
+            criterion:
+              'One or two valid goals enable submission; zero goals and three-or-more goals block both save and advance.',
+            check: 'harness',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'goals + count persist, beat not re-asked, current_step resumes past goals-organize (persistence resume key)',
+            criterion:
+              "When three or more are named, the coach asks “Which two matter most right now?”, retains candidate context, and submits only the user's resolved two.",
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* opener; the goal count sets the downstream habit distribution',
+            criterion:
+              "Vague “in general” input maps only when unambiguous; otherwise the coach asks the variation's one short pin-down question and does not invent a label.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Silence or missing tiles triggers the neutral display check and never causes the coach to read the goal list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal/off-topic/max-turn behavior returns to a one-line goal re-ask and leaves the tap path available; no default goal is selected and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_goals` is called once with an array of exactly 1–2 canonical goals; DB `onboarding.goals` equals that array at the source-marked `onboarding_states.data` destination.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'No separate `goalCount` or equivalent field is persisted; downstream count is demonstrably derived from `goals.length`.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows successful save only; save failure retries once, then surfaces with selected tiles retained and no advance.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_goals` and `advance_step` appear in the tool log.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -9077,16 +9642,58 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check: 'phone renders a single text input for the custom goal, nothing preselected',
+            criterion:
+              "For the active variation, the coach emits that variation's `script[].words` byte-for-byte and does not borrow copy or labels from another category.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the prompt plays verbatim from onboard_beginner_02_custom_1',
+            criterion:
+              'Tap and voice paths map only to canonical labels visible for the active variation; raw synonyms are normalized to an existing label, never persisted as a new invented label.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'a non-empty custom goal is captured, then the flow proceeds to habits',
+            criterion:
+              'One or two valid goals enable submission; zero goals and three-or-more goals block both save and advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              "When three or more are named, the coach asks “Which two matter most right now?”, retains candidate context, and submits only the user's resolved two.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              "Vague “in general” input maps only when unambiguous; otherwise the coach asks the variation's one short pin-down question and does not invent a label.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Silence or missing tiles triggers the neutral display check and never causes the coach to read the goal list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Refusal/off-topic/max-turn behavior returns to a one-line goal re-ask and leaves the tap path available; no default goal is selected and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`submit_goals` is called once with an array of exactly 1–2 canonical goals; DB `onboarding.goals` equals that array at the source-marked `onboarding_states.data` destination.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'No separate `goalCount` or equivalent field is persisted; downstream count is demonstrably derived from `goals.length`.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`advance_step` follows successful save only; save failure retries once, then surfaces with selected tiles retained and no advance.',
+            check: 'harness',
+          },
+          {
+            criterion: 'Only `submit_goals` and `advance_step` appear in the tool log.',
+            check: 'harness',
           },
         ],
         enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
@@ -9562,29 +10169,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -10048,29 +10685,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -10542,29 +11209,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -11041,29 +11738,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -11535,29 +12262,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -12029,29 +12786,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -12529,29 +13316,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -13023,29 +13840,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -13522,29 +14369,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -14020,29 +14897,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -14514,29 +15421,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -15009,29 +15946,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -15504,29 +16471,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -15999,29 +16996,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -16494,29 +17521,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -16988,29 +18045,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -17486,29 +18573,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -17981,29 +19098,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -18475,29 +19622,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -18973,29 +20150,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -19467,29 +20674,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -19961,29 +21198,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -20455,29 +21722,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -20949,29 +22246,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -21443,29 +22770,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -21938,29 +23295,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -22432,29 +23819,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -22926,29 +24343,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -23420,29 +24867,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -23915,29 +25392,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit-picker under the opener, habit options for the picked goal(s) + create-your-own, multi-select within the cap, nothing preselected (diff phone vs components)',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener spoken verbatim, no read / praise / commentary; one habit per goal with two goals (rules.context evals)',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'at least one habit captured via add_habit within the cap, then advance_step; a three-habit attempt resolves to two first (flow gate)',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
           },
           {
-            criterion: 'survives a refresh',
-            check:
-              'habits persist, beat not re-asked, current_step resumes past this beat (persistence resume key)',
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
           },
           {
-            criterion: 'routes correctly',
-            check:
-              'each picked goal routes to its matching habits-* variant; after the pick, onboarding continues to the next step',
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: [
@@ -24281,17 +25788,59 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check: 'phone renders a single text input for the custom habit, nothing preselected',
+            criterion:
+              "The active variation's opener is spoken byte-for-byte; copy and suggested habits from any other goal variation never appear.",
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the prompt plays verbatim from onboard_beginner_03_custom_1',
+            criterion:
+              'A suggested-habit tap and an unambiguous spoken equivalent add the same canonical habit card.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'a non-empty custom habit is captured (within the 2-habit cap), then the flow proceeds to the schedule',
+            criterion:
+              'Each `add_habit` produces exactly one config entry; replay, double-tap, or repeated synonym does not duplicate the same habit.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Removing a selected habit calls `remove_habit` and removes only that habit while retaining all others.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The configured per-goal habit cap is enforced: attempts above the cap do not write or advance and ask the user to resolve the set.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Zero selected habits blocks `advance_step`; refusal, silence, and max-turn behavior keep the beat open without manufacturing a habit.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Vague or unsupported voice input is clarified against visible choices; the coach does not invent a canonical habit or read the full list aloud.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects additions/removals and contains no schedule days silently added on this selection beat.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Tool failure retries once with UI selection retained; a second failure is surfaced and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Named variations call only `add_habit`, `remove_habit`, and `advance_step`; the custom variation calls only its effective Bible tools `add_habit`, `advance_step`.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The custom variation rejects empty/whitespace input; accepted 1–100 character text is passed verbatim to `add_habit`, and `advance_step` occurs only after that call succeeds and the two-habit cap permits it.',
+            check: 'harness',
           },
         ],
         enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
@@ -24679,17 +26228,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders one card per picked habit with a day picker; no check-in or reflection card appears here',
+            criterion:
+              'The two non-empty scheduling lines play byte-for-byte and the empty line reveals scheduling controls without extra coach speech.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the two framing lines play verbatim; weekdays recommended, not forced',
+            criterion:
+              'Tap and voice day selections resolve to numeric day arrays containing only values in `0` through `6`.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'each habit days set via update_habit, then advance_step',
+            criterion:
+              '`update_habit` identifies the intended habit by name and changes its days while preserving omitted reminder/time/schedule fields.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`add_habit` is used only when the user explicitly adds a habit on this beat; scheduling an existing card never duplicates it.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Every selected habit must have at least one valid day before `advance_step`; a partial set asks only for unscheduled habits.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Invalid day names, contradictory schedules, silence, or refusal do not create default days and do not advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` contains the chosen days on the correct habits and preserves names and unrelated config fields.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'A failed add/update retries once; after a second failure days stay selected in UI, failure is surfaced, and no advance occurs.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Only `add_habit`, `update_habit`, and `advance_step` are called; `remove_habit` is not allowed on this beat.',
+            check: 'harness',
           },
         ],
         enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
@@ -25138,18 +26719,53 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders habit cards forming live, each auto-marked build or break; nothing preselected',
+            criterion:
+              'The coach speaks the initial list request and later review line byte-for-byte; the silent reveal between them emits no invented narration.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'opener and close play verbatim; the coach never asks build or break per habit (rules.context evals)',
+            criterion:
+              "Tap/text and voice dictation both capture the user's complete raw list before submission; silence or an empty list does not call `submit_brain_dump`.",
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'the confirmed set captured via submit_brain_dump, then advance_step',
+            criterion:
+              '`submit_brain_dump` is called once with the captured list, and the resulting cards preserve each stated habit rather than adding suggested habits.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The parsed review marks each card build or break; the coach asks for confirmation and does not advance merely because parsing finished.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              "If one card's wording or build/break mark is challenged, only that card changes; all unchallenged cards remain byte-for-byte stable.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'User approval is required after review; refusal, ambiguity, silence, or an unresolved correction keeps the beat gated.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              '`onboarding_states.data.brainDumpText` and `onboarding_states.brain_dump_raw` are both written from this capture and correspond to the same submitted dump.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'A failed submission retries once; after a second failure the raw input remains visible, failure is surfaced, and no review/advance is treated as complete.',
+            check: 'harness',
+          },
+          {
+            criterion: '`advance_step` occurs only after the reviewed set is confirmed.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Only `submit_brain_dump` and `advance_step` are called; habit add/update tools are forbidden here.',
+            check: 'harness',
           },
         ],
         enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
@@ -25563,18 +27179,54 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders the captured habit cards, each with a day-circle picker; no new cards are created',
+            criterion:
+              'Every non-empty scheduling and completion line is spoken byte-for-byte; empty reveal lines add no improvised speech.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check:
-              'the framing and plan-ready lines play verbatim; a full answer is parsed, only gaps asked',
+            criterion:
+              'Tap and voice day selections resolve to numeric `0–6` arrays on the intended existing habit.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'each habit days set via update_habit, then advance_step',
+            criterion:
+              '`update_habit` changes only supplied fields and preserves the captured habit name, build/break identity, and omitted reminder/time/schedule fields.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              '`add_habit` is called only for an explicitly missing habit; ordinary scheduling never duplicates an existing card.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Every captured habit needs days before advance; partial answers retain completed habits and ask only for missing schedules.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Reminder stays off unless the user explicitly requests it for a named habit; a request affects only that habit.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Invalid/ambiguous days, silence, or refusal do not create defaults and cannot advance.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'DB `onboarding_states.data.habitConfigs` exactly reflects the reviewed set plus selected schedules, with no unrelated habit removed or rewritten.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'Save failure retries once; a second failure is surfaced with day selections retained, and completion copy/advance cannot be treated as successful.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              "Only `add_habit`, `update_habit`, and `advance_step` are called; despite the `dataOut.writtenBy` note mentioning `remove_habit`, that tool is not in this beat's allowed set and must not be called.",
+            check: 'harness',
           },
         ],
         enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
@@ -25913,18 +27565,64 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'phone renders the read-only whole plan (all three rituals on the locale-driven work week, plus habits); tap path shows one Ready to start button, voice path shows none',
+            criterion:
+              'The coach says the plan-review line byte-for-byte and the rendered plan shows the actual saved check-in, reflection, and habits rather than placeholders.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the confirm line plays verbatim, real and specific to the plan',
+            criterion:
+              'Tap mode renders exactly one `Ready to start` approval button and no edit button; voice mode renders no button.',
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check:
-              'approval fires the common confirm_plan completion transaction, then enters the app',
+            criterion:
+              'The beat is read-only: `update_habit` and every other edit, habit, profile, check-in, or reflection tool is never called.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'A Ready to start tap and unambiguous spoken approval each initiate one `confirm_plan` attempt; the failure branch may add only the one source-declared automatic retry.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'Silence, refusal, ambiguity, or a request to change something does not call `confirm_plan`, does not mark onboarding complete, and does not enter the app.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'After successful `confirm_plan`, one DB read observes `data.plan.confirmed = true`, `status = "completed"`, non-null `completed_at`, and `current_step = "completed"`; no partial combination passes.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              "If both source-declared attempts fail, none of those four completion values is newly visible and the user remains on plan review; this checks the source's transaction result, not an implementation-specific rollback API.",
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              'App entry occurs only after `confirm_plan` succeeds; navigation beginning before the success response fails the gate.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'If `confirm_plan` succeeds but app navigation is interrupted, the completed values remain committed and resume routes into the app without re-opening plan review.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'A first failure causes exactly one quiet automatic retry with no second user action and no backoff requirement invented beyond the source.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'After the retry also fails, tap/text mode visibly exposes the source-specified retry action and voice mode audibly exposes the source-specified failure line; for the source English copy, the displayed/spoken words match the quoted strings, while punctuation and TTS prosody are not asserted.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'The tool log contains no call other than at most two `confirm_plan` attempts for one approval; no `advance_step` or edit tool is invented.',
+            check: 'harness',
           },
         ],
         enforcedBy: ['component-registry-check', 'render-link-integrity-check', 'eval:edge-walk'],
@@ -26205,17 +27903,48 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'the blank week grid animates and a Next affordance appears (pending the built component)',
+            criterion:
+              'The five projection states render in the source order empty → best → likely → some → avoid, with no state skipped or repeated.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the frame line plays verbatim from onboard_weekly_projection_blank_1',
+            criterion:
+              "Each state's coach line equals that state's `script[0].words` byte-for-byte; no motivational tail, advice, question, or paraphrase is added.",
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'a Next tap proceeds to weekly-full; nothing is captured',
+            criterion:
+              "Each entry renders its source `props.state`; a Next tap advances to that entry's source-declared downstream frame, with no frame skipped or repeated.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'User taps, voice, text, refusal, or silence during projection do not call a tool, modify a plan, or create a new onboarding answer.',
+            check: 'harness',
+          },
+          {
+            criterion: 'The tool-call log remains empty across all five entries.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'A before/after DB snapshot has no user-data mutation because every projection `dataOut` is empty.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              "When the harness rejects a frame's audio playback, that frame's source words remain visible and its Next affordance remains usable.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'When the grid mount operation reports failure or does not produce the frame grid, the source narration remains visible with `Projection unavailable` and Next; advancing writes no state, and no fabricated rows or rendered-projection claim appears.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              "The final avoid state exits only through the product's declared post-onboarding transition; it must not re-run `confirm_plan` or mark completion a second time.",
+            check: 'harness',
           },
         ],
         enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'eval:edge-walk'],
@@ -26481,17 +28210,48 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'the week grid fills green and a Next affordance appears (pending the built component)',
+            criterion:
+              'The five projection states render in the source order empty → best → likely → some → avoid, with no state skipped or repeated.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the frame line plays verbatim from onboard_weekly_projection_full_1',
+            criterion:
+              "Each state's coach line equals that state's `script[0].words` byte-for-byte; no motivational tail, advice, question, or paraphrase is added.",
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'a Next tap proceeds to weekly-p78; nothing is captured',
+            criterion:
+              "Each entry renders its source `props.state`; a Next tap advances to that entry's source-declared downstream frame, with no frame skipped or repeated.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'User taps, voice, text, refusal, or silence during projection do not call a tool, modify a plan, or create a new onboarding answer.',
+            check: 'harness',
+          },
+          {
+            criterion: 'The tool-call log remains empty across all five entries.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'A before/after DB snapshot has no user-data mutation because every projection `dataOut` is empty.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              "When the harness rejects a frame's audio playback, that frame's source words remain visible and its Next affordance remains usable.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'When the grid mount operation reports failure or does not produce the frame grid, the source narration remains visible with `Projection unavailable` and Next; advancing writes no state, and no fabricated rows or rendered-projection claim appears.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              "The final avoid state exits only through the product's declared post-onboarding transition; it must not re-run `confirm_plan` or mark completion a second time.",
+            check: 'harness',
           },
         ],
         enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'eval:edge-walk'],
@@ -26759,17 +28519,48 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'the grid shows mostly-green with a few misses and a Next affordance appears (pending the built component)',
+            criterion:
+              'The five projection states render in the source order empty → best → likely → some → avoid, with no state skipped or repeated.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the frame line plays verbatim from onboard_weekly_projection_p78_1',
+            criterion:
+              "Each state's coach line equals that state's `script[0].words` byte-for-byte; no motivational tail, advice, question, or paraphrase is added.",
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'a Next tap proceeds to weekly-p36; nothing is captured',
+            criterion:
+              "Each entry renders its source `props.state`; a Next tap advances to that entry's source-declared downstream frame, with no frame skipped or repeated.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'User taps, voice, text, refusal, or silence during projection do not call a tool, modify a plan, or create a new onboarding answer.',
+            check: 'harness',
+          },
+          {
+            criterion: 'The tool-call log remains empty across all five entries.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'A before/after DB snapshot has no user-data mutation because every projection `dataOut` is empty.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              "When the harness rejects a frame's audio playback, that frame's source words remain visible and its Next affordance remains usable.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'When the grid mount operation reports failure or does not produce the frame grid, the source narration remains visible with `Projection unavailable` and Next; advancing writes no state, and no fabricated rows or rendered-projection claim appears.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              "The final avoid state exits only through the product's declared post-onboarding transition; it must not re-run `confirm_plan` or mark completion a second time.",
+            check: 'harness',
           },
         ],
         enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'eval:edge-walk'],
@@ -27038,17 +28829,48 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'the grid shows a rough week with one streak surviving and a Next affordance appears (pending the built component)',
+            criterion:
+              'The five projection states render in the source order empty → best → likely → some → avoid, with no state skipped or repeated.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the frame line plays verbatim from onboard_weekly_projection_p36_1',
+            criterion:
+              "Each state's coach line equals that state's `script[0].words` byte-for-byte; no motivational tail, advice, question, or paraphrase is added.",
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'a Next tap proceeds to weekly-gaps; nothing is captured',
+            criterion:
+              "Each entry renders its source `props.state`; a Next tap advances to that entry's source-declared downstream frame, with no frame skipped or repeated.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'User taps, voice, text, refusal, or silence during projection do not call a tool, modify a plan, or create a new onboarding answer.',
+            check: 'harness',
+          },
+          {
+            criterion: 'The tool-call log remains empty across all five entries.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'A before/after DB snapshot has no user-data mutation because every projection `dataOut` is empty.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              "When the harness rejects a frame's audio playback, that frame's source words remain visible and its Next affordance remains usable.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'When the grid mount operation reports failure or does not produce the frame grid, the source narration remains visible with `Projection unavailable` and Next; advancing writes no state, and no fabricated rows or rendered-projection claim appears.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              "The final avoid state exits only through the product's declared post-onboarding transition; it must not re-run `confirm_plan` or mark completion a second time.",
+            check: 'harness',
           },
         ],
         enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'eval:edge-walk'],
@@ -27318,17 +29140,48 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       acceptance: {
         rows: [
           {
-            criterion: 'shows the right thing',
-            check:
-              'the grid shows empty unreported days and a Next affordance appears (pending the built component)',
+            criterion:
+              'The five projection states render in the source order empty → best → likely → some → avoid, with no state skipped or repeated.',
+            check: 'harness',
           },
           {
-            criterion: 'says the right thing',
-            check: 'the frame line plays verbatim from onboard_weekly_projection_gaps_1',
+            criterion:
+              "Each state's coach line equals that state's `script[0].words` byte-for-byte; no motivational tail, advice, question, or paraphrase is added.",
+            check: 'harness',
           },
           {
-            criterion: 'advances correctly',
-            check: 'a Next tap closes the projection and enters the app; nothing is captured',
+            criterion:
+              "Each entry renders its source `props.state`; a Next tap advances to that entry's source-declared downstream frame, with no frame skipped or repeated.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'User taps, voice, text, refusal, or silence during projection do not call a tool, modify a plan, or create a new onboarding answer.',
+            check: 'harness',
+          },
+          {
+            criterion: 'The tool-call log remains empty across all five entries.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              'A before/after DB snapshot has no user-data mutation because every projection `dataOut` is empty.',
+            check: 'db-probe',
+          },
+          {
+            criterion:
+              "When the harness rejects a frame's audio playback, that frame's source words remain visible and its Next affordance remains usable.",
+            check: 'harness',
+          },
+          {
+            criterion:
+              'When the grid mount operation reports failure or does not produce the frame grid, the source narration remains visible with `Projection unavailable` and Next; advancing writes no state, and no fabricated rows or rendered-projection claim appears.',
+            check: 'harness',
+          },
+          {
+            criterion:
+              "The final avoid state exits only through the product's declared post-onboarding transition; it must not re-run `confirm_plan` or mark completion a second time.",
+            check: 'harness',
           },
         ],
         enforcedBy: ['render-link-integrity-check', 'audio-ownership-check', 'eval:edge-walk'],

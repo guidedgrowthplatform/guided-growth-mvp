@@ -838,9 +838,9 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
               label="Enforcement"
               value={<EnforcementChips ids={beatEnforcementIds(entry)} />}
             />
-            {!entry.expectedResponse && !entry.allowedTools && !beatEnforcementIds(entry).length && (
-              <NoneMarker />
-            )}
+            {!entry.expectedResponse &&
+              !entry.allowedTools &&
+              !beatEnforcementIds(entry).length && <NoneMarker />}
           </div>
         </ContextSection>
 
@@ -856,11 +856,18 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
               ...(entry.elements?.length
                 ? [{ label: 'Named elements', value: entry.elements.join(', ') }]
                 : []),
-              ...(entry.spokenContent ? [{ label: 'Spoken content', value: entry.spokenContent }] : []),
+              ...(entry.spokenContent
+                ? [{ label: 'Spoken content', value: entry.spokenContent }]
+                : []),
               ...(entry.variable ? [{ label: 'Variable copy', value: 'yes' }] : []),
               ...(entry.openerMode ? [{ label: 'Opener mode', value: entry.openerMode }] : []),
               ...(entry.openerShowsAsBubble !== undefined
-                ? [{ label: 'Opener shows as bubble', value: entry.openerShowsAsBubble ? 'yes' : 'no' }]
+                ? [
+                    {
+                      label: 'Opener shows as bubble',
+                      value: entry.openerShowsAsBubble ? 'yes' : 'no',
+                    },
+                  ]
                 : []),
             ]}
           />
@@ -1220,8 +1227,48 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
           {entry.bible?.acceptance ? (
             <>
               <ContextTable
-                columns={['criterion', 'check']}
-                rows={entry.bible.acceptance.rows.map((row) => [row.criterion, row.check])}
+                columns={['criterion', 'method']}
+                rows={entry.bible.acceptance.rows.map((row) => [
+                  row.criterion,
+                  <div
+                    key={`${row.criterion}-${row.check}`}
+                    style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}
+                  >
+                    <span
+                      style={{
+                        border: '1px solid #cbd5e1',
+                        borderRadius: 999,
+                        color: '#475569',
+                        fontSize: 9,
+                        fontWeight: 800,
+                        letterSpacing: '0.03em',
+                        padding: '2px 5px',
+                        textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {row.check}
+                    </span>
+                    {row.pendingBackendWiring && (
+                      <span
+                        style={{
+                          background: '#fef3c7',
+                          border: '1px solid #f59e0b',
+                          borderRadius: 999,
+                          color: '#92400e',
+                          fontSize: 9,
+                          fontWeight: 800,
+                          letterSpacing: '0.03em',
+                          padding: '2px 5px',
+                          textTransform: 'uppercase',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        PENDING-BACKEND-WIRING
+                      </span>
+                    )}
+                  </div>,
+                ])}
               />
               <div style={{ marginTop: 8 }}>
                 <ContextRows

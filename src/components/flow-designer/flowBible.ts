@@ -120,7 +120,8 @@ export interface BibleEdge {
 
 export interface BibleAcceptance {
   readonly criterion: string;
-  readonly check: string;
+  readonly check: 'harness' | 'manual' | 'db-probe';
+  readonly pendingBackendWiring?: boolean;
 }
 
 export interface BibleDecision {
