@@ -1,8 +1,10 @@
 # FULL GLOBAL RULES — onboarding render proposal
 
-**Status:** reviewed policy proposal, **not authoritative runtime policy, not configuration, and not activation-ready**. No import, loader, parser, build step, or runtime consumer of `GLOBAL-RULES-FULL.md` was found under the render, ground, or spec trees. Runtime authority remains the product sources until this proposal is approved, implemented there, and its behavioral gates pass. This worktree has no `.git` metadata, so this document makes no claim about prior or concurrent source edits.
+**Status:** reviewed policy proposal, **not authoritative runtime policy, not configuration, and not activation-ready**. No import, loader, parser, build step, or runtime consumer of `GLOBAL-RULES-FULL.md` was found under the render, ground, or spec trees. Runtime authority remains the product sources until this proposal is approved, implemented there, and its behavioral gates pass. This worktree has no `.git` metadata, so this document makes no claim about prior or concurrent source edits. The request explicitly forbids product-source edits at this stage; therefore runtime adoption is intentionally unimplemented here, not implied by this document.
 
 **Policy boundary:** section 1 is quarantined historical evidence. Only section 4 is proposed policy. A future implementation must copy approved section-4 semantics into a typed product source; it must not parse this Markdown. Unknown entries, duplicate IDs, missing slot rows, or mixed historical/current content are authoring errors that block activation rather than being ignored.
+
+**Effective-policy rule:** every substantive rule below is documentation-only today, regardless of its `enforcedBy` label. `REAL` and `PARTIAL` describe existing adjacent controls only; they do not activate this proposal or prove end-to-end behavior. Until activation step 7 passes, consumers must use current product sources and must not represent the proposed set as enforced.
 
 **Ground truth used:** old rich `flowBible.ts` and its `GLOBAL_CONTEXT`; locked reactive-copy decisions dated 2026-07-10; the 45-decision authoring plan dated 2026-07-16/17; and `ENFORCEMENT-AUDIT.md` dated 2026-07-17.
 
@@ -18,18 +20,19 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
 
 ## Superseding decisions applied
 
-| Decision | Required global-layer consequence |
-|---|---|
+| Decision                       | Required global-layer consequence                                                                                                                                                                                                                                                                         |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | #31 voice-first + #39 greeting | Default onboarding lane is Soniox input + MP3 output. The single Cartesia exception is the profile greeting, `Awesome {name}, two quick things so I can tailor this to you.` because `{name}` is runtime-substituted. The old `Good to meet you` line and every generative Cartesia reaction are retired. |
-| #34 invisible cap | Advanced 50-habit safety cap exists but is never mentioned by UI or coach. |
-| #35 no skip | No reactive line, max-turn branch, redirect, or nudge may offer or execute a skip path; every live `edge: 'skip / decline'` row must be removed or converted to a non-advancing nudge. |
-| #37 Other → female | Persist `Other`, then route it to the female path only; this supersedes the old “Other → default/non-women” enum/contract. |
-| B47 Contract B | Profile, fork, category, and goals self-advance through their submit tool; multi-item screens retain explicit done. No redundant `confirm_step_complete`. |
-| #45 referralSource | `referralSource` is not required at the profile gate or in its contract. |
+| #34 invisible cap              | Advanced 50-habit safety cap exists but is never mentioned by UI or coach.                                                                                                                                                                                                                                |
+| #35 no skip                    | No reactive line, max-turn branch, redirect, or nudge may offer or execute a skip path; every live `edge: 'skip / decline'` row must be removed or converted to a non-advancing nudge.                                                                                                                    |
+| #37 Other → female             | Persist `Other`, then route it to the female path only; this supersedes the old “Other → default/non-women” enum/contract.                                                                                                                                                                                |
+| B47 Contract B                 | Profile, fork, category, and goals self-advance through their submit tool; multi-item screens retain explicit done. No redundant `confirm_step_complete`.                                                                                                                                                 |
+| #45 referralSource             | `referralSource` is not required at the profile gate or in its contract.                                                                                                                                                                                                                                  |
 
 **Inventory reading rule:** JSON/text blocks in section 1 preserve the old source's field values and prose, but their Markdown/JSON serialization is normalized and is therefore **source-derived evidence, not a byte-for-byte source-file transcription**. Stale claims such as `recorded`, `built`, and old gender routing are historical evidence, not current assertions. The verdict after each entry controls.
 
 <a id="old-rich-inventory"></a>
+
 ## 1. Complete old/rich inventory with verdicts
 
 ### 1. Improvisation law
@@ -39,10 +42,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "default": "OFF",
   "law": "Improvisation is OFF for onboarding (Yair 2026-07-09, LOCKED). The LLM never improvises: every spoken or shown coach line is a scripted verbatim line. No per-beat improvise windows exist and none may be authored. Not improvisation: the one live {name} line (live TTS of a scripted shape, governed by the voice/audio-ownership rule) and custom-entry fallbacks (the pre-authored generic line, copy-flow rule 14). The one real runtime case, user goes off topic, is handled by the GLOBAL off-topic rule (glob-out-of-scope), not a window.",
   "windows": [],
-  "enforcedBy": [
-    "eval:verbatim-opener",
-    "eval:one-line-then-wait"
-  ]
+  "enforcedBy": ["eval:verbatim-opener", "eval:one-line-then-wait"]
 }
 ```
 
@@ -54,7 +54,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
 
 **New:**
 
-> Improvisation is OFF. Every coach line is locked script or one of the eight locked reactive rotations. The sole live-TTS/Cartesia exception must be named by exact screen and line before activation; this document does not assume it is the name greeting. A pending or assetless family is not described as recorded.
+> Improvisation is OFF. Every coach line is locked script or one of the eight locked reactive rotations. The sole live-TTS/Cartesia exception is the profile greeting `Awesome {name}, two quick things so I can tailor this to you.` A pending or assetless family is not described as recorded.
 
 ### 2. Global-rule precedence contract
 
@@ -73,9 +73,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-crisis",
   "rule": "Heavy-topic and crisis handling per GLOBAL_CONTEXT overrides everything; the coach stops the flow-task and follows the safety boundary",
   "severity": "must",
-  "enforcedBy": [
-    "eval:parity-walk"
-  ],
+  "enforcedBy": ["eval:parity-walk"],
   "effect": {
     "kind": "constraint"
   }
@@ -91,15 +89,11 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-invalid-value",
   "rule": "Nonsense or invalid values: one light redirect, never argue, never store the invalid value, re-ask the beat own question plainly once",
   "severity": "must",
-  "enforcedBy": [
-    "eval:invalid-value-redirect"
-  ],
+  "enforcedBy": ["eval:invalid-value-redirect"],
   "effect": {
     "kind": "constraint"
   },
-  "inputExamples": [
-    "my gender is yellow"
-  ]
+  "inputExamples": ["my gender is yellow"]
 }
 ```
 
@@ -112,16 +106,12 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-out-of-scope",
   "rule": "Off-topic input or world questions: acknowledge briefly, steer back with the beat own question, do not chase the tangent, do not advance (Yair 2026-07-09, LOCKED). Applies at every beat where the user speaks; never answers out-of-scope content during onboarding",
   "severity": "must",
-  "enforcedBy": [
-    "eval:out-of-scope-decline"
-  ],
+  "enforcedBy": ["eval:out-of-scope-decline"],
   "effect": {
     "kind": "response",
     "responseId": "glob-out-of-scope"
   },
-  "inputExamples": [
-    "who won the game yesterday"
-  ]
+  "inputExamples": ["who won the game yesterday"]
 }
 ```
 
@@ -134,9 +124,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-no-machinery",
   "rule": "Never says beat, step, screen, page, card, tool, or system",
   "severity": "must",
-  "enforcedBy": [
-    "eval:no-machinery-words"
-  ],
+  "enforcedBy": ["eval:no-machinery-words"],
   "effect": {
     "kind": "constraint"
   }
@@ -152,9 +140,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-carry-forward",
   "rule": "Never re-asks a value already captured; downstream beats read it from flow state",
   "severity": "must",
-  "enforcedBy": [
-    "eval:carry-forward"
-  ],
+  "enforcedBy": ["eval:carry-forward"],
   "effect": {
     "kind": "constraint"
   }
@@ -170,9 +156,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-privacy-readback",
   "rule": "Never reads the user email, account, or stored values back unprompted",
   "severity": "must",
-  "enforcedBy": [
-    "eval:parity-walk"
-  ],
+  "enforcedBy": ["eval:parity-walk"],
   "effect": {
     "kind": "constraint"
   }
@@ -188,9 +172,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-no-preselection",
   "rule": "Every picker renders with NOTHING selected on entry; a preselected option is a render bug, not a default",
   "severity": "must",
-  "enforcedBy": [
-    "component-registry-check"
-  ],
+  "enforcedBy": ["component-registry-check"],
   "status": "app-reconcile-pending",
   "effect": {
     "kind": "constraint"
@@ -207,9 +189,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-silent-after-pick",
   "rule": "After a pick is made the coach is silent except tool calls and the next scripted moment. No praise, no commentary, no response to the pick. (Resolves the keep-the-response-specific-to-their-pick contradiction: that prose applied to the pre-pick brainstorm window and is retired.)",
   "severity": "must",
-  "enforcedBy": [
-    "eval:silent-after-pick"
-  ],
+  "enforcedBy": ["eval:silent-after-pick"],
   "effect": {
     "kind": "constraint"
   }
@@ -225,9 +205,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-ack-where-declared",
   "rule": "Exception to silent-after-pick: beats whose bible declares an ack contract (habit picks per Yair 2026-07-09) speak the recorded acknowledgment line per picked item, verbatim, then return to silence",
   "severity": "must",
-  "enforcedBy": [
-    "eval:ack-each-habit"
-  ],
+  "enforcedBy": ["eval:ack-each-habit"],
   "status": "needs-yair",
   "effect": {
     "kind": "constraint"
@@ -244,9 +222,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-reask",
   "rule": "Unclear or unparseable input at any beat (a value not understood, an invalid age, an unclear answer): one warm re-ask of the beat own question, then wait; never store a value that was not understood",
   "severity": "must",
-  "enforcedBy": [
-    "audio-ownership-check"
-  ],
+  "enforcedBy": ["audio-ownership-check"],
   "effect": {
     "kind": "response",
     "responseId": "glob-reask"
@@ -263,9 +239,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-empty-state",
   "rule": "When a picker or capture surface has nothing entered yet: one light nudge to what to do next, then wait; never advance on an empty surface",
   "severity": "must",
-  "enforcedBy": [
-    "audio-ownership-check"
-  ],
+  "enforcedBy": ["audio-ownership-check"],
   "effect": {
     "kind": "response",
     "responseId": "glob-empty-state"
@@ -282,9 +256,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-narrow",
   "rule": "When the user names too many items at a category or goals beat: one line asking them to pick the one that matters most right now, then wait",
   "severity": "must",
-  "enforcedBy": [
-    "audio-ownership-check"
-  ],
+  "enforcedBy": ["audio-ownership-check"],
   "effect": {
     "kind": "response",
     "responseId": "glob-narrow"
@@ -301,9 +273,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-create-own",
   "rule": "When the user wants something that is not on the shown list: one line inviting them to add their own, then capture it",
   "severity": "must",
-  "enforcedBy": [
-    "audio-ownership-check"
-  ],
+  "enforcedBy": ["audio-ownership-check"],
   "effect": {
     "kind": "response",
     "responseId": "glob-create-own"
@@ -320,9 +290,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-nudge-tap",
   "rule": "When the user is stuck, skipping, or has reached the turn cap: one line pointing to the tap path, then wait; also covers the max-turns case",
   "severity": "must",
-  "enforcedBy": [
-    "audio-ownership-check"
-  ],
+  "enforcedBy": ["audio-ownership-check"],
   "effect": {
     "kind": "response",
     "responseId": "glob-nudge-tap"
@@ -347,9 +315,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "id": "glob-gender",
   "rule": "At the profile beat, the second ask after age: one gender follow-up, asked once; never re-ask a value already given",
   "severity": "must",
-  "enforcedBy": [
-    "audio-ownership-check"
-  ],
+  "enforcedBy": ["audio-ownership-check"],
   "effect": {
     "kind": "response",
     "responseId": "glob-gender"
@@ -383,11 +349,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
     "narrate technical detail (endpoint, error, tool name) in any modality",
     "fail silently with no user signal after the retry (closes the pass-1 edges gap)"
   ],
-  "enforcedBy": [
-    "eval:edge-walk",
-    "tool-contract-check",
-    "audio-ownership-check"
-  ],
+  "enforcedBy": ["eval:edge-walk", "tool-contract-check", "audio-ownership-check"],
   "status": "verified"
 }
 ```
@@ -431,9 +393,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   ],
   "familyNaming": "onboard_<type>_<beat-or-global>_<n> (lowercase letters, digits, underscores only); reactive-toolkit families are onboard_<slot> with clips onboard_<slot>_<n>.wav",
   "liveException": "The name-greeting {name} slot is the ONLY line that may go live. Everything else resolves to a clip or is text-only.",
-  "enforcedBy": [
-    "audio-ownership-check"
-  ],
+  "enforcedBy": ["audio-ownership-check"],
   "status": "verified"
 }
 ```
@@ -668,10 +628,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
   "forbidden": "Re-fetching a just-submitted value from the database/profile inside the same flow. The DB is the record, not the courier. (Rule from Yonas; concrete example referenced in the io blocks.)",
   "coldResume": "Server read-back happens ONLY on cold resume/refresh hydration: the resume key (persistence section) proves position, the saved state rehydrates the flow-state manager once, then the in-memory rule applies again.",
   "reference": "Concrete in-repo precedent (Yonas, feat/context-bundle-and-optimistic-session-log, merge 196e99ed): the optimistic write-ahead session_log store. logEvent writes src/stores/sessionLogStore.ts FIRST and getScreenContext reads the store (no /api/context/state round-trip); useLLM.ts forwards recent_events from the store so the backend uses the optimistic delta instead of querying session_log; server read-back only on SIGNED_IN/INITIAL_SESSION cold-resume hydration. Per-beat contract: beatsSource.ts BeatIO (dataIn key+from, dataOut key+persistsTo).",
-  "enforcedBy": [
-    "persistence-contract-check",
-    "eval:carry-forward"
-  ],
+  "enforcedBy": ["persistence-contract-check", "eval:carry-forward"],
   "status": "verified"
 }
 ```
@@ -1588,11 +1545,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
 
 ```json
 {
-  "values": [
-    "Female",
-    "Male",
-    "Other"
-  ],
+  "values": ["Female", "Male", "Other"],
   "womenArtSelector": "gender === 'Female' is the ONLY selector for the women's art variant. Male AND Other get the default art. No alternating, no index tricks.",
   "status": "verified",
   "note": "DECIDED (Yair 2026-07-09): profile capture stores Male / Female / Other; 'Other' never propagates past capture. Every downstream surface (art, variants, coach) sees Male/Female only, with Other treated as default/non-women. Decisions-doc language (non-binary/undisclosed) maps onto Other at capture."
@@ -2035,55 +1988,66 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
 **Old:**
 
 > You are the user's coach inside Guided Growth, running the onboarding conversation. It is one continuous chat: you speak, and interactive cards appear as you go. Your job is to get the user set up while making them feel met, not processed.
-> 
+>
 > ## The conversation
+>
 > - It moves in beats. Each beat hands you one thing to collect and how to behave for that moment. Do that one thing. Never do a later beat's work, never skip ahead.
 > - The moment the current beat's data is captured, move on. Don't ask "ready?" or "shall we continue?" first.
 > - Carry everything forward. Never re-ask something the user already gave. If they change an earlier answer, accept the correction and keep going.
 > - If the user answers more than this beat asked ("I'm 34 and I want to sleep better"), take what belongs to this beat now and hold the rest for the beat it belongs to. Don't act on it early.
 > - Never say the words beat, step, screen, page, card, tool, or system out loud. The user never hears the machinery.
-> 
+>
 > ## Paths (you are told which is active, match it)
+>
 > - Path 1, full voice: the user talks, you talk back. Short lines, natural for speech.
 > - Path 2, half voice: you speak, the user types or taps. Speak your line, read their answer.
 > - Path 3, text only: no voice. Short chat lines, the user types or taps.
-> 
+>
 > ## How you talk
+>
 > - Short lines, like a person. One line per beat unless you genuinely need to clarify.
 > - React to the exact thing they said. No speeches, no lists, no generic praise like "great choice" or "amazing."
 > - Never tell the user to tap, click, scroll, swipe, or press. If a card is there, they can see it. You keep it moving by talking.
 > - The opener you are given is a fixed line, and it may be pre-recorded, so it won't contain the user's name. Use their name in your own lines, never assume it's in the opener.
 > - Warm, direct, a little excited for them. Never make a new user feel behind, never make an experienced one feel tested.
 > - Match the user's language. If they speak Hebrew or Spanish, continue in it, and switch whenever they do.
-> 
+>
 > ## Reading answers
+>
 > - Each beat gives you the answers it expects and the words people use for them. Map what you hear to one of those, even when it is slang or sloppy. Never invent a value the beat did not list.
 > - If an answer is unclear or missing, ask one short question to pin it down, then move on. Don't stall, and don't loop the same question more than twice.
-> 
+>
 > ## Speak mode
+>
 > Each beat may carry a SPEAK MODE line. It tells you how much is scripted.
+>
 > - VERBATIM_OPENER: the opener is your one scripted line. Say it as written, then stop and wait. Don't add to it.
 > - SILENT_OPTIONS: the beat shows a list of choices on the screen. That list is reference for you to match what the user says to the exact label. It is never something you read out loud.
 > - GENERATIVE: no script. Phrase it yourself, within the beat's rules.
-> A beat can combine them (VERBATIM_OPENER + SILENT_OPTIONS). If a beat has no speak mode line, it's generative.
-> 
+>   A beat can combine them (VERBATIM_OPENER + SILENT_OPTIONS). If a beat has no speak mode line, it's generative.
+>
 > ## Component sync
+>
 > When a beat puts choices on the screen (categories, the things inside a category, habits, reflection styles), the screen shows them. You're not a second screen.
+>
 > - Don't read the list out loud, not in full, not a few of them, not even one as an example. Your opener already asks the question.
 > - Ask one short question that points at the choice ("What pulls you?", "Which one fits?"), then stop and wait.
 > - The option lists in your context are there only so you can match what the user says to the exact label. They're reference, not a script.
 > - If nothing has appeared for the user yet, don't fill the silence by naming the options. Ask one neutral question like "Is anything coming up for you to pick from?" If they say no, that's a display problem, not a cue to recite the list.
-> 
+>
 > ## Tools (how you save)
+>
 > - Each beat tells you which tool to call and when. Call it only once that beat's data is actually captured, then move on.
 > - Only call a tool the current beat allows. If you are reaching for any other tool, you are getting ahead. Stop and stay on this beat.
 > - Pass the canonical values the beat defines, not the user's raw words.
 > - Never tell the user you are saving, loading, or calling anything. It just happens.
-> 
+>
 > ## If something heavy comes up
+>
 > - The user may share something hard. If they do, drop the setup. Be human first, name it plainly, and don't rush them back. Return to setup only when it feels right.
-> 
+>
 > ## Privacy
+>
 > - The user is about to share real, sometimes vulnerable things. Protect that. Don't read their email or account details back to them. Don't narrate what the system is doing.
 
 **New:**
@@ -2093,6 +2057,7 @@ Use the old rich source as the **extraction checklist**, not as a blob to restor
 **Inventory total: 132.**
 
 <a id="traceability"></a>
+
 ## 2. Traceability of all 132 entries
 
 This table is the auditable migration map. Every inventory number appears exactly once, with the same verdict as section 1 and one destination:
@@ -2103,54 +2068,56 @@ This table is the auditable migration map. Every inventory number appears exactl
 
 Ranges are notation only: the checker expands them to individual entries and rejects omissions, duplicates, or verdict mismatches. No entry is silently compressed away.
 
-| Inventory | Verdict | Destination |
-|---:|---|---|
-| 1 | KEEP-AMENDED | Runtime: GR-02 and `VOICE_OWNERSHIP`; exact Cartesia exception fixed by #39 to `Awesome {name}, two quick things so I can tailor this to you.` |
-| 2 | KEEP | Runtime: GR-01 precedence. |
-| 3–10 | KEEP | Runtime: GR-03, GR-06 through GR-10, and GR-22. |
-| 11 | RETIRE | Removed: unapproved habit acknowledgment exception; GR-10 remains the controlling rule. |
-| 12–15 | KEEP | Runtime: GR-13 through GR-16. |
-| 16–17 | KEEP-AMENDED | Runtime: GR-17 and GR-18; nudge cannot skip, and `Other` routes female. |
-| 18 | KEEP | Runtime: `TOOL_FAILURE` and GR-12/GR-26. |
-| 19–20 | KEEP-AMENDED | Runtime: `CONVERSATION_MODEL`, `VOICE_OWNERSHIP`, GR-02, GR-20, and GR-25. |
-| 21–36 | KEEP-AMENDED | Runtime: exactly eight response rows plus eight owner rows; recording status remains pending until verified. |
-| 37 | KEEP | Runtime: `DATA_PASSING`, GR-07, GR-22, and GR-26. |
-| 38 | KEEP-AMENDED | Runtime: `COACH_TOOL_BOUNDARY`, GR-21, and GR-26 under Contract B. |
-| 39–56 | KEEP | Adjacent: consumer/completeness audit ledger; not duplicated as runtime rules. |
-| 57 | KEEP-AMENDED | Adjacent activation evidence: routing/release proof must include #35, #37, #45, and B47. |
-| 58–61 | KEEP | Adjacent: execution/copy/reflection completeness evidence. |
-| 62 | KEEP-AMENDED | Adjacent: gender completeness must encode Female/Male/Other capture and Other-to-female routing. |
-| 63 | KEEP | Adjacent: stale narration-clip audit. |
-| 64 | KEEP-AMENDED | Adjacent: screen-ID proof remains required but is not currently implemented by the named enforcer. |
-| 65 | KEEP | Adjacent: provenance evidence. |
-| 66–98 | KEEP-AMENDED | Adjacent enforcer catalog; statuses are downgraded to the findings in `ENFORCEMENT-AUDIT.md`. |
-| 99–101 | KEEP | Adjacent: retired-name mappings remain historical compatibility evidence only. |
-| 102 | KEEP-AMENDED | Adjacent canonical enum: capture Other, route it to female, never expose old non-women routing. |
-| 103 | KEEP | Adjacent canonical category enum. |
-| 104 | KEEP-AMENDED | Adjacent data contract: remove required `referralSource`; apply Contract B and #37. |
-| 105–131 | KEEP | Adjacent resolved-data and migration contracts; implementation evidence, not global behavior. |
-| 132 | KEEP-AMENDED | Runtime-derived context: generated from canonical rules/contracts; never an independent authority. |
+| Inventory | Verdict      | Destination                                                                                                                                    |
+| --------: | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+|         1 | KEEP-AMENDED | Runtime: GR-02 and `VOICE_OWNERSHIP`; exact Cartesia exception fixed by #39 to `Awesome {name}, two quick things so I can tailor this to you.` |
+|         2 | KEEP         | Runtime: GR-01 precedence.                                                                                                                     |
+|      3–10 | KEEP         | Runtime: GR-03, GR-06 through GR-10, and GR-22.                                                                                                |
+|        11 | RETIRE       | Removed: unapproved habit acknowledgment exception; GR-10 remains the controlling rule.                                                        |
+|     12–15 | KEEP         | Runtime: GR-13 through GR-16.                                                                                                                  |
+|     16–17 | KEEP-AMENDED | Runtime: GR-17 and GR-18; nudge cannot skip, and `Other` routes female.                                                                        |
+|        18 | KEEP         | Runtime: `TOOL_FAILURE` and GR-12/GR-26.                                                                                                       |
+|     19–20 | KEEP-AMENDED | Runtime: `CONVERSATION_MODEL`, `VOICE_OWNERSHIP`, GR-02, GR-20, and GR-25.                                                                     |
+|     21–36 | KEEP-AMENDED | Runtime: exactly eight response rows plus eight owner rows; recording status remains pending until verified.                                   |
+|        37 | KEEP         | Runtime: `DATA_PASSING`, GR-07, GR-22, and GR-26.                                                                                              |
+|        38 | KEEP-AMENDED | Runtime: `COACH_TOOL_BOUNDARY`, GR-21, and GR-26 under Contract B.                                                                             |
+|     39–56 | KEEP         | Adjacent: consumer/completeness audit ledger; not duplicated as runtime rules.                                                                 |
+|        57 | KEEP-AMENDED | Adjacent: activation evidence for routing/release must include #35, #37, #45, and B47.                                                         |
+|     58–61 | KEEP         | Adjacent: execution/copy/reflection completeness evidence.                                                                                     |
+|        62 | KEEP-AMENDED | Adjacent: gender completeness must encode Female/Male/Other capture and Other-to-female routing.                                               |
+|        63 | KEEP         | Adjacent: stale narration-clip audit.                                                                                                          |
+|        64 | KEEP-AMENDED | Adjacent: screen-ID proof remains required but is not currently implemented by the named enforcer.                                             |
+|        65 | KEEP         | Adjacent: provenance evidence.                                                                                                                 |
+|     66–98 | KEEP-AMENDED | Adjacent: enforcer catalog; statuses are downgraded to the findings in `ENFORCEMENT-AUDIT.md`.                                                 |
+|    99–101 | KEEP         | Adjacent: retired-name mappings remain historical compatibility evidence only.                                                                 |
+|       102 | KEEP-AMENDED | Adjacent: canonical enum captures Other, routes it to female, and never exposes old non-women routing.                                         |
+|       103 | KEEP         | Adjacent: canonical category enum.                                                                                                             |
+|       104 | KEEP-AMENDED | Adjacent: data contract removes required `referralSource` and applies Contract B and #37.                                                      |
+|   105–131 | KEEP         | Adjacent: resolved-data and migration contracts; implementation evidence, not global behavior.                                                 |
+|       132 | KEEP-AMENDED | Runtime: derived context generated from canonical rules/contracts; never an independent authority.                                             |
 
 <a id="gaps"></a>
+
 ## 3. Gaps and live contradictions
 
 These are release blockers, not merely documentation gaps.
 
-| Gap | Current evidence | Required resolution |
-|---|---|---|
-| No authoritative exported layer | Current `flowBible.ts` is type-only; only `GLOBAL_CONTEXT` is exported from `beatsSource.ts`. | Restore one canonical exported global layer and make the renderer consume it. Do not maintain a second prose copy. |
-| #45 profile gate | `Step1Page.tsx:87` returns without `referralSource`; `Step1Page.tsx:127` disables Continue without it. | Remove `referralSource` from both gates and from the required-profile contract. |
-| B47 Contract B | `systemPromptAddendum.ts:11` still directs `confirm_step_complete`, including after submit tools. | On profile, fork, category, and goals: submit handler self-advances, tool set omits `confirm_step_complete`, prompt/tool description omit the redundant chain, and a trace proves exactly one advance. Multi-item screens keep explicit done. |
-| #35 no skip | Current `beatsSource.ts` has many `edge: 'skip / decline'` rows. | Remove or convert every row to a non-advancing nudge; prove no route advances without required data. |
-| #37 Other routing | Current source says Male and Other use the default category path. | Route Female and Other to the female path; Male to default; update every duplicated source/contract. |
-| #31 voice ownership | `FlowBuilder.tsx` still defines generative `live-reaction`; the locked profile opener contains runtime `{name}` and old profile source says Cartesia speaks it. | Keep Cartesia only for the exact locked profile greeting. Remove all generative/live-reaction claims and use MP3 output elsewhere. |
-| Eight-slot runtime coverage | The lock defines exactly eight slots, but current families are marked `pending recording`, no matching public files were found, and no exported response/ownership registries exist. | Export exactly eight response rows and eight ownership rows; provide the locked variations/assets or explicitly block release as audio-pending; test selection and ownership. |
-| Tap-language contradiction | `GLOBAL_CONTEXT` bans tap/click instructions; locked copy includes a tap nudge and tool-failure toast. | Amend the general ban: only the locked `onboard_nudge` response and tool-failure toast may direct a tap. No other coach narration may do so. |
-| Crisis boundary | Old prose says return when it feels right; current onboarding context lacks a concrete resource, while the product corpus names the US 988 Lifeline. | Separate ordinary heavy disclosure from self-harm/crisis. For US users, stop onboarding, express care, state the coaching limitation, provide call/text 988, and say to call emergency services for immediate danger. Do not auto-resume; expose a neutral `Return to setup` action only on a later turn. Non-US activation is blocked until a locale resource/fallback table is approved. |
-| Habit acknowledgment | Old exception is `needs-yair` and conflicts with post-pick silence. | Retire it from the proposed set. Restore only if Yair explicitly locks the exception and its clip ownership. |
-| Enforcement truth | The audit finds 1 REAL, 6 PARTIAL, and the rest NOT-IMPLEMENTED; some old rows were not audited. | Use only `REAL`, `PARTIAL`, `NOT-IMPLEMENTED`, or `NOT-AUDITED`. An existing ID never implies enforcement. |
+| Gap                             | Current evidence                                                                                                                                                                     | Required resolution                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| No authoritative exported layer | Current `flowBible.ts` is type-only; only `GLOBAL_CONTEXT` is exported from `beatsSource.ts`.                                                                                        | Restore one canonical exported global layer and make the renderer consume it. Do not maintain a second prose copy.                                                                                                                                                                                                                                                                         |
+| #45 profile gate                | `Step1Page.tsx:87` returns without `referralSource`; `Step1Page.tsx:127` disables Continue without it.                                                                               | Remove `referralSource` from both gates and from the required-profile contract.                                                                                                                                                                                                                                                                                                            |
+| B47 Contract B                  | `systemPromptAddendum.ts:11` still directs `confirm_step_complete`, including after submit tools.                                                                                    | On profile, fork, category, and goals: submit handler self-advances, tool set omits `confirm_step_complete`, prompt/tool description omit the redundant chain, and a trace proves exactly one advance. Multi-item screens keep explicit done.                                                                                                                                              |
+| #35 no skip                     | Current `beatsSource.ts` has many `edge: 'skip / decline'` rows.                                                                                                                     | Remove or convert every row to a non-advancing nudge; prove no route advances without required data.                                                                                                                                                                                                                                                                                       |
+| #37 Other routing               | Current source says Male and Other use the default category path.                                                                                                                    | Route Female and Other to the female path; Male to default; update every duplicated source/contract.                                                                                                                                                                                                                                                                                       |
+| #31 voice ownership             | `FlowBuilder.tsx` still defines generative `live-reaction`; the locked profile opener contains runtime `{name}` and old profile source says Cartesia speaks it.                      | Keep Cartesia only for the exact locked profile greeting. Remove all generative/live-reaction claims and use MP3 output elsewhere.                                                                                                                                                                                                                                                         |
+| Eight-slot runtime coverage     | The lock defines exactly eight slots, but current families are marked `pending recording`, no matching public files were found, and no exported response/ownership registries exist. | Export exactly eight response rows and eight ownership rows; provide the locked variations/assets or explicitly block release as audio-pending; test selection and ownership.                                                                                                                                                                                                              |
+| Tap-language contradiction      | `GLOBAL_CONTEXT` bans tap/click instructions; locked copy includes a tap nudge and tool-failure toast.                                                                               | Amend the general ban: only the locked `onboard_nudge` response and tool-failure toast may direct a tap. No other coach narration may do so.                                                                                                                                                                                                                                               |
+| Crisis boundary                 | Old prose says return when it feels right; current onboarding context lacks a concrete resource, while the product corpus names the US 988 Lifeline.                                 | Separate ordinary heavy disclosure from self-harm/crisis. For US users, stop onboarding, express care, state the coaching limitation, provide call/text 988, and say to call emergency services for immediate danger. Do not auto-resume; expose a neutral `Return to setup` action only on a later turn. Non-US activation is blocked until a locale resource/fallback table is approved. |
+| Habit acknowledgment            | Old exception is `needs-yair` and conflicts with post-pick silence.                                                                                                                  | Retire it from the proposed set. Restore only if Yair explicitly locks the exception and its clip ownership.                                                                                                                                                                                                                                                                               |
+| Enforcement truth               | The audit finds 1 REAL, 6 PARTIAL, and the rest NOT-IMPLEMENTED; some old rows were not audited.                                                                                     | Use only `REAL`, `PARTIAL`, `NOT-IMPLEMENTED`, or `NOT-AUDITED`. An existing ID never implies enforcement.                                                                                                                                                                                                                                                                                 |
 
 <a id="proposed-global-set"></a>
+
 ## 4. Proposed full global set
 
 This is the smallest complete behavioral layer. It does **not** include file maps, migration specs, completeness ledgers, canonical enums, or the enforcer catalog; those remain adjacent sources referenced by the layer.
@@ -2267,7 +2234,7 @@ After a pick, emit no praise or commentary; perform required tool work and wait 
 
 ### GR-19 — MUST — Eight-slot closure
 
-The reactive toolkit contains exactly these eight slots because the 2026-07-10 copy decision closes the v1 set: off-topic, tool-failure voice, re-ask, empty, narrow, create-own, nudge, and gender. Tool failure is slot 2, not a ninth family. Per-beat reactive variants and a separate max-turn family are retired. Select randomly from the approved variations within the matched slot. A new slot or a cross-slot trigger requires a new copy decision; it is not folded into an unrelated slot. If a spoken slot has no verified playable variation, voice release is blocked and the coach must not synthesize replacement copy.
+The reactive toolkit contains exactly these eight slots because the 2026-07-10 copy decision closes the v1 taxonomy: off-topic, tool-failure voice, re-ask, empty, narrow, create-own, nudge, and gender. This is not a generic capacity limit. Tool failure is slot 2, not a ninth family. Per-beat reactive variants and a separate max-turn family are retired. Select randomly from the approved variations within the matched slot. A new slot or a cross-slot trigger requires a new copy decision; it is not folded into an unrelated slot or silently dropped. If a spoken slot has no verified playable variation, voice release is blocked and the coach must not synthesize replacement copy.
 
 **enforcedBy:** `decisions-coverage-check` — **NOT-IMPLEMENTED**; `audio-ownership-check` — **PARTIAL**.
 
@@ -2303,7 +2270,7 @@ Completion requires the persisted v1 data named by decision #42, then lands on H
 
 ### GR-25 — SHOULD — Short, human, language-matched turns
 
-Use warm, direct, one-line turns where the locked copy allows variation; match the user's active language without changing canonical stored values.
+Use the approved warm, direct, one-line copy; select only approved rotations. Match the user's active language only when an approved localized line exists, without changing canonical stored values.
 
 **enforcedBy:** `eval:one-line-then-wait` — **NOT-IMPLEMENTED**; `eval:warm-opener` — **NOT-IMPLEMENTED**.
 
@@ -2315,82 +2282,156 @@ Use only the active screen's allowed tools, pass canonical values rather than ra
 
 **Proposed behavioral-rule count: 26.**
 
+### Proposed-rule provenance
+
+This inverse map prevents the 132-to-26 reduction from becoming one-way archival traceability. Every proposed rule appears exactly once and names the old inventory and/or locked decision that authorizes it. “Gap” means the rule is newly required by a locked decision rather than copied from an old global rule.
+
+| Rule  | Authoritative provenance                                                      |
+| ----- | ----------------------------------------------------------------------------- |
+| GR-01 | Inventory 2.                                                                  |
+| GR-02 | Inventory 1, 19–20, 132; decisions #31 and #39.                               |
+| GR-03 | Inventory 3 and 132; canonical crisis resource remains an activation blocker. |
+| GR-04 | Inventory 19, 38, and 132.                                                    |
+| GR-05 | Gap from decision #35; supersedes every old/current skip path.                |
+| GR-06 | Inventory 4 and 12.                                                           |
+| GR-07 | Inventory 7, 23, 31, 37, and 132.                                             |
+| GR-08 | Inventory 6, 8, and 132.                                                      |
+| GR-09 | Inventory 9, 13, 24, 32, and 132.                                             |
+| GR-10 | Inventory 10; inventory 11 is explicitly retired.                             |
+| GR-11 | Inventory 5, 21, and 29; locked slot `onboard_offtopic`.                      |
+| GR-12 | Inventory 18, 22, and 30; locked slot `onboard_toolfail_voice`.               |
+| GR-13 | Inventory 12, 23, and 31; locked slot `onboard_reask`.                        |
+| GR-14 | Inventory 13, 24, and 32; locked slot `onboard_empty`.                        |
+| GR-15 | Inventory 14, 25, and 33; locked slot `onboard_narrow`.                       |
+| GR-16 | Inventory 15, 26, and 34; locked slot `onboard_createown`.                    |
+| GR-17 | Inventory 16, 27, and 35; locked slot `onboard_nudge`; decision #35.          |
+| GR-18 | Inventory 17, 28, and 36; locked slot `onboard_gender`; decision #37.         |
+| GR-19 | Inventory 21–36; the 2026-07-10 eight-slot copy decision.                     |
+| GR-20 | Inventory 20–28; decision #31 and the #39 Cartesia exception.                 |
+| GR-21 | Inventory 38; B47 Contract B.                                                 |
+| GR-22 | Inventory 17, 37, 62, 102–103, 109, and 119–120; decisions #37 and #45.       |
+| GR-23 | Inventory 127–128; decision #34 and the locked beginner two-habit limit.      |
+| GR-24 | Inventory 129–130; decision #42 and the locked change-later screen.           |
+| GR-25 | Inventory 19 and 132, narrowed by the no-improvisation decision.              |
+| GR-26 | Inventory 18, 37–38, and 132; B47 Contract B.                                 |
+
 <a id="supporting-layer"></a>
-## 4. Required supporting layer
+
+## 5. Required supporting layer
 
 Only these existing structures belong beside the 26 rules in the render's global section:
 
 1. `IMPROVISATION` and `GLOBAL_RULES` as the canonical exported behavior source.
 2. Exactly eight `GLOBAL_RESPONSES` rows and eight `GLOBAL_VOICE_OWNERSHIP` rows, one for each locked slot; current asset state must say `pending`, not `recorded`, until files and transcripts are verified.
-3. Existing contracts: `TOOL_FAILURE`, `CONVERSATION_MODEL`, `VOICE_OWNERSHIP`, `DATA_PASSING`, and `COACH_TOOL_BOUNDARY`.
+3. Retain these five contracts beside the rules:
+
+| Contract              | Required responsibility                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------ |
+| `TOOL_FAILURE`        | Retry/failure sequence, voice-versus-tap behavior, failed-write hold, and no false success.      |
+| `CONVERSATION_MODEL`  | Current-beat turn boundaries, locked response model, and no independent generative branch.       |
+| `VOICE_OWNERSHIP`     | One declared output owner per spoken line, with pending assets blocking voice release.           |
+| `DATA_PASSING`        | Canonical persisted values, carry-forward behavior, and no raw-phrase leakage where enums apply. |
+| `COACH_TOOL_BOUNDARY` | Active-screen tool allow-list and Contract-B advancement ownership.                              |
+
 4. `GLOBAL_CONTEXT` must consume or be generated from the canonical rules; it must not independently contradict them.
 5. The enforcer registry, canonical enums, completeness ledger, data contracts, migration specs, and file map remain adjacent audit/reference sections. They are not copied into the runtime global rules layer.
 
 <a id="acceptance"></a>
-## 5. Implementation order and acceptance
 
-Approval is staged; a prose approval alone does not activate the layer. The only runnable check added with this proposal is `node GLOBAL-RULES-FULL.check.mjs`; it validates document structure, source inventory mapping, IDs, slot closure, enforcer vocabulary, and prohibited readiness claims. It does **not** validate runtime behavior. Behavioral gates below are requirements for the later source implementation and must be backed by named tests before activation.
+## 6. Implementation order and acceptance
 
-| Order | Change | Acceptance gate |
-|---:|---|---|
-| 0 | Freeze the approved policy. Habit acknowledgment stays retired unless separately locked. | #39's exact profile greeting is present; no unresolved `needs-yair` rule is in the proposed set. |
-| 1 | Add one canonical exported global source, wire the canonical self-harm/crisis instruction/resource into onboarding, and render the layer. | Render shows all 26 rules, eight responses, eight owners, and five contracts from one source; `GLOBAL_CONTEXT` has no competing rule text; self-harm/crisis input stops onboarding and emits the canonical resource response. |
-| 2 | Fix #45 and #37. | Profile advances with name/nickname + age + gender and no referral; Female and Other take the female path in source and runtime tests. |
-| 3 | Migrate B47. | Prompt, tool description, tool set, and four submit handlers align; traces show exactly one advance and no `confirm_step_complete` on single-choice screens; multi-item done still works. |
-| 4 | Remove skip behavior. | No `edge: 'skip / decline'` remains; edge tests show required data cannot be bypassed. |
-| 5 | Reconcile voice/runtime ownership and #34. | All non-exception Cartesia/live claims are removed; each of eight slots has locked copy, declared ownership, verified assets/transcripts, and runtime selection coverage; advanced-cap prompt/UI copy is silent about the 50-habit limit. |
-| 6 | Add targeted behavioral tests. | Tests cover crisis stop/no same-response resume, no-skip, post-pick silence, failed-write hold, exact eight-slot closure, invisible advanced cap, #45, #37, and B47. |
-| 7 | Activate replacement. | Existing type/build checks pass; `npm run check:links` passes; all gates above pass in the active onboarding lane. |
+Approval is staged; a prose approval alone does not activate the layer. The only runnable check added with this proposal is `node GLOBAL-RULES-FULL.check.mjs`; it validates document structure, source inventory mapping, IDs, slot closure, enforcer vocabulary, and prohibited readiness claims. It does **not** validate runtime behavior. Behavioral gates below are requirements for the later source implementation and must be backed by the named test targets below before activation. They are not currently executable gates, and this document does not claim that they ran.
+
+| Order | Change                                                                                                                                    | Acceptance gate                                                                                                                                                                                                                           |
+| ----: | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|     0 | Freeze the approved policy. Habit acknowledgment stays retired unless separately locked.                                                  | #39's exact profile greeting is present; no unresolved `needs-yair` rule is in the proposed set.                                                                                                                                          |
+|     1 | Add one canonical exported global source, wire the canonical self-harm/crisis instruction/resource into onboarding, and render the layer. | Render shows all 26 rules, eight responses, eight owners, and five contracts from one source; `GLOBAL_CONTEXT` has no competing rule text; self-harm/crisis input stops onboarding and emits the canonical resource response.             |
+|     2 | Fix #45 and #37.                                                                                                                          | Profile advances with name/nickname + age + gender and no referral; Female and Other take the female path in source and runtime tests.                                                                                                    |
+|     3 | Migrate B47.                                                                                                                              | Prompt, tool description, tool set, and four submit handlers align; traces show exactly one advance and no `confirm_step_complete` on single-choice screens; multi-item done still works.                                                 |
+|     4 | Remove skip behavior.                                                                                                                     | No `edge: 'skip / decline'` remains; edge tests show required data cannot be bypassed.                                                                                                                                                    |
+|     5 | Reconcile voice/runtime ownership and #34.                                                                                                | All non-exception Cartesia/live claims are removed; each of eight slots has locked copy, declared ownership, verified assets/transcripts, and runtime selection coverage; advanced-cap prompt/UI copy is silent about the 50-habit limit. |
+|     6 | Add targeted behavioral tests.                                                                                                            | Tests cover crisis stop/no same-response resume, no-skip, post-pick silence, failed-write hold, exact eight-slot closure, invisible advanced cap, #45, #37, and B47.                                                                      |
+|     7 | Activate replacement.                                                                                                                     | Existing type/build checks pass; `npm run check:links` passes; all gates above pass in the active onboarding lane.                                                                                                                        |
 
 Until step 7, label this document **migration proposal**, not **QA-complete global layer**.
 
+### Required behavioral test targets
+
+Use the repository's existing Vitest runner; extend the named files or add the named adjacent test file during implementation. A substitute is acceptable only if it proves the same behavior and is recorded in the activation evidence.
+
+| Obligation         | Required test target                                                             | Required assertion                                                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Crisis stop/resume | `api/_lib/llm/onboarding/__tests__/crisisBoundary.test.ts`                       | Crisis input emits the approved resource response, performs no onboarding write/advance, and cannot resume in the same assistant response.                  |
+| #45 profile gate   | `src/pages/onboarding/shared/Step1Page.test.tsx`                                 | Name/nickname + age + gender can submit with no referral.                                                                                                   |
+| #37 routing        | `api/_lib/llm/onboarding/__tests__/canonicalOptions.test.ts`                     | `Other` persists as `Other` and selects the female route.                                                                                                   |
+| B47 advancement    | `api/_lib/llm/onboarding/__tests__/contractB.test.ts`                            | Profile, fork, category, and goals each advance exactly once through submit and never emit `confirm_step_complete`; multi-item done remains explicit.       |
+| #35 no skip        | `src/components/flow-designer/globalRules.test.ts` plus an onboarding route test | No skip edge remains and missing required data cannot advance.                                                                                              |
+| Eight slots/voice  | `src/components/onboarding/onboardingOpeners.test.ts` plus audio ownership tests | Exactly eight approved families exist; each spoken variation has approved text, one owner, a playable asset where required, and runtime selection coverage. |
+| #34 cap            | Advanced onboarding page test adjacent to the implementing page                  | Item 51 is rejected or held while no coach/UI text discloses the 50-item cap.                                                                               |
+| Tool failure/tap   | `src/lib/onboarding/__tests__/toolEventToVoiceActions.test.ts`                   | Retry order, final voice tap path, text-only toast, failed-write hold, and no false success match GR-12/GR-26.                                              |
+| Post-pick silence  | `src/lib/onboarding/__tests__/onboardingChatSession.test.ts`                     | A pick produces no praise or commentary before the next scripted beat.                                                                                      |
+
+**Change control and rollback:** activation requires one versioned typed source and regenerated consumers from that same version. A policy change re-runs every gate before release. If any gate fails after activation, roll back the typed source and generated artifacts together to the last passing version; do not fall back to this Markdown or to the quarantined historical inventory.
+
 ### Activation blockers and ownership
 
-These are known unresolved implementation obligations, not accepted exceptions. “Owner” is the required owning role; a named person and target change must be assigned before activation.
+These are known unresolved implementation obligations, not accepted exceptions. “Owner” is the accountable role, not an assertion that a person has accepted the work. All are currently **unassigned**; a named person and target change must be recorded before activation. The enforcement date is the first release after the named behavioral test and the full activation gate pass; no calendar date is approved.
 
-| Blocker | Severity | Required owner | Mitigation before activation | Release disposition |
-|---|---|---|---|---|
-| Canonical crisis resource/stop behavior absent from this proposal's runtime evidence | Critical | Safety/product + API/LLM | Wire the approved crisis response and add stop/no-same-response-resume tests. | Block |
-| #45 profile still requires referral in current UI gate | High | App onboarding | Remove the requirement and test completion without referral. | Block |
-| B47 sources/tool loop not proven aligned | High | API/LLM | Align prompt, tool schema, dispatcher, handler, and trace exactly one advance. | Block |
-| #35 skip edges remain in current source | High | Render authoring + app onboarding | Remove/convert all skip edges and add required-data edge tests. | Block |
-| #37 Other routing is stale in duplicated sources | High | Render authoring + app onboarding | Persist Other and route it to the female path in source and runtime tests. | Block |
-| Eight recorded slot families/assets are unverified | High | Audio/copy + app onboarding | Verify transcript, ownership, file, and runtime selection for every approved variation. | Block voice release |
-| #34 invisible advanced cap lacks behavioral proof | Medium | App onboarding | Test the 50-item guard and absence of coach/UI disclosure. | Block |
-| Tap/tool-failure exceptions lack trigger and failure-path tests | Medium | App onboarding + API/LLM | Test voice retry, final tap path, text toast, failed-write hold, and no false success. | Block |
+| Blocker                                             | Severity | Accountable role                               | Current target evidence                                                                                                                     | Required test target                                                             | Release disposition |
+| --------------------------------------------------- | -------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------- |
+| Canonical crisis resource/stop behavior absent      | Critical | Safety/product + API/LLM — unassigned          | No canonical resource/stop proof identified in this proposal.                                                                               | `api/_lib/llm/onboarding/__tests__/crisisBoundary.test.ts`                       | Block               |
+| #45 profile still requires referral                 | High     | App onboarding — unassigned                    | `src/pages/onboarding/shared/Step1Page.tsx:87` and `:127`.                                                                                  | `src/pages/onboarding/shared/Step1Page.test.tsx`                                 | Block               |
+| B47 redundant advancement remains                   | High     | API/LLM — unassigned                           | `api/_lib/llm/onboarding/systemPromptAddendum.ts:11`; existing submit handlers/tests still describe data-only plus `confirm_step_complete`. | `api/_lib/llm/onboarding/__tests__/contractB.test.ts`                            | Block               |
+| #35 skip edges remain                               | High     | Render authoring + app onboarding — unassigned | Current `src/components/flow-designer/beatsSource.ts` contains `edge: 'skip / decline'`.                                                    | `src/components/flow-designer/globalRules.test.ts` plus route test               | Block               |
+| #37 Other routing is stale                          | High     | Render authoring + app onboarding — unassigned | Current source/contract still groups Other with the default path.                                                                           | `api/_lib/llm/onboarding/__tests__/canonicalOptions.test.ts`                     | Block               |
+| Eight slot families/assets are unverified           | High     | Audio/copy + app onboarding — unassigned       | Locked copy exists; transcript, file, and runtime-selection parity are not proven.                                                          | `src/components/onboarding/onboardingOpeners.test.ts` plus audio ownership tests | Block voice release |
+| #34 invisible cap lacks proof                       | Medium   | App onboarding — unassigned                    | No passing behavioral evidence recorded here.                                                                                               | Advanced-page adjacent test                                                      | Block               |
+| Tap/tool-failure exceptions lack failure-path proof | Medium   | App onboarding + API/LLM — unassigned          | Adjacent controls are PARTIAL; end-to-end ordering is unproved.                                                                             | `src/lib/onboarding/__tests__/toolEventToVoiceActions.test.ts`                   | Block               |
 
 ### Evidence commands
 
 Run from `/home/ggvoice/build/gg-render-bugs`:
 
-| Command | What it proves | What it does not prove |
-|---|---|---|
-| `node GLOBAL-RULES-FULL.check.mjs` | Document/source traceability and proposal invariants. | Runtime behavior or deployment readiness. |
-| `npm run check:links` | Declared linked files exist under that checker's scope. | Transcript correctness, freshness, playback, or behavioral selection. |
-| `npm run build:flow` | The current render builds and exports parity artifacts. | That the proposed policy is implemented. |
-| Future named behavioral tests from steps 1–6 | The specific runtime obligation named by each gate. | Any obligation outside that test's fixtures. |
+| Command                                      | What it proves                                          | What it does not prove                                                |
+| -------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------- |
+| `node GLOBAL-RULES-FULL.check.mjs`           | Document/source traceability and proposal invariants.   | Runtime behavior or deployment readiness.                             |
+| `npm run check:links`                        | Declared linked files exist under that checker's scope. | Transcript correctness, freshness, playback, or behavioral selection. |
+| `npm run build:flow`                         | The current render builds and exports parity artifacts. | That the proposed policy is implemented.                              |
+| Future named behavioral tests from steps 1–6 | The specific runtime obligation named by each gate.     | Any obligation outside that test's fixtures.                          |
 
-## 6. Diff summary
+### Validation execution record — 2026-07-17 GMT
+
+Executed from `/home/ggvoice/build/gg-render-bugs` after this review:
+
+| Command                            | Result                                                                                                                                                                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node GLOBAL-RULES-FULL.check.mjs` | PASS: 132 source-value matches, 132 uniquely traced entries, 26 unique proposed rules, 26 provenance rows, 8 slots, 5 contracts, known enforcer IDs only, and balanced fences. This is document/source validation only. |
+| `npm run check:links`              | PASS: 62 beats; all declared `bindsTo` elements and clip paths resolve. This proves existence only.                                                                                                                     |
+| `npm run build:flow`               | PASS: Vite built 2,274 modules and exported parity for 62 beats. Vite emitted a non-blocking large-chunk warning. This does not prove proposed behavior.                                                                |
+
+No behavioral target in the preceding table was run because the requested product implementation and those tests do not yet exist. That absence is the activation blocker, not a passing result.
+
+## 7. Diff summary
 
 Counts are like-for-like for behavior; audit/reference rows are shown separately so expansion is not overstated.
 
-| Layer | Old rich | Current consolidated | Proposed |
-|---|---:|---:|---:|
-| Behavioral law/rules | 16 | 0 exported objects; prose/global references only | 26 |
-| Locked reactive slots | 8 response rows + 8 owners | families appear as pending/fragmented; no coherent exported registries | exactly 8 rows + 8 owners, release-blocked until assets/runtime verify |
-| Runtime contracts beside rules | 5 core contracts | flattened/fragmented | same 5, amended |
-| Enforcer/audit/migration/reference rows | inventoried in old source | partly absent from presentation | referenced, not duplicated into runtime global rules |
+| Layer                                   |                   Old rich |                                                   Current consolidated |                                                               Proposed |
+| --------------------------------------- | -------------------------: | ---------------------------------------------------------------------: | ---------------------------------------------------------------------: |
+| Behavioral law/rules                    |                         16 |                       0 exported objects; prose/global references only |                                                                     26 |
+| Locked reactive slots                   | 8 response rows + 8 owners | families appear as pending/fragmented; no coherent exported registries | exactly 8 rows + 8 owners, release-blocked until assets/runtime verify |
+| Runtime contracts beside rules          |           5 core contracts |                                                   flattened/fragmented |                                                        same 5, amended |
+| Enforcer/audit/migration/reference rows |  inventoried in old source |                                        partly absent from presentation |                   referenced, not duplicated into runtime global rules |
 
 **What consolidation dropped:** the canonical exported objects and their typed links between rule, response, voice owner, and contract. Flattening those literals into `beatsSource.ts` prose/per-beat metadata left the renderer able to show only a thin slice. The fix is to restore that canonical linkage, not to import every old audit, migration, registry, and file-map row into runtime policy.
 
-## 7. Review disposition
+## 8. Review disposition
 
 - **Completeness:** all 132 selected old-source entries are inventoried and mapped exactly once to runtime, adjacent evidence, or removal. This is traceability, not runtime proof.
 - **Correctness:** #31, #34, #35, #37, #45, and B47 have explicit rules and migration gates. Current contradictions are disclosed rather than described as covered.
 - **Eight slots:** the count is exactly eight; tool failure is slot 2. No current recording/runtime claim is made.
 - **Contradictions:** tap language has two explicit locked exceptions; acknowledgment is retired; no-skip applies to source edges and runtime; crisis has a testable stop/resume boundary.
-- **Enforcement:** no `UNASSESSED` status remains. `NOT-AUDITED` is allowed only in the historical inventory; proposed rules use audited IDs and honest status. The sole REAL control proves only declared link/file existence.
-- **Readiness:** **NOT CLEAN for activation.** The document is reviewable migration input only; blockers above remain open until product-source changes and behavioral evidence exist.
+- **Enforcement:** no `UNASSESSED` status remains. `NOT-AUDITED` is allowed only in the historical inventory; proposed rules use audited IDs and honest status. The only audited REAL adjacent control proves declared link/file existence and nothing more.
+- **Readiness:** **CLEAN as a QA proposal; NOT CLEAN for activation.** The inventory, verdicts, two-way traceability, source alignment, and disclosed contradictions are reviewable. Runtime blockers remain open until product-source changes and behavioral evidence exist.
 
 ## Yair ruling requested
 
