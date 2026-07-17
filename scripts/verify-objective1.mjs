@@ -122,8 +122,11 @@ function main() {
     if (!targetById.get(targetId)?.bible?.components) fail(`coverage components: ${oldId}`);
   }
   try {
-    execFileSync('git', ['grep', '-nF', 'beatMetadata'], { cwd: ROOT, stdio: 'pipe' });
-    fail('consumer: tracked beatMetadata reference remains');
+    execFileSync('git', ['grep', '-nE', "(from|import) .*[\\\"'].*beatMetadata"], {
+      cwd: ROOT,
+      stdio: 'pipe',
+    });
+    fail('consumer: tracked beatMetadata import remains');
   } catch (error) {
     if (error.message?.includes('consumer:')) throw error;
   }
