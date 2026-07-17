@@ -25888,7 +25888,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'habit-schedule',
     context:
       'BEAT: Habit schedule.\n\nSPEAK MODE: VERBATIM_OPENER\n\nShows ALL the habits the user just picked, each as its own card with the habit name and its day picker (the frequency). The daily check-in and the evening reflection are NOT here, they are rituals, not habits. For each habit, set which days. Recommend weekdays to start. Days default to the weekday preset by locale. Per-habit reminders are OFF by default, on only if the user asks.\n\nDO NOT:\n- Turn a per-habit reminder on unless they ask.\n- Re-ask a piece they already gave.\n- Include the check-in or the reflection as habits here.',
-    allowedTools: 'add_habit, update_habit, advance_step',
+    allowedTools: 'update_habit, advance_step',
     expectedResponse: 'Sets the days per habit',
     voiceEngine: 'MP3',
     voiceMode: 'Verbatim',
@@ -26100,7 +26100,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       rulesCode: [
         {
           id: 'schedule-tools-only',
-          rule: 'Only add_habit, update_habit, and advance_step are callable on this beat',
+          rule: 'Only update_habit and advance_step are callable on this schedule-only beat; the app deliberately removed add_habit here, and the render adopts that app gate.',
           severity: 'must',
           enforcedBy: ['tool-contract-check'],
         },
@@ -26141,19 +26141,14 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
-        tools: ['add_habit', 'update_habit', 'advance_step'],
+        tools: ['update_habit', 'advance_step'],
         callRules:
-          'Inherited from GLOBAL_CONTEXT, bound here: update_habit to set days on an existing habit, add_habit only if needed; only this beat tools.',
+          'Inherited from GLOBAL_CONTEXT, bound here: update_habit sets days on an existing habit; this schedule-only beat does not add habits.',
         specs: [
           {
             tool: 'update_habit',
             args: '{ name: string, days: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], reminder?: boolean, time?: "HH:MM", schedule?: "Weekday" | "Weekend" | "Every day" | "Custom" }',
             when: 'to set the days (and optionally a reminder) on a picked habit',
-          },
-          {
-            tool: 'add_habit',
-            args: '{ name: string, days?: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], reminder?: boolean, time?: "HH:MM", schedule?: "Weekday" | "Weekend" | "Every day" | "Custom" }',
-            when: 'only if a habit needs adding here',
           },
           {
             tool: 'advance_step',
@@ -26244,7 +26239,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             criterion:
-              '`add_habit` is used only when the user explicitly adds a habit on this beat; scheduling an existing card never duplicates it.',
+              '`add_habit` is never called on this schedule-only beat; scheduling updates an existing card without duplicating it.',
             check: 'harness',
           },
           {
@@ -26269,7 +26264,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             criterion:
-              'Only `add_habit`, `update_habit`, and `advance_step` are called; `remove_habit` is not allowed on this beat.',
+              'Only `update_habit` and `advance_step` are called; `add_habit` and `remove_habit` are not allowed on this schedule-only beat.',
             check: 'harness',
           },
         ],
@@ -26302,7 +26297,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         {
           key: 'onboarding.habits',
           from: 'flow-state',
-          writtenBy: 'update_habit / add_habit',
+          writtenBy: 'update_habit',
           persistsTo: 'onboarding_states.data.habitConfigs',
           note: 'adds days per habit',
         },
@@ -26815,7 +26810,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'advanced-frequency',
     context:
       "BEAT: Habit days, advanced.\n\nSPEAK MODE: VERBATIM_OPENER\n\nThe habits are already captured as cards. Now set how often each one runs. The day circles grow out of the same cards. Parse a full answer when they give one, ask only for what's missing. Per-habit reminders OFF by default. Go through them, then the plan is ready.\n\nDO NOT:\n- Re-ask anything already captured.\n- Turn a reminder on unless they ask.",
-    allowedTools: 'add_habit, update_habit, advance_step',
+    allowedTools: 'update_habit, advance_step',
     expectedResponse: 'Says the days per habit',
     voiceEngine: 'MP3',
     voiceMode: 'Verbatim',
@@ -27050,7 +27045,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       rulesCode: [
         {
           id: 'advfreq-tools-only',
-          rule: 'Only add_habit, update_habit, and advance_step are callable on this beat',
+          rule: 'Only update_habit and advance_step are callable on this schedule-only beat; the app deliberately removed add_habit here, and the render adopts that app gate.',
           severity: 'must',
           enforcedBy: ['tool-contract-check'],
         },
@@ -27091,19 +27086,14 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
-        tools: ['add_habit', 'update_habit', 'advance_step'],
+        tools: ['update_habit', 'advance_step'],
         callRules:
-          'Inherited from GLOBAL_CONTEXT, bound here: update_habit to set the frequency on an existing card; only this beat tools.',
+          'Inherited from GLOBAL_CONTEXT, bound here: update_habit sets frequency on an existing card; this schedule-only beat does not add habits.',
         specs: [
           {
             tool: 'update_habit',
             args: '{ name: string, days: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], reminder?: boolean, time?: "HH:MM", schedule?: "Weekday" | "Weekend" | "Every day" | "Custom" }',
             when: 'to set the days (frequency) on a captured habit',
-          },
-          {
-            tool: 'add_habit',
-            args: '{ name: string, days?: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], reminder?: boolean, time?: "HH:MM", schedule?: "Weekday" | "Weekend" | "Every day" | "Custom" }',
-            when: 'only if a habit needs adding here',
           },
           {
             tool: 'advance_step',
@@ -27119,7 +27109,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'writes',
             value:
-              'update_habit or add_habit writes the onboarding.habits collection at onboarding_states.data.habitConfigs[name], including numeric days and optional reminder/time/schedule',
+              'update_habit writes the onboarding.habits collection at onboarding_states.data.habitConfigs[name], including numeric days and optional reminder/time/schedule',
           },
           {
             label: 'never re-ask',
@@ -27195,7 +27185,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             criterion:
-              '`add_habit` is called only for an explicitly missing habit; ordinary scheduling never duplicates an existing card.',
+              '`add_habit` is never called on this schedule-only beat; ordinary scheduling updates an existing card without duplication.',
             check: 'harness',
           },
           {
@@ -27225,7 +27215,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             criterion:
-              "Only `add_habit`, `update_habit`, and `advance_step` are called; despite the `dataOut.writtenBy` note mentioning `remove_habit`, that tool is not in this beat's allowed set and must not be called.",
+              'Only `update_habit` and `advance_step` are called; `add_habit` and `remove_habit` are not in this schedule-only beat\'s allowed set and must not be called.',
             check: 'harness',
           },
         ],
@@ -27259,7 +27249,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         {
           key: 'onboarding.habits',
           from: 'flow-state',
-          writtenBy: 'update_habit / remove_habit / add_habit',
+          writtenBy: 'update_habit',
           persistsTo: 'onboarding_states.data.habitConfigs',
         },
       ],
@@ -27276,7 +27266,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     type: 'into-app',
     context:
       'BEAT: Full plan.\n\nSPEAK MODE: VERBATIM_OPENER\n\nOne confirm. Show the whole plan: the check-in time, the evening reflection time, and all the habits under them. Ask if it looks right or if they want to change anything. On approval, they enter the app. This is a high-investment moment, make the line real and specific, not generic.\n\nBUTTONS (L7): tap path only. If the user is in voice, no buttons, they just say what they want. On the tap path, show two buttons, "Approve and start" and "I want to change something." Editing is voice-driven, the add / edit / delete component surfaces. Instrument users who never tap a button.',
-    allowedTools: 'update_habit, confirm_plan',
+    allowedTools: 'add_habit, remove_habit, update_habit, confirm_plan',
     expectedResponse: 'Looks good, or an edit',
     voiceEngine: 'MP3',
     voiceMode: 'Verbatim',
@@ -27428,7 +27418,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
         {
           id: 'plan-one-confirm',
-          rule: 'One confirm: show the read-only plan, ask if they are ready to start, then wait',
+          rule: 'One review: show the plan, accept requested habit edits, then wait for approval to start',
           severity: 'must',
           enforcedBy: ['eval:one-line-then-wait'],
         },
@@ -27442,7 +27432,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       rulesCode: [
         {
           id: 'plan-tools-only',
-          rule: 'Only confirm_plan is callable on this beat',
+          rule: 'Yair ruling: plan review retains FULL editing; live app behavior wins. Only add_habit, remove_habit, update_habit, and confirm_plan are callable on this beat.',
           severity: 'must',
           enforcedBy: ['tool-contract-check'],
         },
@@ -27490,17 +27480,32 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         enforcedBy: ['eval:parity-walk'],
       },
       allowedTools: {
-        tools: ['confirm_plan'],
+        tools: ['add_habit', 'remove_habit', 'update_habit', 'confirm_plan'],
         callRules:
-          'Inherited from GLOBAL_CONTEXT, bound here: confirm_plan only on approval; this read-only beat has no edit tools.',
+          'Yair ruling: plan review retains FULL editing; live app behavior wins. Use add_habit, remove_habit, or update_habit to edit the plan before approval; call confirm_plan only on approval.',
         specs: [
+          {
+            tool: 'add_habit',
+            args: '{ name: string (1-100 characters) }',
+            when: 'when the user adds a habit while reviewing the plan',
+          },
+          {
+            tool: 'remove_habit',
+            args: '{ name: string }',
+            when: 'when the user removes a habit while reviewing the plan',
+          },
+          {
+            tool: 'update_habit',
+            args: '{ name: string, days?: (0 | 1 | 2 | 3 | 4 | 5 | 6)[], reminder?: boolean, time?: "HH:MM", schedule?: "Weekday" | "Weekend" | "Every day" | "Custom" }',
+            when: 'when the user edits an existing habit while reviewing the plan',
+          },
           {
             tool: 'confirm_plan',
             args: '{}',
             when: 'once the user approves the plan',
           },
         ],
-        note: 'AUTHORITATIVE RENDER CONTRACT. confirm_plan is the one completion operation in Direct LLM and Vapi.',
+        note: 'Yair ruling: plan review retains FULL editing; live app behavior wins. confirm_plan remains the one completion operation in Direct LLM and Vapi.',
         enforcedBy: ['tool-contract-check'],
       },
       persistence: {
@@ -27541,7 +27546,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           {
             label: 'gate',
             value:
-              'the user must approve the read-only plan (confirm_plan) before entering the app',
+              'the user must approve the reviewed plan (confirm_plan) before entering the app',
           },
         ],
         enforcedBy: ['advance-gate-check'],
@@ -27576,7 +27581,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             criterion:
-              'The beat is read-only: `update_habit` and every other edit, habit, profile, check-in, or reflection tool is never called.',
+              'Yair ruling: plan review retains FULL editing; the only edit tools called are `add_habit`, `remove_habit`, and `update_habit`, while unrelated profile, check-in, and reflection tools are never called.',
             check: 'harness',
           },
           {
@@ -27586,7 +27591,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             criterion:
-              'Silence, refusal, ambiguity, or a request to change something does not call `confirm_plan`, does not mark onboarding complete, and does not enter the app.',
+              'Silence, refusal, or ambiguity does not call `confirm_plan`, does not mark onboarding complete, and does not enter the app; a request to change something may call the allowed edit tool but does not confirm until later approval.',
             check: 'harness',
           },
           {
@@ -27621,7 +27626,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
           },
           {
             criterion:
-              'The tool log contains no call other than at most two `confirm_plan` attempts for one approval; no `advance_step` or edit tool is invented.',
+              'The tool log uses only `add_habit`, `remove_habit`, `update_habit`, and at most two `confirm_plan` attempts for one approval; no `advance_step` or other tool is invented.',
             check: 'harness',
           },
         ],

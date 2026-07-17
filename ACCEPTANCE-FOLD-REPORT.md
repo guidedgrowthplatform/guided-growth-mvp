@@ -145,3 +145,32 @@ locked-copy delta: onboarding-beat-6-profile:asks.script[0].words
   new: "How old are you, and how do you identify?"
 Objective 1 verified: 62 beats, exactly 2 locked-copy deltas, rich contracts and coverage complete.
 ```
+
+## Gate Alignment (2026-07-17)
+
+Tools/rules metadata only; all `script[].words` fields remain unchanged.
+
+| Beat | Before `allowedTools` | After `allowedTools` | Alignment |
+| --- | --- | --- | --- |
+| `onboarding-beat-17-plan-review` | `update_habit, confirm_plan` | `add_habit, remove_habit, update_habit, confirm_plan` | Yair ruling: plan review retains FULL editing; live app behavior wins. Added matching `add_habit`, `remove_habit`, and `update_habit` specs and amended the former confirm-only/read-only tool rules. |
+| `onboarding-beginner-beat-14-schedule-habits` | `add_habit, update_habit, advance_step` | `update_habit, advance_step` | Schedule-only app gate: removed the `add_habit` spec and all enumerated add-tool behavior; rules now state that the app deliberately removed `add_habit` and the render adopts that gate. |
+| `onboarding-advanced-beat-16-schedule-existing-habits` | `add_habit, update_habit, advance_step` | `update_habit, advance_step` | Schedule-only app gate: removed the `add_habit` spec and all enumerated add-tool behavior; rules now state that the app deliberately removed `add_habit` and the render adopts that gate. |
+
+### Gate Outputs
+
+- `npm run type-check` — PASS (`tsc --noEmit`)
+- `npm run check:render` — PASS: `Render CONSISTENCY check passed: 62 beats, one source (beatsSource.ts).`
+- `npm run check:links` — PASS: `Render LINK-INTEGRITY check passed: 62 beats, all bindsTo elements + clips resolve.`
+- `npm run build:flow` — PASS: Vite build completed; wrote `dist-flow/parity.json` with 62 beats and `dist-flow/_headers`. (Only the existing chunk-size warning was emitted.)
+- `npm run verify:objective1` — PASS: `Objective 1 verified: 62 beats, exactly 2 locked-copy deltas, rich contracts and coverage complete.`
+
+`verify:objective1` printed exactly these two sanctioned copy deltas:
+
+```text
+locked-copy delta: onboarding-beat-6-profile:greeting.script[0].words
+  old: "Good to meet you, {name}. Two quick things so I can tailor this to you."
+  new: "Awesome {name}, two quick things so I can tailor this to you."
+locked-copy delta: onboarding-beat-6-profile:asks.script[0].words
+  old: "How old are you?"
+  new: "How old are you, and how do you identify?"
+```
