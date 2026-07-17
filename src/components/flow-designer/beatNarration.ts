@@ -397,5 +397,9 @@ export async function runBeatScript(opts: {
     if (shouldStop()) return;
   }
   setSyncWords(null);
+  // A beat can contain render-only steps with no corresponding script line.
+  // Once its recorded narration is complete, expose those remaining steps so
+  // Play holds the same complete surface as the annotated render.
+  setStepReveal(99);
   await wait(500);
 }

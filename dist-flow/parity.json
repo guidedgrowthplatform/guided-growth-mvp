@@ -36,13 +36,13 @@
     {
       "index": 6,
       "id": "onboarding-beat-6-profile:greeting",
-      "opener": "Good to meet you, {name}. Two quick things so I can tailor this to you.",
+      "opener": "Awesome {name}, two quick things so I can tailor this to you.",
       "path": "both"
     },
     {
       "index": 7,
       "id": "onboarding-beat-6-profile:asks",
-      "opener": "How old are you?",
+      "opener": "How old are you, and how do you identify?",
       "path": "both"
     },
     {

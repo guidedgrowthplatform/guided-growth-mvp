@@ -1,0 +1,21 @@
+# MODEL: gpt-5.6-terra
+# ANGLE: correctness (do the gates genuinely pass, is the mapping correct vs the approved scheme, is anything out of scope broken?)
+
+You are a verification lens. Same change: beat-id rename on the Guided Growth RENDER.
+Worktree: /Users/yairamsel/Developer/claude-work/gg-beat-rename (branch feat/beat-id-rename, HEAD 71556d54). Base: 0320d436.
+
+CLAIM TO VERIFY (run the commands):
+type-check, check:render, check:links, build:flow all pass on HEAD; the id mapping matches the approved
+scheme; nothing outside the render scope was altered.
+
+HOW TO CHECK:
+- Run: npm run type-check ; npm run check:render ; npm run check:links ; npm run build:flow  (in the worktree).
+  All must exit 0. check:render must report "62 beats" and NOT the old 4 "state-check seq out of order" errors.
+- Mapping scheme is: <flow>[-<lane>]-beat-<n>-<name>, variant via a colon suffix. Confirm: beginner-only beats
+  carry "-beginner-", advanced-only carry "-advanced-", both-lane carry no lane; profile greeting+asks are both
+  beat-6; the 5 week-projection states are beat-18 with :empty/:best/:likely/:some/:avoid; each beat's lane label
+  matches its `path` field. (BEATS_SOURCE order 0..61 is the play sequence, separate from the 1..18 beat number in the id -- that is intended, not an error.)
+- git diff --stat 0320d436 HEAD : confirm code changes are ONLY the render + its parity export + its generator.
+  No src/api or src/analytics changes. dist-flow binary/wav churn is build output and is acceptable.
+
+End with 2-4 sentences of evidence, then exactly: VERDICT: CLEAN  or  VERDICT: NOT CLEAN

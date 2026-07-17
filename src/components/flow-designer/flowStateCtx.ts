@@ -22,10 +22,12 @@ export interface HabitScheduleCfg {
 
 export interface FlowState {
   path: 'new' | 'exp' | null;
+  gender: 'Male' | 'Female' | 'Other';
   category: string | null;
   goals: string[];
   habits: string[];
   setPath: (v: 'new' | 'exp' | null) => void;
+  setGender: (v: 'Male' | 'Female' | 'Other') => void;
   setCategory: (v: string) => void;
   toggleGoal: (v: string, max?: number) => void;
   toggleHabit: (v: string, max?: number) => void;

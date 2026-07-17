@@ -5,7 +5,7 @@ import { orbIdle, orbSpeaking } from '@/components/orb/orbView';
 import { SpokenWordsCtx } from './beatKit';
 import { runBeatScript, stopSpeech } from './beatNarration';
 import { COACH_BG } from './beats/_beatStyle';
-import { BEATS, IsolatedBeat, beatNumberFromId } from './FlowDesigner';
+import { BEATS, IsolatedBeat, beatNumberFromId, usePlayFlowState } from './FlowDesigner';
 
 // Play mode: runs the real onboarding beats in order in a single phone, speaking
 // each opener and per-element line with the browser voice (a stand-in for the
@@ -16,6 +16,7 @@ import { BEATS, IsolatedBeat, beatNumberFromId } from './FlowDesigner';
 // element bloom), both fed here off the spoken line.
 
 export function FlowPlay() {
+  const flowState = usePlayFlowState();
   const [idx, setIdx] = useState(0);
   const [stepReveal, setStepReveal] = useState<number | null>(99);
   const [elementReveal, setElementReveal] = useState<number | null>(null);
@@ -40,7 +41,16 @@ export function FlowPlay() {
   // below the fold.
   const stageRef = useRef<HTMLDivElement>(null);
 
-  const beat = BEATS[idx];
+  const playBeats = BEATS.filter((candidate) => {
+    if (candidate.id === 'onboarding-beginner-beat-11-pick-category') {
+      return flowState.gender !== 'Female';
+    }
+    if (candidate.id === 'onboarding-beginner-beat-11-pick-category:women') {
+      return flowState.gender === 'Female';
+    }
+    return true;
+  });
+  const beat = playBeats[idx];
 
   useEffect(
     () => () => {
@@ -57,7 +67,7 @@ export function FlowPlay() {
   }, [stepReveal, elementReveal, syncWords, idx, nonce]);
 
   async function playBeat(i: number, run: number) {
-    const b = BEATS[i];
+    const b = playBeats[i];
     // The one shared driver, reading straight off the beat's script[].
     await runBeatScript({
       script: b.script ?? [],
@@ -73,7 +83,7 @@ export function FlowPlay() {
     const run = ++runRef.current;
     stopSpeech();
     setPlaying(true);
-    for (let i = start; i < BEATS.length; i++) {
+    for (let i = start; i < playBeats.length; i++) {
       if (run !== runRef.current) return;
       setIdx(i);
       await playBeat(i, run);
@@ -94,7 +104,7 @@ export function FlowPlay() {
     playFrom(Math.max(idx - 1, 0));
   }
   function onNext() {
-    playFrom(Math.min(idx + 1, BEATS.length - 1));
+    playFrom(Math.min(idx + 1, playBeats.length - 1));
   }
   // Replay the current beat from zero: remount it fresh and run its sync again.
   // With autoplay off it holds after; with autoplay on it rolls forward.
@@ -191,7 +201,7 @@ export function FlowPlay() {
           data-beat-id={beat.id}
           data-beat-number={beatNumberFromId(beat.id, idx)}
         >
-          Beat {beatNumberFromId(beat.id, idx)} · pos {idx + 1}/{BEATS.length} · {beat.id}
+          Beat {beatNumberFromId(beat.id, idx)} · pos {idx + 1}/{playBeats.length} · {beat.id}
         </span>
       </div>
 
@@ -301,6 +311,7 @@ export function FlowPlay() {
                 animated
                 stepReveal={stepReveal}
                 elementReveal={elementReveal}
+                flowState={flowState}
               />
             </SpokenWordsCtx.Provider>
           </div>

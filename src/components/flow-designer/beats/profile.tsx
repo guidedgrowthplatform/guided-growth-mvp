@@ -3,6 +3,7 @@ import { Icon } from '@iconify/react';
 import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { useFlowState } from '../flowStateCtx';
 import { FONT, PRIMARY } from './_beatStyle';
 
 // This is the first beat where the user actually answers, so the "you can now
@@ -49,10 +50,11 @@ export function VoiceOpenHint() {
 // to make a new one. Editable text comes from props (set in the flow + sidebar):
 // greeting, askAge, askGender, userReply, age, gender.
 function ProfileBeat(props?: Record<string, string>) {
+  const flow = useFlowState();
   // No default age: the picker starts unselected ("Select your age") and the user
   // has to choose. Only a prop-provided age pre-fills it.
   const propAge: number | '' = props?.age && props.age !== '' ? Number(props.age) : '';
-  const propGender = props?.gender ?? null;
+  const propGender = flow?.gender ?? props?.gender ?? null;
   const [age, setAge] = useState<number | ''>(propAge);
   const [gender, setGender] = useState<string | null>(propGender);
   useEffect(() => {
@@ -84,7 +86,10 @@ function ProfileBeat(props?: Record<string, string>) {
         <ChipSelect
           options={['Male', 'Female', 'Other']}
           value={gender}
-          onChange={setGender}
+          onChange={(value) => {
+            setGender(value);
+            if (value === 'Male' || value === 'Female' || value === 'Other') flow?.setGender(value);
+          }}
           ariaLabel="Gender"
           columns={3}
         />

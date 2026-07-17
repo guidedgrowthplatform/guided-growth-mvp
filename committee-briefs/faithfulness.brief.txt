@@ -1,0 +1,23 @@
+# MODEL: gpt-5.6-terra
+# ANGLE: faithfulness (did the rename change ONLY identifiers, with zero beat content altered?)
+
+You are a verification lens. Verify a beat-id rename on the Guided Growth onboarding RENDER.
+Worktree: /Users/yairamsel/Developer/claude-work/gg-beat-rename (branch feat/beat-id-rename, HEAD 71556d54).
+Base (pre-rename) commit: 0320d436.
+
+CLAIM TO VERIFY (do NOT trust it, prove it yourself with commands):
+In src/components/flow-designer/beatsSource.ts the ONLY per-beat fields that changed are: `id`
+(relabeled to the new scheme), `screenId` (field removed entirely), the script lines' bindsTo
+`screen` (repointed to the owning beat's new id), and ONE beat's script `seq` values
+(onboarding-beat-7-state-check: a pre-existing gap 1,3,4,5,6 renumbered to 1,2,3,4,5). No beat's
+words, clips, context, name, order, path, type, voiceEngine, voiceMode, or allowedTools changed.
+
+HOW TO CHECK:
+- git -C /Users/yairamsel/Developer/claude-work/gg-beat-rename show 0320d436:src/components/flow-designer/beatsSource.ts > /tmp/old_beats.ts
+- Strip lines matching id:/screenId:/script screen:/seq: from BOTH old and the current file, diff the rest.
+  The ONLY remaining diffs allowed: a header comment, the removed `readonly screenId` interface line,
+  and the removed BEAT_BY_SCREEN_ID export block. ANY per-beat content diff => NOT CLEAN.
+- Spot-check 3-4 beats (profile:asks, pick-habits:weed, week-projection:empty) words+clips byte-identical.
+- Confirm the state-check seq change added/removed no script line.
+
+End with 2-4 sentences of evidence, then exactly: VERDICT: CLEAN  or  VERDICT: NOT CLEAN

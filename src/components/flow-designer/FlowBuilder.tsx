@@ -2652,6 +2652,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   // beats so a pick in one beat drives the next (category -> goals -> habits ->
   // plan). Resets on restart.
   const [path, setPath] = useState<'new' | 'exp' | null>(null);
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>('Male');
   const [category, setCategoryState] = useState<string | null>(null);
   const [goals, setGoals] = useState<string[]>([]);
   const [habits, setHabits] = useState<string[]>([]);
@@ -2668,10 +2669,12 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     set((p) => (p.includes(v) ? p.filter((x) => x !== v) : p.length < max ? [...p, v] : p));
   const flowState: FlowState = {
     path,
+    gender,
     category,
     goals,
     habits,
     setPath,
+    setGender,
     // A new category clears the downstream goal and habit choices.
     setCategory: (v) => {
       setCategoryState(v);

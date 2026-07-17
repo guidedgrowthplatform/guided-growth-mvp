@@ -1,0 +1,21 @@
+# MODEL: gpt-5.6-luna
+# ANGLE: completeness (is the render fully free of the old identifier, every consumer repointed, generator consistent?)
+
+You are a verification lens. Same change as the packet: beat-id rename on the Guided Growth RENDER.
+Worktree: /Users/yairamsel/Developer/claude-work/gg-beat-rename (branch feat/beat-id-rename, HEAD 71556d54). Base: 0320d436.
+
+CLAIM TO VERIFY (prove with commands):
+No screenId / ONBOARD- id remains anywhere in the render (beatsSource.ts, FlowDesigner.tsx, FlowPlay.tsx,
+dist-flow/parity.json). Every consumer that used screenId now keys on the new `id`. The metadata generator
+scripts/voice-sync/gen_beat_metadata.py translates screen_id -> new beat id so a future run stays consistent,
+and src/components/flow-designer/beatMetadata.ts keys are now new beat ids. FlowBuilder.tsx is DELIBERATELY
+out of scope (a retired no-code authoring tool, NOT mounted by the render).
+
+HOW TO CHECK:
+- git grep -nE "screenId|screen_id|ONBOARD-" over src/components/flow-designer/ EXCLUDING FlowBuilder.tsx,
+  plus scripts/export-render-parity.mjs and dist-flow/parity.json -> expect ZERO. Any hit (outside FlowBuilder) => NOT CLEAN.
+- Confirm FlowDesigner.tsx uses BEAT_BY_ID (not BEAT_BY_SCREEN_ID) and lookups key on id.
+- Read gen_beat_metadata.py: confirm a screen_id->beat_id translation exists; confirm beatMetadata.ts has no ONBOARD- keys.
+- Confirm the render mount (src/**/flow-standalone or the render entry) mounts FlowDesigner/FlowPlay, not FlowBuilder.
+
+End with 2-4 sentences of evidence, then exactly: VERDICT: CLEAN  or  VERDICT: NOT CLEAN

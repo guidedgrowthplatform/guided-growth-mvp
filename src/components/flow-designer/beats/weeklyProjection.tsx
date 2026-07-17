@@ -232,6 +232,15 @@ const STATE_LABEL: Record<ProjectionState, string> = {
   gaps: 'What to avoid',
 };
 
+// The percentage headline is the recorded projection frame's identity. The
+// grid still derives its done/scheduled detail from the rendered habits, but
+// the headline must remain aligned with the p78 and p36 clips.
+function projectionPercent(state: ProjectionState, computed: number): number {
+  if (state === 'p78') return 78;
+  if (state === 'p36') return 36;
+  return computed;
+}
+
 // Renders one static projection frame: the coach narration above the grid.
 function WeeklyProjectionCard({ state, coachLine }: { state: ProjectionState; coachLine: string }) {
   const allHabits = [...COACH_HABITS, ...SAMPLE_USER_HABITS];
@@ -271,7 +280,7 @@ function WeeklyProjectionCard({ state, coachLine }: { state: ProjectionState; co
         </p>
       </div>
       <WeeklyHabitsSummary
-        overallPercent={stats.percent}
+        overallPercent={projectionPercent(state, stats.percent)}
         overallDone={stats.done}
         overallScheduled={stats.scheduled}
         rows={rows}

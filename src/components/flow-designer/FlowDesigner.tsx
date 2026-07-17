@@ -141,8 +141,9 @@ function metadataPropsForBeat(type: string, id?: string): Record<string, string>
 // without sharing a global active-beat state. Mirrors the flowState object
 // FlowBuilder builds for its Play pane (flowStateCtx.ts shape), seeded with
 // light demo values so each beat looks interactive on its own.
-function useIsolatedFlowState(): FlowState {
+export function usePlayFlowState(): FlowState {
   const [path, setPath] = useState<'new' | 'exp' | null>('new');
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>('Male');
   const [category, setCategoryState] = useState<string | null>('Sleep better');
   const [goals, setGoals] = useState<string[]>(['Fall asleep earlier']);
   const [habits, setHabits] = useState<string[]>(['No screens after 10 PM']);
@@ -158,10 +159,12 @@ function useIsolatedFlowState(): FlowState {
     set((p) => (p.includes(v) ? p.filter((x) => x !== v) : p.length < max ? [...p, v] : p));
   return {
     path,
+    gender,
     category,
     goals,
     habits,
     setPath,
+    setGender,
     setCategory: (v) => {
       setCategoryState(v);
       setGoals([]);
@@ -239,14 +242,17 @@ export function IsolatedBeat({
   animated = false,
   stepReveal = null,
   elementReveal = null,
+  flowState: suppliedFlowState,
 }: {
   type: string;
   props?: Record<string, string>;
   animated?: boolean;
   stepReveal?: number | null;
   elementReveal?: number | null;
+  flowState?: FlowState;
 }) {
-  const flowState = useIsolatedFlowState();
+  const isolatedFlowState = usePlayFlowState();
+  const flowState = suppliedFlowState ?? isolatedFlowState;
 
   // coach-bubble is defined inline in FlowBuilder, not in BEAT_DEFS. Handle it
   // directly so check-in greeting and wrap lines render as real speech bubbles
