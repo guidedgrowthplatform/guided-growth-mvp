@@ -252,35 +252,6 @@ export function FlowPlay() {
             <Icon icon="mdi:battery" width={16} height={16} />
           </span>
         </div>
-        {/* Coach header bar */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '12px 18px',
-            flexShrink: 0,
-            background: '#E8EEFC',
-            borderBottom: '1px solid rgba(15,23,42,0.06)',
-          }}
-        >
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Coach</span>
-          {beat.engine && (
-            <span
-              style={{
-                marginLeft: 'auto',
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#6366f1',
-                background: 'rgba(99,102,241,0.1)',
-                padding: '3px 9px',
-                borderRadius: 999,
-              }}
-            >
-              {beat.engine}
-            </span>
-          )}
-        </div>
         {/* Coach-blue main area: the scrollable stage plus the orb docked at the
             bottom, both on one continuous coach gradient (no white bar). */}
         <div

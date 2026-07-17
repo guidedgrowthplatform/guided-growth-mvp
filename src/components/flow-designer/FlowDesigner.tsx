@@ -582,7 +582,9 @@ function ContextTable({
 
   return (
     <div style={{ overflowX: 'auto', border: '1px solid #eef2f7', borderRadius: 8 }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10.5, color: '#334155' }}>
+      <table
+        style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10.5, color: '#334155' }}
+      >
         <thead style={{ background: '#f8fafc', color: '#64748b' }}>
           <tr>
             {columns.map((column) => (
@@ -607,7 +609,10 @@ function ContextTable({
           {rows.map((row, index) => (
             <tr key={index} style={{ borderTop: '1px solid #eef2f7' }}>
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} style={{ padding: '6px 7px', lineHeight: 1.35, verticalAlign: 'top' }}>
+                <td
+                  key={cellIndex}
+                  style={{ padding: '6px 7px', lineHeight: 1.35, verticalAlign: 'top' }}
+                >
                   {cell || <NoneMarker />}
                 </td>
               ))}
@@ -784,7 +789,11 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
               <ContextKeyValue label="Call rules" value={entry.bible.allowedTools.callRules} />
               <ContextTable
                 columns={['tool', 'argument schema', 'when']}
-                rows={entry.bible.allowedTools.specs.map((spec) => [spec.tool, spec.args, spec.when])}
+                rows={entry.bible.allowedTools.specs.map((spec) => [
+                  spec.tool,
+                  spec.args,
+                  spec.when,
+                ])}
               />
             </div>
           ) : (
@@ -800,18 +809,31 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
                 const voice = entry.bible?.voice?.perLine.find((row) => row.seq === line.seq);
                 return (
                   <div key={line.seq} style={{ borderTop: '1px solid #eef2f7', paddingTop: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#475569' }}>Line {line.seq}</div>
-                    <div style={{ marginTop: 4, fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#475569' }}>
+                      Line {line.seq}
+                    </div>
+                    <div
+                      style={{ marginTop: 4, fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}
+                    >
                       {line.words || <NoneMarker>silent reveal</NoneMarker>}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 7 }}>
-                      <ContextKeyValue label="Reveal gate" value={timing?.reveal ?? <NoneMarker />} />
+                      <ContextKeyValue
+                        label="Reveal gate"
+                        value={timing?.reveal ?? <NoneMarker />}
+                      />
                       <ContextKeyValue label="Timing" value={timing?.timing ?? <NoneMarker />} />
                       <ContextKeyValue
                         label="Voice resolution"
-                        value={voice?.resolvesTo ?? (line.clip ? `recorded clip ${line.clip}` : <NoneMarker />)}
+                        value={
+                          voice?.resolvesTo ??
+                          (line.clip ? `recorded clip ${line.clip}` : <NoneMarker />)
+                        }
                       />
-                      <ContextKeyValue label="Live allowed" value={voice?.liveAllowed ?? <NoneMarker />} />
+                      <ContextKeyValue
+                        label="Live allowed"
+                        value={voice?.liveAllowed ?? <NoneMarker />}
+                      />
                     </div>
                   </div>
                 );
@@ -826,7 +848,10 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
           {entry.bible?.conversation ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <ContextKeyValue label="Opens" value={entry.bible.conversation.opens} />
-              <ContextKeyValue label="Max turns" value={String(entry.bible.conversation.maxTurns)} />
+              <ContextKeyValue
+                label="Max turns"
+                value={String(entry.bible.conversation.maxTurns)}
+              />
               <ContextKeyValue label="On max turns" value={entry.bible.conversation.onMaxTurns} />
               <ContextTable
                 columns={['on', 'reply', 'then', 'voice']}
@@ -1318,22 +1343,16 @@ function TabSwitcher({ active, onChange }: { active: TabId; onChange: (id: TabId
   );
 }
 
-// A single self-contained phone: the iOS-style status bar, the Coach header, then
-// the coach-blue interior holding the beat with the orb docked at the bottom, the
-// same chrome the Play view uses. Each annotated beat renders in its own phone so
-// the stacked view reads like real app screens, orb and all. The orb is `paused`
-// so a wall of them settles into its look then freezes, instead of running many
-// perpetual animation loops.
+// A single self-contained phone: the iOS-style status bar followed directly by
+// the real app screen. Annotation controls deliberately live in the outside rail,
+// never inside the faithful app preview. The orb is `paused` so a wall of them
+// settles into its look then freezes, instead of running many perpetual loops.
 function PhoneCard({
-  engine,
   playing = false,
-  onTogglePlay,
   showOrb = true,
   children,
 }: {
-  engine?: string;
   playing?: boolean;
-  onTogglePlay?: () => void;
   showOrb?: boolean;
   children: ReactNode;
 }) {
@@ -1382,63 +1401,6 @@ function PhoneCard({
           <Icon icon="mdi:wifi" width={13} height={13} />
           <Icon icon="mdi:battery" width={15} height={15} />
         </span>
-      </div>
-      {/* Coach header, with the engine chip for this beat */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '11px 18px',
-          flexShrink: 0,
-          background: '#E8EEFC',
-          borderBottom: '1px solid rgba(15,23,42,0.06)',
-        }}
-      >
-        <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Coach</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {onTogglePlay && (
-            <button
-              type="button"
-              onClick={onTogglePlay}
-              title={playing ? 'Stop' : 'Play this beat'}
-              aria-label={playing ? 'Stop this beat' : 'Play this beat'}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 999,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: playing ? '#ef4444' : '#135BEB',
-                flexShrink: 0,
-              }}
-            >
-              <Icon
-                icon={playing ? 'mdi:stop' : 'mdi:play'}
-                width={16}
-                height={16}
-                style={{ color: '#fff' }}
-              />
-            </button>
-          )}
-          {engine && (
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#6366f1',
-                background: 'rgba(99,102,241,0.1)',
-                padding: '3px 9px',
-                borderRadius: 999,
-              }}
-            >
-              {engine}
-            </span>
-          )}
-        </div>
       </div>
       {/* Coach-blue interior: the beat at the top, the orb docked at the bottom on
           the same gradient (no white bar). The min height makes every phone at
@@ -1544,12 +1506,7 @@ function PlayableBeat({
   }, [active]);
 
   return (
-    <PhoneCard
-      engine={beat.engine}
-      playing={active}
-      onTogglePlay={() => onRequestPlay(active ? null : beat.id)}
-      showOrb={!beat.hideOrb}
-    >
+    <PhoneCard playing={active} showOrb={!beat.hideOrb}>
       <SpokenWordsCtx.Provider value={active ? syncWords : null}>
         <IsolatedBeat
           key={`${beat.id}-${active ? 'active' : 'idle'}`}
@@ -1636,6 +1593,38 @@ function FlowPhoneFrame({
                 <VoiceTag engine={b.engine} mode={b.mode} />
               </div>
             )}
+            <div
+              style={{
+                marginTop: 10,
+                display: 'flex',
+                justifyContent: showWords ? 'flex-start' : 'flex-end',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => onRequestPlay(playingId === b.id ? null : b.id)}
+                title={playingId === b.id ? 'Stop this beat' : 'Play this beat'}
+                aria-label={playingId === b.id ? 'Stop this beat' : 'Play this beat'}
+                style={{
+                  minHeight: 28,
+                  borderRadius: 999,
+                  border: `1px solid ${playingId === b.id ? '#fecaca' : '#93c5fd'}`,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '4px 10px',
+                  background: playingId === b.id ? '#fef2f2' : '#eff6ff',
+                  color: playingId === b.id ? '#dc2626' : '#1d4ed8',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  fontFamily: 'Urbanist, -apple-system, sans-serif',
+                }}
+              >
+                <Icon icon={playingId === b.id ? 'mdi:stop' : 'mdi:play'} width={14} height={14} />
+                {playingId === b.id ? 'STOP' : 'PLAY'}
+              </button>
+            </div>
           </div>
           {/* Phone column: a self-contained phone with the orb, playable in place. */}
           <div style={{ flex: `0 0 ${PHONE_W}px` }}>
