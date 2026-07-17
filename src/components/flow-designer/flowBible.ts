@@ -30,6 +30,13 @@ export interface BeatIO {
   readonly dataOut: readonly BeatDatum[];
 }
 
+export interface BeatElementLine {
+  readonly elementId: string;
+  readonly line: string;
+  readonly order: number;
+  readonly showsAsBubble: boolean;
+}
+
 export interface BibleKV {
   readonly label: string;
   readonly value: string;

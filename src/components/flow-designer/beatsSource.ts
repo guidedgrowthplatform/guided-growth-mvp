@@ -1,4 +1,4 @@
-import type { BeatIO, BibleSections } from './flowBible';
+import type { BeatElementLine, BeatIO, BibleSections } from './flowBible';
 
 // THE ONE SOURCE for the onboarding render. Each beat lives in ONE entry here:
 // the left fields (id, name, order, path, type, context, allowedTools,
@@ -43,6 +43,11 @@ export interface BeatEntry {
   readonly elements?: readonly string[];
   readonly script: readonly ScriptLine[];
   readonly parent?: string;
+  readonly spokenContent?: string;
+  readonly variable?: boolean;
+  readonly openerMode?: 'A' | 'B';
+  readonly openerShowsAsBubble?: boolean;
+  readonly perElement?: readonly BeatElementLine[];
   readonly bible?: BibleSections;
   readonly io?: BeatIO;
 }
@@ -681,6 +686,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       dataIn: [],
       dataOut: [],
     },
+
+    spokenContent:
+      "Hey. I'm your coach inside Guided Growth. Give me two minutes and we'll set up something that actually sticks.",
+    openerShowsAsBubble: false,
   },
   {
     id: 'onboarding-beat-4-sign-up',
@@ -949,6 +958,8 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    openerShowsAsBubble: false,
   },
   {
     id: 'onboarding-beat-5-mic-permission',
@@ -1235,6 +1246,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent:
+      "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+    openerShowsAsBubble: false,
   },
   {
     // L2: Profile split into two single-engine beats. This greeting beat is
@@ -1499,6 +1514,11 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       ],
       dataOut: [],
     },
+
+    spokenContent:
+      'Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?',
+    variable: true,
+    openerShowsAsBubble: true,
   },
   {
     // L2: the asks beat. MP3, single-engine. Collects age and gender.
@@ -2321,6 +2341,36 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent:
+      "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+    openerShowsAsBubble: true,
+    perElement: [
+      {
+        elementId: 'sleep',
+        line: 'How did you sleep?',
+        order: 1,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'mood',
+        line: "How's your mood?",
+        order: 2,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'energy',
+        line: "How's your energy?",
+        order: 3,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'stress',
+        line: 'And your stress?',
+        order: 4,
+        showsAsBubble: false,
+      },
+    ],
   },
   {
     id: 'onboarding-beat-8-morning-checkin-setup',
@@ -2744,6 +2794,35 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    openerMode: 'A',
+    openerShowsAsBubble: false,
+    perElement: [
+      {
+        elementId: 'schedule',
+        line: 'Weekdays, weekends, or every day?',
+        order: 1,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'when',
+        line: 'What time?',
+        order: 2,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'how-often',
+        line: 'Or your own days.',
+        order: 3,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'reminder',
+        line: "Want a reminder when it's time?",
+        order: 4,
+        showsAsBubble: false,
+      },
+    ],
   },
   {
     id: 'onboarding-beat-9-evening-reflection-setup',
@@ -3301,6 +3380,49 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent:
+      'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
+    openerMode: 'B',
+    openerShowsAsBubble: true,
+    perElement: [
+      {
+        elementId: 'prompts',
+        line: 'Three questions to close the day.',
+        order: 1,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'mode',
+        line: 'Or freeform, just talk.',
+        order: 2,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'schedule',
+        line: 'Weekdays, weekends, or every day?',
+        order: 3,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'when',
+        line: 'What time?',
+        order: 4,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'how-often',
+        line: 'Or your own days.',
+        order: 5,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'reminder',
+        line: 'Want a reminder?',
+        order: 6,
+        showsAsBubble: false,
+      },
+    ],
   },
   {
     id: 'onboarding-beat-10-experience-fork',
@@ -3725,6 +3847,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent:
+      "For the next part of the process, I'd like to know: Do you already track habits or is this new to you?",
+    openerShowsAsBubble: true,
   },
   {
     id: 'onboarding-beginner-beat-11-pick-category',
@@ -4229,6 +4355,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent:
+      "Let's choose one area of your life that you'd like to improve on. Here are our recommended categories.",
+    openerShowsAsBubble: true,
   },
   {
     id: 'onboarding-beginner-beat-11-pick-category:women',
@@ -5224,6 +5354,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent: "Within that, what's the piece you want to start with?",
+    openerShowsAsBubble: true,
   },
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
@@ -5713,6 +5846,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent: "Within that, what's the piece you want to start with?",
+    openerShowsAsBubble: true,
   },
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
@@ -6202,6 +6338,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent: "Within that, what's the piece you want to start with?",
+    openerShowsAsBubble: true,
   },
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
@@ -6692,6 +6831,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent: "Within that, what's the piece you want to start with?",
+    openerShowsAsBubble: true,
   },
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
@@ -7181,6 +7323,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent: "Within that, what's the piece you want to start with?",
+    openerShowsAsBubble: true,
   },
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
@@ -7670,6 +7815,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent: "Within that, what's the piece you want to start with?",
+    openerShowsAsBubble: true,
   },
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
@@ -8159,6 +8307,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent: "Within that, what's the piece you want to start with?",
+    openerShowsAsBubble: true,
   },
   {
     // L4c: merged category-reaction + goals-ask opener. Resolves by the category
@@ -8649,6 +8800,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent: "Within that, what's the piece you want to start with?",
+    openerShowsAsBubble: true,
   },
   {
     id: 'onboarding-beginner-beat-12-pick-goals:custom',
@@ -8970,6 +9124,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent: "Within that, what's the piece you want to start with?",
+    openerShowsAsBubble: true,
   },
   {
     id: 'onboarding-beginner-beat-13-pick-habits',
@@ -9477,6 +9634,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent:
+      "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+    openerShowsAsBubble: true,
   },
   {
     // L3: per-goal habit-pick opener. Resolves by the goal picked (Fall asleep earlier).
@@ -24570,6 +24731,35 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    openerMode: 'A',
+    openerShowsAsBubble: false,
+    perElement: [
+      {
+        elementId: 'schedule',
+        line: 'Weekdays, weekends, or every day?',
+        order: 1,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'when',
+        line: 'What time?',
+        order: 2,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'how-often',
+        line: 'Or your own days.',
+        order: 3,
+        showsAsBubble: false,
+      },
+      {
+        elementId: 'reminder',
+        line: 'Want a reminder?',
+        order: 4,
+        showsAsBubble: false,
+      },
+    ],
   },
   {
     id: 'onboarding-advanced-beat-15-capture-existing-habits',
@@ -25000,6 +25190,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent:
+      'Read me the habits you already track. Less is more to start, you can always build on it.',
+    openerShowsAsBubble: true,
   },
   {
     id: 'onboarding-advanced-beat-16-schedule-existing-habits',
@@ -25422,6 +25616,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent: "Now the days. Tell me how often each one runs and I'll fill them in.",
+    openerShowsAsBubble: true,
   },
   {
     id: 'onboarding-beat-17-plan-review',
@@ -25771,6 +25968,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         },
       ],
     },
+
+    spokenContent:
+      "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+    openerShowsAsBubble: true,
   },
   {
     id: 'onboarding-beat-18-week-projection:empty',
@@ -26044,6 +26245,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       ],
       dataOut: [],
     },
+
+    spokenContent: 'This is your week. Blank, starting today.',
+    openerShowsAsBubble: false,
   },
   {
     id: 'onboarding-beat-18-week-projection:best',
@@ -26317,6 +26521,9 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       ],
       dataOut: [],
     },
+
+    spokenContent: 'Best case, every day green. Every streak going strong. That would be amazing.',
+    openerShowsAsBubble: false,
   },
   {
     id: 'onboarding-beat-18-week-projection:likely',
@@ -26592,6 +26799,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       ],
       dataOut: [],
     },
+
+    spokenContent:
+      "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+    openerShowsAsBubble: false,
   },
   {
     id: 'onboarding-beat-18-week-projection:some',
@@ -26867,6 +27078,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       ],
       dataOut: [],
     },
+
+    spokenContent:
+      "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+    openerShowsAsBubble: false,
   },
   {
     id: 'onboarding-beat-18-week-projection:avoid',
@@ -27143,6 +27358,10 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
       ],
       dataOut: [],
     },
+
+    spokenContent:
+      'The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.',
+    openerShowsAsBubble: false,
   },
 ] as const;
 
