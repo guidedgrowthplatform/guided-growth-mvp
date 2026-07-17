@@ -1,4 +1,8 @@
+import { BEAT_BY_ID } from '@/components/flow-designer/beatsSource';
 import type { OnboardingState, OnboardingStepData } from '@gg/shared/types';
+
+const EVENING_REFLECTION_OPENER =
+  BEAT_BY_ID['onboarding-beat-9-evening-reflection-setup'].script[0].words;
 
 // Curated opening lines per onboarding screen (gg-spec packets). Deterministic,
 // rendered as the first coach bubble so the question never drifts.
@@ -19,12 +23,9 @@ export const ONBOARDING_OPENERS: Record<string, string> = {
     "Here are a few habits that really help with this. Pick what feels doable. Not heroic. Not impressive. Doable. Because one habit done consistently beats five that don't stick. You can also create your own if none of these fit.",
   'ONBOARD-ADVANCED':
     "Tell me everything you want to achieve, say or type as much as you want, and I'll organize it into habits for you.",
-  'ONBOARD-BEGINNER-07':
-    "One last thing, let's set up a short evening reflection. I can ask you a few simple questions each evening, or you can free-write. Which sounds better? You can change it anytime.",
+  'ONBOARD-BEGINNER-07': EVENING_REFLECTION_OPENER,
   'ONBOARD-BEGINNER-06':
     "Here's your starting plan. Take a look, does it all look right, or want to change anything before we start?",
-  'ONBOARD-ADVANCED-04':
-    "Let's set up your evening reflection, I can ask you a few questions each evening, or you can free-write. Which feels better?",
   'ONBOARD-ADVANCED-05':
     "Here's what I put together from everything you shared. Want to start with this, or tweak anything first?",
   'ONBOARD-ADV-CUSTOM':

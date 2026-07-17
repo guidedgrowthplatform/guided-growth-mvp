@@ -1270,7 +1270,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     script: [
       {
         seq: 1,
-        words: 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
+        words: 'Awesome {name}, two quick things so I can tailor this to you.',
         bindsTo: {
           kind: 'bubble',
           element: 'opener',
@@ -1539,7 +1539,7 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     script: [
       {
         seq: 1,
-        words: 'How old are you?',
+        words: 'How old are you, and how do you identify?',
         bindsTo: {
           kind: 'component',
           element: 'age',

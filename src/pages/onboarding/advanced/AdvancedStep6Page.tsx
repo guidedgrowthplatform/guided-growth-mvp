@@ -60,7 +60,7 @@ export function AdvancedStep6Page() {
   // Vapi + Direct-LLM context for the reflection-setup screen.
   useEffect(() => {
     if (!onboardingVoice) return;
-    onboardingVoice.pushSubScreen('ONBOARD-ADVANCED-04');
+    onboardingVoice.pushSubScreen('ONBOARD-BEGINNER-07');
     return () => onboardingVoice.pushSubScreen(null);
   }, [onboardingVoice]);
 
