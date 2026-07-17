@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sentry } from '@/lib/sentry';
+import { resolveOnboardingBeatId } from '@gg/shared/onboarding/beatIds';
 import { useScreenMap } from './useScreenMap';
 import { useSessionLog } from './useSessionLog';
 
@@ -23,7 +24,10 @@ export function useNavigateLogger() {
     // navigate would log screen_id=UNKNOWN.
     if (!isLoaded) return;
 
-    const resolved = routeToScreenId(pathname);
+    const mappedScreenId = routeToScreenId(pathname);
+    const resolved = mappedScreenId
+      ? (resolveOnboardingBeatId(mappedScreenId) ?? mappedScreenId)
+      : null;
     const toScreenId = resolved ?? 'UNKNOWN';
 
     if (resolved === null && !warnedPathnamesRef.current.has(pathname)) {

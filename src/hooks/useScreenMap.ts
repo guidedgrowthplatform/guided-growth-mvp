@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { fetchScreenRoutes, type ScreenRouteEntry } from '@/api/context';
+import { resolveOnboardingBeatId } from '@gg/shared/onboarding/beatIds';
 
 interface ScreenMap {
   routeToScreenId: (pathname: string) => string | null;
@@ -38,13 +39,16 @@ function buildResolver(entries: ScreenRouteEntry[]): Resolver {
       // Last-write-wins for patterns too — first entry sticks. We push only
       // if no equivalent pattern already exists.
       if (!patterns.some((p) => p.regex.source === compilePattern(entry.route).source)) {
-        patterns.push({ regex: compilePattern(entry.route), screenId: entry.screen_id });
+        patterns.push({
+          regex: compilePattern(entry.route),
+          screenId: resolveOnboardingBeatId(entry.screen_id) ?? entry.screen_id,
+        });
       }
     } else if (!exact.has(entry.route)) {
       // Multiple screen_ids share routes like "/home". First match wins;
       // per-screen code overrides by passing screen_id explicitly to
       // logEvent. The exact ordering comes from the SQL ORDER BY screen_id.
-      exact.set(entry.route, entry.screen_id);
+      exact.set(entry.route, resolveOnboardingBeatId(entry.screen_id) ?? entry.screen_id);
     }
   }
 

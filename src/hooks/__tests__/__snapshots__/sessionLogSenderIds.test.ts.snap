@@ -1,0 +1,77 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`session-log sender ID compatibility > snapshots the payloads emitted by the four verified senders 1`] = `
+{
+  "navigate": {
+    "event": "navigate",
+    "payload": {
+      "from_screen": "ONBOARD-01",
+      "to_screen": "ONBOARD-FORK",
+      "trigger": "tap",
+    },
+    "screenId": "ONBOARD-FORK",
+  },
+  "onboarding": {
+    "1": {
+      "event": "form_submit",
+      "payload": {
+        "screen_id": "ONBOARD-01",
+      },
+      "screenId": "ONBOARD-01",
+    },
+    "2": {
+      "event": "form_submit",
+      "payload": {
+        "screen_id": "ONBOARD-FORK",
+      },
+      "screenId": "ONBOARD-FORK",
+    },
+    "3": {
+      "event": "form_submit",
+      "payload": {
+        "screen_id": "ONBOARD-BEGINNER-01",
+      },
+      "screenId": "ONBOARD-BEGINNER-01",
+    },
+    "4": {
+      "event": "form_submit",
+      "payload": {
+        "screen_id": "ONBOARD-BEGINNER-02",
+      },
+      "screenId": "ONBOARD-BEGINNER-02",
+    },
+    "5": {
+      "event": "form_submit",
+      "payload": {
+        "screen_id": "ONBOARD-BEGINNER-03",
+      },
+      "screenId": "ONBOARD-BEGINNER-03",
+    },
+    "6": {
+      "event": "form_submit",
+      "payload": {
+        "screen_id": "ONBOARD-BEGINNER-04",
+      },
+      "screenId": "ONBOARD-BEGINNER-04",
+    },
+    "7": {
+      "event": "form_submit",
+      "payload": {
+        "screen_id": "STARTING-PLAN",
+      },
+      "screenId": "STARTING-PLAN",
+    },
+  },
+  "realtimeVoice": {
+    "variableValues": {
+      "canonical_screen_id": "ONBOARD-BEGINNER-02",
+    },
+    "voiceAnchorScreenId": "ONBOARD-BEGINNER-02",
+  },
+  "screenMap": {
+    "feedbackRouteScreenId": "feedback",
+    "legacyRouteScreenId": "ONBOARD-ADVANCED-02",
+    "unknownRouteScreenId": "HOME-DASHBOARD",
+  },
+}
+`;

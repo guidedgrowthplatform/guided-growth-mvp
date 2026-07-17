@@ -6,6 +6,10 @@ import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useVoice } from '@/hooks/useVoice';
 import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
+import {
+  SESSION_LOG_SCREEN_ID_CANONICAL,
+  resolveSessionLogScreenId,
+} from '@gg/shared/onboarding/beatIds';
 
 export type RealtimeVoiceState =
   | 'idle'
@@ -158,32 +162,13 @@ function deriveSurface(screen?: string): Surface {
   return 'chat';
 }
 
-const SCREEN_ID_CANONICAL: Record<string, string | null> = {
-  onboard_01: 'ONBOARD-01',
-  onboard_02: 'ONBOARD-FORK',
-  onboard_03: 'ONBOARD-BEGINNER-01',
-  onboard_04: 'ONBOARD-BEGINNER-02',
-  onboard_05: 'ONBOARD-BEGINNER-03',
-  onboard_06: 'ONBOARD-BEGINNER-04',
-  onboard_07: 'STARTING-PLAN',
-  onboard_08: 'ONBOARD-BEGINNER-07',
-  onboard_advanced_input: 'ONBOARD-ADVANCED',
-  onboard_advanced_results: 'ONBOARD-ADVANCED-02',
-  onboard_advanced_step_6: 'ONBOARD-ADVANCED-04',
-  onboard_advanced_custom_prompts: 'ONBOARD-ADVANCED-05',
-  morning: 'MCHECK-01',
-  evening: 'ECHECK-01',
-  habit_create: 'HABIT-CREATE-FORK',
-  feedback: null,
-};
-
 function toCanonicalScreenId(screen?: string): string | undefined {
   if (!screen) return undefined;
-  if (screen in SCREEN_ID_CANONICAL) {
-    const mapped = SCREEN_ID_CANONICAL[screen];
+  if (screen in SESSION_LOG_SCREEN_ID_CANONICAL) {
+    const mapped = resolveSessionLogScreenId(screen);
     return mapped ?? undefined;
   }
-  return screen.toUpperCase().replace(/_/g, '-');
+  return resolveSessionLogScreenId(screen.toUpperCase().replace(/_/g, '-'));
 }
 
 /**

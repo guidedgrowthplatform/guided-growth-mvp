@@ -17,6 +17,7 @@ import { queryKeys } from '@/lib/query';
 import { Sentry } from '@/lib/sentry';
 import { DERIVED_STEP_MAPS } from '@/onboarding-flow/derivedStepMaps';
 import { useAuthStore } from '@/stores/authStore';
+import { resolveSessionLogScreenId } from '@gg/shared/onboarding/beatIds';
 import type {
   OnboardingPath,
   OnboardingState,
@@ -149,7 +150,8 @@ export function useOnboarding() {
   //    to reflect user intent.
   const emitFormSubmit = useCallback(
     (step: number, data: Partial<OnboardingStepData>, path: OnboardingPath | null) => {
-      const screenId = STEP_TO_SCREEN_ID[step] ?? `ONBOARD-${String(step).padStart(2, '0')}`;
+      const sourceScreenId = STEP_TO_SCREEN_ID[step] ?? `ONBOARD-${String(step).padStart(2, '0')}`;
+      const screenId = resolveSessionLogScreenId(sourceScreenId) ?? sourceScreenId;
       const payload: Record<string, unknown> = { screen_id: screenId, ...data };
       if (path) payload.path = path;
       if (import.meta.env.DEV) {
