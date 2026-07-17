@@ -1,0 +1,250 @@
+[
+  {
+    "oldId": "splash",
+    "targetId": "onboarding-beat-1-splash"
+  },
+  {
+    "oldId": "get-started",
+    "targetId": "onboarding-beat-2-get-started"
+  },
+  {
+    "oldId": "coach-greeting",
+    "targetId": "onboarding-beat-3-coach-greeting"
+  },
+  {
+    "oldId": "sign-up",
+    "targetId": "onboarding-beat-4-sign-up"
+  },
+  {
+    "oldId": "mic-permission",
+    "targetId": "onboarding-beat-5-mic-permission"
+  },
+  {
+    "oldId": "profile-greeting",
+    "targetId": "onboarding-beat-6-profile:greeting"
+  },
+  {
+    "oldId": "profile-asks",
+    "targetId": "onboarding-beat-6-profile:asks"
+  },
+  {
+    "oldId": "state-check",
+    "targetId": "onboarding-beat-7-state-check"
+  },
+  {
+    "oldId": "checkin",
+    "targetId": "onboarding-beat-8-morning-checkin-setup"
+  },
+  {
+    "oldId": "reflection",
+    "targetId": "onboarding-beat-9-evening-reflection-setup"
+  },
+  {
+    "oldId": "fork",
+    "targetId": "onboarding-beat-10-experience-fork"
+  },
+  {
+    "oldId": "category",
+    "targetId": "onboarding-beginner-beat-11-pick-category"
+  },
+  {
+    "oldId": "category-women",
+    "targetId": "onboarding-beginner-beat-11-pick-category:women"
+  },
+  {
+    "oldId": "goals-sleep",
+    "targetId": "onboarding-beginner-beat-12-pick-goals:sleep"
+  },
+  {
+    "oldId": "goals-move",
+    "targetId": "onboarding-beginner-beat-12-pick-goals:move"
+  },
+  {
+    "oldId": "goals-eat",
+    "targetId": "onboarding-beginner-beat-12-pick-goals:eat"
+  },
+  {
+    "oldId": "goals-energy",
+    "targetId": "onboarding-beginner-beat-12-pick-goals:energy"
+  },
+  {
+    "oldId": "goals-stress",
+    "targetId": "onboarding-beginner-beat-12-pick-goals:stress"
+  },
+  {
+    "oldId": "goals-focus",
+    "targetId": "onboarding-beginner-beat-12-pick-goals:focus"
+  },
+  {
+    "oldId": "goals-break",
+    "targetId": "onboarding-beginner-beat-12-pick-goals:break"
+  },
+  {
+    "oldId": "goals-organize",
+    "targetId": "onboarding-beginner-beat-12-pick-goals:organize"
+  },
+  {
+    "oldId": "goal-custom",
+    "targetId": "onboarding-beginner-beat-12-pick-goals:custom"
+  },
+  {
+    "oldId": "habits",
+    "targetId": "onboarding-beginner-beat-13-pick-habits"
+  },
+  {
+    "oldId": "habits-fall-asleep-earlier",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:fall-asleep-earlier"
+  },
+  {
+    "oldId": "habits-wake-earlier",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:wake-earlier"
+  },
+  {
+    "oldId": "habits-sleep-consistently",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:sleep-consistently"
+  },
+  {
+    "oldId": "habits-sleep-deeply",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:sleep-deeply"
+  },
+  {
+    "oldId": "habits-walk-more",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:walk-more"
+  },
+  {
+    "oldId": "habits-exercise-consistently",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:exercise-consistently"
+  },
+  {
+    "oldId": "habits-mobility",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:mobility"
+  },
+  {
+    "oldId": "habits-eat-intentionally",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:eat-intentionally"
+  },
+  {
+    "oldId": "habits-reduce-overeating",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:reduce-overeating"
+  },
+  {
+    "oldId": "habits-plan-food",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:plan-food"
+  },
+  {
+    "oldId": "habits-morning-energy",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:morning-energy"
+  },
+  {
+    "oldId": "habits-avoid-crashes",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:avoid-crashes"
+  },
+  {
+    "oldId": "habits-stable-energy",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:stable-energy"
+  },
+  {
+    "oldId": "habits-calmer-day",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:calmer-day"
+  },
+  {
+    "oldId": "habits-evening-stress",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:evening-stress"
+  },
+  {
+    "oldId": "habits-less-overwhelmed",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:less-overwhelmed"
+  },
+  {
+    "oldId": "habits-start-work",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:start-work"
+  },
+  {
+    "oldId": "habits-deeper-work",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:deeper-work"
+  },
+  {
+    "oldId": "habits-procrastinate-less",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:procrastinate-less"
+  },
+  {
+    "oldId": "habits-smoking",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:smoking"
+  },
+  {
+    "oldId": "habits-weed",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:weed"
+  },
+  {
+    "oldId": "habits-alcohol",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:alcohol"
+  },
+  {
+    "oldId": "habits-porn",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:porn"
+  },
+  {
+    "oldId": "habits-phone-use",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:phone-use"
+  },
+  {
+    "oldId": "habits-late-snacking",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:late-snacking"
+  },
+  {
+    "oldId": "habits-caffeine",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:caffeine"
+  },
+  {
+    "oldId": "habits-stay-on-tasks",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:stay-on-tasks"
+  },
+  {
+    "oldId": "habits-tidy-spaces",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:tidy-spaces"
+  },
+  {
+    "oldId": "habits-life-admin",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:life-admin"
+  },
+  {
+    "oldId": "habit-custom",
+    "targetId": "onboarding-beginner-beat-13-pick-habits:custom"
+  },
+  {
+    "oldId": "schedule",
+    "targetId": "onboarding-beginner-beat-14-schedule-habits"
+  },
+  {
+    "oldId": "advanced-capture",
+    "targetId": "onboarding-advanced-beat-15-capture-existing-habits"
+  },
+  {
+    "oldId": "advanced-frequency",
+    "targetId": "onboarding-advanced-beat-16-schedule-existing-habits"
+  },
+  {
+    "oldId": "plan",
+    "targetId": "onboarding-beat-17-plan-review"
+  },
+  {
+    "oldId": "weekly-blank",
+    "targetId": "onboarding-beat-18-week-projection:empty"
+  },
+  {
+    "oldId": "weekly-full",
+    "targetId": "onboarding-beat-18-week-projection:best"
+  },
+  {
+    "oldId": "weekly-p78",
+    "targetId": "onboarding-beat-18-week-projection:likely"
+  },
+  {
+    "oldId": "weekly-p36",
+    "targetId": "onboarding-beat-18-week-projection:some"
+  },
+  {
+    "oldId": "weekly-gaps",
+    "targetId": "onboarding-beat-18-week-projection:avoid"
+  }
+]
