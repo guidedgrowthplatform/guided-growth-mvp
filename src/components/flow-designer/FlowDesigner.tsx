@@ -878,7 +878,7 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
               { label: 'Name', value: entry.name },
               { label: 'Order', value: String(entry.order) },
               ...(entry.qaOnly
-                ? [{ label: 'QA-only', value: 'yes — excluded from production flow generation (NOT-IMPLEMENTED)' }]
+                ? [{ label: 'QA-only', value: 'yes — excluded from production flow generation' }]
                 : []),
               { label: 'Voice engine', value: entry.voiceEngine },
               { label: 'Voice mode', value: entry.voiceMode ?? 'none' },
@@ -1605,6 +1605,8 @@ type BeatPath = 'beginner' | 'advanced' | 'both';
 interface FlowBeat {
   id: string;
   type: string;
+  componentOwned?: boolean;
+  component?: string;
   props?: Record<string, string>;
   engine: VoiceEngine;
   mode: VoiceMode;
@@ -1629,7 +1631,9 @@ interface FlowBeat {
 // the render has a single authored store.
 export const BASE_BEATS: FlowBeat[] = BEATS_SOURCE.map((b) => ({
   id: b.id,
-  type: b.type,
+  type: b.componentOwned ? b.component ?? b.type : b.type,
+  componentOwned: b.componentOwned,
+  component: b.component,
   props: b.props ?? undefined,
   engine: b.voiceEngine,
   mode: b.voiceMode,

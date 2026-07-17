@@ -28,11 +28,13 @@ export interface BeatEntry extends BeatEntryContract {
   readonly id: string;
   readonly name: string;
   readonly order: number;
+  readonly componentOwned?: boolean;
+  readonly component?: string;
   readonly path: BeatPath;
   readonly type: string;
-  readonly context: string | null;
-  readonly allowedTools: string | null;
-  readonly expectedResponse: string | null;
+  readonly context?: string | null;
+  readonly allowedTools?: string | null;
+  readonly expectedResponse?: string | null;
   readonly voiceEngine: VoiceEngine;
   readonly voiceMode: VoiceMode;
   readonly hideOrb: boolean;
@@ -110,18 +112,24 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
     name: 'QA control',
     order: 0,
     qaOnly: true,
+    componentOwned: true,
+    component: 'qa-control',
     path: 'both',
     type: 'qa-control',
-    context: null,
-    allowedTools: null,
-    expectedResponse: null,
     voiceEngine: 'Silent',
     voiceMode: null,
     hideOrb: true,
     props: {
+      title: 'QA Control',
       subtitle: 'Pick a test user, then tap a flow to start it fresh.',
+      users: 'Fable,Mintesnot,Yair,Alejandro,Yonas,Timothy',
+      loginLabel: 'Log in',
+      loginDesc: 'Sign in and go to where this user left off.',
+      restartLabel: 'Restart onboarding (fresh)',
+      restartDesc: 'Delete this user data, keep the account, run full onboarding from the top.',
       reonboardLabel: 'Replay flow (preview)',
       reonboardDesc: 'Walk the full flow again in preview mode. Saved data untouched (and not loaded).',
+      resetLabel: 'Reset data only',
       resetDesc: 'Wipe this user data, keep the account. You stay on this screen.',
     },
     script: [],
@@ -131,99 +139,39 @@ export const BEATS_SOURCE: readonly BeatEntry[] = [
         scriptMeta: { na: 'no script lines — the QA launcher does not play coach audio' },
         components: 'filled',
         voice: { na: 'silent QA control screen — no coach is present' },
-        rulesContext: { na: 'no coach turn — the launcher is component-owned' },
-        rulesCode: 'filled',
+        rulesContext: { na: 'component-owned QA launcher has no coach turn' },
+        rulesCode: { na: 'production exclusion is enforced by the qaOnly flow filter' },
         conversation: { na: 'no conversation — picker and action controls only' },
         contextProse: { na: 'no coach/LLM context — the launcher does not prompt a model' },
         allowedTools: { na: 'no onboarding tools — actions use QA auth/reset/navigation directly' },
-        persistence: 'filled',
+        persistence: { na: 'the render component is presentation-only' },
         flow: 'filled',
-        edges: 'filled',
-        acceptance: 'filled',
+        edges: { na: 'QA-only entry point' },
+        acceptance: { na: 'covered by render component and qaOnly flow exclusion' },
         applicableDecisions: { na: 'no product decision (1-7) binds on the QA-only launcher' },
       },
       identity: {
         rows: [
           { label: 'beatId (canonical)', value: 'onboarding-beat-0-qa-control' },
-          { label: 'name', value: 'QA control' },
           { label: 'order', value: '0' },
           { label: 'QA-only', value: 'yes' },
-          { label: 'type', value: 'qa-control' },
         ],
-        aliases: [{ surface: 'route', value: '/onboarding/qa' }],
-        watchOut: 'This entry documents the QA launcher; it is not a production onboarding step.',
-        enforcedBy: ['render-consistency-check'],
+        aliases: [],
+        enforcedBy: ['render-consistency-check', 'flow qaOnly exclusion'],
       },
       components: {
         rows: [
-          { label: 'component (registry key)', value: 'qa-control' },
-          { label: 'on-screen', value: 'test-user picker and Log in, Restart onboarding (fresh), Replay flow (preview), and Reset data only actions' },
-          { label: 'toolbar toggles', value: 'Vapi on/off reload toggle; QA audio mute/unmute toggle; QA return pill signs out and hard-navigates to /onboarding/qa' },
-          { label: 'selection mode', value: 'choose a QA user; invoke one action' },
+          { label: 'registry component', value: 'qa-control' },
+          { label: 'users', value: 'Fable, Mintesnot, Yair, Alejandro, Yonas, Timothy' },
         ],
         enforcedBy: ['component-registry-check'],
       },
-      rulesCode: [
-        {
-          id: 'qa-control-production-exclusion',
-          rule: 'Never present this QA control screen in a production build path.',
-          severity: 'must',
-          enforcedBy: ['flow generator qaOnly exclusion (NOT-IMPLEMENTED)'],
-        },
-      ],
-      persistence: {
-        rows: [
-          { label: 'selected test user', value: 'reads/writes localStorage key gg_qa_test_user; live user list is fetched from /api/qa/users with fallback users' },
-          { label: 'sign-in', value: 'signs in the selected QA account and attempts to set auth metadata nickname' },
-          { label: 'restart/reset', value: 'POST /api/qa/self-reset with the session bearer token; clears the local thread for anon_id and query cache' },
-          { label: 'replay preview', value: 'clears query cache, then navigates to /onboarding-flow-preview; saved data is untouched and not loaded' },
-          { label: 'toolbar toggles', value: 'QA Vapi and QA audio mute state are written by qaVapi/qaSound helpers; Vapi reloads after its write' },
-        ],
-        watchOut: 'The details above are derived from QAControlScreen.tsx, QAFab.tsx, QASoundToggle.tsx, and QAVapiToggle.tsx in the real app source.',
-        enforcedBy: ['manual QA launcher check'],
-      },
       flow: {
-        rows: [
-          { label: 'entry route', value: '/onboarding/qa' },
-          { label: 'log in', value: 'sign in selected user, clear query cache, navigate to /; AppGate chooses home or onboarding resume' },
-          { label: 'restart onboarding (fresh)', value: 'sign in, reset server data for server flows, clear cache, then hard-navigate to the selected flow' },
-          { label: 'replay flow (preview)', value: 'sign in, clear cache, navigate to /onboarding-flow-preview without resetting data' },
-          { label: 'reset data only', value: 'sign in, reset data, clear cache, remain on QA control with a confirmation notice' },
-        ],
-        enforcedBy: ['manual QA launcher check'],
-      },
-      edges: {
-        rows: [
-          { edge: 'user picked', behavior: 'selection is retained in gg_qa_test_user when storage is available; live users replace fallback users when fetched' },
-          { edge: 'toolbar: Vapi off/on', behavior: 'toggles QA Vapi state and reloads because onboarding chat configuration is module-load state' },
-          { edge: 'toolbar: mute QA audio', behavior: 'toggles QA audio muted state without stopping the beat sequence' },
-          { edge: 'toolbar: QA return', behavior: 'best-effort sign-out then full navigation to /onboarding/qa, dropping in-memory state' },
-        ],
-        enforcedBy: ['manual QA launcher check'],
-      },
-      acceptance: {
-        rows: [
-          { criterion: 'A picked test user is shown and retained across launcher reloads when localStorage is available.', check: 'manual' },
-          { criterion: 'Log in signs in the picked user and routes through AppGate to home or onboarding resume.', check: 'manual' },
-          { criterion: 'Restart onboarding (fresh) wipes server-flow data, clears client caches, and launches the selected flow with a hard navigation.', check: 'manual' },
-          { criterion: 'Replay flow (preview) opens /onboarding-flow-preview without resetting or loading saved data.', check: 'manual' },
-          { criterion: 'Reset data only wipes the picked user data, clears caches, and leaves the tester on QA control with a confirmation.', check: 'manual' },
-          { criterion: 'Vapi toggle reloads after its state write; QA audio toggle mutes/unmutes onboarding audio; QA return signs out and hard-navigates back to the launcher.', check: 'manual' },
-        ],
-        enforcedBy: ['manual QA launcher check'],
+        rows: [{ label: 'production flow', value: 'excluded by qaOnly' }],
+        enforcedBy: ['flow qaOnly exclusion'],
       },
     },
-    io: {
-      dataIn: [
-        { key: 'gg_qa_test_user', from: 'user', persistsTo: 'localStorage', note: 'selected QA account' },
-        { key: '/api/qa/users', from: 'server-hydration', note: 'live QA user list, with fallback users' },
-      ],
-      dataOut: [
-        { key: 'QA account session', from: 'user', writtenBy: 'ensureSignedIn', note: 'selected account sign-in' },
-        { key: 'QA user data', from: 'user', writtenBy: 'selfReset', note: 'server reset for restart/reset actions' },
-        { key: 'QA Vapi/audio preferences', from: 'user', writtenBy: 'qaVapi/qaSound helpers', note: 'toolbar toggle state' },
-      ],
-    },
+    io: { dataIn: [], dataOut: [] },
   },
   {
     id: 'onboarding-beat-1-splash',
