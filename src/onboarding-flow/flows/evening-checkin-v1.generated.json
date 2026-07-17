@@ -121,7 +121,9 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": ["complete_habit"]
+          "allowedTools": [
+            "complete_habit"
+          ]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -144,16 +146,22 @@
           "backId": "evening-greeting",
           "persistStep": null,
           "pathField": false,
-          "captureFields": ["habitStatuses"],
+          "captureFields": [
+            "habitStatuses"
+          ],
           "toolName": "complete_habit",
           "toolAdvancesStep": true,
-          "toolPersistsFields": ["habitStatuses"]
+          "toolPersistsFields": [
+            "habitStatuses"
+          ]
         },
         "authoring": {}
       },
       "tool": {
         "toolName": "complete_habit",
-        "persistsFields": ["habitStatuses"],
+        "persistsFields": [
+          "habitStatuses"
+        ],
         "advancesStep": true
       },
       "persist": null
@@ -291,7 +299,9 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": ["log_reflection"]
+          "allowedTools": [
+            "log_reflection"
+          ]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -314,16 +324,22 @@
           "backId": "evening-are-you-done",
           "persistStep": null,
           "pathField": false,
-          "captureFields": ["reflectionText"],
+          "captureFields": [
+            "reflectionText"
+          ],
           "toolName": "log_reflection",
           "toolAdvancesStep": true,
-          "toolPersistsFields": ["reflectionText"]
+          "toolPersistsFields": [
+            "reflectionText"
+          ]
         },
         "authoring": {}
       },
       "tool": {
         "toolName": "log_reflection",
-        "persistsFields": ["reflectionText"],
+        "persistsFields": [
+          "reflectionText"
+        ],
         "advancesStep": true
       },
       "persist": null

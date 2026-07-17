@@ -93,7 +93,12 @@
       },
       "componentType": "state-check",
       "componentProps": {
-        "dimensions": ["sleep", "mood", "energy", "stress"]
+        "dimensions": [
+          "sleep",
+          "mood",
+          "energy",
+          "stress"
+        ]
       },
       "voice": {
         "openerText": "How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Tap what fits or just tell me.",
@@ -123,7 +128,9 @@
         "fill": {
           "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": ["record_checkin"]
+          "allowedTools": [
+            "record_checkin"
+          ]
         },
         "path": "path-3-direct-llm",
         "orb": {
@@ -146,16 +153,22 @@
           "backId": "morning-greeting",
           "persistStep": null,
           "pathField": false,
-          "captureFields": ["checkin"],
+          "captureFields": [
+            "checkin"
+          ],
           "toolName": "record_checkin",
           "toolAdvancesStep": true,
-          "toolPersistsFields": ["checkin"]
+          "toolPersistsFields": [
+            "checkin"
+          ]
         },
         "authoring": {}
       },
       "tool": {
         "toolName": "record_checkin",
-        "persistsFields": ["checkin"],
+        "persistsFields": [
+          "checkin"
+        ],
         "advancesStep": true
       },
       "persist": null

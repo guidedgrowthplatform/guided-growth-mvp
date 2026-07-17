@@ -4,81 +4,75 @@
 
 /** Which componentType owns a persist step, per fork lane (spine beats own both). */
 export const STEP_OWNERS: Record<number, Partial<Record<string, string>>> = {
-  '1': {
-    simple: 'profile-input',
-    braindump: 'profile-input',
+  "1": {
+    "simple": "profile-input",
+    "braindump": "profile-input"
   },
-  '2': {
-    simple: 'path-selection',
-    braindump: 'path-selection',
+  "2": {
+    "simple": "path-selection",
+    "braindump": "path-selection"
   },
-  '3': {
-    simple: 'category-grid',
-    braindump: 'advanced-capture',
+  "3": {
+    "simple": "category-grid",
+    "braindump": "advanced-capture"
   },
-  '4': {
-    simple: 'goals-list',
-    braindump: 'advanced-frequency',
+  "4": {
+    "simple": "goals-list",
+    "braindump": "advanced-frequency"
   },
-  '5': {
-    simple: 'habit-picker',
+  "5": {
+    "simple": "habit-picker"
   },
-  '6': {
-    simple: 'state-check',
-    braindump: 'state-check',
+  "6": {
+    "simple": "state-check",
+    "braindump": "state-check"
   },
-  '7': {
-    simple: 'morning-checkin-setup',
-    braindump: 'morning-checkin-setup',
+  "7": {
+    "simple": "morning-checkin-setup",
+    "braindump": "morning-checkin-setup"
   },
-  '8': {
-    simple: 'reflection-card',
-    braindump: 'reflection-card',
+  "8": {
+    "simple": "reflection-card",
+    "braindump": "reflection-card"
   },
-  '9': {
-    simple: 'weekly-day-picker',
-    braindump: 'weekly-day-picker',
-  },
+  "9": {
+    "simple": "weekly-day-picker",
+    "braindump": "weekly-day-picker"
+  }
 };
 
 /** The componentType being LEFT at each STORED step (one-ahead display scale), per lane. */
 /** The forward advance gate prefers this over STEP_OWNERS (B50). */
 export const ADVANCE_GATE_OWNERS: Record<number, Partial<Record<string, string>>> = {
-  '1': {
-    simple: 'profile-input',
-    braindump: 'profile-input',
+  "1": {
+    "simple": "profile-input",
+    "braindump": "profile-input"
   },
-  '2': {
-    simple: 'path-selection',
-    braindump: 'path-selection',
+  "2": {
+    "simple": "path-selection",
+    "braindump": "path-selection"
   },
-  '3': {
-    simple: 'category-grid',
-    braindump: 'advanced-capture',
+  "3": {
+    "simple": "category-grid",
+    "braindump": "advanced-capture"
   },
-  '4': {
-    simple: 'goals-list',
-    braindump: 'advanced-frequency',
+  "4": {
+    "simple": "goals-list",
+    "braindump": "advanced-frequency"
   },
-  '5': {
-    simple: 'habit-picker',
+  "5": {
+    "simple": "habit-picker"
   },
-  '6': {
-    simple: 'habit-schedule',
-  },
+  "6": {
+    "simple": "habit-schedule"
+  }
 };
 
 /** Identity beats: the data tool saves AND advances; never advance_step here. */
-export const SELF_ADVANCING_SCREENS: readonly string[] = [
-  'ONBOARD-STATE-CHECK',
-  'ONBOARD-MORNING-SETUP',
-  'ONBOARD-BEGINNER-07',
-  'ONBOARD-WEEKLY-SETUP',
-];
+export const SELF_ADVANCING_SCREENS: readonly string[] = ["ONBOARD-STATE-CHECK","ONBOARD-MORNING-SETUP","ONBOARD-BEGINNER-07","ONBOARD-WEEKLY-SETUP"];
 
 /** The advance_step ladder taught to the LLM (beginner path, one-ahead on shared steps). */
-export const ADVANCE_LADDER =
-  'profile(1)→2, path(2)→3, category(3)→4, goals(4)→5, habit-select(5)→6, habit-schedule(6)→7';
+export const ADVANCE_LADDER = "profile(1)→2, path(2)→3, category(3)→4, goals(4)→5, habit-select(5)→6, habit-schedule(6)→7";
 
 /** Highest identity step; legacy screen ids map past it by hand. */
 export const MAX_STEP = 9;
