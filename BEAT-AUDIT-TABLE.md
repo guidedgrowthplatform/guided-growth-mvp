@@ -1,92 +1,77 @@
-# Beat Audit Table — human review (July 17, 2026)
+18 official beats appear in the onboarding render, in beat-id order: `1` through `18`.
+The render presents five official beats with colon-suffix variations; together those groups contain 47 variation entries.
+This table follows the render’s grouping: one lane-dash official id per row, with its colon-suffix entries directly beneath it.
 
-**Scope.** This is a read-only inventory of all 62 `BEATS_SOURCE` entries in source/play order. “BASE” means an entry with no `parent`; “VARIATION” means an entry with a `parent`. Line citations point to the entry’s `id` in `src/components/flow-designer/beatsSource.ts`.
+# Beat Audit Table
 
-| # | id | BASE BEAT or VARIATION (of which base) | one-line purpose | flags |
-|---:|---|---|---|---|
-| 0 | `onboarding-beat-1-splash` (source: `beatsSource.ts:112`) | BASE BEAT | Shows the silent branded splash before onboarding begins. | ODDITY — separate from the following silent “Get started” affordance; review whether both are needed. |
-| 1 | `onboarding-beat-2-get-started` (source: `beatsSource.ts:278`) | BASE BEAT | Shows the single tap that moves from the brand frame into onboarding. | ODDITY — paired with the preceding splash, creating two pre-conversation structural beats. |
-| 2 | `onboarding-beat-3-coach-greeting` (source: `beatsSource.ts:444`) | BASE BEAT | Plays the coach’s introductory greeting and auto-advances. | — |
-| 3 | `onboarding-beat-4-sign-up` (source: `beatsSource.ts:695`) | BASE BEAT | Collects Apple, Google, or email sign-in. | — |
-| 4 | `onboarding-beat-5-mic-permission` (source: `beatsSource.ts:965`) | BASE BEAT | Requests microphone access, with an Allow/Not now choice. | — |
-| 5 | `onboarding-beat-6-profile:greeting` (source: `beatsSource.ts:1257`) | VARIATION of `onboarding-beat-6-profile` | Plays an auto-advancing profile introduction. | MISSING-BASE — parent has no entry; likely a deliberate two-part profile structural split, but it is not represented by a base entry. ODDITY — same `profile-beat` type as the following input beat. |
-| 6 | `onboarding-beat-6-profile:asks` (source: `beatsSource.ts:1525`) | VARIATION of `onboarding-beat-6-profile` | Collects age and gender by voice or tap. | MISSING-BASE — parent has no entry; likely a deliberate two-part profile structural split, but it is not represented by a base entry. ODDITY — greeting and intake are separate ordered records under one absent parent. |
-| 7 | `onboarding-beat-7-state-check` (source: `beatsSource.ts:1931`) | BASE BEAT | Captures initial sleep, mood, energy, and stress check-in values. | — |
-| 8 | `onboarding-beat-8-morning-checkin-setup` (source: `beatsSource.ts:2376`) | BASE BEAT | Sets the morning check-in time and days. | — |
-| 9 | `onboarding-beat-9-evening-reflection-setup` (source: `beatsSource.ts:2828`) | BASE BEAT | Sets evening reflection style, prompts, and time. | — |
-| 10 | `onboarding-beat-10-experience-fork` (source: `beatsSource.ts:3428`) | BASE BEAT | Routes the person to beginner setup or existing-habit setup. | — |
-| 11 | `onboarding-beginner-beat-11-pick-category` (source: `beatsSource.ts:3856`) | BASE BEAT | Beginner selects one life category to work on. | ODDITY — has one separately ordered artwork variation, so this is a conditional screen rather than a wholly independent next beat. |
-| 12 | `onboarding-beginner-beat-11-pick-category:women` (source: `beatsSource.ts:4364`) | VARIATION of `onboarding-beginner-beat-11-pick-category` | Shows the same category picker with `female` artwork. | ODDITY — a presentation-only artwork variant occupies its own play-order slot; confirm it is conditionally substituted, not played after #11. |
-| 13 | `onboarding-beginner-beat-12-pick-goals:sleep` (source: `beatsSource.ts:4873`) | VARIATION of `onboarding-beginner-beat-12-pick-goals` | Picks one or two goals after “Sleep better” is selected. | MISSING-BASE — no goals base entry exists. Likely a variant-only representation keyed by selected category, but confirm that this is intentional. |
-| 14 | `onboarding-beginner-beat-12-pick-goals:move` (source: `beatsSource.ts:5364`) | VARIATION of `onboarding-beginner-beat-12-pick-goals` | Picks one or two goals after “Move more” is selected. | MISSING-BASE — no goals base entry exists; likely category-conditional structure, confirm. |
-| 15 | `onboarding-beginner-beat-12-pick-goals:eat` (source: `beatsSource.ts:5856`) | VARIATION of `onboarding-beginner-beat-12-pick-goals` | Picks one or two goals after “Eat better” is selected. | MISSING-BASE — no goals base entry exists; likely category-conditional structure, confirm. |
-| 16 | `onboarding-beginner-beat-12-pick-goals:energy` (source: `beatsSource.ts:6348`) | VARIATION of `onboarding-beginner-beat-12-pick-goals` | Picks one or two goals after “Feel more energized” is selected. | MISSING-BASE — no goals base entry exists; likely category-conditional structure, confirm. |
-| 17 | `onboarding-beginner-beat-12-pick-goals:stress` (source: `beatsSource.ts:6841`) | VARIATION of `onboarding-beginner-beat-12-pick-goals` | Picks one or two goals after “Reduce stress” is selected. | MISSING-BASE — no goals base entry exists; likely category-conditional structure, confirm. |
-| 18 | `onboarding-beginner-beat-12-pick-goals:focus` (source: `beatsSource.ts:7333`) | VARIATION of `onboarding-beginner-beat-12-pick-goals` | Picks one or two goals after “Improve focus” is selected. | MISSING-BASE — no goals base entry exists; likely category-conditional structure, confirm. |
-| 19 | `onboarding-beginner-beat-12-pick-goals:break` (source: `beatsSource.ts:7825`) | VARIATION of `onboarding-beginner-beat-12-pick-goals` | Picks one or two goals after “Break bad habits” is selected. | MISSING-BASE — no goals base entry exists; likely category-conditional structure, confirm. |
-| 20 | `onboarding-beginner-beat-12-pick-goals:organize` (source: `beatsSource.ts:8317`) | VARIATION of `onboarding-beginner-beat-12-pick-goals` | Picks one or two goals after “Get more organized” is selected. | MISSING-BASE — no goals base entry exists; likely category-conditional structure, confirm. |
-| 21 | `onboarding-beginner-beat-12-pick-goals:custom` (source: `beatsSource.ts:8808`) | VARIATION of `onboarding-beginner-beat-12-pick-goals` | Captures a user-written goal instead of a category goal list. | MISSING-BASE — no goals base entry exists. ODDITY — switches from `goals-list` to `custom-entry`, so it may be a different interaction, not merely a visual variation. |
-| 22 | `onboarding-beginner-beat-13-pick-habits` (source: `beatsSource.ts:9132`) | BASE BEAT | Picks habits appropriate to the selected goal(s). | ODDITY — one conceptual picker has 30 separately ordered goal/custom variants; do not interpret these as a 31-screen serial sequence without confirming routing. |
-| 23 | `onboarding-beginner-beat-13-pick-habits:fall-asleep-earlier` (source: `beatsSource.ts:9645`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Fall asleep earlier” goal. | — |
-| 24 | `onboarding-beginner-beat-13-pick-habits:wake-earlier` (source: `beatsSource.ts:10143`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Wake up earlier” goal. | — |
-| 25 | `onboarding-beginner-beat-13-pick-habits:sleep-consistently` (source: `beatsSource.ts:10637`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Sleep more consistently” goal. | — |
-| 26 | `onboarding-beginner-beat-13-pick-habits:sleep-deeply` (source: `beatsSource.ts:11136`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Sleep more deeply” goal. | — |
-| 27 | `onboarding-beginner-beat-13-pick-habits:walk-more` (source: `beatsSource.ts:11630`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Walk more” goal. | — |
-| 28 | `onboarding-beginner-beat-13-pick-habits:exercise-consistently` (source: `beatsSource.ts:12124`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Exercise consistently” goal. | — |
-| 29 | `onboarding-beginner-beat-13-pick-habits:mobility` (source: `beatsSource.ts:12624`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Improve mobility” goal. | — |
-| 30 | `onboarding-beginner-beat-13-pick-habits:eat-intentionally` (source: `beatsSource.ts:13118`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Eat more intentionally” goal. | — |
-| 31 | `onboarding-beginner-beat-13-pick-habits:reduce-overeating` (source: `beatsSource.ts:13617`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Reduce overeating” goal. | — |
-| 32 | `onboarding-beginner-beat-13-pick-habits:plan-food` (source: `beatsSource.ts:14115`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Plan food better” goal. | — |
-| 33 | `onboarding-beginner-beat-13-pick-habits:morning-energy` (source: `beatsSource.ts:14609`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Have more morning energy” goal. | — |
-| 34 | `onboarding-beginner-beat-13-pick-habits:avoid-crashes` (source: `beatsSource.ts:15104`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Avoid afternoon crashes” goal. | — |
-| 35 | `onboarding-beginner-beat-13-pick-habits:stable-energy` (source: `beatsSource.ts:15599`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Keep energy more stable” goal. | — |
-| 36 | `onboarding-beginner-beat-13-pick-habits:calmer-day` (source: `beatsSource.ts:16094`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Feel calmer during the day” goal. | — |
-| 37 | `onboarding-beginner-beat-13-pick-habits:evening-stress` (source: `beatsSource.ts:16589`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Reduce evening stress” goal. | — |
-| 38 | `onboarding-beginner-beat-13-pick-habits:less-overwhelmed` (source: `beatsSource.ts:17083`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Feel less overwhelmed” goal. | — |
-| 39 | `onboarding-beginner-beat-13-pick-habits:start-work` (source: `beatsSource.ts:17581`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Start work with less friction” goal. | — |
-| 40 | `onboarding-beginner-beat-13-pick-habits:deeper-work` (source: `beatsSource.ts:18076`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Do deeper work” goal. | — |
-| 41 | `onboarding-beginner-beat-13-pick-habits:procrastinate-less` (source: `beatsSource.ts:18570`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Procrastinate less” goal. | — |
-| 42 | `onboarding-beginner-beat-13-pick-habits:smoking` (source: `beatsSource.ts:19068`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Smoking” goal. | ODDITY — goal wording is a behavior/substance, unlike the improvement-oriented labels; confirm intended user-facing framing. |
-| 43 | `onboarding-beginner-beat-13-pick-habits:weed` (source: `beatsSource.ts:19562`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Weed” goal. | ODDITY — goal wording is terse/ambiguous; confirm whether it means reduce, quit, or manage use. |
-| 44 | `onboarding-beginner-beat-13-pick-habits:alcohol` (source: `beatsSource.ts:20056`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Alcohol” goal. | ODDITY — goal wording is terse/ambiguous; confirm whether it means reduce, quit, or manage use. |
-| 45 | `onboarding-beginner-beat-13-pick-habits:porn` (source: `beatsSource.ts:20550`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Porn” goal. | ODDITY — goal wording is terse/ambiguous and sensitive; confirm framing and appropriateness. |
-| 46 | `onboarding-beginner-beat-13-pick-habits:phone-use` (source: `beatsSource.ts:21044`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Phone use” goal. | ODDITY — goal wording is behavior-only rather than directional; confirm intended framing. |
-| 47 | `onboarding-beginner-beat-13-pick-habits:late-snacking` (source: `beatsSource.ts:21538`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Late-night snacking” goal. | ODDITY — goal wording is behavior-only rather than directional; confirm intended framing. |
-| 48 | `onboarding-beginner-beat-13-pick-habits:caffeine` (source: `beatsSource.ts:22033`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Caffeine” goal. | ODDITY — goal wording is terse/ambiguous; confirm whether it means reduce or time intake. |
-| 49 | `onboarding-beginner-beat-13-pick-habits:stay-on-tasks` (source: `beatsSource.ts:22527`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Stay on top of tasks” goal. | — |
-| 50 | `onboarding-beginner-beat-13-pick-habits:tidy-spaces` (source: `beatsSource.ts:23021`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Keep spaces tidy” goal. | — |
-| 51 | `onboarding-beginner-beat-13-pick-habits:life-admin` (source: `beatsSource.ts:23515`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Offers habits for the “Handle life admin better” goal. | — |
-| 52 | `onboarding-beginner-beat-13-pick-habits:custom` (source: `beatsSource.ts:24008`) | VARIATION of `onboarding-beginner-beat-13-pick-habits` | Captures a user-written habit instead of goal-specific suggested habits. | ODDITY — switches from `habit-picker` to `custom-entry`, so it may be a distinct interaction rather than a simple variation. |
-| 53 | `onboarding-beginner-beat-14-schedule-habits` (source: `beatsSource.ts:24339`) | BASE BEAT | Assigns days to each beginner-selected habit. | — |
-| 54 | `onboarding-advanced-beat-15-capture-existing-habits` (source: `beatsSource.ts:24765`) | BASE BEAT | Captures an advanced user’s existing habits by speech or text. | — |
-| 55 | `onboarding-advanced-beat-16-schedule-existing-habits` (source: `beatsSource.ts:25199`) | BASE BEAT | Sets frequency/days for advanced users’ existing habits. | — |
-| 56 | `onboarding-beat-17-plan-review` (source: `beatsSource.ts:25624`) | BASE BEAT | Shows the proposed plan for approval or editing. | — |
-| 57 | `onboarding-beat-18-week-projection:empty` (source: `beatsSource.ts:25977`) | VARIATION of `onboarding-beat-18-week-projection` | Shows projection frame 1: blank starting state. | MISSING-BASE — no projection base entry exists. This appears to be an intentional five-frame closing sequence under an abstract parent, not clearly a missing user-visible screen. |
-| 58 | `onboarding-beat-18-week-projection:best` (source: `beatsSource.ts:26253`) | VARIATION of `onboarding-beat-18-week-projection` | Shows projection frame 2: full/best-case week. | MISSING-BASE — no projection base entry exists; likely intentional frame-sequence structure. |
-| 59 | `onboarding-beat-18-week-projection:likely` (source: `beatsSource.ts:26529`) | VARIATION of `onboarding-beat-18-week-projection` | Shows projection frame 3: 78% likely week. | MISSING-BASE — no projection base entry exists; likely intentional frame-sequence structure. |
-| 60 | `onboarding-beat-18-week-projection:some` (source: `beatsSource.ts:26808`) | VARIATION of `onboarding-beat-18-week-projection` | Shows projection frame 4: 36% partial week. | MISSING-BASE — no projection base entry exists; likely intentional frame-sequence structure. |
-| 61 | `onboarding-beat-18-week-projection:avoid` (source: `beatsSource.ts:27087`) | VARIATION of `onboarding-beat-18-week-projection` | Shows projection frame 5: unreported-gap close, then enters the app. | MISSING-BASE — no projection base entry exists; likely intentional frame-sequence structure. |
+| # | official id | purpose | # variations | voice engine | tools |
+|---:|---|---|---:|---|---|
+| 1 | `onboarding-beat-1-splash` | Shows the branded opening splash. | 0 | Silent | — |
+| 2 | `onboarding-beat-2-get-started` | Presents the entry point to begin onboarding. | 0 | Silent | — |
+| 3 | `onboarding-beat-3-coach-greeting` | Introduces the coach and the onboarding conversation. | 0 | MP3 | — |
+| 4 | `onboarding-beat-4-sign-up` | Collects account sign-up details. | 0 | Silent | — |
+| 5 | `onboarding-beat-5-mic-permission` | Requests optional microphone access. | 0 | MP3 | — |
+| 6 | `onboarding-beat-6-profile` | Welcomes the user, then captures profile details. | 2 | Cartesia / MP3 | `submit_profile`, `advance_step` |
+| 6.1 | `:greeting` | Coach greeting with the user’s name. | — | Cartesia | — |
+| 6.2 | `:asks` | Age and gender questions. | — | MP3 | `submit_profile`, `advance_step` |
+| 7 | `onboarding-beat-7-state-check` | Captures the user’s current state. | 0 | MP3 | `record_checkin`, `advance_step` |
+| 8 | `onboarding-beat-8-morning-checkin-setup` | Configures the morning check-in. | 0 | MP3 | `submit_morning_checkin`, `advance_step` |
+| 9 | `onboarding-beat-9-evening-reflection-setup` | Configures the evening reflection. | 0 | MP3 | `submit_reflection_config`, `submit_custom_prompts`, `advance_step` |
+| 10 | `onboarding-beat-10-experience-fork` | Selects the beginner or advanced onboarding lane. | 0 | MP3 | `submit_path_choice`, `ask_clarification`, `advance_step` |
+| 11 | `onboarding-beginner-beat-11-pick-category` | Selects the beginner user’s focus category. | 1 | MP3 | `submit_category`, `advance_step` |
+| 11.1 | `:women` | Women’s category artwork. | — | MP3 | `submit_category`, `advance_step` |
+| 12 | `onboarding-beginner-beat-12-pick-goals` | Selects goals within the chosen category. | 9 | MP3 | `submit_goals`, `advance_step` |
+| 12.1 | `:sleep` | Sleep-better goal choices. | — | MP3 | `submit_goals`, `advance_step` |
+| 12.2 | `:move` | Move-more goal choices. | — | MP3 | `submit_goals`, `advance_step` |
+| 12.3 | `:eat` | Eat-better goal choices. | — | MP3 | `submit_goals`, `advance_step` |
+| 12.4 | `:energy` | More-energy goal choices. | — | MP3 | `submit_goals`, `advance_step` |
+| 12.5 | `:stress` | Reduce-stress goal choices. | — | MP3 | `submit_goals`, `advance_step` |
+| 12.6 | `:focus` | Improve-focus goal choices. | — | MP3 | `submit_goals`, `advance_step` |
+| 12.7 | `:break` | Break-bad-habits goal choices. | — | MP3 | `submit_goals`, `advance_step` |
+| 12.8 | `:organize` | Get-organized goal choices. | — | MP3 | `submit_goals`, `advance_step` |
+| 12.9 | `:custom` | User-written goal entry. | — | MP3 | — |
+| 13 | `onboarding-beginner-beat-13-pick-habits` | Selects habits for the chosen goals. | 30 | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.1 | `:fall-asleep-earlier` | Habits for falling asleep earlier. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.2 | `:wake-earlier` | Habits for waking earlier. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.3 | `:sleep-consistently` | Habits for more consistent sleep. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.4 | `:sleep-deeply` | Habits for deeper sleep. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.5 | `:walk-more` | Habits for walking more. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.6 | `:exercise-consistently` | Habits for consistent exercise. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.7 | `:mobility` | Habits for improving mobility. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.8 | `:eat-intentionally` | Habits for eating more intentionally. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.9 | `:reduce-overeating` | Habits for reducing overeating. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.10 | `:plan-food` | Habits for planning food better. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.11 | `:morning-energy` | Habits for more morning energy. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.12 | `:avoid-crashes` | Habits for avoiding afternoon crashes. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.13 | `:stable-energy` | Habits for steadier energy. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.14 | `:calmer-day` | Habits for a calmer day. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.15 | `:evening-stress` | Habits for reducing evening stress. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.16 | `:less-overwhelmed` | Habits for feeling less overwhelmed. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.17 | `:start-work` | Habits for starting work with less friction. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.18 | `:deeper-work` | Habits for deeper work. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.19 | `:procrastinate-less` | Habits for procrastinating less. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.20 | `:smoking` | Habits associated with smoking. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.21 | `:weed` | Habits associated with weed. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.22 | `:alcohol` | Habits associated with alcohol. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.23 | `:porn` | Habits associated with porn. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.24 | `:phone-use` | Habits associated with phone use. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.25 | `:late-snacking` | Habits for late-night snacking. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.26 | `:caffeine` | Habits associated with caffeine. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.27 | `:stay-on-tasks` | Habits for staying on top of tasks. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.28 | `:tidy-spaces` | Habits for keeping spaces tidy. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.29 | `:life-admin` | Habits for handling life admin better. | — | MP3 | `add_habit`, `remove_habit`, `advance_step` |
+| 13.30 | `:custom` | User-written habit entry. | — | MP3 | — |
+| 14 | `onboarding-beginner-beat-14-schedule-habits` | Schedules the beginner-selected habits. | 0 | MP3 | `add_habit`, `update_habit`, `advance_step` |
+| 15 | `onboarding-advanced-beat-15-capture-existing-habits` | Captures an advanced user’s existing habits. | 0 | MP3 | `submit_brain_dump`, `advance_step` |
+| 16 | `onboarding-advanced-beat-16-schedule-existing-habits` | Sets frequency for existing advanced-user habits. | 0 | MP3 | `add_habit`, `update_habit`, `advance_step` |
+| 17 | `onboarding-beat-17-plan-review` | Reviews and confirms the proposed plan. | 0 | MP3 | `update_habit`, `confirm_plan` |
+| 18 | `onboarding-beat-18-week-projection` | Shows the week-projection sequence before entering the app. | 5 | MP3 | — |
+| 18.1 | `:empty` | Blank starting week. | — | MP3 | — |
+| 18.2 | `:best` | Full best-case week. | — | MP3 | — |
+| 18.3 | `:likely` | 78% likely week. | — | MP3 | — |
+| 18.4 | `:some` | 36% partial week. | — | MP3 | — |
+| 18.5 | `:avoid` | Unreported-gap close. | — | MP3 | — |
 
-## Count Yair can quote
+## Source-matches-render proposal
 
-- **62 source entries total**: **15 literal BASE beats** (entries without `parent`) and **47 VARIATION entries** (entries with `parent`).
-- The source is not a literal 62-screen journey: at minimum, the 30 habit variants, 9 goal variants, category-art variant, and 5 projection frames encode conditional/content/frame detail.
-
-## Variation count by family
-
-| family / parent | variations | base entry present? | review reading |
-|---|---:|---|---|
-| `onboarding-beat-6-profile` | 2 | No | Structural split: greeting + asks; represent an explicit base/group if the parent is meant to be navigable. |
-| `onboarding-beginner-beat-11-pick-category` | 1 | Yes | Conditional presentation variant (`female` art). |
-| `onboarding-beginner-beat-12-pick-goals` | 9 | No | Category/custom-specific goal screens; likely variant-only model, but parent is structurally absent. |
-| `onboarding-beginner-beat-13-pick-habits` | 30 | Yes | Goal/custom-specific habit content variants. |
-| `onboarding-beat-18-week-projection` | 5 | No | Intentional-looking ordered closing frames; parent works as a grouping abstraction, not a screen. |
-
-## Cleanup proposal
-
-1. **Separate the model layers:** retain a compact canonical flow (roughly the conceptual onboarding beats) and move category/goal/habit/projection alternatives into explicit variant data rather than treating every alternative as a peer in play order.
-2. **Make absent parents intentional in the schema:** either add non-playable grouping/base records for profile, goals, and projection, or replace `parent` with a `family`/`variantOf` convention that does not imply a missing entry.
-3. **Define play-order semantics for variants:** document whether `order` is global source ordering, conditional routing order, or projection-frame order; the women-art and 30 habit alternatives otherwise read as serial steps.
-4. **Review the opening trilogy:** decide whether `Splash` → `Get started` → `Coach greeting` is all necessary, or whether one structural/intro record can be removed or consolidated.
-5. **Normalize goal labels before review:** clarify directional copy for smoking, weed, alcohol, porn, phone use, late-night snacking, and caffeine; several labels name a behavior without stating the desired outcome.
-6. **Check custom entries as distinct interactions:** the goals and habits `custom` records change type to `custom-entry`; decide whether they should remain beat variants or become a reusable inline capture path.
+**Proposal — no changes made.** Reshape `src/components/flow-designer/beatsSource.ts` so it exports an ordered collection of 18 official beat entries keyed by the lane-dash ids above. Put each colon-suffix entry in that official entry’s `variations` array, retaining its suffix, render fields, and order. Derive the flat playback list only where the renderer needs it, while `FlowDesigner` reads the nested shape for its groups. **Estimated effort: 0.5–1 day**, including TypeScript type updates and focused render/playback regression checks.

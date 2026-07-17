@@ -13,7 +13,13 @@ import {
 import { kindOf, raf, runBeatNarration, runBeatScript, sample, stopSpeech } from './beatNarration';
 import { BEAT_DEFS } from './beats';
 import { COACH_BG } from './beats/_beatStyle';
-import { BEATS_SOURCE, BEAT_BY_ID, type BeatEntry, type ScriptLine } from './beatsSource';
+import {
+  BEATS_SOURCE,
+  BEAT_BY_ID,
+  GLOBAL_CONTEXT,
+  type BeatEntry,
+  type ScriptLine,
+} from './beatsSource';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 
 /**
@@ -581,9 +587,15 @@ function ContextTable({
   if (!rows.length) return <NoneMarker />;
 
   return (
-    <div style={{ overflowX: 'auto', border: '1px solid #eef2f7', borderRadius: 8 }}>
+    <div style={{ border: '1px solid #eef2f7', borderRadius: 8 }}>
       <table
-        style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10.5, color: '#334155' }}
+        style={{
+          width: '100%',
+          tableLayout: 'fixed',
+          borderCollapse: 'collapse',
+          fontSize: 10.5,
+          color: '#334155',
+        }}
       >
         <thead style={{ background: '#f8fafc', color: '#64748b' }}>
           <tr>
@@ -611,7 +623,12 @@ function ContextTable({
               {row.map((cell, cellIndex) => (
                 <td
                   key={cellIndex}
-                  style={{ padding: '6px 7px', lineHeight: 1.35, verticalAlign: 'top' }}
+                  style={{
+                    padding: '6px 7px',
+                    lineHeight: 1.35,
+                    verticalAlign: 'top',
+                    overflowWrap: 'anywhere',
+                  }}
                 >
                   {cell || <NoneMarker />}
                 </td>
@@ -621,6 +638,81 @@ function ContextTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+function ContextRows({
+  rows,
+  watchOut,
+  enforcedBy,
+  status,
+  pending,
+}: {
+  rows: readonly { readonly label: string; readonly value: string }[];
+  watchOut?: string;
+  enforcedBy?: readonly string[];
+  status?: string;
+  pending?: boolean;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {rows.map((row) => (
+        <ContextKeyValue key={row.label} label={row.label} value={row.value} />
+      ))}
+      {watchOut && <ContextKeyValue label="Watch out" value={watchOut} />}
+      {status && <ContextKeyValue label="Source status" value={status} />}
+      {pending && <ContextKeyValue label="Pending" value="yes" />}
+      {enforcedBy?.length ? (
+        <ContextKeyValue label="Enforced by" value={enforcedBy.join(', ')} />
+      ) : null}
+    </div>
+  );
+}
+
+function GlobalContextPanel() {
+  return (
+    <details
+      data-rail-section="global-context"
+      style={{
+        maxWidth: TOTAL_W,
+        margin: '0 auto 24px',
+        padding: '14px 16px',
+        border: '1px solid #cbd5e1',
+        borderRadius: 14,
+        background: '#fff',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+      }}
+    >
+      <summary
+        style={{
+          cursor: 'pointer',
+          fontSize: 12,
+          fontWeight: 800,
+          color: '#334155',
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+        }}
+      >
+        Global coach context and rules — expand to read all
+      </summary>
+      <pre
+        style={{
+          margin: '12px 0 0',
+          whiteSpace: 'pre-wrap',
+          overflowWrap: 'anywhere',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          fontSize: 11,
+          lineHeight: 1.5,
+          color: '#334155',
+          background: '#f8fafc',
+          border: '1px solid #eef2f7',
+          borderRadius: 8,
+          padding: '10px 12px',
+        }}
+      >
+        {GLOBAL_CONTEXT}
+      </pre>
+    </details>
   );
 }
 
@@ -711,6 +803,51 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
           </div>
         </ContextSection>
 
+        <ContextSection title="Render metadata">
+          <ContextRows
+            rows={[
+              { label: 'Name', value: entry.name },
+              { label: 'Order', value: String(entry.order) },
+              { label: 'Voice engine', value: entry.voiceEngine },
+              { label: 'Voice mode', value: entry.voiceMode ?? 'none' },
+              { label: 'Hide orb', value: entry.hideOrb ? 'yes' : 'no' },
+              ...(entry.parent ? [{ label: 'Parent beat', value: entry.parent }] : []),
+              ...(entry.elements?.length
+                ? [{ label: 'Named elements', value: entry.elements.join(', ') }]
+                : []),
+              ...(entry.spokenContent ? [{ label: 'Spoken content', value: entry.spokenContent }] : []),
+              ...(entry.variable ? [{ label: 'Variable copy', value: 'yes' }] : []),
+              ...(entry.openerMode ? [{ label: 'Opener mode', value: entry.openerMode }] : []),
+              ...(entry.openerShowsAsBubble !== undefined
+                ? [{ label: 'Opener shows as bubble', value: entry.openerShowsAsBubble ? 'yes' : 'no' }]
+                : []),
+            ]}
+          />
+          {entry.perElement?.length ? (
+            <div style={{ marginTop: 8 }}>
+              <ContextTable
+                columns={['element', 'line', 'order', 'shows as bubble']}
+                rows={entry.perElement.map((item) => [
+                  item.elementId,
+                  item.line,
+                  String(item.order),
+                  item.showsAsBubble ? 'yes' : 'no',
+                ])}
+              />
+            </div>
+          ) : null}
+        </ContextSection>
+
+        <ContextSection title="Section coverage">
+          <ContextTable
+            columns={['section', 'status']}
+            rows={Object.entries(entry.bible?.sectionManifest ?? {}).map(([section, status]) => [
+              section,
+              typeof status === 'string' ? status : status.na,
+            ])}
+          />
+        </ContextSection>
+
         <ContextSection
           title={entry.context ? 'Coach behavior context' : 'Coach behavior context (none)'}
         >
@@ -727,8 +864,7 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
                 border: '1px solid #eef2f7',
                 borderRadius: 8,
                 padding: '10px 12px',
-                maxHeight: 260,
-                overflow: 'auto',
+                overflowWrap: 'anywhere',
               }}
             >
               {entry.context}
@@ -752,8 +888,91 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
           )}
         </ContextSection>
 
+        <ContextSection title="Identity">
+          {entry.bible?.identity ? (
+            <>
+              <ContextRows
+                rows={entry.bible.identity.rows}
+                watchOut={entry.bible.identity.watchOut}
+                enforcedBy={entry.bible.identity.enforcedBy}
+                status={entry.bible.identity.status}
+              />
+              <div style={{ marginTop: 8 }}>
+                <ContextSubheading>Aliases</ContextSubheading>
+                <div style={{ marginTop: 6 }}>
+                  <ContextTable
+                    columns={['surface', 'value']}
+                    rows={entry.bible.identity.aliases.map((alias) => [alias.surface, alias.value])}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <NoneMarker />
+          )}
+        </ContextSection>
+
+        <ContextSection title="Components">
+          {entry.bible?.components ? (
+            <ContextRows
+              rows={entry.bible.components.rows}
+              watchOut={entry.bible.components.watchOut}
+              enforcedBy={entry.bible.components.enforcedBy}
+              status={entry.bible.components.status}
+            />
+          ) : (
+            <NoneMarker />
+          )}
+        </ContextSection>
+
+        <ContextSection title="Voice">
+          {entry.bible?.voice ? (
+            <>
+              <ContextRows
+                rows={entry.bible.voice.rows}
+                watchOut={entry.bible.voice.assertion}
+                enforcedBy={entry.bible.voice.enforcedBy}
+                status={entry.bible.voice.status}
+              />
+              <div style={{ marginTop: 8 }}>
+                <ContextTable
+                  columns={['script line', 'resolves to', 'live allowed']}
+                  rows={entry.bible.voice.perLine.map((line) => [
+                    String(line.seq),
+                    line.resolvesTo,
+                    line.liveAllowed,
+                  ])}
+                />
+              </div>
+            </>
+          ) : (
+            <NoneMarker />
+          )}
+        </ContextSection>
+
+        <ContextSection title="Context prose">
+          {entry.bible?.contextProse ? (
+            <ContextRows
+              rows={[{ label: 'Prose', value: entry.bible.contextProse.prose }]}
+              enforcedBy={entry.bible.contextProse.enforcedBy}
+              status={entry.bible.contextProse.status}
+              pending={entry.bible.contextProse.pending}
+            />
+          ) : (
+            <NoneMarker />
+          )}
+        </ContextSection>
+
         <ContextSection title="Persistence">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {entry.bible?.persistence && (
+              <ContextRows
+                rows={entry.bible.persistence.rows}
+                watchOut={entry.bible.persistence.watchOut}
+                enforcedBy={entry.bible.persistence.enforcedBy}
+                status={entry.bible.persistence.status}
+              />
+            )}
             <ContextSubheading>Data in</ContextSubheading>
             <ContextTable
               columns={['key', 'from', 'written by', 'table / column', 'note']}
@@ -787,6 +1006,18 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
                 value={entry.bible.allowedTools.tools.join(', ') || <NoneMarker />}
               />
               <ContextKeyValue label="Call rules" value={entry.bible.allowedTools.callRules} />
+              {entry.bible.allowedTools.note && (
+                <ContextKeyValue label="Note" value={entry.bible.allowedTools.note} />
+              )}
+              {entry.bible.allowedTools.status && (
+                <ContextKeyValue label="Source status" value={entry.bible.allowedTools.status} />
+              )}
+              {entry.bible.allowedTools.enforcedBy.length ? (
+                <ContextKeyValue
+                  label="Enforced by"
+                  value={entry.bible.allowedTools.enforcedBy.join(', ')}
+                />
+              ) : null}
               <ContextTable
                 columns={['tool', 'argument schema', 'when']}
                 rows={entry.bible.allowedTools.specs.map((spec) => [
@@ -838,6 +1069,13 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
                   </div>
                 );
               })}
+              {entry.bible?.scriptMeta && (
+                <ContextRows
+                  rows={[]}
+                  enforcedBy={entry.bible.scriptMeta.enforcedBy}
+                  status={entry.bible.scriptMeta.status}
+                />
+              )}
             </div>
           ) : (
             <NoneMarker />
@@ -869,10 +1107,79 @@ function SourceOfTruthPanel({ beat }: { beat: FlowBeat }) {
         </ContextSection>
 
         <ContextSection title="Acceptance">
-          <ContextTable
-            columns={['criterion', 'check']}
-            rows={(entry.bible?.acceptance?.rows ?? []).map((row) => [row.criterion, row.check])}
-          />
+          {entry.bible?.acceptance ? (
+            <>
+              <ContextTable
+                columns={['criterion', 'check']}
+                rows={entry.bible.acceptance.rows.map((row) => [row.criterion, row.check])}
+              />
+              <div style={{ marginTop: 8 }}>
+                <ContextRows
+                  rows={[]}
+                  enforcedBy={entry.bible.acceptance.enforcedBy}
+                  status={entry.bible.acceptance.status}
+                />
+              </div>
+            </>
+          ) : (
+            <NoneMarker />
+          )}
+        </ContextSection>
+
+        <ContextSection title="Flow">
+          {entry.bible?.flow ? (
+            <ContextRows
+              rows={entry.bible.flow.rows}
+              enforcedBy={entry.bible.flow.enforcedBy}
+              status={entry.bible.flow.status}
+            />
+          ) : (
+            <NoneMarker />
+          )}
+        </ContextSection>
+
+        <ContextSection title="Edges">
+          {entry.bible?.edges ? (
+            <>
+              <ContextTable
+                columns={['edge', 'behavior', 'voice']}
+                rows={entry.bible.edges.rows.map((row) => [row.edge, row.behavior, row.voice])}
+              />
+              <div style={{ marginTop: 8 }}>
+                <ContextRows
+                  rows={[]}
+                  enforcedBy={entry.bible.edges.enforcedBy}
+                  status={entry.bible.edges.status}
+                />
+              </div>
+            </>
+          ) : (
+            <NoneMarker />
+          )}
+        </ContextSection>
+
+        <ContextSection title="Applicable decisions">
+          {entry.bible?.applicableDecisions ? (
+            <>
+              <ContextTable
+                columns={['decision', 'binds', 'how']}
+                rows={entry.bible.applicableDecisions.rows.map((row) => [
+                  row.decision,
+                  row.binds ? 'yes' : 'no',
+                  row.how,
+                ])}
+              />
+              <div style={{ marginTop: 8 }}>
+                <ContextRows
+                  rows={[]}
+                  enforcedBy={entry.bible.applicableDecisions.enforcedBy}
+                  status={entry.bible.applicableDecisions.status}
+                />
+              </div>
+            </>
+          ) : (
+            <NoneMarker />
+          )}
         </ContextSection>
 
         <ContextSection title="Rules">
@@ -1775,24 +2082,27 @@ export function FlowDesigner() {
         />
         <VoiceLegend />
         {tab.id === 'onboarding' && (
-          <label
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 12.5,
-              color: '#64748b',
-              cursor: 'pointer',
-              marginBottom: 16,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={showExpectedUser}
-              onChange={(e) => setShowExpectedUser(e.target.checked)}
-            />
-            Show expected user response under each coach line
-          </label>
+          <>
+            <GlobalContextPanel />
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12.5,
+                color: '#64748b',
+                cursor: 'pointer',
+                marginBottom: 16,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={showExpectedUser}
+                onChange={(e) => setShowExpectedUser(e.target.checked)}
+              />
+              Show expected user response under each coach line
+            </label>
+          </>
         )}
       </div>
 
