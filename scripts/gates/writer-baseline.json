@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "tables": {
+    "chat_messages": {
+      "count": 8,
+      "statements": [
+        {
+          "path": "api/chat/[...path].ts",
+          "line": 235,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/llm/[...path].ts",
+          "line": 561,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/llm/[...path].ts",
+          "line": 571,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/llm/[...path].ts",
+          "line": 595,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/qa-reset.ts",
+          "line": 166,
+          "form": "sql-delete"
+        },
+        {
+          "path": "api/qa-reset.ts",
+          "line": 21,
+          "form": "sql-delete"
+        },
+        {
+          "path": "api/qa/__tests__/self-reset.test.ts",
+          "line": 114,
+          "form": "sql-delete"
+        },
+        {
+          "path": "api/qa/self-reset.ts",
+          "line": 76,
+          "form": "sql-delete"
+        }
+      ]
+    },
+    "chat_sessions": {
+      "count": 7,
+      "statements": [
+        {
+          "path": "api/chat/[...path].ts",
+          "line": 245,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/chat/[...path].ts",
+          "line": 429,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/qa-reset.ts",
+          "line": 161,
+          "form": "sql-delete"
+        },
+        {
+          "path": "api/qa-reset.ts",
+          "line": 20,
+          "form": "sql-delete"
+        },
+        {
+          "path": "api/qa/__tests__/self-reset.test.ts",
+          "line": 113,
+          "form": "sql-delete"
+        },
+        {
+          "path": "api/qa/__tests__/self-reset.test.ts",
+          "line": 175,
+          "form": "sql-delete"
+        },
+        {
+          "path": "api/qa/self-reset.ts",
+          "line": 74,
+          "form": "sql-delete"
+        }
+      ]
+    },
+    "session_log": {
+      "count": 16,
+      "statements": [
+        {
+          "path": "api/_lib/__tests__/llm-route-error-paths.test.ts",
+          "line": 319,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/_lib/__tests__/llm-route-error-paths.test.ts",
+          "line": 437,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/_lib/llm/__tests__/tools.test.ts",
+          "line": 183,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/_lib/llm/parseBrainDump.ts",
+          "line": 136,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/_lib/llm/tools.ts",
+          "line": 222,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/_lib/llm/tools.ts",
+          "line": 263,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/llm/[...path].ts",
+          "line": 471,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/llm/[...path].ts",
+          "line": 496,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/qa-reset.ts",
+          "line": 169,
+          "form": "sql-delete"
+        },
+        {
+          "path": "api/qa-reset.ts",
+          "line": 22,
+          "form": "sql-delete"
+        },
+        {
+          "path": "api/qa/__tests__/self-reset.test.ts",
+          "line": 115,
+          "form": "sql-delete"
+        },
+        {
+          "path": "api/qa/self-reset.ts",
+          "line": 78,
+          "form": "sql-delete"
+        },
+        {
+          "path": "api/session_log/[...path].ts",
+          "line": 62,
+          "form": "sql-insert"
+        },
+        {
+          "path": "api/session_log/[...path].ts",
+          "line": 66,
+          "form": "sql-insert"
+        },
+        {
+          "path": "scripts/perf-session-log.mjs",
+          "line": 53,
+          "form": "sql-insert"
+        },
+        {
+          "path": "scripts/perf-session-log.mjs",
+          "line": 99,
+          "form": "sql-delete"
+        }
+      ]
+    },
+    "beat_contexts": {
+      "count": 0,
+      "statements": []
+    },
+    "screen_contexts": {
+      "count": 3,
+      "statements": [
+        {
+          "path": "scripts/perf-context.mjs",
+          "line": 159,
+          "form": "sql-insert"
+        },
+        {
+          "path": "scripts/perf-context.mjs",
+          "line": 174,
+          "form": "sql-update"
+        },
+        {
+          "path": "scripts/perf-context.mjs",
+          "line": 217,
+          "form": "sql-delete"
+        }
+      ]
+    }
+  }
+}
