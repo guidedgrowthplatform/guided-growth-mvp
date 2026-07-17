@@ -1,7 +1,7 @@
 # Enforcement Implementation Plan
 
 **Date:** 2026-07-17  
-**Scope:** plan only; no implementation or validation is claimed here.  
+**Scope:** stage 1 is implemented in report mode; remaining stages are planned.  
 **Baseline:** `ENFORCEMENT-AUDIT.md` audits these 15 IDs as 1 REAL, 6 PARTIAL, and 8 NOT IMPLEMENTED.
 
 ## Minimal approach
@@ -12,7 +12,7 @@ Effort: **S** ≤2 engineer-days, **M** 3–5, **L** 6–10, including tests and
 
 ## Sequence
 
-1. Wire the four existing render commands into CI in report mode, then make them required.
+1. ~~Wire the four existing render commands into CI in report mode, then make them required.~~ **Implemented in report mode** as GitLab CI job `render-checks-report`; promotion to required remains pending the reviewed flip criteria below.
 2. Finish deterministic source-contract checks: links, audio, aliases, decisions.
 3. Finish app Vitest controls: components, tools, persistence, advance, and deterministic conversation evals.
 4. Add only the Playwright cases that must observe reveal or navigation timing.
@@ -138,11 +138,11 @@ Effort: **S** ≤2 engineer-days, **M** 3–5, **L** 6–10, including tests and
 
 ## CI wiring
 
-Use the existing `.github/workflows/ci.yml` `build` job after `npm ci` and before the production build.
+Stage 1 is implemented in `.gitlab-ci.yml` as `render-checks-report`. It uses Node 22 and runs on branch pipelines whose changes touch the authored flow-designer render inputs, their checks, dependencies, or this CI definition.
 
-**Report-mode PR, in order:** `npm run check:render`, `npm run check:links`, then `npm run verify:objective1`, each with `continue-on-error: true`. This exposes the three distinct existing outputs; `check:beats` is not also run because it currently duplicates the first two. Each command prints its normal concise failure output to the job log. Do not upload raw stdout, transcripts, database contents, or diagnostics.
+**Report mode (implemented):** `render-checks-report` runs `npm run check:render`, `npm run check:links`, `npm run check:beats` when defined (otherwise records a skip), and `npm run verify:objective1`. Each command prints its normal concise output to the job log. The job records only per-command statuses in `render-checks-summary.txt`, retains it for one week, and is `allow_failure: true`; no raw stdout, transcripts, database contents, or diagnostics are uploaded.
 
-**Required-gate PR, in order:** extend `check:beats` to run `check:render`, `check:links`, and the new static enforcement scripts, then require (1) `npm run check:beats` and (2) `npm run verify:objective1` with normal failing exit codes. The `build` job already gates its dependent release jobs through `needs: build`; no cross-workflow status plumbing is proposed. The report-to-required change is an explicit reviewed PR, not a time/PR counter.
+**Flip-to-required criteria:** an explicit reviewed PR must confirm report-mode reliability, extend `check:beats` with the new static enforcement scripts, remove `allow_failure: true`, and require (1) `npm run check:beats` and (2) `npm run verify:objective1` with normal failing exit codes. This is not an elapsed-time or pipeline-count promotion.
 
 New app Vitest controls run in the app repository's existing test command and become required there. Existing Playwright CI receives only the reveal/navigation cases that cannot run under Vitest.
 

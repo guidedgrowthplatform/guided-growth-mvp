@@ -1,5 +1,6 @@
 stages:
   - sync
+  - render-checks
 
 voice-sync:
   stage: sync
@@ -20,3 +21,64 @@ voice-sync:
     - pip install --cache-dir "$PIP_CACHE_DIR" -r scripts/voice-sync/requirements.txt
   script:
     - python scripts/voice-sync/seed_contexts.py
+
+# Render enforcement is intentionally report-only until an explicit reviewed PR
+# confirms these checks are reliable and promotes the gate. That PR must extend
+# check:beats with the new static enforcement checks, then require check:beats
+# and verify:objective1 with normal failing exit codes. Do not promote based on
+# elapsed time or a pipeline-count threshold.
+render-checks-report:
+  stage: render-checks
+  image: node:22
+  allow_failure: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+      changes:
+        - src/components/flow-designer/**/*
+        - scripts/render-consistency-check.mjs
+        - scripts/render-link-integrity-check.mjs
+        - scripts/verify-objective1.mjs
+        - package.json
+        - package-lock.json
+        - .gitlab-ci.yml
+  before_script:
+    - node --version
+    - npm --version
+    - npm ci --ignore-scripts
+  script:
+    - |
+      set +e
+      : > render-checks-summary.txt
+      overall_status=0
+
+      run_check() {
+        label="$1"
+        shift
+        printf '\n===== %s =====\n' "$label"
+        "$@"
+        status=$?
+        if [ "$status" -eq 0 ]; then
+          result=passed
+        else
+          result="failed (exit $status)"
+          overall_status=1
+        fi
+        printf '%s: %s\n' "$label" "$result" | tee -a render-checks-summary.txt
+      }
+
+      run_check 'npm run check:render' npm run check:render
+      run_check 'npm run check:links' npm run check:links
+
+      if node -e "process.exit(require('./package.json').scripts['check:beats'] ? 0 : 1)"; then
+        run_check 'npm run check:beats' npm run check:beats
+      else
+        printf '%s\n' 'npm run check:beats: skipped (script is not defined)' | tee -a render-checks-summary.txt
+      fi
+
+      run_check 'npm run verify:objective1' npm run verify:objective1
+      exit "$overall_status"
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - render-checks-summary.txt
