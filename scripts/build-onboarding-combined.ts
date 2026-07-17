@@ -7,26 +7,20 @@
  *   - engine metadata (voiceEngine, mode, mp3 clip, fill brain, toggles, engine)
  *       ← the flow builder, via onboarding-beginner-v1.generated.json node.meta
  *         (authored in designer-source.json, produced by npm run flow:sync)
- *   - coach context + opener
- *       ← beatContexts.ts (Master Sheet "Beats Context" tab, synced in)
+ *   - coach context, opener, and allowed tools
+ *       ← contract-generated beat_contexts.json
  *   - globalContext
- *       ← GLOBAL_ONBOARDING_CONTEXT
+ *       ← contract-generated beat_contexts.json
  *
- * So this file lets anyone see everything about a beat in one place. The Sheet
- * stays the source for context and the builder stays the source for metadata;
- * re-run this after `npm run flow:sync` or a context sync. Making THIS file the
- * single authored source (dropping the Sheet for context) is a separate, team
- * decision, not done here.
+ * So this file lets anyone see everything about a beat in one place. The onboarding
+ * contract is the source for coach context and tools; the flow builder remains
+ * the source for engine metadata. Re-run after either changes.
  *
  *   npx tsx scripts/build-onboarding-combined.ts
  */
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
-import {
-  BEAT_CONTEXTS,
-  GLOBAL_ONBOARDING_CONTEXT,
-  BEAT_CONTEXT_VERSION,
-} from '../api/_lib/llm/onboarding/beatContexts.ts';
+import beatContexts from '../src/generated/beat_contexts.json';
 import flow from '../src/onboarding-flow/flows/onboarding-beginner-v1.generated.json';
 
 interface FlowNode {
@@ -36,31 +30,34 @@ interface FlowNode {
   meta?: unknown;
 }
 const nodes = flow.nodes as FlowNode[];
+const contexts = beatContexts.beats as Record<
+  string,
+  { context?: string; opener?: string; allowedTools?: string[] }
+>;
 
 const beats = nodes.map((n) => {
-  const ctx = BEAT_CONTEXTS[n.screenId as keyof typeof BEAT_CONTEXTS] as
-    | { context?: string; opener?: string }
-    | undefined;
+  const ctx = contexts[n.screenId];
   return {
     id: n.id,
     screenId: n.screenId,
     componentType: n.componentType ?? null,
     // engine metadata (flow builder)
     meta: n.meta ?? null,
-    // coach brain (beatContexts.ts, Sheet-synced) — null if this beat has none
+    // coach brain + tools (contract-generated) — null/empty if this beat has none
     coachContext: ctx?.context ?? null,
     opener: ctx?.opener ?? null,
+    allowedTools: ctx?.allowedTools ?? [],
   };
 });
 
 const out = {
   _comment:
     'AUTO-GENERATED unified per-beat view by scripts/build-onboarding-combined.ts. ' +
-    'Merges engine metadata (flow builder) + coach context/opener (beatContexts.ts, Sheet-synced) + global. ' +
-    'Sources of truth unchanged. Re-run after flow:sync or a context sync. Do not edit by hand.',
+    'Merges engine metadata (flow builder) + contract-generated coach context/opener/tools + global. ' +
+    'Re-run after contract generation or flow generation. Do not edit by hand.',
   flowId: (flow as { id?: string }).id ?? 'onboarding-beginner-v1',
-  contextVersion: BEAT_CONTEXT_VERSION,
-  globalContext: GLOBAL_ONBOARDING_CONTEXT,
+  contextVersion: beatContexts.bundleVersion,
+  globalContext: beatContexts.global,
   beats,
 };
 
@@ -69,5 +66,5 @@ writeFileSync(path, JSON.stringify(out, null, 2) + '\n', 'utf-8');
 const withCtx = beats.filter((b) => b.coachContext).length;
 const withMeta = beats.filter((b) => b.meta && Object.keys(b.meta as object).length > 0).length;
 console.log(
-  `Wrote src/generated/onboarding_combined.json (${beats.length} beats, ${withMeta} with engine metadata, ${withCtx} with coach context, global ${GLOBAL_ONBOARDING_CONTEXT.length} chars)`,
+  `Wrote src/generated/onboarding_combined.json (${beats.length} beats, ${withMeta} with engine metadata, ${withCtx} with coach context, global ${beatContexts.global.length} chars)`,
 );
