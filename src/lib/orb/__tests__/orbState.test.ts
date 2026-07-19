@@ -51,6 +51,16 @@ describe('routeOrbSend', () => {
     expect(routeOrbSend({ ...coach, orbState: 'voice_out_only' })).toBe('llm');
     expect(routeOrbSend({ ...coach, orbState: 'voice_in_only' })).toBe('llm');
   });
+  it('coach surface uses Daily only when the client flag is on', () => {
+    const coach = { ...base, surface: 'coach' as const, orbState: 'text_only' as const };
+    expect(routeOrbSend({ ...coach, coachComponentEnabled: true })).toBe('coach');
+    expect(routeOrbSend({ ...coach, coachComponentEnabled: false })).toBe('llm');
+  });
+  it('checkin surface uses Daily only when the client flag is on', () => {
+    const checkin = { ...base, surface: 'checkin' as const, orbState: 'text_only' as const };
+    expect(routeOrbSend({ ...checkin, coachComponentEnabled: true })).toBe('coach');
+    expect(routeOrbSend({ ...checkin, coachComponentEnabled: false })).toBe('checkin');
+  });
 });
 
 // B51: coach ('left') and user-mic ('right'/'ready') amplitude merge for the

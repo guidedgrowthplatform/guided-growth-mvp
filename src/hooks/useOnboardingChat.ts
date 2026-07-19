@@ -6,6 +6,7 @@ import type { OnboardingVoiceResult, VoiceMessage } from '@/contexts/useOnboardi
 import { useChatToolEvents } from '@/hooks/useChatToolEvents';
 import { useLLM } from '@/hooks/useLLM';
 import { useOnboardingChatSession } from '@/hooks/useOnboardingChatSession';
+import { coachComponentEnabled } from '@/lib/coach/coachDailySession';
 import { cardForScreenId } from '@/lib/onboarding/onboardingChatCards';
 import type { OnboardingCard } from '@/lib/onboarding/onboardingChatTypes';
 import { ADVANCING_TOOL_NAMES } from '@/lib/onboarding/onboardingStepBeats';
@@ -771,8 +772,9 @@ export function useOnboardingChat({
         surface: isOnboardingScreen ? 'onboarding' : 'coach',
         isProcessing: false,
         isStreaming: false,
+        coachComponentEnabled: coachComponentEnabled(),
       });
-      if (action === 'noop' || action === 'vapi') return;
+      if (action === 'noop' || action === 'vapi' || action === 'coach') return;
       // Barge-in: a landed user turn cuts the coach's current audio. Reset the
       // speech-turn flags synchronously (ws already torn down by stopTTS).
       stopTTS();

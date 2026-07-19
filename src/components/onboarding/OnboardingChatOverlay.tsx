@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { ChatBubble } from '@/components/voice/ChatBubble';
+import { CoachOrbControls } from '@/components/voice/CoachOrbControls';
 import { OrbControls } from '@/components/voice/OrbControls';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import {
@@ -14,6 +15,7 @@ import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import { useStreamingReveal } from '@/hooks/useStreamingReveal';
+import { coachComponentEnabled } from '@/lib/coach/coachDailySession';
 import { orbStateFrom, resolveActiveRings } from '@/lib/orb/orbState';
 
 interface OnboardingChatOverlayProps {
@@ -55,6 +57,7 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   const [draft, setDraft] = useState('');
   const [partialAssistant, setPartialAssistant] = useState('');
   const [partialUser, setPartialUser] = useState('');
+  const [coachUnavailable, setCoachUnavailable] = useState(false);
   // Vapi has no client-side tool-call events; this fills the user-stops → assistant-starts gap.
   const [waitingForAssistant, setWaitingForAssistant] = useState(false);
   const prevUserSpeakingRef = useRef(false);
@@ -157,6 +160,8 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);
+
+  const useCoachComponent = coachComponentEnabled() && !vapiActive && !coachUnavailable;
 
   const handleToggleMic = useCallback(() => {
     if (!micAllowed) return;
@@ -308,20 +313,27 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
         style={{ paddingBottom: 'max(48px, env(safe-area-inset-bottom))' }}
       >
         <div className="pointer-events-auto">
-          <OrbControls
-            size={91}
-            leftActive={voiceChosen}
-            rightActive={micRuntimeOn}
-            activeRings={dualActiveRings}
-            ringCount={3}
-            ringStep={4}
-            intensity={micRingIntensity}
-            coachIntensity={coachIntensity}
-            micAllowed={micAllowed}
-            onToggleVoice={toggleVoice}
-            onToggleMic={handleToggleMic}
-            onRequestMic={handleRequestMic}
-          />
+          {useCoachComponent ? (
+            <CoachOrbControls
+              onUnavailable={() => setCoachUnavailable(true)}
+              onLeave={handleClose}
+            />
+          ) : (
+            <OrbControls
+              size={91}
+              leftActive={voiceChosen}
+              rightActive={micRuntimeOn}
+              activeRings={dualActiveRings}
+              ringCount={3}
+              ringStep={4}
+              intensity={micRingIntensity}
+              coachIntensity={coachIntensity}
+              micAllowed={micAllowed}
+              onToggleVoice={toggleVoice}
+              onToggleMic={handleToggleMic}
+              onRequestMic={handleRequestMic}
+            />
+          )}
         </div>
 
         <ChatComposer
